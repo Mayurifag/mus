@@ -1,0 +1,44 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Python Development Standards
+
+## Overview
+This document defines the standards and guidelines for Python development in the mus project.
+
+## Code Style
+- Use type hints for all function parameters and return values
+- Follow PEP 8 style guide consistently
+- Use docstrings for all public functions and classes
+- Use async/await for all I/O operations
+- Use context managers for resource management
+
+## Testing Standards
+- Write tests for all public functions and classes
+- Use pytest fixtures for test setup
+- Use pytest-asyncio for async tests
+- Maintain test coverage above 80%
+- Include both unit and integration tests
+
+## Logging Practices
+- Use structlog for all logging
+- Include relevant context in log messages
+- Use appropriate log levels (debug, info, warning, error)
+- Log exceptions with full stack traces
+- Structure logs for easy parsing
+
+## Error Handling
+- Use custom exceptions for domain-specific errors
+- Handle all exceptions at the appropriate level
+- Log all errors with context
+- Return meaningful error messages to clients
+- Document error handling strategies
+
+## Dependency Management
+- Use uv for package management
+- Pin all dependencies to specific versions
+- Document all dependencies in pyproject.toml
+- Keep dependencies up to date
+- Test after dependency updates

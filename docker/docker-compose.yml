@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  web:
+    container_name: mus_server
+    build:
+      context: ..
+    ports:
+      - "8000:8000"
+    volumes:
+      - ..:/app:cached
+      - mus_data:/app/data
+      - /Users/mayurifag/Nextcloud/Music:/music:ro
+
+volumes:
+  mus_data:
