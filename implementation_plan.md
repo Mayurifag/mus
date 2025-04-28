@@ -8,24 +8,20 @@
 - [x] Docker configuration
 
 ## Phase 2: Domain Layer
-- [ ] Define Track entity
-- [ ] Define Album entity
-- [ ] Define Artist entity
-- [ ] Define Playlist entity
-- [ ] Implement domain services
+- [x] Define Track entity
+- [x] Implement track-related domain services
 
 ## Phase 3: Application Layer
 - [ ] Implement track scanning service
-- [ ] Implement playlist management service
-- [ ] Implement search service
-- [ ] Implement metadata extraction service
+- [ ] Implement track search service
+- [ ] Implement track metadata extraction service
 
 ## Phase 4: Infrastructure Layer
-- [ ] Implement SQLite repository
-- [ ] Implement file system scanner
-- [ ] Implement web API endpoints
-- [ ] Implement HTMX frontend
-- [ ] Implement audio streaming
+- [ ] Implement SQLite repository for tracks
+- [ ] Implement file system scanner for tracks
+- [ ] Implement web API endpoints for tracks
+- [ ] Implement HTMX frontend for track listing
+- [ ] Implement audio streaming for tracks
 
 ## Phase 5: Testing & Documentation
 - [ ] Write unit tests
@@ -39,8 +35,16 @@
 - [ ] Monitoring setup
 - [ ] Backup strategy
 
+## Phase 7: after MVP
+
+- [ ] Define Album entity
+- [ ] Define Artist entity
+- [ ] Define Playlist entity
+- [ ] Implement playlist management service (Deferred)
+
 ## Notes
 - Project management rules are defined in `.cursor/rules/`
 - Use structured logging for all operations
 - Follow hexagonal architecture principles
 - Maintain async/await pattern throughout
+- Album, Artist, and Playlist features are deferred to future phases
