@@ -1,7 +1,5 @@
-from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock
-from uuid import UUID
 
 import pytest
 
@@ -14,30 +12,27 @@ def track_repository():
     repo = AsyncMock()
     repo.search_by_title.return_value = [
         Track(
-            id=UUID("12345678-1234-5678-1234-567812345678"),
-            file_path=Path("/test/path/track1.mp3"),
             title="Test Track",
             artist="Test Artist",
-            duration=180.0,
-            added_at=datetime(2024, 1, 1),
+            duration=180,
+            file_path=Path("/test/path/track1.mp3"),
+            added_at=1704067200,  # 2024-01-01 00:00:00 UTC
         )
     ]
     repo.get_all.return_value = [
         Track(
-            id=UUID("12345678-1234-5678-1234-567812345678"),
-            file_path=Path("/test/path/track1.mp3"),
             title="Test Track",
             artist="Test Artist",
-            duration=180.0,
-            added_at=datetime(2024, 1, 1),
+            duration=180,
+            file_path=Path("/test/path/track1.mp3"),
+            added_at=1704067200,  # 2024-01-01 00:00:00 UTC
         ),
         Track(
-            id=UUID("87654321-4321-8765-4321-876543210987"),
-            file_path=Path("/test/path/track2.mp3"),
             title="Another Track",
             artist="Another Artist",
-            duration=240.0,
-            added_at=datetime(2024, 1, 1),
+            duration=240,
+            file_path=Path("/test/path/track2.mp3"),
+            added_at=1704067200,  # 2024-01-01 00:00:00 UTC
         ),
     ]
     return repo

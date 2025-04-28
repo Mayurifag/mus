@@ -2,7 +2,6 @@
 name = "mus"
 version = "0.1.0"
 description = "A personal music server"
-requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.111.0",
   "uvicorn[standard]>=0.29.0",
@@ -10,7 +9,9 @@ dependencies = [
   "mutagen>=1.47.0",
   "aiosqlite>=0.19.0",
   "structlog>=24.1.0",
+  "pydantic>=1.8.0",
 ]
+requires-python = ">=3.12"
 
 [project.optional-dependencies]
 dev = ["ruff>=0.3.0", "pytest>=8.0.0", "pytest-asyncio>=0.23.0"]

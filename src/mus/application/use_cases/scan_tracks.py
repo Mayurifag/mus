@@ -1,5 +1,4 @@
 from pathlib import Path
-from uuid import uuid4
 
 import structlog
 
@@ -35,17 +34,16 @@ class ScanTracksUseCase:
             if metadata is None:
                 continue
 
-            title, artist, duration, modified_at = metadata
+            title, artist, duration, added_at = metadata
             track = Track(
-                id=uuid4(),
-                file_path=file_path,
                 title=title,
                 artist=artist,
                 duration=duration,
-                added_at=modified_at,
+                file_path=file_path,
+                added_at=added_at,
             )
 
             await self._track_repository.add(track)
-            logger.info("track_added", track_id=str(track.id), file_path=str(file_path))
+            logger.info("track_added", file_path=str(file_path))
 
         logger.info("track_scan_completed", directory=str(directory_path))
