@@ -12,9 +12,9 @@
 - [x] Implement track-related domain services
 
 ## Phase 3: Application Layer
-- [ ] Implement track scanning service
-- [ ] Implement track search service
-- [ ] Implement track metadata extraction service
+- [x] Implement track scanning service
+- [x] Implement track search service
+- [x] Implement track metadata extraction service
 
 ## Phase 4: Infrastructure Layer
 - [ ] Implement SQLite repository for tracks
@@ -24,7 +24,7 @@
 - [ ] Implement audio streaming for tracks
 
 ## Phase 5: Testing & Documentation
-- [ ] Write unit tests
+- [x] Write unit tests
 - [ ] Write integration tests
 - [ ] Document API endpoints
 - [ ] Create user documentation
