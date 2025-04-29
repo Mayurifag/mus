@@ -14,6 +14,19 @@ This document defines the standards and guidelines for Python development in the
 - Use docstrings for all public functions and classes
 - Use async/await for all I/O operations
 - Use context managers for resource management
+- Avoid dynamic attribute access and type checking:
+  - Do not use hasattr() for attribute existence checks
+  - Do not use getattr() for dynamic attribute access
+  - Do not use isinstance() for type checking
+  - Instead, use explicit type checking and direct attribute access
+  - For optional attributes, handle their absence through proper error handling or default values
+- Follow DRY (Don't Repeat Yourself) principles:
+  - Extract repeated code into reusable functions or methods
+  - Use data structures (e.g., dictionaries, sets) to avoid repetitive conditionals
+  - Maintain a single source of truth for configuration and constants
+  - Avoid duplicating business logic across different parts of the codebase
+  - Use inheritance or composition to share common functionality
+  - Consider using design patterns to eliminate code duplication
 
 ## Testing Standards
 - Write tests for all public functions and classes

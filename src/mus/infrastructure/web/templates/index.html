@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MUS - Music Player</title>
+  <title>mus 🎶</title>
   <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
   <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
@@ -12,7 +12,6 @@
 <body>
   <div class="container">
     <header>
-      <h1>MUS</h1>
       <div class="controls">
         <button hx-post="/scan" hx-target="#scan-status">Scan Tracks</button>
         <div id="scan-status"></div>

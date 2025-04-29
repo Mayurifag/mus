@@ -11,7 +11,6 @@ __pycache__/
 README.md
 Makefile
 *.mk
-requirements.txt
 *.db
 data/
 *.log

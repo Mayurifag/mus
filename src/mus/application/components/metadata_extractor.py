@@ -33,10 +33,10 @@ class MetadataExtractor(IMetadataReader):
                 logger.warning(f"Could not read metadata from {file_path}")
                 return None
 
-            # Get basic metadata
-            title = self._get_tag(audio, "title", file_path.stem)
-            artist = self._get_tag(audio, "artist", "Unknown Artist")
-            duration = int(audio.info.length) if hasattr(audio.info, "length") else 0
+            # Get basic metadata based on file format
+            title = self._get_tag_for_format(audio, suffix, "title", file_path.stem)
+            artist = self._get_tag_for_format(audio, suffix, "artist", "Unknown Artist")
+            duration = self._get_duration_for_format(audio, suffix)
             added_at = int(file_path.stat().st_mtime)
 
             return (title, artist, duration, added_at)
@@ -45,16 +45,25 @@ class MetadataExtractor(IMetadataReader):
             logger.error(f"Error extracting metadata from {file_path}: {e!s}")
             return None
 
-    def _get_tag(self, audio, tag_name: str, default: str) -> str:
+    def _get_tag_for_format(
+        self, audio, suffix: str, tag_name: str, default: str
+    ) -> str:
         try:
-            if hasattr(audio, "tags"):
-                tags = audio.tags
-                if isinstance(tags, dict) and tag_name in tags:
-                    value = tags[tag_name][0]
-                    return str(value) if value else default
-                elif hasattr(tags, "__getitem__") and tag_name in tags:
-                    value = tags[tag_name][0]
-                    return str(value) if value else default
+            if (
+                suffix in self.supported_formats
+                and audio.tags
+                and tag_name in audio.tags
+            ):
+                value = audio.tags[tag_name][0]
+                return str(value) if value else default
         except Exception:
             pass
         return default
+
+    def _get_duration_for_format(self, audio, suffix: str) -> int:
+        try:
+            if suffix in self.supported_formats:
+                return int(audio.info.length)
+        except Exception:
+            pass
+        return 0

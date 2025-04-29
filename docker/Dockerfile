@@ -1,20 +1,12 @@
 FROM python:3.12-slim
 
-ENV PYTHONPATH=/app
-
 WORKDIR /app
 
-# Install uv
-RUN pip install uv
+ENV PYTHONPATH=/app/src
 
-# Copy dependency files
-COPY pyproject.toml requirements.txt ./
-
-# Install dependencies
-RUN uv pip sync requirements.txt
-
-# Copy application code
 COPY . .
+
+RUN pip install uv && uv pip sync --system requirements.txt
 
 EXPOSE 8000
 

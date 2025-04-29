@@ -1,4 +1,3 @@
-from collections.abc import AsyncIterator
 from pathlib import Path
 
 import structlog
@@ -52,11 +51,3 @@ class ScanTracksUseCase:
             )
 
         logger.info("track_scan_completed", directory=str(directory_path))
-
-    async def _iterate_paths(self, paths_iter) -> AsyncIterator[Path]:
-        if hasattr(paths_iter, "__aiter__"):
-            async for path in paths_iter:
-                yield path
-        else:
-            for path in paths_iter:
-                yield path
