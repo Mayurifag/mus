@@ -17,10 +17,10 @@
 - [x] Implement track metadata extraction service
 
 ## Phase 4: Infrastructure Layer
-- [ ] Implement SQLite repository for tracks
-- [ ] Implement file system scanner for tracks
-- [ ] Implement web API endpoints for tracks
-- [ ] Implement HTMX frontend for track listing
+- [x] Implement SQLite repository for tracks
+- [x] Implement file system scanner for tracks
+- [x] Implement web API endpoints for tracks
+- [x] Implement HTMX frontend for track listing
 - [ ] Implement audio streaming for tracks
 
 ## Phase 5: Testing & Documentation

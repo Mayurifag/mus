@@ -41,3 +41,28 @@ def test_scan_tracks(client):
     response = client.post("/scan")
     assert response.status_code == 200
     assert "Scan completed" in response.text
+
+
+def test_stream_audio_success(client):
+    # Create a test audio file
+    music_dir = Path(os.environ["MUSIC_DIR"])
+    test_file = music_dir / "test.mp3"
+    test_file.write_bytes(b"fake audio data")
+
+    response = client.get(f"/stream/test.mp3")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/mpeg"
+    assert response.content == b"fake audio data"
+
+
+def test_stream_audio_not_found(client):
+    response = client.get("/stream/nonexistent.mp3")
+    assert response.status_code == 404
+    assert "File not found" in response.text
+
+
+def test_stream_audio_forbidden(client):
+    # Try to access a file outside the music directory
+    response = client.get("/stream/../../../etc/passwd")
+    assert response.status_code == 403
+    assert "Access denied" in response.text

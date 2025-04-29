@@ -67,15 +67,6 @@ button:hover {
   margin-top: 1rem;
 }
 
-.track-list-header {
-  display: grid;
-  grid-template-columns: 4fr 1fr 1.5fr;
-  gap: 1rem;
-  padding: 0.75rem;
-  font-weight: 600;
-  color: var(--accent-color);
-  border-bottom: 1px solid var(--border-color);
-}
 
 .track-item {
   display: grid;
@@ -121,4 +112,24 @@ footer {
   justify-content: center;
   gap: 1rem;
   padding: 1rem;
+}
+
+.play-button {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 1.2em;
+  padding: 0.2em 0.5em;
+  transition: color 0.2s;
+}
+
+.play-button:hover {
+  color: #000;
+}
+
+.track-details {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
 }

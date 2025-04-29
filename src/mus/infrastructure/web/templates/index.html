@@ -22,10 +22,11 @@
     </main>
     <footer>
       <div class="player-controls">
-        <!-- Placeholder for future player controls -->
+        <audio id="audio-player" preload="metadata"></audio>
       </div>
     </footer>
   </div>
+  <script src="{{ url_for('static', path='js/player.js') }}"></script>
 </body>
 
 </html>
