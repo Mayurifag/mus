@@ -1,13 +1,12 @@
 {% if tracks %}
 <div class="track-list">
   {% for track in tracks %}
-  <div class="track-item">
+  <div class="track-item" data-track-id="{{ track.id }}">
     <div class="track-details">
-      <button class="play-button" data-track-id="{{ track.id }}">▶</button>
+      <button class="play-button">▶</button>
       {{ track.artist }} — {{ track.title }}
     </div>
     <div class="track-duration">{{ track.duration // 60 }}:{{ "%02d" | format(track.duration % 60) }}</div>
-    <div class="track-added">{{ track.added_at | datetime }}</div>
   </div>
   {% endfor %}
 </div>

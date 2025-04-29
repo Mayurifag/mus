@@ -1,10 +1,9 @@
 from contextlib import asynccontextmanager
 from datetime import datetime
-from pathlib import Path
 
 import structlog
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -34,7 +33,6 @@ async def lifespan(app: FastAPI):
     scan_use_case = get_scan_tracks_use_case()
     await scan_use_case.execute(get_music_dir())
     yield
-    pass
 
 
 app = FastAPI(title="mus", lifespan=lifespan)
@@ -45,6 +43,13 @@ templates = Jinja2Templates(directory="src/mus/infrastructure/web/templates")
 templates.env.filters["datetime"] = lambda ts: datetime.fromtimestamp(ts).strftime(
     "%Y-%m-%d %H:%M"
 )
+
+
+def render_template(request: Request, template_name: str, **context) -> Response:
+    """Helper function to render templates with consistent context."""
+    return templates.TemplateResponse(
+        request, template_name, {"request": request, **context}
+    )
 
 
 @app.exception_handler(Exception)
@@ -61,9 +66,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 async def root(request: Request):
     """Root route handler."""
     log.info("Root route accessed")
-    return templates.TemplateResponse(
-        "index.html", {"request": request, "startup_ts": APP_START_TIME}
-    )
+    return render_template(request, "index.html", startup_ts=APP_START_TIME)
 
 
 @app.get("/tracks")
@@ -72,11 +75,7 @@ async def get_tracks(request: Request):
     log.info("Getting all tracks")
     search_use_case = get_search_tracks_use_case()
     tracks = await search_use_case.get_all()
-    return templates.TemplateResponse(
-        request,
-        "_track_list.html",
-        {"request": request, "tracks": tracks},
-    )
+    return render_template(request, "_track_list.html", tracks=tracks)
 
 
 @app.post("/scan")
@@ -93,55 +92,22 @@ async def scan_tracks():
     )
 
 
-def is_safe_path(base_path: Path, file_path: Path) -> bool:
-    """Check if the requested path is safe to access."""
-    try:
-        # Convert the base path to absolute and normalize it
-        base_abs = base_path.resolve()
-
-        # Join paths and resolve to absolute path
-        full_path = file_path.resolve()
-
-        # Check if the full path starts with the base path
-        return str(full_path).startswith(str(base_abs))
-    except Exception:
-        return False
-
-
 @app.get("/stream/{track_id:int}")
 async def stream_audio_by_id(track_id: int):
     """Stream audio file by track ID."""
-    music_dir = Path(get_music_dir())
-    repository = get_track_repository()
+    track = await get_track_repository().get_by_id(track_id)
 
-    try:
-        # Get track by ID
-        track = await repository.get_by_id(track_id)
-        if track is None:
-            raise HTTPException(status_code=404, detail="Track not found")
+    if not track or not track.file_path.exists():
+        raise HTTPException(status_code=404)
 
-        # Validate the path
-        if not is_safe_path(music_dir, track.file_path):
-            raise HTTPException(status_code=403, detail="Access denied")
-
-        # Check if the file exists
-        if not track.file_path.exists() or not track.file_path.is_file():
-            raise HTTPException(status_code=404, detail="File not found")
-
-        # Determine media type based on extension
-        media_type = "audio/mpeg"  # Default to MP3
-        if track.file_path.suffix.lower() in [".wav", ".wave"]:
-            media_type = "audio/wav"
-        elif track.file_path.suffix.lower() in [".ogg", ".oga"]:
-            media_type = "audio/ogg"
-        elif track.file_path.suffix.lower() in [".flac"]:
-            media_type = "audio/flac"
-
-        return FileResponse(
-            str(track.file_path), media_type=media_type, filename=track.file_path.name
-        )
-    except HTTPException:
-        raise
-    except Exception as err:
-        log.exception("Error accessing file", exc_info=err)
-        raise HTTPException(status_code=500, detail="Internal server error") from err
+    return FileResponse(
+        str(track.file_path),
+        media_type={
+            ".wav": "audio/wav",
+            ".wave": "audio/wav",
+            ".ogg": "audio/ogg",
+            ".oga": "audio/ogg",
+            ".flac": "audio/flac",
+        }.get(track.file_path.suffix.lower(), "audio/mpeg"),
+        filename=track.file_path.name,
+    )

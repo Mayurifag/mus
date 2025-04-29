@@ -11,16 +11,24 @@ export const trackManager = {
 
   setupEventListeners() {
     this.trackListContainer.addEventListener('click', (e) => {
-      const playButton = e.target.closest('.play-button');
-      if (!playButton) return;
+      const trackItem = e.target.closest('.track-item');
+      if (!trackItem) return;
 
-      const trackId = playButton.dataset.trackId;
+      const trackId = trackItem.dataset.trackId;
       if (!trackId) return;
 
       const index = this.tracklist.indexOf(trackId);
       if (index === -1) return;
 
-      this.playTrackAtIndex(index);
+      if (index === this.currentIndex) {
+        if (audioManager.isPaused()) {
+          audioManager.play();
+        } else {
+          audioManager.pause();
+        }
+      } else {
+        this.playTrackAtIndex(index);
+      }
     });
 
     document.body.addEventListener('htmx:afterSettle', (e) => {
@@ -33,10 +41,7 @@ export const trackManager = {
   initializeTrackList() {
     const trackItems = this.trackListContainer.querySelectorAll('.track-item');
     if (trackItems.length > 0) {
-      this.tracklist = Array.from(trackItems).map(item => {
-        const button = item.querySelector('.play-button');
-        return button.dataset.trackId;
-      });
+      this.tracklist = Array.from(trackItems).map(item => item.dataset.trackId);
       this.currentIndex = 0;
       this.playTrackAtIndex(0);
     } else {
