@@ -61,25 +61,47 @@ button:hover {
 }
 
 .track-list {
-  width: 100%;
-  border-collapse: collapse;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   margin-top: 1rem;
 }
 
-.track-list th,
-.track-list td {
+.track-list-header {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1fr 1.5fr;
+  gap: 1rem;
   padding: 0.75rem;
-  text-align: left;
+  font-weight: 600;
+  color: var(--accent-color);
   border-bottom: 1px solid var(--border-color);
 }
 
-.track-list th {
-  font-weight: 600;
-  color: var(--accent-color);
+.track-item {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1fr 1.5fr;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
 }
 
-.track-list tr:hover {
+.track-item:hover {
   background-color: var(--hover-color);
+}
+
+.track-title {
+  font-weight: 500;
+}
+
+.track-artist {
+  color: #999;
+}
+
+.track-duration,
+.track-added {
+  color: #666;
+  font-size: 0.9rem;
 }
 
 .no-tracks {

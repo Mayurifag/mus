@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 import structlog
 from fastapi import FastAPI, Request
@@ -34,6 +35,9 @@ app.mount(
 
 # Setup templates
 templates = Jinja2Templates(directory="src/mus/infrastructure/web/templates")
+
+# Add custom filters
+templates.env.filters["datetime"] = lambda ts: datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
 
 
 @app.exception_handler(Exception)

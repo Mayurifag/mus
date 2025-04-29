@@ -19,6 +19,12 @@ class MetadataExtractor(IMetadataReader):
             ".ogg": OggVorbis,
             ".m4a": MP4,
         }
+        self.tag_mapping = {
+            ".mp3": {"title": ["TIT2", "title"], "artist": ["TPE1", "artist"]},
+            ".flac": {"title": ["title"], "artist": ["artist"]},
+            ".ogg": {"title": ["title"], "artist": ["artist"]},
+            ".m4a": {"title": ["©nam"], "artist": ["©ART"]},
+        }
 
     async def read_metadata(self, file_path: Path) -> tuple[str, str, int, int] | None:
         try:
@@ -33,9 +39,14 @@ class MetadataExtractor(IMetadataReader):
                 logger.warning(f"Could not read metadata from {file_path}")
                 return None
 
-            # Get basic metadata based on file format
-            title = self._get_tag_for_format(audio, suffix, "title", file_path.stem)
-            artist = self._get_tag_for_format(audio, suffix, "artist", "Unknown Artist")
+            # Try to get metadata from tags first
+            title = self._get_tag_for_format(audio, suffix, "title", None)
+            artist = self._get_tag_for_format(audio, suffix, "artist", None)
+
+            # If tags are missing or empty, try parsing filename
+            if not title or not artist:
+                title, artist = self._parse_filename(file_path)
+
             duration = self._get_duration_for_format(audio, suffix)
             added_at = int(file_path.stat().st_mtime)
 
@@ -46,19 +57,25 @@ class MetadataExtractor(IMetadataReader):
             return None
 
     def _get_tag_for_format(
-        self, audio, suffix: str, tag_name: str, default: str
-    ) -> str:
+        self, audio, suffix: str, tag_name: str, default: str | None
+    ) -> str | None:
         try:
-            if (
-                suffix in self.supported_formats
-                and audio.tags
-                and tag_name in audio.tags
-            ):
-                value = audio.tags[tag_name][0]
-                return str(value) if value else default
+            if suffix in self.supported_formats and audio.tags:
+                for tag_key in self.tag_mapping[suffix][tag_name]:
+                    if tag_key in audio.tags:
+                        value = audio.tags[tag_key][0]
+                        if value:
+                            return str(value)
         except Exception:
             pass
         return default
+
+    def _parse_filename(self, file_path: Path) -> tuple[str, str]:
+        stem = file_path.stem
+        if " - " in stem:
+            parts = stem.rsplit(" - ", 1)
+            return parts[1].strip(), parts[0].strip()
+        return stem, "Unknown Artist"
 
     def _get_duration_for_format(self, audio, suffix: str) -> int:
         try:
