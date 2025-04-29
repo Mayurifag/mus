@@ -7,42 +7,17 @@
   <title>MUS - Music Player</title>
   <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
   <script src="https://unpkg.com/htmx.org@1.9.10" defer></script>
-  <script src="{{ url_for('static', path='js/player.js') }}" defer></script>
 </head>
 
 <body>
   <div class="container">
-    <div id="player-bar" class="player-bar">
-      <div class="player-bar-left">
-        <div class="playback-controls">
-          <button id="prev-button" class="control-button">⏮</button>
-          <button id="play-pause-button" class="control-button">▶</button>
-          <button id="next-button" class="control-button">⏭</button>
-        </div>
-        <button id="scan-button" class="scan-button" hx-post="/scan" hx-target="#scan-status">Scan</button>
-      </div>
-
-      <div class="player-bar-center">
-        <div id="now-playing-info"></div>
-        <div id="progress-bar-container" class="progress-container">
-          <div id="progress-bar-fill"></div>
-        </div>
-      </div>
-
-      <div class="player-bar-right">
-        <div id="current-time">0:00</div>
-        <div class="volume-container">
-          <button id="volume-button" class="control-button">🔊</button>
-          <input type="range" id="volume-slider" class="volume-slider" min="0" max="1" step="0.01" value="1">
-        </div>
-      </div>
-    </div>
+    {% include '_player_bar.html' %}
     <div id="scan-status"></div>
     <main>
       <div id="track-list-container" hx-get="/tracks" hx-trigger="load, refreshTrackList from:body"></div>
     </main>
-    <audio id="audio-player" preload="metadata"></audio>
   </div>
+  <script type="module" src="{{ url_for('static', path='js/main.js') }}?v={{ startup_ts }}" defer></script>
 </body>
 
 </html>

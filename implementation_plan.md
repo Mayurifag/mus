@@ -28,7 +28,7 @@
 - [ ] UX - make it usable (+ move controls on bottom)
 - [x] Stream - not by filepath, but by id (a bit slower, yet less attack surface)
 - [ ] UI - make it look nice
-- [ ] When open page first time, should be selected first track to play paused 0 sec
+- [x] When open page first time, should be selected first track to play paused 0 sec
 - [ ] When we close tab and open again, should be paused from the same track same time.
 - [ ] research cache possibilities - save to cache and clean
 

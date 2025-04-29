@@ -1,0 +1,33 @@
+<header class="player-header">
+  <div class="player-controls">
+    <button id="scan-button" class="scan-button" hx-post="/scan" hx-target="#scan-status">Scan</button>
+    <div id="player-bar" class="player-bar">
+      <div class="player-bar-left">
+        <div id="now-playing-info"></div>
+      </div>
+
+      <div class="player-bar-center">
+        <div class="playback-controls">
+          <button id="prev-button" class="control-button">⏮</button>
+          <button id="play-pause-button" class="control-button">▶</button>
+          <button id="next-button" class="control-button">⏭</button>
+        </div>
+      </div>
+
+      <div class="player-bar-right">
+        <div class="volume-controls">
+          <button id="volume-button" class="control-button">🔊</button>
+          <input type="range" id="volume-slider" class="volume-slider" min="0" max="1" step="0.1" value="1">
+        </div>
+
+        <div id="progress-bar-container">
+          <div id="progress-bar-fill"></div>
+        </div>
+
+        <span id="current-time">0:00</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<audio id="audio-player" preload="metadata"></audio>

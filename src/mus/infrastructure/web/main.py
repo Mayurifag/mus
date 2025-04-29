@@ -19,6 +19,8 @@ from mus.infrastructure.logging_config import setup_logging
 setup_logging()
 log = structlog.get_logger()
 
+APP_START_TIME = int(datetime.now().timestamp())
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -59,7 +61,9 @@ async def global_exception_handler(request: Request, exc: Exception):
 async def root(request: Request):
     """Root route handler."""
     log.info("Root route accessed")
-    return templates.TemplateResponse(request, "index.html", {"request": request})
+    return templates.TemplateResponse(
+        "index.html", {"request": request, "startup_ts": APP_START_TIME}
+    )
 
 
 @app.get("/tracks")
