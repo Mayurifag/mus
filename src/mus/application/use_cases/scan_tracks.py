@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 import structlog
@@ -24,8 +25,7 @@ class ScanTracksUseCase:
     async def execute(self, directory_path: Path) -> None:
         logger.info("starting_track_scan", directory=str(directory_path))
 
-        file_paths = await self._file_scanner.find_music_files(directory_path)
-        async for file_path in file_paths:
+        async for file_path in self._file_scanner.find_music_files(directory_path):
             if await self._track_repository.exists_by_path(file_path):
                 logger.info("track_already_exists", file_path=str(file_path))
                 continue
@@ -44,6 +44,19 @@ class ScanTracksUseCase:
             )
 
             await self._track_repository.add(track)
-            logger.info("track_added", file_path=str(file_path))
+            logger.info(
+                "track_added",
+                file_path=str(file_path),
+                title=title,
+                artist=artist,
+            )
 
         logger.info("track_scan_completed", directory=str(directory_path))
+
+    async def _iterate_paths(self, paths_iter) -> AsyncIterator[Path]:
+        if hasattr(paths_iter, "__aiter__"):
+            async for path in paths_iter:
+                yield path
+        else:
+            for path in paths_iter:
+                yield path

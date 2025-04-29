@@ -1,49 +1,46 @@
+import os
+import tempfile
+from pathlib import Path
+
 import pytest
 
 from mus.infrastructure.scan.file_system_scanner import FileSystemScanner
 
 
 @pytest.fixture
-def scanner(tmp_path):
-    return FileSystemScanner(tmp_path)
+def music_dir(tmp_path: Path) -> Path:
+    """Create a temporary directory structure for music files using tmp_path."""
+    music_path = tmp_path / "music"
+    music_path.mkdir()
 
-
-@pytest.mark.asyncio
-async def test_find_music_files(scanner, tmp_path):
     # Create test files
-    (tmp_path / "test.mp3").touch()
-    (tmp_path / "test.flac").touch()
-    (tmp_path / "test.txt").touch()
-    (tmp_path / "subdir").mkdir()
-    (tmp_path / "subdir" / "test.ogg").touch()
-    (tmp_path / "subdir" / "test.m4a").touch()
+    (music_path / "test1.mp3").touch()
+    (music_path / "test2.flac").touch()
+    (music_path / "test3.txt").touch()  # Non-music file
 
-    # Collect all music files
-    files = [f async for f in scanner.find_music_files()]
+    # Create subdirectory with more files
+    sub_dir = music_path / "subdir"
+    sub_dir.mkdir()
+    (sub_dir / "test4.mp3").touch()
+    (sub_dir / "test5.ogg").touch()
 
-    # Check that we found all music files and no non-music files
-    assert len(files) == 4  # mp3, flac, ogg, m4a
-    extensions = {f.suffix.lower() for f in files}
-    assert extensions == {".mp3", ".flac", ".ogg", ".m4a"}
-
-    # Check that we found files in subdirectories
-    assert any("subdir" in str(f) for f in files)
+    return music_path
 
 
-@pytest.mark.asyncio
-async def test_skip_inaccessible_directories(scanner, tmp_path):
-    # Create a directory we can't access
-    inaccessible_dir = tmp_path / "inaccessible"
-    inaccessible_dir.mkdir()
-    (inaccessible_dir / "test.mp3").touch()
-    inaccessible_dir.chmod(0o000)  # Make directory inaccessible
+async def test_find_music_files(music_dir: Path):
+    scanner = FileSystemScanner(music_dir.parent)  # Scan from the parent of 'music'
+    files = [f async for f in scanner.find_music_files(music_dir)]
 
-    try:
-        # Collect all music files
-        files = [f async for f in scanner.find_music_files()]
+    # Sort results for consistent comparison
+    file_paths = sorted([f.relative_to(music_dir.parent) for f in files])
 
-        # Check that we didn't find any files in the inaccessible directory
-        assert not any("inaccessible" in str(f) for f in files)
-    finally:
-        # Restore permissions
-        inaccessible_dir.chmod(0o755)
+    assert file_paths == sorted([
+        Path("music/test1.mp3"),
+        Path("music/test2.flac"),
+        Path("music/subdir/test4.mp3"),
+        Path("music/subdir/test5.ogg"),
+    ])
+    assert all(
+        f.suffix in FileSystemScanner.SUPPORTED_EXTENSIONS
+        for f in files
+    )

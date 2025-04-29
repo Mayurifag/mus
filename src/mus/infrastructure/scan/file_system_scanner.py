@@ -1,8 +1,8 @@
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import ClassVar
 
-from mus.domain.scanners.file_scanner import IFileScanner
+from mus.application.ports.file_scanner import IFileScanner
 
 
 class FileSystemScanner(IFileScanner):
@@ -11,21 +11,19 @@ class FileSystemScanner(IFileScanner):
     def __init__(self, root_dir: Path):
         self.root_dir = root_dir
 
-    async def find_music_files(self) -> AsyncGenerator[Path, None]:
-        async def scan_directory(directory: Path):
+    async def find_music_files(self, directory: Path) -> AsyncIterator[Path]:
+        stack = [directory]
+        while stack:
+            current_dir = stack.pop()
             try:
-                for item in directory.iterdir():
+                for item in current_dir.iterdir():
                     if (
                         item.is_file()
                         and item.suffix.lower() in self.SUPPORTED_EXTENSIONS
                     ):
                         yield item
                     elif item.is_dir():
-                        async for file in scan_directory(item):
-                            yield file
+                        stack.append(item)
             except PermissionError:
                 # Skip directories we don't have permission to access
-                pass
-
-        async for file in scan_directory(self.root_dir):
-            yield file
+                continue

@@ -6,10 +6,12 @@ from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
 from mutagen.oggvorbis import OggVorbis
 
+from mus.application.ports.metadata_reader import IMetadataReader
+
 logger = logging.getLogger(__name__)
 
 
-class MetadataExtractor:
+class MetadataExtractor(IMetadataReader):
     def __init__(self):
         self.supported_formats = {
             ".mp3": MP3,
@@ -18,7 +20,7 @@ class MetadataExtractor:
             ".m4a": MP4,
         }
 
-    def extract_metadata(self, file_path: Path) -> dict | None:
+    async def read_metadata(self, file_path: Path) -> tuple[str, str, int, int] | None:
         try:
             suffix = file_path.suffix.lower()
             if suffix not in self.supported_formats:
@@ -37,12 +39,7 @@ class MetadataExtractor:
             duration = int(audio.info.length) if hasattr(audio.info, "length") else 0
             added_at = int(file_path.stat().st_mtime)
 
-            return {
-                "title": title,
-                "artist": artist,
-                "duration": duration,
-                "added_at": added_at,
-            }
+            return (title, artist, duration, added_at)
 
         except Exception as e:
             logger.error(f"Error extracting metadata from {file_path}: {e!s}")

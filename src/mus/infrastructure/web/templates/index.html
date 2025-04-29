@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MUS - Music Player</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>MUS</h1>
+      <div class="controls">
+        <button hx-post="/scan" hx-target="#scan-status">Scan Tracks</button>
+        <div id="scan-status"></div>
+      </div>
+    </header>
+    <main>
+      <div id="track-list-container" hx-get="/tracks" hx-trigger="load"></div>
+    </main>
+    <footer>
+      <div class="player-controls">
+        <!-- Placeholder for future player controls -->
+      </div>
+    </footer>
+  </div>
+</body>
+
+</html>

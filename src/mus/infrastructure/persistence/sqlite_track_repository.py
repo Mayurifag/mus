@@ -1,30 +1,36 @@
 from pathlib import Path
 
 import aiosqlite
+import structlog
 
 from mus.domain.repositories.track_repository import ITrackRepository
 from mus.domain.track import Track
+
+logger = structlog.get_logger()
 
 
 class SQLiteTrackRepository(ITrackRepository):
     def __init__(self, db_path: str):
         self.db_path = db_path
 
-    async def _create_table(self) -> None:
+    async def _init_db(self):
         async with aiosqlite.connect(self.db_path) as db:
-            await db.execute("""
+            await db.execute(
+                """
                 CREATE TABLE IF NOT EXISTS tracks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     title TEXT NOT NULL,
-                    artist TEXT,
-                    duration INTEGER,
-                    file_path TEXT UNIQUE NOT NULL,
+                    artist TEXT NOT NULL,
+                    duration INTEGER NOT NULL,
+                    file_path TEXT NOT NULL UNIQUE,
                     added_at INTEGER NOT NULL
                 )
-            """)
+                """
+            )
             await db.commit()
 
     async def add(self, track: Track) -> None:
+        await self._init_db()
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
                 """
@@ -42,13 +48,16 @@ class SQLiteTrackRepository(ITrackRepository):
             await db.commit()
 
     async def exists_by_path(self, file_path: Path) -> bool:
+        await self._init_db()
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute(
                 "SELECT 1 FROM tracks WHERE file_path = ?", (str(file_path),)
             ) as cursor:
-                return await cursor.fetchone() is not None
+                result = await cursor.fetchone()
+                return result is not None
 
     async def search_by_title(self, query: str) -> list[Track]:
+        await self._init_db()
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute(
                 "SELECT * FROM tracks WHERE title LIKE ?", (f"%{query}%",)
@@ -66,6 +75,7 @@ class SQLiteTrackRepository(ITrackRepository):
                 ]
 
     async def get_all(self) -> list[Track]:
+        await self._init_db()
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute("SELECT * FROM tracks") as cursor:
                 rows = await cursor.fetchall()

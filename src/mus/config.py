@@ -1,12 +1,16 @@
 import os
 from pathlib import Path
 
+
 # Database configuration
-DATABASE_URL = "sqlite+aiosqlite:////app/data/mus.db"
+def get_database_url() -> str:
+    db_path = os.getenv("DATABASE_PATH", "/app/data/mus.db")
+    return f"sqlite+aiosqlite:///{db_path}"
+
 
 # Music directory configuration
-MUSIC_DIR = Path("/music")
-
-# Ensure music directory exists
-if not MUSIC_DIR.exists():
-    os.makedirs(MUSIC_DIR, exist_ok=True)
+def get_music_dir() -> Path:
+    music_dir = Path(os.getenv("MUSIC_DIR", "/music"))
+    if not music_dir.exists():
+        os.makedirs(music_dir, exist_ok=True)
+    return music_dir

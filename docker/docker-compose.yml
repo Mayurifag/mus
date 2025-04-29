@@ -1,10 +1,9 @@
-version: '3.8'
-
 services:
   web:
     container_name: mus_server
     build:
       context: ..
+      dockerfile: docker/Dockerfile
     ports:
       - "8000:8000"
     volumes:

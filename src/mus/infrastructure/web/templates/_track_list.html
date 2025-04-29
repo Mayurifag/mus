@@ -1,0 +1,24 @@
+{% if tracks %}
+<table class="track-list">
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Artist</th>
+      <th>Duration</th>
+      <th>Added At</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for track in tracks %}
+    <tr>
+      <td>{{ track.title }}</td>
+      <td>{{ track.artist }}</td>
+      <td>{{ track.duration }}</td>
+      <td>{{ track.added_at }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="no-tracks">No tracks found. Click "Scan Tracks" to start.</p>
+{% endif %}
