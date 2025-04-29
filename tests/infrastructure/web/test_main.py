@@ -49,7 +49,7 @@ def test_stream_audio_success(client):
     test_file = music_dir / "test.mp3"
     test_file.write_bytes(b"fake audio data")
 
-    response = client.get(f"/stream/test.mp3")
+    response = client.get("/stream/test.mp3")
     assert response.status_code == 200
     assert response.headers["content-type"] == "audio/mpeg"
     assert response.content == b"fake audio data"
@@ -62,7 +62,7 @@ def test_stream_audio_not_found(client):
 
 
 def test_stream_audio_forbidden(client):
-    # Try to access a file outside the music directory
-    response = client.get("/stream/../../../etc/passwd")
+    # Try to access a file outside the music directory using a different traversal pattern
+    response = client.get("/stream/..%2F..%2F..%2Fetc%2Fpasswd")
     assert response.status_code == 403
     assert "Access denied" in response.text

@@ -23,11 +23,11 @@
     "**/dist": true,
     "**/build": true,
     "**/.pytest_cache": true,
-    "**/.ruff_cache": true
+    "**/.ruff_cache": true,
+    "**/.venv": true,
   },
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false,
-  "python.testing.nosetestsEnabled": false,
   "python.testing.pytestArgs": [
     "tests"
   ]

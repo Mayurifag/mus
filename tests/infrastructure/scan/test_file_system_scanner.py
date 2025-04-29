@@ -32,13 +32,12 @@ async def test_find_music_files(music_dir: Path):
     # Sort results for consistent comparison
     file_paths = sorted([f.relative_to(music_dir.parent) for f in files])
 
-    assert file_paths == sorted([
-        Path("music/test1.mp3"),
-        Path("music/test2.flac"),
-        Path("music/subdir/test4.mp3"),
-        Path("music/subdir/test5.ogg"),
-    ])
-    assert all(
-        f.suffix in FileSystemScanner.SUPPORTED_EXTENSIONS
-        for f in files
+    assert file_paths == sorted(
+        [
+            Path("music/test1.mp3"),
+            Path("music/test2.flac"),
+            Path("music/subdir/test4.mp3"),
+            Path("music/subdir/test5.ogg"),
+        ]
     )
+    assert all(f.suffix in FileSystemScanner.SUPPORTED_EXTENSIONS for f in files)

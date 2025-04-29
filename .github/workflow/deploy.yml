@@ -1,0 +1,44 @@
+---
+name: Deploy to GitHub Pages
+
+"on":
+  push:
+    branches: [main]
+  # Allows you to run this workflow manually from the Actions tab on GitHub.
+  workflow_dispatch:
+
+# Allow this job to clone the repo and create a page deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy-dockerhub:
+    needs: test-e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: |
+            mayurifag/mus:latest
+            mayurifag/mus:${{ github.sha }}
+      - name: Trigger mayurifag.ru deploy
+        env:
+          WATCHTOWER_TOKEN: ${{ secrets.WATCHTOWER_HTTP_API_TOKEN }}
+          WATCHTOWER_URL: ${{ secrets.WATCHTOWER_URL }}
+        run: |
+          curl -H "Authorization: Bearer $WATCHTOWER_TOKEN" $WATCHTOWER_URL

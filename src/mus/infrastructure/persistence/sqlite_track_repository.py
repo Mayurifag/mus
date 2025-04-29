@@ -77,7 +77,9 @@ class SQLiteTrackRepository(ITrackRepository):
     async def get_all(self) -> list[Track]:
         await self._init_db()
         async with aiosqlite.connect(self.db_path) as db:
-            async with db.execute("SELECT * FROM tracks ORDER BY added_at DESC") as cursor:
+            async with db.execute(
+                "SELECT * FROM tracks ORDER BY added_at DESC"
+            ) as cursor:
                 rows = await cursor.fetchall()
                 return [
                     Track(
