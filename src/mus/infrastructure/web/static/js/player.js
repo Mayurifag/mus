@@ -11,13 +11,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const nowPlayingInfo = document.getElementById('now-playing-info');
   const currentTimeDisplay = document.getElementById('current-time');
 
-  // Player state
   let tracklist = [];
   let currentIndex = -1;
   let currentVolume = 1.0;
   let isMuted = false;
-
-  // Initialize volume
   audioPlayer.volume = currentVolume;
 
   function formatTime(seconds) {
@@ -121,27 +118,47 @@ document.addEventListener('DOMContentLoaded', () => {
     const playButton = e.target.closest('.play-button');
     if (!playButton) return;
 
-    const filePath = playButton.dataset.filePath;
-    if (!filePath) return;
+    const trackId = playButton.dataset.trackId;
+    if (!trackId) return;
 
-    // Build tracklist from DOM if not already built
-    if (tracklist.length === 0) {
+    const index = tracklist.indexOf(trackId);
+    if (index === -1) return;
+
+    playTrackAtIndex(index);
+  });
+
+  // HTMX event listener for track list initialization
+  document.body.addEventListener('htmx:afterSettle', (e) => {
+    if (e.target.id === 'track-list-container') {
       const trackItems = trackListContainer.querySelectorAll('.track-item');
-      tracklist = Array.from(trackItems).map(item => {
-        const button = item.querySelector('.play-button');
-        return button.dataset.filePath;
-      });
+      if (trackItems.length > 0) {
+        tracklist = Array.from(trackItems).map(item => {
+          const button = item.querySelector('.play-button');
+          return button.dataset.trackId;
+        });
+        currentIndex = 0;
+        const trackId = tracklist[0];
+        const streamUrl = `/stream/${trackId}`;
+        audioPlayer.src = streamUrl;
+        audioPlayer.load();
+        updateTrackInfo(0);
+        playPauseButton.textContent = '▶';
+        document.querySelectorAll('.play-button').forEach(button => {
+          button.textContent = '▶';
+        });
+      } else {
+        currentIndex = -1;
+        tracklist = [];
+        nowPlayingInfo.textContent = '';
+        playPauseButton.disabled = true;
+        prevButton.disabled = true;
+        nextButton.disabled = true;
+      }
     }
-
-    // Find the clicked track's index
-    currentIndex = tracklist.indexOf(filePath);
-    if (currentIndex === -1) return;
-
-    playTrackAtIndex(currentIndex);
   });
 
   function updateTrackInfo(index) {
-    const currentTrackItem = document.querySelector(`.play-button[data-file-path="${tracklist[index]}"]`)?.closest('.track-item');
+    const currentTrackItem = document.querySelector(`.play-button[data-track-id="${tracklist[index]}"]`)?.closest('.track-item');
 
     if (currentTrackItem) {
       const trackDetails = currentTrackItem.querySelector('.track-details');
@@ -159,15 +176,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updatePlayingTrack(index) {
-    // Remove playing class from all tracks
     document.querySelectorAll('.track-item.playing').forEach(item => {
       item.classList.remove('playing');
       const playButton = item.querySelector('.play-button');
       if (playButton) playButton.textContent = '▶';
     });
 
-    // Add playing class to current track
-    const currentTrackItem = document.querySelector(`.play-button[data-file-path="${tracklist[index]}"]`)?.closest('.track-item');
+    const currentTrackItem = document.querySelector(`.play-button[data-track-id="${tracklist[index]}"]`)?.closest('.track-item');
     if (currentTrackItem) {
       currentTrackItem.classList.add('playing');
       const playButton = currentTrackItem.querySelector('.play-button');
@@ -179,11 +194,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (index < 0 || index >= tracklist.length) return;
 
     currentIndex = index;
-    const filePath = tracklist[index];
-    const streamUrl = `/stream/${encodeURIComponent(filePath)}`;
+    const trackId = tracklist[index];
+    const streamUrl = `/stream/${trackId}`;
     audioPlayer.src = streamUrl;
     audioPlayer.load();
-    audioPlayer.play();
+    audioPlayer.play().catch(error => {
+      console.error('Error playing audio:', error);
+    });
 
     updateTrackInfo(index);
     updatePlayingTrack(index);
@@ -201,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentIndex < tracklist.length - 1) {
       playTrackAtIndex(currentIndex + 1);
     } else {
-      updateTrackInfo(-1); // Clear track info when playlist ends
+      updateTrackInfo(-1);
     }
   });
 });

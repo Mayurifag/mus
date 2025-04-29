@@ -4,9 +4,13 @@ WORKDIR /app
 
 ENV PYTHONPATH=/app/src
 
-COPY . .
+RUN pip install uv
 
-RUN pip install uv && uv pip sync --system requirements.txt
+COPY pyproject.toml requirements.txt ./
+
+RUN uv pip sync --system requirements.txt
+
+COPY . .
 
 EXPOSE 8000
 

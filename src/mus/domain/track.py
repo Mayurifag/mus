@@ -9,3 +9,4 @@ class Track:
     duration: int  # Duration in seconds
     file_path: Path
     added_at: int  # Unix timestamp
+    id: int | None = None

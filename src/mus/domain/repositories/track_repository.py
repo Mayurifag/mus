@@ -29,3 +29,8 @@ class ITrackRepository(ABC):
     async def clear_all_tracks(self) -> None:
         """Clear all tracks from the repository."""
         pass
+
+    @abstractmethod
+    async def get_by_id(self, track_id: int) -> Track | None:
+        """Get a single track by its unique ID."""
+        pass

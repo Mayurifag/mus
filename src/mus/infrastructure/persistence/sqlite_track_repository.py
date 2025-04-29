@@ -65,6 +65,7 @@ class SQLiteTrackRepository(ITrackRepository):
                 rows = await cursor.fetchall()
                 return [
                     Track(
+                        id=row[0],
                         title=row[1],
                         artist=row[2],
                         duration=row[3],
@@ -83,6 +84,7 @@ class SQLiteTrackRepository(ITrackRepository):
                 rows = await cursor.fetchall()
                 return [
                     Track(
+                        id=row[0],
                         title=row[1],
                         artist=row[2],
                         duration=row[3],
@@ -98,3 +100,26 @@ class SQLiteTrackRepository(ITrackRepository):
             await db.execute("DELETE FROM tracks")
             await db.commit()
         logger.info("All tracks cleared from repository")
+
+    async def get_by_id(self, track_id: int) -> Track | None:
+        await self._init_db()
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                """
+                SELECT id, title, artist, duration, file_path, added_at
+                FROM tracks
+                WHERE id = ?
+                """,
+                (track_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row is None:
+                    return None
+                return Track(
+                    id=row[0],
+                    title=row[1],
+                    artist=row[2],
+                    duration=row[3],
+                    file_path=Path(row[4]),
+                    added_at=row[5],
+                )

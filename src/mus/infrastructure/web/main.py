@@ -89,18 +89,14 @@ async def scan_tracks():
     )
 
 
-def is_safe_path(base_path: Path, requested_path: str) -> bool:
+def is_safe_path(base_path: Path, file_path: Path) -> bool:
     """Check if the requested path is safe to access."""
     try:
         # Convert the base path to absolute and normalize it
         base_abs = base_path.resolve()
 
-        # Check for path traversal attempts in the raw string
-        if ".." in requested_path or requested_path.startswith("/"):
-            return False
-
         # Join paths and resolve to absolute path
-        full_path = (base_abs / requested_path).resolve()
+        full_path = file_path.resolve()
 
         # Check if the full path starts with the base path
         return str(full_path).startswith(str(base_abs))
@@ -108,34 +104,37 @@ def is_safe_path(base_path: Path, requested_path: str) -> bool:
         return False
 
 
-@app.get("/stream/{file_path:path}")
-async def stream_audio(file_path: str):
-    """Stream audio file with support for range requests."""
+@app.get("/stream/{track_id:int}")
+async def stream_audio_by_id(track_id: int):
+    """Stream audio file by track ID."""
     music_dir = Path(get_music_dir())
+    repository = get_track_repository()
 
     try:
-        # First validate the path
-        if not is_safe_path(music_dir, file_path):
+        # Get track by ID
+        track = await repository.get_by_id(track_id)
+        if track is None:
+            raise HTTPException(status_code=404, detail="Track not found")
+
+        # Validate the path
+        if not is_safe_path(music_dir, track.file_path):
             raise HTTPException(status_code=403, detail="Access denied")
 
-        # If path is safe, resolve it
-        target_path = (music_dir / file_path).resolve()
-
         # Check if the file exists
-        if not target_path.exists() or not target_path.is_file():
+        if not track.file_path.exists() or not track.file_path.is_file():
             raise HTTPException(status_code=404, detail="File not found")
 
         # Determine media type based on extension
         media_type = "audio/mpeg"  # Default to MP3
-        if target_path.suffix.lower() in [".wav", ".wave"]:
+        if track.file_path.suffix.lower() in [".wav", ".wave"]:
             media_type = "audio/wav"
-        elif target_path.suffix.lower() in [".ogg", ".oga"]:
+        elif track.file_path.suffix.lower() in [".ogg", ".oga"]:
             media_type = "audio/ogg"
-        elif target_path.suffix.lower() in [".flac"]:
+        elif track.file_path.suffix.lower() in [".flac"]:
             media_type = "audio/flac"
 
         return FileResponse(
-            str(target_path), media_type=media_type, filename=target_path.name
+            str(track.file_path), media_type=media_type, filename=track.file_path.name
         )
     except HTTPException:
         raise

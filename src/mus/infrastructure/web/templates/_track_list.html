@@ -3,7 +3,7 @@
   {% for track in tracks %}
   <div class="track-item">
     <div class="track-details">
-      <button class="play-button" data-file-path="{{ track.file_path }}">▶</button>
+      <button class="play-button" data-track-id="{{ track.id }}">▶</button>
       {{ track.artist }} — {{ track.title }}
     </div>
     <div class="track-duration">{{ track.duration // 60 }}:{{ "%02d" | format(track.duration % 60) }}</div>

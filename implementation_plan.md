@@ -26,7 +26,7 @@
 ## Phase 5: Good enough MVP
 
 - [ ] UX - make it usable (+ move controls on bottom)
-- [ ] Stream - not by filepath, but by id (a bit slower, yet less attack surface)
+- [x] Stream - not by filepath, but by id (a bit slower, yet less attack surface)
 - [ ] UI - make it look nice
 - [ ] When open page first time, should be selected first track to play paused 0 sec
 - [ ] When we close tab and open again, should be paused from the same track same time.
