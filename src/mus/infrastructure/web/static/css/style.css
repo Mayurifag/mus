@@ -1,11 +1,12 @@
 :root {
-  --bg-color: #1a1a1a;
-  --text-color: #ffffff;
-  --accent-color: #4a9eff;
-  --hover-color: #2d2d2d;
-  --border-color: #333333;
+  --bg-color: #121212;
+  --text-color: #FFFFFF;
+  --accent-color: #1DB954;
+  --hover-color: #535353;
+  --border-color: #B3B3B3;
   --header-height: 120px;
   --player-bar-height: 60px;
+  --footer-height: 90px;
 }
 
 * {
@@ -19,6 +20,7 @@ body {
   background-color: var(--bg-color);
   color: var(--text-color);
   line-height: 1.6;
+  padding-bottom: calc(var(--footer-height) + 20px);
 }
 
 .container {
@@ -315,4 +317,200 @@ footer {
   text-overflow: ellipsis;
   max-width: 100%;
   text-align: center;
+}
+
+#player-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: var(--footer-height);
+  background-color: var(--bg-color);
+  padding: 0 16px;
+  z-index: 1000;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-sizing: border-box;
+  border-top: 1px solid var(--border-color);
+}
+
+.footer-left-zone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 200px;
+  max-width: 300px;
+  overflow: hidden;
+}
+
+#footer-track-title {
+  color: var(--text-color);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#footer-track-artist {
+  color: var(--border-color);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.footer-center-zone {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 300px;
+  max-width: 600px;
+}
+
+.playback-controls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+#play-pause-button {
+  font-size: 1.5rem;
+  color: var(--text-color);
+}
+
+.control-button {
+  background: none;
+  border: none;
+  color: var(--border-color);
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 8px;
+  transition: color 0.2s;
+}
+
+.control-button:hover {
+  color: var(--text-color);
+}
+
+.progress-section {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#progress-bar-container {
+  flex: 1;
+  height: 4px;
+  background-color: var(--hover-color);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+#progress-bar-container:hover #progress-bar-fill {
+  background-color: var(--accent-color);
+}
+
+#progress-bar-fill {
+  height: 100%;
+  background-color: var(--border-color);
+  border-radius: 2px;
+  width: 0;
+  transition: width 0.1s linear;
+}
+
+#current-time,
+#total-duration {
+  color: var(--border-color);
+  font-size: 0.8rem;
+  min-width: 3ch;
+}
+
+.footer-right-zone {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  min-width: 200px;
+}
+
+.volume-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.volume-slider {
+  width: 100px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--hover-color);
+  border-radius: 2px;
+  outline: none;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--border-color);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.volume-slider:hover::-webkit-slider-thumb {
+  background: var(--accent-color);
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--border-color);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.volume-slider:hover::-moz-range-thumb {
+  background: var(--accent-color);
+}
+
+.actions-menu-popup {
+  position: absolute;
+  bottom: calc(var(--footer-height) - 10px);
+  right: 16px;
+  background-color: #282828;
+  padding: 8px;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  display: none;
+}
+
+#actions-menu-button:hover+#actions-menu,
+#actions-menu:hover {
+  display: block;
+}
+
+.menu-button {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  color: var(--text-color);
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.9rem;
+  border-radius: 2px;
+}
+
+.menu-button:hover {
+  background-color: var(--hover-color);
 }

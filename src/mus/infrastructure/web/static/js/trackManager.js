@@ -62,7 +62,8 @@ export const trackManager = {
 
   updateTrackInfo(index) {
     const currentTrackItem = document.querySelector(`.play-button[data-track-id="${this.tracklist[index]}"]`)?.closest('.track-item');
-    const nowPlayingInfo = document.getElementById('now-playing-info');
+    const trackTitle = document.getElementById('footer-track-title');
+    const trackArtist = document.getElementById('footer-track-artist');
 
     if (currentTrackItem) {
       const trackDetails = currentTrackItem.querySelector('.track-details');
@@ -70,12 +71,15 @@ export const trackManager = {
         const text = trackDetails.textContent.trim();
         const trackInfo = text.replace('▶', '').trim();
         const [artist, title] = trackInfo.split(' — ').map(s => s.trim());
-        nowPlayingInfo.textContent = `${artist} - ${title}`;
+        trackTitle.textContent = title;
+        trackArtist.textContent = artist;
       } else {
-        nowPlayingInfo.textContent = '';
+        trackTitle.textContent = '';
+        trackArtist.textContent = '';
       }
     } else {
-      nowPlayingInfo.textContent = '';
+      trackTitle.textContent = '';
+      trackArtist.textContent = '';
     }
   },
 

@@ -11,6 +11,7 @@ export const uiControls = {
     this.progressBarFill = document.getElementById('progress-bar-fill');
     this.progressBarContainer = document.getElementById('progress-bar-container');
     this.currentTimeDisplay = document.getElementById('current-time');
+    this.totalDurationDisplay = document.getElementById('total-duration');
 
     this.setupEventListeners();
   },
@@ -78,6 +79,10 @@ export const uiControls = {
       this.updateTimeDisplay();
     });
 
+    audioManager.audioPlayer.addEventListener('loadedmetadata', () => {
+      this.updateTimeDisplay();
+    });
+
     audioManager.audioPlayer.addEventListener('ended', () => {
       const nextIndex = trackManager.getNextTrack();
       if (nextIndex !== -1) {
@@ -90,11 +95,13 @@ export const uiControls = {
     const currentTime = audioManager.getCurrentTime();
     const duration = audioManager.getDuration();
     this.currentTimeDisplay.textContent = this.formatTime(currentTime);
+    this.totalDurationDisplay.textContent = this.formatTime(duration);
     const progress = (currentTime / duration) * 100;
     this.progressBarFill.style.width = `${progress}%`;
   },
 
   formatTime(seconds) {
+    if (isNaN(seconds)) return '0:00';
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
