@@ -69,10 +69,12 @@ export const uiControls = {
     // Audio player events
     audioManager.audioPlayer.addEventListener('play', () => {
       this.playPauseButton.textContent = '⏸';
+      trackManager.updatePlayingTrack(trackManager.currentIndex);
     });
 
     audioManager.audioPlayer.addEventListener('pause', () => {
       this.playPauseButton.textContent = '▶';
+      trackManager.updatePlayingTrack(trackManager.currentIndex);
     });
 
     audioManager.audioPlayer.addEventListener('timeupdate', () => {
@@ -87,6 +89,8 @@ export const uiControls = {
       const nextIndex = trackManager.getNextTrack();
       if (nextIndex !== -1) {
         trackManager.playTrackAtIndex(nextIndex);
+      } else {
+        trackManager.updatePlayingTrack(trackManager.currentIndex);
       }
     });
   },

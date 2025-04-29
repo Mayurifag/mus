@@ -36,17 +36,45 @@ export const trackManager = {
         this.initializeTrackList();
       }
     });
+
+    document.body.addEventListener('htmx:afterRequest', (e) => {
+      if (e.target.id === 'track-list-container' && e.detail.successful) {
+        setTimeout(() => this.initializeTrackList(), 100);
+      }
+    });
   },
 
   initializeTrackList() {
     const trackItems = this.trackListContainer.querySelectorAll('.track-item');
+    console.log('Initializing track list with', trackItems.length, 'items');
+
     if (trackItems.length > 0) {
       this.tracklist = Array.from(trackItems).map(item => item.dataset.trackId);
       this.currentIndex = 0;
-      this.playTrackAtIndex(0);
+      const trackId = this.tracklist[0];
+      const streamUrl = `/stream/${trackId}`;
+
+      console.log('Loading initial track:', trackId);
+
+      // Load the track but don't play it
+      audioManager.loadTrack(streamUrl);
+
+      // Update UI immediately
+      this.updateTrackInfo(0);
+      this.updatePlayingTrack(0);
+
+      // Add event listener for when the track is loaded
+      audioManager.audioPlayer.addEventListener('loadedmetadata', () => {
+        console.log('Track metadata loaded');
+        this.updateTrackInfo(0);
+        this.updatePlayingTrack(0);
+      }, { once: true });
     } else {
+      console.log('No tracks found');
       this.currentIndex = -1;
       this.tracklist = [];
+      this.updateTrackInfo(-1);
+      this.updatePlayingTrack(-1);
     }
   },
 
@@ -66,40 +94,43 @@ export const trackManager = {
   },
 
   updateTrackInfo(index) {
-    const currentTrackItem = document.querySelector(`.play-button[data-track-id="${this.tracklist[index]}"]`)?.closest('.track-item');
-    const trackTitle = document.getElementById('footer-track-title');
-    const trackArtist = document.getElementById('footer-track-artist');
-
-    if (currentTrackItem) {
-      const trackDetails = currentTrackItem.querySelector('.track-details');
-      if (trackDetails) {
-        const text = trackDetails.textContent.trim();
-        const trackInfo = text.replace('▶', '').trim();
-        const [artist, title] = trackInfo.split(' — ').map(s => s.trim());
-        trackTitle.textContent = title;
-        trackArtist.textContent = artist;
-      } else {
-        trackTitle.textContent = '';
-        trackArtist.textContent = '';
-      }
-    } else {
-      trackTitle.textContent = '';
-      trackArtist.textContent = '';
+    if (index < 0 || index >= this.tracklist.length) {
+      document.getElementById('footer-track-title').textContent = '';
+      document.getElementById('footer-track-artist').textContent = '';
+      return;
     }
+
+    const currentTrackItem = document.querySelector(`.track-item[data-track-id="${this.tracklist[index]}"]`);
+    if (!currentTrackItem) return;
+
+    const trackDetails = currentTrackItem.querySelector('.track-details');
+    if (!trackDetails) return;
+
+    const text = trackDetails.textContent.trim();
+    const trackInfo = text.replace('▶', '').replace('⏸', '').trim();
+    const [artist, title] = trackInfo.split(' — ').map(s => s.trim());
+
+    document.getElementById('footer-track-title').textContent = title || '';
+    document.getElementById('footer-track-artist').textContent = artist || '';
   },
 
   updatePlayingTrack(index) {
-    document.querySelectorAll('.track-item.playing').forEach(item => {
+    // Reset all track items
+    document.querySelectorAll('.track-item').forEach(item => {
       item.classList.remove('playing');
       const playButton = item.querySelector('.play-button');
       if (playButton) playButton.textContent = '▶';
     });
 
-    const currentTrackItem = document.querySelector(`.play-button[data-track-id="${this.tracklist[index]}"]`)?.closest('.track-item');
-    if (currentTrackItem) {
-      currentTrackItem.classList.add('playing');
-      const playButton = currentTrackItem.querySelector('.play-button');
-      if (playButton) playButton.textContent = '⏸';
+    if (index < 0 || index >= this.tracklist.length) return;
+
+    const currentTrackItem = document.querySelector(`.track-item[data-track-id="${this.tracklist[index]}"]`);
+    if (!currentTrackItem) return;
+
+    currentTrackItem.classList.add('playing');
+    const playButton = currentTrackItem.querySelector('.play-button');
+    if (playButton) {
+      playButton.textContent = audioManager.isPaused() ? '▶' : '⏸';
     }
   },
 
