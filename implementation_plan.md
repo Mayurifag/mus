@@ -25,29 +25,35 @@
 
 ## Phase 5: Good enough MVP
 
-- [ ] UX - make it usable (+ move controls on bottom)
+- [x] UX - make it usable (+ move controls on bottom)
 - [x] Stream - not by filepath, but by id (a bit slower, yet less attack surface)
-- [ ] UI - make it look nice
+- [x] UI - make it look nice
 - [x] When open page first time, should be selected first track to play paused 0 sec
-- [ ] When we close tab and open again, should be paused from the same track same time.
-- [ ] research cache possibilities - save to cache and clean
+- [x] When we close tab and open again, should be paused from the same track same time.
+- [ ] Refactor all css and whats applying by js:
+  - [ ] Common things like hidden/visible/etc. should be extracted into their own css classes and used in html in elements.
+  - [ ] scss??
+  - [ ] Javascript has to be changed to apply classes, not hardcoding styles
+- [ ] cache - current track, next. When click 'next' - remove -2 tracks from cache. Keep 3 tracks in cache. Make sure tracks are actually given chunk by chunk
+- [ ] Define Album entity
+- [ ] album little images converting/saving/showing on
+- [ ] fast search - has to be server side
 
 ## Phase 6: Release MVP
 
-- [x] Github Actions CI
+- [ ] Github Actions CI fixes
 - [x] Dockerized CD
 
 ## Phase 7: after MVP
 
-- [ ] fast search - has to be server side
 - [ ] Many-to-many relation between tracks/albums/artists
-- [ ] Define Album entity
-- [ ] album little images converting/saving/showing on
 - [ ] Define Playlist entity
 - [ ] Implement playlist management service (Deferred)
 
-## Edit files in place
+## Edit files in place and upload from user computer
 
+- [ ] If user moves file on opened page, we should upload it to the server
+- [ ] Preview of each file - possibility to set title artist (choose?)
 - [ ] Page to edit filename and tags. Also normalize tags has to be automatical.
 - [ ] Possibility to delete tracks
 - [ ] History of that - deleted tracks, history for each file, revert functionality
@@ -60,16 +66,12 @@
 - [ ] ...?? soundcloud?
 - [ ] yt-dlp from other sites?
 
-## Load from user computer functionality
-
-- [ ] If user moves file on opened page, we should upload it to the server
-- [ ] Preview of each file - possibility to set title artist (choose?)
-
 ## Things nice to have
 
 - [ ] Limit tracks by 5000 on page?
 - [ ] Define Artist entity
 - [ ] Artist page with all their tracks
+- [ ] Artist can have many similar names (Тату = t.A.T.u.)
 
 ## Notes
 - Project management rules are defined in `.cursor/rules/`
