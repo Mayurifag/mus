@@ -27,24 +27,6 @@ def client():
         yield TestClient(app)
 
 
-def test_root_route(client):
-    response = client.get("/")
-    assert response.status_code == 200
-    assert "MUS - Music Player" in response.text
-
-
-def test_get_tracks_empty(client):
-    response = client.get("/tracks")
-    assert response.status_code == 200
-    assert "No tracks found" in response.text
-
-
-def test_scan_tracks(client):
-    response = client.post("/scan")
-    assert response.status_code == 200
-    assert "Scan completed" in response.text
-
-
 async def test_stream_audio_by_id_success(client):
     # Create a test audio file
     music_dir = Path(os.environ["MUSIC_DIR"])

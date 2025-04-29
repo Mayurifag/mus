@@ -9,11 +9,13 @@ from fastapi.templating import Jinja2Templates
 
 from mus.config import get_music_dir
 from mus.dependencies import (
+    get_initial_state_service,
     get_scan_tracks_use_case,
     get_search_tracks_use_case,
     get_track_repository,
 )
 from mus.infrastructure.logging_config import setup_logging
+from mus.infrastructure.web.api.state_router import router as state_router
 
 setup_logging()
 log = structlog.get_logger()
@@ -39,6 +41,7 @@ app = FastAPI(title="mus", lifespan=lifespan)
 app.mount(
     "/static", StaticFiles(directory="src/mus/infrastructure/web/static"), name="static"
 )
+app.include_router(state_router)
 templates = Jinja2Templates(directory="src/mus/infrastructure/web/templates")
 templates.env.filters["datetime"] = lambda ts: datetime.fromtimestamp(ts).strftime(
     "%Y-%m-%d %H:%M"
@@ -66,7 +69,11 @@ async def global_exception_handler(request: Request, exc: Exception):
 async def root(request: Request):
     """Root route handler."""
     log.info("Root route accessed")
-    return render_template(request, "index.html", startup_ts=APP_START_TIME)
+    initial_state_service = get_initial_state_service()
+    initial_state = await initial_state_service.get_initial_state()
+    return render_template(
+        request, "index.html", startup_ts=APP_START_TIME, initial_state=initial_state
+    )
 
 
 @app.get("/tracks")

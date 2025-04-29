@@ -31,7 +31,13 @@ export const audioManager = {
   },
 
   seek(position) {
-    this.audioPlayer.currentTime = position * this.audioPlayer.duration;
+    if (typeof position === 'number') {
+      // If position is a number, treat it as a percentage of the duration
+      this.audioPlayer.currentTime = position * this.audioPlayer.duration;
+    } else {
+      // Otherwise, treat it as an absolute time in seconds
+      this.audioPlayer.currentTime = position;
+    }
   },
 
   loadTrack(url) {

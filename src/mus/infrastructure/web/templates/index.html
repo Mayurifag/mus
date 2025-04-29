@@ -9,7 +9,10 @@
   <script src="https://unpkg.com/htmx.org@1.9.10" defer></script>
 </head>
 
-<body>
+<body data-initial-track-id="{{ initial_state.player_state.current_track_id }}"
+  data-initial-progress="{{ initial_state.player_state.progress_seconds }}"
+  data-initial-volume="{{ initial_state.player_state.volume_level }}"
+  data-initial-muted="{{ initial_state.player_state.is_muted | lower }}">
   <div class="container">
     <main>
       <div id="track-list-container" hx-get="/tracks" hx-trigger="load, refreshTrackList from:body"></div>

@@ -2,7 +2,7 @@ import { audioManager } from './audioManager.js';
 import { trackManager } from './trackManager.js';
 
 export const uiControls = {
-  init() {
+  init(initialState = null) {
     this.playPauseButton = document.getElementById('play-pause-button');
     this.prevButton = document.getElementById('prev-button');
     this.nextButton = document.getElementById('next-button');
@@ -12,6 +12,37 @@ export const uiControls = {
     this.progressBarContainer = document.getElementById('progress-bar-container');
     this.currentTimeDisplay = document.getElementById('current-time');
     this.totalDurationDisplay = document.getElementById('total-duration');
+
+    if (initialState) {
+      console.log("Initializing UI Controls with state:", initialState);
+
+      // Set volume
+      this.volumeSlider.value = initialState.volumeLevel;
+      audioManager.setVolume(initialState.volumeLevel);
+
+      // Directly set mute state based on initial state
+      if (initialState.isMuted) {
+        audioManager.isMuted = true;
+        audioManager.audioPlayer.muted = true;
+        this.volumeButton.textContent = '🔇';
+      } else {
+        audioManager.isMuted = false;
+        audioManager.audioPlayer.muted = false;
+        this.volumeButton.textContent = '🔊';
+      }
+
+      // Ensure volume slider reflects mute state if volume was 0
+      if (initialState.volumeLevel === 0) {
+        this.volumeButton.textContent = '🔇';
+      }
+
+      // Set initial progress if available
+      if (initialState.progressSeconds > 0) {
+        // We'll update the progress bar once the audio metadata is loaded
+        // This is handled in the trackManager's metadataListener
+        console.log("Initial progress seconds:", initialState.progressSeconds);
+      }
+    }
 
     this.setupEventListeners();
   },
@@ -96,16 +127,25 @@ export const uiControls = {
   },
 
   updateTimeDisplay() {
+    // Added checks for NaN/Infinity which can happen before duration is known
     const currentTime = audioManager.getCurrentTime();
     const duration = audioManager.getDuration();
+    if (isNaN(currentTime) || !isFinite(currentTime)) return;
+
     this.currentTimeDisplay.textContent = this.formatTime(currentTime);
-    this.totalDurationDisplay.textContent = this.formatTime(duration);
-    const progress = (currentTime / duration) * 100;
-    this.progressBarFill.style.width = `${progress}%`;
+
+    if (isNaN(duration) || !isFinite(duration) || duration === 0) {
+      this.totalDurationDisplay.textContent = '0:00';
+      this.progressBarFill.style.width = '0%';
+    } else {
+      this.totalDurationDisplay.textContent = this.formatTime(duration);
+      const progress = (currentTime / duration) * 100;
+      this.progressBarFill.style.width = `${Math.min(100, Math.max(0, progress))}%`; // Clamp progress
+    }
   },
 
   formatTime(seconds) {
-    if (isNaN(seconds)) return '0:00';
+    if (isNaN(seconds) || !isFinite(seconds)) return '0:00'; // Handle invalid input
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
