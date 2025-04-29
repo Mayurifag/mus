@@ -24,3 +24,8 @@ class ITrackRepository(ABC):
     async def get_all(self) -> list[Track]:
         """Get all tracks."""
         pass
+
+    @abstractmethod
+    async def clear_all_tracks(self) -> None:
+        """Clear all tracks from the repository."""
+        pass

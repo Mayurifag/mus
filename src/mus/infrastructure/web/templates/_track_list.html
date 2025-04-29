@@ -1,15 +1,13 @@
 {% if tracks %}
 <div class="track-list">
   <div class="track-list-header">
-    <div class="track-title">Title</div>
-    <div class="track-artist">Artist</div>
+    <div class="track-details"></div>
     <div class="track-duration">Duration</div>
     <div class="track-added">Added</div>
   </div>
   {% for track in tracks %}
   <div class="track-item">
-    <div class="track-title">{{ track.title }}</div>
-    <div class="track-artist">{{ track.artist }}</div>
+    <div class="track-details">{{ track.artist }} — {{ track.title }}</div>
     <div class="track-duration">{{ track.duration // 60 }}:{{ "%02d" | format(track.duration % 60) }}</div>
     <div class="track-added">{{ track.added_at | datetime }}</div>
   </div>

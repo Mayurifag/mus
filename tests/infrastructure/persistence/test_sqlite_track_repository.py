@@ -26,6 +26,17 @@ def track():
     )
 
 
+@pytest.fixture
+def track2():
+    return Track(
+        title="Another Track",
+        artist="Another Artist",
+        duration=240,
+        file_path=Path("/test/path/track2.mp3"),
+        added_at=int(datetime(2024, 1, 2).timestamp()),
+    )
+
+
 async def test_add_and_get_track(repository, track):
     await repository.add(track)
     tracks = await repository.get_all()
@@ -51,3 +62,24 @@ async def test_search_by_title(repository, track):
 
     tracks = await repository.search_by_title("Nonexistent")
     assert len(tracks) == 0
+
+
+async def test_clear_all_tracks(repository, track, track2):
+    # Add multiple tracks
+    await repository.add(track)
+    await repository.add(track2)
+
+    # Verify tracks exist
+    tracks = await repository.get_all()
+    assert len(tracks) == 2
+    assert await repository.exists_by_path(track.file_path)
+    assert await repository.exists_by_path(track2.file_path)
+
+    # Clear all tracks
+    await repository.clear_all_tracks()
+
+    # Verify tracks are gone
+    tracks = await repository.get_all()
+    assert len(tracks) == 0
+    assert not await repository.exists_by_path(track.file_path)
+    assert not await repository.exists_by_path(track2.file_path)

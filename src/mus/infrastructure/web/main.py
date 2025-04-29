@@ -8,37 +8,40 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from mus.config import get_music_dir
-from mus.dependencies import get_scan_tracks_use_case, get_search_tracks_use_case
+from mus.dependencies import (
+    get_scan_tracks_use_case,
+    get_search_tracks_use_case,
+    get_track_repository,
+)
 from mus.infrastructure.logging_config import setup_logging
 
-# Setup logging
 setup_logging()
 log = structlog.get_logger()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Run initial scan
+    try:
+        repository = get_track_repository()
+        log.info("Clearing existing tracks before initial scan")
+        await repository.clear_all_tracks()
+    except Exception as e:
+        log.exception("Failed to clear tracks before initial scan", exc_info=e)
+
     scan_use_case = get_scan_tracks_use_case()
     await scan_use_case.execute(get_music_dir())
     yield
-    # Shutdown: Clean up resources if needed
     pass
 
 
 app = FastAPI(title="mus", lifespan=lifespan)
-
-# Mount static files
 app.mount(
     "/static", StaticFiles(directory="src/mus/infrastructure/web/static"), name="static"
 )
-
-# Setup templates
 templates = Jinja2Templates(directory="src/mus/infrastructure/web/templates")
-
-# Add custom filters
-templates.env.filters["datetime"] = lambda ts: datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
-
+templates.env.filters["datetime"] = lambda ts: datetime.fromtimestamp(ts).strftime(
+    "%Y-%m-%d %H:%M"
+)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -74,6 +77,9 @@ async def get_tracks(request: Request):
 async def scan_tracks():
     """Trigger track scanning."""
     log.info("Manual scan triggered")
+    repository = get_track_repository()
+    log.info("Clearing existing tracks before scan")
+    await repository.clear_all_tracks()
     scan_use_case = get_scan_tracks_use_case()
     await scan_use_case.execute(get_music_dir())
     return HTMLResponse("Scan completed", status_code=200)

@@ -77,7 +77,7 @@ class SQLiteTrackRepository(ITrackRepository):
     async def get_all(self) -> list[Track]:
         await self._init_db()
         async with aiosqlite.connect(self.db_path) as db:
-            async with db.execute("SELECT * FROM tracks") as cursor:
+            async with db.execute("SELECT * FROM tracks ORDER BY added_at DESC") as cursor:
                 rows = await cursor.fetchall()
                 return [
                     Track(
@@ -89,3 +89,10 @@ class SQLiteTrackRepository(ITrackRepository):
                     )
                     for row in rows
                 ]
+
+    async def clear_all_tracks(self) -> None:
+        await self._init_db()
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("DELETE FROM tracks")
+            await db.commit()
+        logger.info("All tracks cleared from repository")
