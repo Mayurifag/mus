@@ -33,8 +33,12 @@
       </div>
       <div class="progress-section">
         <span id="current-time">0:00</span>
-        <div id="progress-bar-container">
-          <div id="progress-bar-fill"></div>
+        <div class="slider-interaction-wrapper">
+          <div id="progress-bar-container" class="custom-slider-container">
+            <div class="custom-slider-track"></div>
+            <div id="progress-bar-fill" class="custom-slider-fill"></div>
+            <div class="custom-slider-thumb"></div>
+          </div>
         </div>
         <span id="total-duration">0:00</span>
       </div>
@@ -43,7 +47,13 @@
     <div class="footer-right-zone">
       <div class="volume-controls">
         <button id="volume-button" class="control-button">🔊</button>
-        <input type="range" id="volume-slider" class="volume-slider" min="0" max="1" step="0.1" value="1">
+        <div id="volume-control-wrapper" class="slider-interaction-wrapper">
+          <div class="custom-slider-container">
+            <div class="custom-slider-track"></div>
+            <div id="volume-slider-fill" class="custom-slider-fill"></div>
+            <div class="custom-slider-thumb"></div>
+          </div>
+        </div>
       </div>
       <button id="actions-menu-button" class="control-button">⋮</button>
       <div id="actions-menu" class="actions-menu-popup">

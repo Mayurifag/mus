@@ -7,9 +7,13 @@ export const uiControls = {
     this.prevButton = document.getElementById('prev-button');
     this.nextButton = document.getElementById('next-button');
     this.volumeButton = document.getElementById('volume-button');
-    this.volumeSlider = document.getElementById('volume-slider');
+    this.volumeSliderFill = document.getElementById('volume-slider-fill');
+    this.volumeSliderThumb = document.querySelector('#volume-control-wrapper .custom-slider-thumb');
+    this.volumeControlWrapper = document.getElementById('volume-control-wrapper');
     this.progressBarFill = document.getElementById('progress-bar-fill');
+    this.progressBarThumb = document.querySelector('#progress-bar-container .custom-slider-thumb');
     this.progressBarContainer = document.getElementById('progress-bar-container');
+    this.progressWrapper = document.querySelector('.progress-section .slider-interaction-wrapper');
     this.currentTimeDisplay = document.getElementById('current-time');
     this.totalDurationDisplay = document.getElementById('total-duration');
 
@@ -17,7 +21,7 @@ export const uiControls = {
       console.log("Initializing UI Controls with state:", initialState);
 
       // Set volume
-      this.volumeSlider.value = initialState.volumeLevel;
+      this.updateVolumeUI(initialState.volumeLevel);
       audioManager.setVolume(initialState.volumeLevel);
 
       // Directly set mute state based on initial state
@@ -64,11 +68,15 @@ export const uiControls = {
     });
 
     // Volume controls
-    this.volumeSlider.addEventListener('input', (e) => {
-      const volume = parseFloat(e.target.value);
-      const isMuted = audioManager.setVolume(volume);
-      this.volumeButton.textContent = isMuted ? '🔇' : '🔊';
-    });
+    this.setupSliderInteraction(
+      this.volumeControlWrapper,
+      this.volumeSliderFill,
+      this.volumeSliderThumb,
+      (value) => {
+        const isMuted = audioManager.setVolume(value);
+        this.volumeButton.textContent = isMuted ? '🔇' : '🔊';
+      }
+    );
 
     this.volumeButton.addEventListener('click', () => {
       const isMuted = audioManager.toggleMute();
@@ -91,11 +99,14 @@ export const uiControls = {
     });
 
     // Progress bar
-    this.progressBarContainer.addEventListener('click', (e) => {
-      const rect = this.progressBarContainer.getBoundingClientRect();
-      const pos = (e.clientX - rect.left) / rect.width;
-      audioManager.seek(pos);
-    });
+    this.setupSliderInteraction(
+      this.progressWrapper,
+      this.progressBarFill,
+      this.progressBarThumb,
+      (value) => {
+        audioManager.seek(value);
+      }
+    );
 
     // Audio player events
     audioManager.audioPlayer.addEventListener('play', () => {
@@ -126,6 +137,64 @@ export const uiControls = {
     });
   },
 
+  setupSliderInteraction(wrapperElement, fillElement, thumbElement, updateCallback) {
+    let isDragging = false;
+
+    const updateSliderUI = (value) => {
+      const clampedValue = Math.min(1, Math.max(0, value));
+      const percentage = clampedValue * 100;
+      fillElement.style.width = `${percentage}%`;
+
+      // Position the thumb, accounting for its width
+      const thumbWidth = 12; // Width of the thumb in pixels
+      thumbElement.style.left = `calc(${percentage}% - ${thumbWidth / 2}px)`;
+    };
+
+    const handleInteraction = (e) => {
+      const rect = wrapperElement.getBoundingClientRect();
+      const pos = (e.clientX - rect.left) / rect.width;
+      updateSliderUI(pos);
+      updateCallback(pos);
+    };
+
+    wrapperElement.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      handleInteraction(e);
+
+      // Prevent text selection during drag
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        handleInteraction(e);
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    // Handle mouse leave during drag
+    document.addEventListener('mouseleave', () => {
+      isDragging = false;
+    });
+  },
+
+  updateVolumeUI(volume) {
+    this.updateSliderUI(this.volumeSliderFill, this.volumeSliderThumb, volume);
+  },
+
+  updateSliderUI(fillElement, thumbElement, value) {
+    const clampedValue = Math.min(1, Math.max(0, value));
+    const percentage = clampedValue * 100;
+    fillElement.style.width = `${percentage}%`;
+
+    // Position the thumb, accounting for its width
+    const thumbWidth = 12; // Width of the thumb in pixels
+    thumbElement.style.left = `calc(${percentage}% - ${thumbWidth / 2}px)`;
+  },
+
   updateTimeDisplay() {
     // Added checks for NaN/Infinity which can happen before duration is known
     const currentTime = audioManager.getCurrentTime();
@@ -136,11 +205,11 @@ export const uiControls = {
 
     if (isNaN(duration) || !isFinite(duration) || duration === 0) {
       this.totalDurationDisplay.textContent = '0:00';
-      this.progressBarFill.style.width = '0%';
+      this.updateSliderUI(this.progressBarFill, this.progressBarThumb, 0);
     } else {
       this.totalDurationDisplay.textContent = this.formatTime(duration);
-      const progress = (currentTime / duration) * 100;
-      this.progressBarFill.style.width = `${Math.min(100, Math.max(0, progress))}%`; // Clamp progress
+      const progress = currentTime / duration;
+      this.updateSliderUI(this.progressBarFill, this.progressBarThumb, progress);
     }
   },
 
