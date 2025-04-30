@@ -6,13 +6,13 @@ export const trackManager = {
   currentIndex: -1,
   initialState: null,
 
-  init (trackListContainer, initialState = null) {
+  init(trackListContainer, initialState = null) {
     this.trackListContainer = trackListContainer
     this.initialState = initialState
     this.setupEventListeners()
   },
 
-  setupEventListeners () {
+  setupEventListeners() {
     this.trackListContainer.addEventListener('click', (e) => {
       const trackItem = e.target.closest('.track-item')
       if (!trackItem) return
@@ -51,7 +51,7 @@ export const trackManager = {
     })
   },
 
-  initializeTrackList () {
+  initializeTrackList() {
     if (this.initializing) return
     this.initializing = true
 
@@ -139,7 +139,7 @@ export const trackManager = {
     this.initializing = false
   },
 
-  playTrackAtIndex (index) {
+  playTrackAtIndex(index) {
     if (index < 0 || index >= this.tracklist.length) {
       console.warn(`Attempted to play invalid index: ${index}`)
       return
@@ -167,7 +167,7 @@ export const trackManager = {
     }
   },
 
-  updateTrackInfo (index) {
+  updateTrackInfo(index) {
     const titleElement = document.getElementById('footer-track-title')
     const artistElement = document.getElementById('footer-track-artist')
 
@@ -212,33 +212,31 @@ export const trackManager = {
     artistElement.textContent = artist
   },
 
-  updatePlayingTrack (index) {
-    document.querySelectorAll('.track-item.playing').forEach(item => {
-      item.classList.remove('playing')
+  updatePlayingTrack(index) {
+    // TODO: fix this, we should optionally give here index of prev track and only update that item, not all of them
+    const trackItems = this.trackListContainer.querySelectorAll('.track-item')
+    trackItems.forEach(item => {
+      item.classList.remove('is-active')
+      const button = item.querySelector('.play-button')
+      if (button) {
+        button.setAttribute('data-playing', 'false')
+      }
     })
 
-    if (index < 0 || index >= this.tracklist.length) return
-
-    const trackId = this.tracklist[index]
-    const currentTrackItem = document.querySelector(`.track-item[data-track-id="${trackId}"]`)
-    if (!currentTrackItem) {
-      console.warn(`Track item with ID ${trackId} not found in DOM for UI update.`)
-      return
+    if (index >= 0 && index < this.tracklist.length) {
+      const trackId = this.tracklist[index]
+      const activeItem = document.querySelector(`.track-item[data-track-id="${trackId}"]`)
+      if (activeItem) {
+        activeItem.classList.add('is-active')
+        const button = activeItem.querySelector('.play-button')
+        if (button) {
+          button.setAttribute('data-playing', !audioManager.isPaused())
+        }
+      }
     }
-
-    currentTrackItem.classList.add('playing')
-    const playButton = currentTrackItem.querySelector('.play-button')
-    if (playButton) {
-      playButton.classList.toggle('is-playing', !audioManager.isPaused())
-      playButton.classList.toggle('is-paused', audioManager.isPaused())
-    }
-
-    const mainPlayPauseButton = uiControls.playPauseButton
-    mainPlayPauseButton.classList.toggle('is-playing', !audioManager.isPaused())
-    mainPlayPauseButton.classList.toggle('is-paused', audioManager.isPaused())
   },
 
-  getNextTrack () {
+  getNextTrack() {
     if (this.tracklist.length === 0) return -1
     if (this.currentIndex < this.tracklist.length - 1) {
       return this.currentIndex + 1
@@ -246,7 +244,7 @@ export const trackManager = {
     return -1
   },
 
-  getPreviousTrack () {
+  getPreviousTrack() {
     if (this.tracklist.length === 0) return -1
     if (this.currentIndex > 0) {
       return this.currentIndex - 1
@@ -254,7 +252,7 @@ export const trackManager = {
     return -1
   },
 
-  getCurrentTrackId () {
+  getCurrentTrackId() {
     if (this.currentIndex >= 0 && this.currentIndex < this.tracklist.length) {
       const id = parseInt(this.tracklist[this.currentIndex])
       return isNaN(id) ? null : id

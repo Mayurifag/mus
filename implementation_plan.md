@@ -30,11 +30,11 @@
 - [x] UI - make it look nice
 - [x] When open page first time, should be selected first track to play paused 0 sec
 - [x] When we close tab and open again, should be paused from the same track same time.
-- [ ] Refactor all css and whats applying by js:
-  - [ ] Common things like hidden/visible/etc. should be extracted into their own css classes and used in html in elements.
+- [x] Refactor all css and whats applying by js:
+  - [x] Common things like hidden/visible/etc. should be extracted into their own css classes and used in html in elements.
   - [ ] scss??
   - [x] Javascript has to be changed to apply classes, not hardcoding styles
-  - [ ] Fix css problem with next/prev track bug. Logic has not to go through all elements because thats shit performance.
+  - [x] Fix css problem with next/prev track bug. Logic has not to go through all elements because thats shit performance.
 - [ ] cache - current track, next. When click 'next' - remove -2 tracks from cache. Keep 3 tracks in cache. Make sure tracks are actually given chunk by chunk
 - [ ] Define Album entity
 - [ ] album little images converting/saving/showing on

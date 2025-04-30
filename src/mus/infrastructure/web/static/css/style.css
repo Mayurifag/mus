@@ -214,28 +214,37 @@ button {
 
 .play-button {
   visibility: hidden;
+  color: var(--accent-color);
   background: none;
   border: none;
-  color: var(--accent-color);
   cursor: pointer;
-  font-size: 0;
-  padding: 0.5rem;
-  transition: color 0.2s;
-  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  padding: 0;
+  font-size: 14px;
 }
 
-.track-item.playing .play-button {
+.play-button::before {
+  content: "▶";
+}
+
+.track-item:hover .play-button {
+  visibility: visible;
+}
+
+.track-item.is-active .play-button {
   visibility: visible;
   color: var(--text-color);
 }
 
-.track-item.playing .play-button::before {
-  font-size: 14px;
+.track-item.is-active .play-button:hover {
+  color: var(--accent-color);
+}
+
+.track-item.is-active .play-button[data-playing="true"]::before {
   content: "⏸";
 }
 
