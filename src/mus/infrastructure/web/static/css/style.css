@@ -26,62 +26,10 @@ body {
   padding: 0;
 }
 
-.player-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.player-bar {
-  position: sticky;
-  top: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: calc(var(--footer-height) / 2);
-  padding: 0 1rem;
-  background-color: var(--bg-color);
-  border-bottom: 1px solid var(--border-color);
-  z-index: 100;
-}
-
-.player-bar-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.player-bar-center {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0 2rem;
-}
-
-.player-bar-right {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
 #current-time {
   color: var(--text-color);
   font-size: 0.9em;
   min-width: 4ch;
-}
-
-.playback-controls {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.volume-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  justify-content: center;
 }
 
 .progress-section {
@@ -101,7 +49,6 @@ body {
   max-width: 600px;
 }
 
-/* New unified slider styles */
 .slider-interaction-wrapper {
   padding-top: 8px;
   padding-bottom: 8px;
@@ -197,26 +144,6 @@ main {
   padding-right: 1rem;
 }
 
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
-}
-
-h1 {
-  font-size: 2rem;
-  color: var(--accent-color);
-}
-
-.controls {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
 button {
   background-color: var(--accent-color);
   color: white;
@@ -260,16 +187,7 @@ button {
   color: var(--text-color);
 }
 
-.track-title {
-  font-weight: 500;
-}
-
-.track-artist {
-  color: #999;
-}
-
-.track-duration,
-.track-added {
+.track-duration {
   color: #666;
   font-size: 0.9rem;
 }
@@ -298,16 +216,6 @@ button {
 .track-item:hover .play-button {
   visibility: visible;
   color: var(--accent-color);
-}
-
-#now-playing-info {
-  font-size: 0.9em;
-  color: var(--text-color);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-  text-align: center;
 }
 
 #player-footer {
