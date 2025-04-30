@@ -1,0 +1,128 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# JavaScript Development Standards
+
+Standards and best practices for JavaScript development in the mus project.
+
+<rule>
+name: javascript_best_practices
+description: Core JavaScript development standards and best practices
+filters:
+  - type: file_extension
+    pattern: "\\.(js|mjs)$"
+  - type: content
+    pattern: ".*"
+
+actions:
+  - type: suggest
+    message: |
+      ## General Guidelines
+      - Follow eslint-config-standard rules
+      - Use ES Modules for code organization
+      - Declare variables with const by default
+      - Use let only for reassignable variables
+      - Use strict equality (===, !==)
+      - Implement proper Promise handling
+      - Follow single responsibility principle
+
+      ## DOM Manipulation & Performance
+      - Use specific selectors:
+        ```js
+        // Preferred
+        document.getElementById('id')
+        document.querySelector('#id')
+        document.querySelector('[data-track="current"]')
+
+        // Avoid when targeting single elements
+        document.querySelectorAll('.class')[0]
+        ```
+      - Implement event delegation for dynamic content:
+        ```js
+        parentElement.addEventListener('click', (e) => {
+          if (e.target.matches('.track-item')) {
+            handleTrack(e.target);
+          }
+        });
+        ```
+      - Manage DOM updates efficiently:
+        - Batch DOM updates
+        - Use DocumentFragment for multiple insertions
+        - Modify classList instead of style property
+        - Cache frequently accessed elements
+
+      ## HTMX Integration
+      - Handle HTMX events appropriately:
+        ```js
+        document.body.addEventListener('htmx:afterSettle', (e) => {
+          // Update UI after HTMX content loads
+        });
+        ```
+      - Use proper HTMX attributes for triggers
+      - Maintain state consistency after HTMX updates
+      - Handle HTMX errors gracefully
+
+      ## Error Handling
+      - Use try/catch blocks for error-prone operations:
+        ```js
+        try {
+          await fetch('/api/tracks');
+        } catch (error) {
+          console.error('Failed to fetch tracks:', error);
+          // Handle error appropriately
+        }
+        ```
+      - Implement proper error boundaries
+      - Log errors with context
+      - Provide user-friendly error messages
+      - Handle async errors consistently
+
+      ## Accessibility
+      - Manage keyboard focus:
+        ```js
+        element.focus({ preventScroll: true });
+        ```
+      - Use appropriate ARIA attributes
+      - Handle keyboard events properly
+      - Ensure dynamic content is accessible
+      - Maintain focus management during updates
+
+      ## Maintainability
+      - Use descriptive names for variables and functions
+      - Extract repeated logic into functions
+      - Keep functions small and focused
+      - Use constants for magic values
+      - Document complex algorithms
+      - Implement proper error recovery
+
+examples:
+  - input: |
+      // Bad: Inefficient DOM manipulation
+      document.querySelectorAll('.track').forEach(track => {
+        track.style.display = 'none';
+      });
+
+      // Good: Efficient class-based approach
+      document.getElementById('track-container').classList.add('hidden');
+  - input: |
+      // Bad: Poor error handling
+      fetch('/api/tracks')
+        .then(data => updateTracks(data));
+
+      // Good: Proper error handling
+      try {
+        const response = await fetch('/api/tracks');
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        await updateTracks(data);
+      } catch (error) {
+        console.error('Failed to fetch tracks:', error);
+        showErrorMessage('Failed to load tracks');
+      }
+
+metadata:
+  priority: high
+  version: 1.0
+</rule>

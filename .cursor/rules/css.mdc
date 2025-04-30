@@ -1,0 +1,89 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# CSS Development Standards
+
+Standards and best practices for CSS development in the mus project.
+
+<rule>
+name: css_best_practices
+description: Core CSS development standards and best practices
+filters:
+  - type: file_extension
+    pattern: "\\.(css|scss)$"
+  - type: content
+    pattern: ".*"
+
+actions:
+  - type: suggest
+    message: |
+      ## General Guidelines
+      - Follow stylelint-config-standard rules
+      - Use modular CSS organization by component/feature
+      - Implement BEM-like naming: `.block__element--modifier`
+      - Define and use CSS custom properties for theme values
+      - Maintain single responsibility principle per file
+      - Keep selectors simple and specific
+
+      ## Selector Best Practices
+      - Prefer classes (.component) over element selectors
+      - Use data attributes for JS hooks: [data-action="play"]
+      - Limit nesting to 3 levels maximum
+      - Avoid universal selector (*) except for CSS resets
+      - Use meaningful, semantic class names
+      - Target IDs only for unique, singleton elements
+
+      ## Performance Guidelines
+      - Minimize selector specificity
+      - Avoid descendant selectors for large trees
+      - Use efficient composite properties (flex, grid)
+      - Prefer transform/opacity for animations
+      - Group related properties for better rendering
+      - Use contain property where appropriate
+
+      ## Accessibility Standards
+      - Ensure WCAG 2.1 AA contrast ratios
+      - Use relative units (rem, em) for text and spacing
+      - Implement visible :focus-visible states
+      - Support reduced-motion preferences
+      - Ensure text remains visible during loading
+      - Maintain readability at 200% zoom
+
+      ## Maintainability Rules
+      - Group related properties logically
+      - Order properties consistently
+      - Document complex selectors or calculations
+      - Use descriptive custom property names
+      - Keep rule sets focused and minimal
+      - Implement responsive design mobile-first
+
+examples:
+  - input: |
+      /* Bad: Overly specific and nested */
+      .container div span.text {
+        color: #000;
+      }
+
+      /* Good: Flat and specific */
+      .container__text {
+        color: var(--text-color);
+      }
+  - input: |
+      /* Bad: Magic numbers and hard-coded colors */
+      .button {
+        margin: 12.5px;
+        background: #ff0000;
+      }
+
+      /* Good: Using variables and semantic spacing */
+      .button {
+        margin: var(--spacing-md);
+        background: var(--color-primary);
+      }
+
+metadata:
+  priority: high
+  version: 1.0
+</rule>
