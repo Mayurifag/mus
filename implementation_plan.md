@@ -33,7 +33,7 @@
 - [ ] Refactor all css and whats applying by js:
   - [ ] Common things like hidden/visible/etc. should be extracted into their own css classes and used in html in elements.
   - [ ] scss??
-  - [ ] Javascript has to be changed to apply classes, not hardcoding styles
+  - [x] Javascript has to be changed to apply classes, not hardcoding styles
   - [ ] Fix css problem with next/prev track bug. Logic has not to go through all elements because thats shit performance.
 - [ ] cache - current track, next. When click 'next' - remove -2 tracks from cache. Keep 3 tracks in cache. Make sure tracks are actually given chunk by chunk
 - [ ] Define Album entity
@@ -48,6 +48,8 @@
 
 ## Phase 7: after MVP
 
+- [x] Add Stylelint for CSS linting and formatting
+- [x] Add ESLint (standard config) for JS linting
 - [ ] Many-to-many relation between tracks/albums/artists
 - [ ] Define Playlist entity
 - [ ] Implement playlist management service (Deferred)

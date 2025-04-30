@@ -1,0 +1,23 @@
+{
+  "name": "mus",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "^1.2.11",
+    "eslint": "^9.25.1",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-n": "^17.17.0",
+    "eslint-plugin-promise": "^7.2.1",
+    "globals": "^16.0.0",
+    "stylelint": "^16.19.1",
+    "stylelint-config-standard": "^38.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "scripts": {
+    "lint:js": "eslint --config eslint.config.js 'src/mus/infrastructure/web/static/js/**/*.js' --fix"
+  }
+}

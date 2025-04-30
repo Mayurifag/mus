@@ -1,262 +1,264 @@
-import { audioManager } from './audioManager.js';
-import { uiControls } from './uiControls.js';
+import { audioManager } from './audioManager.js'
+import { uiControls } from './uiControls.js'
 
 export const trackManager = {
   tracklist: [],
   currentIndex: -1,
   initialState: null,
 
-  init(trackListContainer, initialState = null) {
-    this.trackListContainer = trackListContainer;
-    this.initialState = initialState;
-    this.setupEventListeners();
+  init (trackListContainer, initialState = null) {
+    this.trackListContainer = trackListContainer
+    this.initialState = initialState
+    this.setupEventListeners()
   },
 
-  setupEventListeners() {
+  setupEventListeners () {
     this.trackListContainer.addEventListener('click', (e) => {
-      const trackItem = e.target.closest('.track-item');
-      if (!trackItem) return;
+      const trackItem = e.target.closest('.track-item')
+      if (!trackItem) return
 
-      const trackId = trackItem.dataset.trackId;
-      if (!trackId) return;
+      const trackId = trackItem.dataset.trackId
+      if (!trackId) return
 
-      const index = this.tracklist.findIndex(id => id === trackId);
-      if (index === -1) return;
+      const index = this.tracklist.findIndex(id => id === trackId)
+      if (index === -1) return
 
       if (index === this.currentIndex) {
         if (audioManager.isPaused()) {
-          audioManager.play();
+          audioManager.play()
         } else {
-          audioManager.pause();
+          audioManager.pause()
         }
-        this.updatePlayingTrack(this.currentIndex);
+        this.updatePlayingTrack(this.currentIndex)
       } else {
-        this.playTrackAtIndex(index);
+        this.playTrackAtIndex(index)
       }
-    });
+    })
 
     document.body.addEventListener('htmx:afterSettle', (e) => {
       if (e.target.id === 'track-list-container' || this.trackListContainer.contains(e.target)) {
-        console.log("htmx:afterSettle triggered for track list");
+        console.log('htmx:afterSettle triggered for track list')
         if (this.trackListContainer.querySelector('.track-item')) {
-          this.initializeTrackList();
+          this.initializeTrackList()
         } else {
-          console.log("Track list container updated but no tracks found.");
-          this.tracklist = [];
-          this.currentIndex = -1;
-          this.updateTrackInfo(-1);
-          this.updatePlayingTrack(-1);
+          console.log('Track list container updated but no tracks found.')
+          this.tracklist = []
+          this.currentIndex = -1
+          this.updateTrackInfo(-1)
+          this.updatePlayingTrack(-1)
         }
       }
-    });
+    })
   },
 
-  initializeTrackList() {
-    if (this.initializing) return;
-    this.initializing = true;
+  initializeTrackList () {
+    if (this.initializing) return
+    this.initializing = true
 
-    const trackItems = this.trackListContainer.querySelectorAll('.track-item');
-    console.log('Initializing track list with', trackItems.length, 'items');
+    const trackItems = this.trackListContainer.querySelectorAll('.track-item')
+    console.log('Initializing track list with', trackItems.length, 'items')
 
     if (trackItems.length > 0) {
-      this.tracklist = Array.from(trackItems).map(item => item.dataset.trackId);
+      this.tracklist = Array.from(trackItems).map(item => item.dataset.trackId)
 
-      let initialIndex = -1;
+      let initialIndex = -1
       if (this.initialState?.currentTrackId !== null && this.initialState?.currentTrackId !== undefined) {
-        const initialTrackIdStr = String(this.initialState.currentTrackId);
-        initialIndex = this.tracklist.findIndex(id => id === initialTrackIdStr);
-        console.log(`Attempting to find initial track ID ${initialTrackIdStr}, found index: ${initialIndex}`);
+        const initialTrackIdStr = String(this.initialState.currentTrackId)
+        initialIndex = this.tracklist.findIndex(id => id === initialTrackIdStr)
+        console.log(`Attempting to find initial track ID ${initialTrackIdStr}, found index: ${initialIndex}`)
       } else {
-        console.log("No valid initial track ID provided in state.");
+        console.log('No valid initial track ID provided in state.')
       }
 
       if (initialIndex !== -1) {
-        this.currentIndex = initialIndex;
+        this.currentIndex = initialIndex
       } else if (this.tracklist.length > 0) {
-        this.currentIndex = 0;
-        console.log("Initial track ID not found or null, defaulting to index 0");
+        this.currentIndex = 0
+        console.log('Initial track ID not found or null, defaulting to index 0')
       } else {
-        this.currentIndex = -1;
+        this.currentIndex = -1
       }
 
       if (this.currentIndex === -1) {
-        console.log("No valid initial track index found.");
-        this.updateTrackInfo(-1);
-        this.updatePlayingTrack(-1);
-        this.initializing = false;
-        return;
+        console.log('No valid initial track index found.')
+        this.updateTrackInfo(-1)
+        this.updatePlayingTrack(-1)
+        this.initializing = false
+        return
       }
 
-      const trackId = this.tracklist[this.currentIndex];
-      const streamUrl = `/stream/${trackId}`;
+      const trackId = this.tracklist[this.currentIndex]
+      const streamUrl = `/stream/${trackId}`
 
-      console.log(`Loading initial track: ID=${trackId}, Index=${this.currentIndex}, URL=${streamUrl}`);
+      console.log(`Loading initial track: ID=${trackId}, Index=${this.currentIndex}, URL=${streamUrl}`)
 
-      audioManager.loadTrack(streamUrl);
-      this.updateTrackInfo(this.currentIndex);
-      this.updatePlayingTrack(this.currentIndex);
+      audioManager.loadTrack(streamUrl)
+      this.updateTrackInfo(this.currentIndex)
+      this.updatePlayingTrack(this.currentIndex)
 
       const metadataListener = () => {
-        console.log('Track metadata loaded. Duration:', audioManager.getDuration());
-        uiControls.updateTimeDisplay();
+        console.log('Track metadata loaded. Duration:', audioManager.getDuration())
+        uiControls.updateTimeDisplay()
 
         if (this.initialState?.progressSeconds) {
-          const progress = parseFloat(this.initialState.progressSeconds);
-          const duration = audioManager.getDuration();
+          const progress = parseFloat(this.initialState.progressSeconds)
+          const duration = audioManager.getDuration()
           if (!isNaN(progress) && progress > 0 && !isNaN(duration) && duration > 0 && progress < duration) {
             setTimeout(() => {
-              audioManager.audioPlayer.currentTime = progress;
-              console.log('Seeked to initial progress:', progress);
-              uiControls.updateTimeDisplay();
-            }, 100);
+              audioManager.audioPlayer.currentTime = progress
+              console.log('Seeked to initial progress:', progress)
+              uiControls.updateTimeDisplay()
+            }, 100)
           } else {
-            console.log(`Skipping seek: Invalid/zero progress (${progress}) or duration (${duration}).`);
+            console.log(`Skipping seek: Invalid/zero progress (${progress}) or duration (${duration}).`)
           }
         } else {
-          console.log("No initial progress to seek to.");
+          console.log('No initial progress to seek to.')
         }
-        this.updateTrackInfo(this.currentIndex);
-        this.updatePlayingTrack(this.currentIndex);
-      };
+        this.updateTrackInfo(this.currentIndex)
+        this.updatePlayingTrack(this.currentIndex)
+      }
 
       const errorListener = (e) => {
-        console.error("Error loading initial audio track:", e);
-      };
+        console.error('Error loading initial audio track:', e)
+      }
 
-      audioManager.audioPlayer.removeEventListener('loadedmetadata', metadataListener);
-      audioManager.audioPlayer.removeEventListener('error', errorListener);
+      audioManager.audioPlayer.removeEventListener('loadedmetadata', metadataListener)
+      audioManager.audioPlayer.removeEventListener('error', errorListener)
 
-      audioManager.audioPlayer.addEventListener('loadedmetadata', metadataListener, { once: true });
-      audioManager.audioPlayer.addEventListener('error', errorListener, { once: true });
-
+      audioManager.audioPlayer.addEventListener('loadedmetadata', metadataListener, { once: true })
+      audioManager.audioPlayer.addEventListener('error', errorListener, { once: true })
     } else {
-      console.log('No tracks found in the list container');
-      this.currentIndex = -1;
-      this.tracklist = [];
-      this.updateTrackInfo(-1);
-      this.updatePlayingTrack(-1);
+      console.log('No tracks found in the list container')
+      this.currentIndex = -1
+      this.tracklist = []
+      this.updateTrackInfo(-1)
+      this.updatePlayingTrack(-1)
     }
 
-    this.initializing = false;
+    this.initializing = false
   },
 
-  playTrackAtIndex(index) {
+  playTrackAtIndex (index) {
     if (index < 0 || index >= this.tracklist.length) {
-      console.warn(`Attempted to play invalid index: ${index}`);
-      return;
+      console.warn(`Attempted to play invalid index: ${index}`)
+      return
     }
 
-    this.currentIndex = index;
-    const trackId = this.tracklist[index];
-    const streamUrl = `/stream/${trackId}`;
-    console.log(`Playing track: ID=${trackId}, Index=${index}, URL=${streamUrl}`);
-    audioManager.loadTrack(streamUrl);
-    const playPromise = audioManager.play();
+    this.currentIndex = index
+    const trackId = this.tracklist[index]
+    const streamUrl = `/stream/${trackId}`
+    console.log(`Playing track: ID=${trackId}, Index=${index}, URL=${streamUrl}`)
+    audioManager.loadTrack(streamUrl)
+    const playPromise = audioManager.play()
 
     if (playPromise !== undefined) {
       playPromise.then(_ => {
-        console.log("Playback started for track", trackId);
-        this.updateTrackInfo(index);
-        this.updatePlayingTrack(index);
+        console.log('Playback started for track', trackId)
+        this.updateTrackInfo(index)
+        this.updatePlayingTrack(index)
       }).catch(error => {
-        console.error('Error playing audio:', error);
-        this.updatePlayingTrack(index);
-      });
+        console.error('Error playing audio:', error)
+        this.updatePlayingTrack(index)
+      })
     } else {
-      this.updateTrackInfo(index);
-      this.updatePlayingTrack(index);
+      this.updateTrackInfo(index)
+      this.updatePlayingTrack(index)
     }
   },
 
-  updateTrackInfo(index) {
-    const titleElement = document.getElementById('footer-track-title');
-    const artistElement = document.getElementById('footer-track-artist');
+  updateTrackInfo (index) {
+    const titleElement = document.getElementById('footer-track-title')
+    const artistElement = document.getElementById('footer-track-artist')
 
     if (!titleElement || !artistElement) {
-      console.error("Footer track info elements not found");
-      return;
+      console.error('Footer track info elements not found')
+      return
     }
 
     if (index < 0 || index >= this.tracklist.length) {
-      titleElement.textContent = 'No Track Selected';
-      artistElement.textContent = '';
-      return;
+      titleElement.textContent = 'No Track Selected'
+      artistElement.textContent = ''
+      return
     }
 
-    const trackId = this.tracklist[index];
-    const currentTrackItem = document.querySelector(`.track-item[data-track-id="${trackId}"]`);
+    const trackId = this.tracklist[index]
+    const currentTrackItem = document.querySelector(`.track-item[data-track-id="${trackId}"]`)
     if (!currentTrackItem) {
-      console.warn(`Track item with ID ${trackId} not found in DOM for info update.`);
-      titleElement.textContent = 'Loading...';
-      artistElement.textContent = '';
-      return;
+      console.warn(`Track item with ID ${trackId} not found in DOM for info update.`)
+      titleElement.textContent = 'Loading...'
+      artistElement.textContent = ''
+      return
     }
 
-    const trackDetails = currentTrackItem.querySelector('.track-details');
+    const trackDetails = currentTrackItem.querySelector('.track-details')
     if (!trackDetails) {
-      console.warn(`Track details div not found for track ID ${trackId}.`);
-      titleElement.textContent = 'Error';
-      artistElement.textContent = '';
-      return;
+      console.warn(`Track details div not found for track ID ${trackId}.`)
+      titleElement.textContent = 'Error'
+      artistElement.textContent = ''
+      return
     }
 
     const artistTitleText = Array.from(trackDetails.childNodes)
       .filter(node => node.nodeType === Node.TEXT_NODE)
       .map(node => node.textContent.trim())
-      .join('');
+      .join('')
 
-    const parts = artistTitleText.split('—').map(s => s.trim());
-    const artist = parts.length > 1 ? parts[0] : 'Unknown Artist';
-    const title = parts.length > 1 ? parts[1] : parts[0] || 'Unknown Title';
+    const parts = artistTitleText.split('—').map(s => s.trim())
+    const artist = parts.length > 1 ? parts[0] : 'Unknown Artist'
+    const title = parts.length > 1 ? parts[1] : parts[0] || 'Unknown Title'
 
-    titleElement.textContent = title;
-    artistElement.textContent = artist;
+    titleElement.textContent = title
+    artistElement.textContent = artist
   },
 
-  updatePlayingTrack(index) {
+  updatePlayingTrack (index) {
     document.querySelectorAll('.track-item.playing').forEach(item => {
-      item.classList.remove('playing');
-    });
+      item.classList.remove('playing')
+    })
 
-    if (index < 0 || index >= this.tracklist.length) return;
+    if (index < 0 || index >= this.tracklist.length) return
 
-    const trackId = this.tracklist[index];
-    const currentTrackItem = document.querySelector(`.track-item[data-track-id="${trackId}"]`);
+    const trackId = this.tracklist[index]
+    const currentTrackItem = document.querySelector(`.track-item[data-track-id="${trackId}"]`)
     if (!currentTrackItem) {
-      console.warn(`Track item with ID ${trackId} not found in DOM for UI update.`);
-      return;
+      console.warn(`Track item with ID ${trackId} not found in DOM for UI update.`)
+      return
     }
 
-    currentTrackItem.classList.add('playing');
-    const playButton = currentTrackItem.querySelector('.play-button');
+    currentTrackItem.classList.add('playing')
+    const playButton = currentTrackItem.querySelector('.play-button')
     if (playButton) {
-      playButton.textContent = audioManager.isPaused() ? '▶' : '⏸';
-      playButton.style.visibility = 'visible';
+      playButton.classList.toggle('is-playing', !audioManager.isPaused())
+      playButton.classList.toggle('is-paused', audioManager.isPaused())
     }
-    uiControls.playPauseButton.textContent = audioManager.isPaused() ? '▶' : '⏸';
+
+    const mainPlayPauseButton = uiControls.playPauseButton
+    mainPlayPauseButton.classList.toggle('is-playing', !audioManager.isPaused())
+    mainPlayPauseButton.classList.toggle('is-paused', audioManager.isPaused())
   },
 
-  getNextTrack() {
-    if (this.tracklist.length === 0) return -1;
+  getNextTrack () {
+    if (this.tracklist.length === 0) return -1
     if (this.currentIndex < this.tracklist.length - 1) {
-      return this.currentIndex + 1;
+      return this.currentIndex + 1
     }
-    return -1;
+    return -1
   },
 
-  getPreviousTrack() {
-    if (this.tracklist.length === 0) return -1;
+  getPreviousTrack () {
+    if (this.tracklist.length === 0) return -1
     if (this.currentIndex > 0) {
-      return this.currentIndex - 1;
+      return this.currentIndex - 1
     }
-    return -1;
+    return -1
   },
 
-  getCurrentTrackId() {
+  getCurrentTrackId () {
     if (this.currentIndex >= 0 && this.currentIndex < this.tracklist.length) {
-      const id = parseInt(this.tracklist[this.currentIndex]);
-      return isNaN(id) ? null : id;
+      const id = parseInt(this.tracklist[this.currentIndex])
+      return isNaN(id) ? null : id
     }
-    return null;
+    return null
   }
-};
+}

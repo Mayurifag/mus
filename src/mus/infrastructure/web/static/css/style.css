@@ -1,6 +1,6 @@
 :root {
   --bg-color: #121212;
-  --text-color: #FFFFFF;
+  --text-color: #FFF;
   --accent-color: #1DB954;
   --hover-color: #535353;
   --border-color: #B3B3B3;
@@ -43,12 +43,6 @@ body {
   justify-content: center;
 }
 
-.progress-section .slider-interaction-wrapper {
-  flex: 1;
-  min-width: 200px;
-  max-width: 600px;
-}
-
 .slider-interaction-wrapper {
   padding-top: 8px;
   padding-bottom: 8px;
@@ -57,6 +51,12 @@ body {
   align-items: center;
   width: 100%;
   height: 20px;
+}
+
+.progress-section .slider-interaction-wrapper {
+  flex: 1;
+  min-width: 200px;
+  max-width: 600px;
 }
 
 .custom-slider-container {
@@ -85,7 +85,8 @@ body {
   height: 100%;
   background-color: var(--accent-color);
   border-radius: inherit;
-  width: 0%;
+  width: var(--slider-percentage, 0%);
+  transition: width 0.1s ease-out;
 }
 
 .custom-slider-thumb {
@@ -97,8 +98,8 @@ body {
   background-color: var(--accent-color);
   border-radius: 50%;
   opacity: 0;
-  transition: opacity 0.1s ease-in-out;
-  left: 0%;
+  transition: left 0.1s ease-out, opacity 0.1s ease-in-out;
+  left: calc(var(--slider-percentage, 0%) - 6px);
   pointer-events: none;
 }
 
@@ -133,12 +134,6 @@ body {
   transform: scale(0.95);
 }
 
-.control-button:disabled {
-  color: var(--border-color);
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
 main {
   padding-left: 1rem;
   padding-right: 1rem;
@@ -159,9 +154,8 @@ button {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin-top: 1rem;
+  margin: 1rem auto 0;
   max-width: 960px;
-  margin: 0 auto;
 }
 
 .track-item {
@@ -175,16 +169,11 @@ button {
 }
 
 .track-item:hover {
-  background-color: rgba(83, 83, 83, 0.5);
+  background-color: rgb(83 83 83 / 50%);
 }
 
 .track-item.playing {
   background-color: #1A1A1A;
-}
-
-.track-item.playing .play-button {
-  visibility: visible;
-  color: var(--text-color);
 }
 
 .track-duration {
@@ -201,21 +190,53 @@ button {
   text-overflow: ellipsis;
 }
 
+.control-button#play-pause-button {
+  font-size: 0;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+}
+
+.control-button#play-pause-button::before {
+  font-size: 2rem;
+}
+
+.control-button#play-pause-button.is-playing::before {
+  content: "⏸";
+}
+
+.control-button#play-pause-button.is-paused::before {
+  content: "▶";
+}
+
 .play-button {
   visibility: hidden;
   background: none;
   border: none;
   color: var(--accent-color);
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0;
   padding: 0.5rem;
   transition: color 0.2s;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
 }
 
-.track-item:hover .play-button {
+.track-item.playing .play-button {
   visibility: visible;
-  color: var(--accent-color);
+  color: var(--text-color);
+}
+
+.track-item.playing .play-button::before {
+  font-size: 14px;
+  content: "⏸";
 }
 
 #player-footer {
@@ -260,7 +281,7 @@ button {
 }
 
 .footer-center-zone {
-  padding: 0.5rem 0 1rem 0;
+  padding: 0.5rem 0 1rem;
   width: 100%;
   margin: 0 auto;
 }
@@ -271,11 +292,6 @@ button {
   justify-content: center;
   gap: 1rem;
   margin-top: 0.5rem;
-}
-
-#play-pause-button {
-  font-size: 2rem;
-  padding: 0.25rem;
 }
 
 #current-time,
@@ -303,19 +319,20 @@ button {
   justify-content: flex-end;
 }
 
-.actions-menu-popup {
-  position: absolute;
-  bottom: calc(var(--footer-height) - 10px);
-  right: 16px;
-  background-color: #282828;
-  padding: 8px;
-  border-radius: 4px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+#actions-menu {
   display: none;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.5rem;
+  z-index: 1000;
 }
 
-#actions-menu-button:hover+#actions-menu,
-#actions-menu:hover {
+#actions-menu:hover,
+#actions-menu-button:hover+#actions-menu {
   display: block;
 }
 
@@ -330,8 +347,4 @@ button {
   cursor: pointer;
   font-size: 0.9rem;
   border-radius: 2px;
-}
-
-.menu-button:hover {
-  background-color: var(--hover-color);
 }

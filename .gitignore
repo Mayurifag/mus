@@ -174,3 +174,9 @@ cython_debug/
 .pypirc
 
 cursor_accounts.txt
+
+# Node.js
+node_modules/
+
+# ESLint
+.eslintcache
