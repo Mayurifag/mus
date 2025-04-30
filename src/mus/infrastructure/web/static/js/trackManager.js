@@ -6,13 +6,13 @@ export const trackManager = {
   currentIndex: -1,
   initialState: null,
 
-  init(trackListContainer, initialState = null) {
+  init (trackListContainer, initialState = null) {
     this.trackListContainer = trackListContainer
     this.initialState = initialState
     this.setupEventListeners()
   },
 
-  setupEventListeners() {
+  setupEventListeners () {
     this.trackListContainer.addEventListener('click', (e) => {
       const trackItem = e.target.closest('.track-item')
       if (!trackItem) return
@@ -51,7 +51,7 @@ export const trackManager = {
     })
   },
 
-  initializeTrackList() {
+  initializeTrackList () {
     if (this.initializing) return
     this.initializing = true
 
@@ -139,7 +139,7 @@ export const trackManager = {
     this.initializing = false
   },
 
-  playTrackAtIndex(index) {
+  playTrackAtIndex (index) {
     if (index < 0 || index >= this.tracklist.length) {
       console.warn(`Attempted to play invalid index: ${index}`)
       return
@@ -167,7 +167,7 @@ export const trackManager = {
     }
   },
 
-  updateTrackInfo(index) {
+  updateTrackInfo (index) {
     const titleElement = document.getElementById('footer-track-title')
     const artistElement = document.getElementById('footer-track-artist')
 
@@ -212,7 +212,7 @@ export const trackManager = {
     artistElement.textContent = artist
   },
 
-  updatePlayingTrack(index) {
+  updatePlayingTrack (index) {
     // TODO: fix this, we should optionally give here index of prev track and only update that item, not all of them
     const trackItems = this.trackListContainer.querySelectorAll('.track-item')
     trackItems.forEach(item => {
@@ -236,7 +236,7 @@ export const trackManager = {
     }
   },
 
-  getNextTrack() {
+  getNextTrack () {
     if (this.tracklist.length === 0) return -1
     if (this.currentIndex < this.tracklist.length - 1) {
       return this.currentIndex + 1
@@ -244,7 +244,7 @@ export const trackManager = {
     return -1
   },
 
-  getPreviousTrack() {
+  getPreviousTrack () {
     if (this.tracklist.length === 0) return -1
     if (this.currentIndex > 0) {
       return this.currentIndex - 1
@@ -252,7 +252,7 @@ export const trackManager = {
     return -1
   },
 
-  getCurrentTrackId() {
+  getCurrentTrackId () {
     if (this.currentIndex >= 0 && this.currentIndex < this.tracklist.length) {
       const id = parseInt(this.tracklist[this.currentIndex])
       return isNaN(id) ? null : id

@@ -160,19 +160,16 @@ button {
 
 .track-item {
   display: grid;
-  grid-template-columns: 1fr 100px;
-  gap: 1rem;
-  padding: 0.75rem;
-  border-radius: 4px;
+  grid-template-columns: 1fr 40px;
+  padding: 0.6rem;
   cursor: pointer;
-  transition: background-color 0ms ease;
 }
 
 .track-item:hover {
-  background-color: rgb(83 83 83 / 50%);
+  background-color: #1A1A1A;
 }
 
-.track-item.playing {
+.track-item.is-active {
   background-color: #1A1A1A;
 }
 
@@ -240,7 +237,7 @@ button {
   color: var(--text-color);
 }
 
-.track-item.is-active .play-button:hover {
+.track-item.is-active:hover .play-button {
   color: var(--accent-color);
 }
 
