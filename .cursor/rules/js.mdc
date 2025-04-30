@@ -1,6 +1,6 @@
 ---
 description:
-globs:
+globs: *.js,*.mjs
 alwaysApply: false
 ---
 # JavaScript Development Standards
@@ -27,6 +27,18 @@ actions:
       - Use strict equality (===, !==)
       - Implement proper Promise handling
       - Follow single responsibility principle
+      - Add space after function name before parentheses:
+        ```js
+        // Correct
+        function name (args) {
+          // ...
+        }
+
+        // Incorrect
+        function name(args) {
+          // ...
+        }
+        ```
 
       ## DOM Manipulation & Performance
       - Use specific selectors:

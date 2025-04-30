@@ -2,14 +2,10 @@ import { audioManager } from './audioManager.js'
 import { trackManager } from './trackManager.js'
 
 export const uiControls = {
-  init (initialState = null) {
+  init(initialState = null) {
     this.playPauseButton = document.getElementById('play-pause-button')
     this.prevButton = document.getElementById('prev-button')
     this.nextButton = document.getElementById('next-button')
-    this.volumeButton = document.getElementById('volume-button')
-    this.volumeSliderFill = document.getElementById('volume-slider-fill')
-    this.volumeSliderThumb = document.querySelector('#volume-control-wrapper .custom-slider-thumb')
-    this.volumeControlWrapper = document.getElementById('volume-control-wrapper')
     this.progressBarFill = document.getElementById('progress-bar-fill')
     this.progressBarThumb = document.querySelector('#progress-bar-container .custom-slider-thumb')
     this.progressBarContainer = document.getElementById('progress-bar-container')
@@ -20,32 +16,6 @@ export const uiControls = {
     if (initialState) {
       console.log('Initializing UI Controls with state:', initialState)
 
-      // Set volume
-      this.updateVolumeUI(initialState.volumeLevel)
-      audioManager.setVolume(initialState.volumeLevel)
-
-      // Directly set mute state based on initial state
-      if (initialState.isMuted) {
-        audioManager.isMuted = true
-        audioManager.audioPlayer.muted = true
-        const volumeControls = this.volumeControlWrapper.closest('.volume-controls')
-        volumeControls.classList.add('volume-controls--muted')
-        volumeControls.classList.remove('volume-controls--unmuted')
-      } else {
-        audioManager.isMuted = false
-        audioManager.audioPlayer.muted = false
-        const volumeControls = this.volumeControlWrapper.closest('.volume-controls')
-        volumeControls.classList.remove('volume-controls--muted')
-        volumeControls.classList.add('volume-controls--unmuted')
-      }
-
-      // Ensure volume slider reflects mute state if volume was 0
-      if (initialState.volumeLevel === 0) {
-        const volumeControls = this.volumeControlWrapper.closest('.volume-controls')
-        volumeControls.classList.add('volume-controls--muted')
-        volumeControls.classList.remove('volume-controls--unmuted')
-      }
-
       // Set initial progress if available
       if (initialState.progressSeconds > 0) {
         console.log('Initial progress seconds:', initialState.progressSeconds)
@@ -55,7 +25,7 @@ export const uiControls = {
     this.setupEventListeners()
   },
 
-  setupEventListeners () {
+  setupEventListeners() {
     // Play/Pause button
     this.playPauseButton.addEventListener('click', () => {
       if (audioManager.isPaused()) {
@@ -69,26 +39,6 @@ export const uiControls = {
         audioManager.pause()
         trackManager.updatePlayingTrack(trackManager.currentIndex)
       }
-    })
-
-    // Volume controls
-    this.setupSliderInteraction(
-      this.volumeControlWrapper,
-      this.volumeSliderFill,
-      this.volumeSliderThumb,
-      (value) => {
-        const isMuted = audioManager.setVolume(value)
-        const volumeControls = this.volumeControlWrapper.closest('.volume-controls')
-        volumeControls.classList.toggle('volume-controls--muted', isMuted)
-        volumeControls.classList.toggle('volume-controls--unmuted', !isMuted)
-      }
-    )
-
-    this.volumeButton.addEventListener('click', () => {
-      const isMuted = audioManager.toggleMute()
-      const volumeControls = this.volumeControlWrapper.closest('.volume-controls')
-      volumeControls.classList.toggle('volume-controls--muted', isMuted)
-      volumeControls.classList.toggle('volume-controls--unmuted', !isMuted)
     })
 
     // Navigation controls
@@ -147,7 +97,7 @@ export const uiControls = {
     })
   },
 
-  setupSliderInteraction (wrapperElement, fillElement, thumbElement, updateCallback) {
+  setupSliderInteraction(wrapperElement, fillElement, thumbElement, updateCallback) {
     let isDragging = false
 
     const updateSliderUI = (value) => {
@@ -185,21 +135,7 @@ export const uiControls = {
     })
   },
 
-  updateVolumeUI (volume) {
-    this.updateSliderUI(this.volumeSliderFill, this.volumeSliderThumb, volume)
-    const volumeControls = this.volumeControlWrapper.closest('.volume-controls')
-    volumeControls.classList.toggle('volume-controls--muted', volume === 0)
-    volumeControls.classList.toggle('volume-controls--unmuted', volume > 0)
-  },
-
-  updateSliderUI (fillElement, thumbElement, value) {
-    const clampedValue = Math.min(1, Math.max(0, value))
-    const percentage = clampedValue * 100
-    fillElement.style.setProperty('--slider-percentage', `${percentage}%`)
-    thumbElement.style.setProperty('--slider-percentage', `${percentage}%`)
-  },
-
-  updateTimeDisplay () {
+  updateTimeDisplay() {
     // Added checks for NaN/Infinity which can happen before duration is known
     const currentTime = audioManager.getCurrentTime()
     const duration = audioManager.getDuration()
@@ -217,7 +153,14 @@ export const uiControls = {
     }
   },
 
-  formatTime (seconds) {
+  updateSliderUI(fillElement, thumbElement, value) {
+    const clampedValue = Math.min(1, Math.max(0, value))
+    const percentage = clampedValue * 100
+    fillElement.style.setProperty('--slider-percentage', `${percentage}%`)
+    thumbElement.style.setProperty('--slider-percentage', `${percentage}%`)
+  },
+
+  formatTime(seconds) {
     if (isNaN(seconds) || !isFinite(seconds)) return '0:00' // Handle invalid input
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = Math.floor(seconds % 60)
