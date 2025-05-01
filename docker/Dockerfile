@@ -5,10 +5,14 @@ WORKDIR /app
 ENV PYTHONPATH=/app/src
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends libvips-dev \
-  && rm -rf /var/lib/apt/lists/* \
-  && pip install uv \
-  ;
+    && apt-get install -y --no-install-recommends \
+    gcc \
+    build-essential \
+    libvips-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --upgrade pip \
+    && pip install uv \
+    ;
 
 COPY pyproject.toml requirements.txt ./
 

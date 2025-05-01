@@ -1,4 +1,4 @@
-.PHONY: remove-venv create-venv activate-venv lock sync update-deps venv-reprovision
+.PHONY: remove-venv create-venv activate-venv lock sync update-deps venv-reprovision uv-install
 
 remove-venv:
 	@rm -rf .venv
@@ -21,8 +21,11 @@ venv-reprovision: remove-venv create-venv activate-venv lock sync
 
 update-deps:
 	@echo "Updating all dependencies..."
-	@uv pip install --upgrade pip
-	@uv pip install --upgrade -e ".[dev]"
 	@uv pip compile pyproject.toml -o requirements.txt --all-extras --upgrade
-	@uv pip sync requirements.txt
+	@make sync
 	@echo "Dependencies updated successfully"
+
+uv-install:
+	@uv add $(ARGS)
+	@make lock
+	@make sync

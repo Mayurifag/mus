@@ -13,6 +13,8 @@ certifi==2025.4.26
     # via
     #   httpcore
     #   httpx
+cffi==1.17.1
+    # via pyvips
 click==8.1.8
     # via uvicorn
 fastapi==0.115.12
@@ -43,6 +45,8 @@ packaging==25.0
     # via pytest
 pluggy==1.5.0
     # via pytest
+pycparser==2.22
+    # via cffi
 pydantic==2.11.3
     # via
     #   mus (pyproject.toml)
@@ -57,6 +61,8 @@ pytest-asyncio==0.26.0
     # via mus (pyproject.toml)
 python-dotenv==1.1.0
     # via uvicorn
+pyvips==3.0.0
+    # via mus (pyproject.toml)
 pyyaml==6.0.2
     # via uvicorn
 ruff==0.11.7
