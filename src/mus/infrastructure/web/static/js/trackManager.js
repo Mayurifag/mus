@@ -6,13 +6,13 @@ export const trackManager = {
   currentIndex: -1,
   initialState: null,
 
-  init(trackListContainer, initialState = null) {
+  init (trackListContainer, initialState = null) {
     this.trackListContainer = trackListContainer
     this.initialState = initialState
     this.setupEventListeners()
   },
 
-  setupEventListeners() {
+  setupEventListeners () {
     this.trackListContainer.addEventListener('click', (e) => {
       const trackItem = e.target.closest('.track-item')
       if (!trackItem) return
@@ -51,7 +51,7 @@ export const trackManager = {
     })
   },
 
-  initializeTrackList() {
+  initializeTrackList () {
     if (this.initializing) return
     this.initializing = true
 
@@ -139,7 +139,7 @@ export const trackManager = {
     this.initializing = false
   },
 
-  playTrackAtIndex(index) {
+  playTrackAtIndex (index) {
     if (index < 0 || index >= this.tracklist.length) {
       console.warn(`Attempted to play invalid index: ${index}`)
       return
@@ -157,6 +157,7 @@ export const trackManager = {
         console.log('Playback started for track', trackId)
         this.updateTrackInfo(index)
         this.updatePlayingTrack(index)
+        this.preloadAdjacentTracks(index)
       }).catch(error => {
         console.error('Error playing audio:', error)
         this.updatePlayingTrack(index)
@@ -164,10 +165,26 @@ export const trackManager = {
     } else {
       this.updateTrackInfo(index)
       this.updatePlayingTrack(index)
+      this.preloadAdjacentTracks(index)
     }
   },
 
-  updateTrackInfo(index) {
+  preloadAdjacentTracks (currentIndex) {
+    const currentTrackId = this.tracklist[currentIndex]
+    const nextTrackId = this.tracklist[currentIndex + 1]
+    const prevTrackId = this.tracklist[currentIndex - 1]
+
+    if (nextTrackId) {
+      audioManager.preloadTrack(nextTrackId)
+    }
+    if (prevTrackId) {
+      audioManager.preloadTrack(prevTrackId)
+    }
+
+    audioManager.clearOldPreloadedTracks(currentTrackId, nextTrackId, prevTrackId)
+  },
+
+  updateTrackInfo (index) {
     const titleElement = document.getElementById('footer-track-title')
     const artistElement = document.getElementById('footer-track-artist')
     const coverElement = document.getElementById('footer-cover-img')
@@ -227,7 +244,7 @@ export const trackManager = {
     }
   },
 
-  updatePlayingTrack(index) {
+  updatePlayingTrack (index) {
     // TODO: fix this, we should optionally give here index of prev track and only update that item, not all of them
     const trackItems = this.trackListContainer.querySelectorAll('.track-item')
     trackItems.forEach(item => {
@@ -251,7 +268,7 @@ export const trackManager = {
     }
   },
 
-  getNextTrack() {
+  getNextTrack () {
     if (this.tracklist.length === 0) return -1
     if (this.currentIndex < this.tracklist.length - 1) {
       return this.currentIndex + 1
@@ -259,7 +276,7 @@ export const trackManager = {
     return -1
   },
 
-  getPreviousTrack() {
+  getPreviousTrack () {
     if (this.tracklist.length === 0) return -1
     if (this.currentIndex > 0) {
       return this.currentIndex - 1
@@ -267,7 +284,7 @@ export const trackManager = {
     return -1
   },
 
-  getCurrentTrackId() {
+  getCurrentTrackId () {
     if (this.currentIndex >= 0 && this.currentIndex < this.tracklist.length) {
       const id = parseInt(this.tracklist[this.currentIndex])
       return isNaN(id) ? null : id

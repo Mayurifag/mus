@@ -8,7 +8,7 @@ from mus.application.use_cases.scan_tracks import ScanTracksUseCase
 
 class AsyncIteratorMock:
     def __init__(self, items):
-        self.items = items
+        self.items = items.copy()  # Create a copy to avoid modifying the original list
 
     def __aiter__(self):
         return self
@@ -23,7 +23,7 @@ class AsyncIteratorMock:
 @pytest.fixture
 def mock_file_scanner():
     scanner = MagicMock()
-    scanner.find_music_files = AsyncMock()
+    scanner.find_music_files = MagicMock()  # Changed from AsyncMock to MagicMock
     return scanner
 
 

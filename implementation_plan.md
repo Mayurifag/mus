@@ -34,7 +34,7 @@
   - [x] Common things like hidden/visible/etc. should be extracted into their own css classes and used in html in elements.
   - [x] Javascript has to be changed to apply classes, not hardcoding styles
   - [x] Fix css problem with next/prev track bug. Logic has not to go through all elements because thats shit performance.
-- [ ] cache - current track, next. When click 'next' - remove -2 tracks from cache. Keep 3 tracks in cache. Make sure tracks are actually given chunk by chunk
+- [x] Backend: Implement chunked audio streaming via HTTP Range requests and standard caching headers
 - [x] album little images converting/saving/showing on
 - [x] minimum volume bug - has to mute everything, doesnt mute
 

@@ -1,3 +1,4 @@
+import hashlib
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -109,6 +110,11 @@ async def stream_audio_by_id(track_id: int):
     if not track or not track.file_path.exists():
         raise HTTPException(status_code=404)
 
+    file_stat = track.file_path.stat()
+    etag = hashlib.md5(
+        f"{track_id}:{file_stat.st_size}:{file_stat.st_mtime}".encode()
+    ).hexdigest()
+
     return FileResponse(
         str(track.file_path),
         media_type={
@@ -119,6 +125,10 @@ async def stream_audio_by_id(track_id: int):
             ".flac": "audio/flac",
         }.get(track.file_path.suffix.lower(), "audio/mpeg"),
         filename=track.file_path.name,
+        headers={
+            "Cache-Control": "public, max-age=604800",
+            "ETag": f'"{etag}"',
+        },
     )
 
 
