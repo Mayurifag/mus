@@ -29,12 +29,12 @@ actions:
       - Follow single responsibility principle
       - Add space after function name before parentheses:
         ```js
-        // Correct
+        // Correct (as per eslint-config-standard)
         function name (args) {
           // ...
         }
 
-        // Incorrect
+        // Incorrect (as per eslint-config-standard)
         function name(args) {
           // ...
         }

@@ -7,7 +7,7 @@ export const volumeManager = {
   _currentVolumeBeforeMute: 1.0,
   _isMuted: false,
 
-  init(initialState, audioPlayer) {
+  init (initialState, audioPlayer) {
     this._volumeButton = document.getElementById('volume-button')
     this._volumeSliderFill = document.getElementById('volume-slider-fill')
     this._volumeSliderThumb = document.querySelector('#volume-control-wrapper .custom-slider-thumb')
@@ -29,7 +29,7 @@ export const volumeManager = {
     this._updateVolumeUI()
   },
 
-  setVolume(level) {
+  setVolume (level) {
     // Clamp level between 0 and 1
     const clampedLevel = Math.min(1, Math.max(0, level))
 
@@ -49,7 +49,7 @@ export const volumeManager = {
     this._updateVolumeUI()
   },
 
-  toggleMute() {
+  toggleMute () {
     this._isMuted = !this._isMuted
     this._audioPlayer.muted = this._isMuted
 
@@ -68,15 +68,15 @@ export const volumeManager = {
   },
 
   // Getters for state manager
-  getVolumeLevel() {
+  getVolumeLevel () {
     return this._audioPlayer.volume
   },
 
-  isMuted() {
+  isMuted () {
     return this._isMuted
   },
 
-  _setupEventListeners() {
+  _setupEventListeners () {
     // Volume button click handler
     this._volumeButton.addEventListener('click', () => this.toggleMute())
 
@@ -110,7 +110,7 @@ export const volumeManager = {
     })
   },
 
-  _updateVolumeUI() {
+  _updateVolumeUI () {
     const effectiveVolume = this._isMuted ? 0 : this._audioPlayer.volume
     const percentage = effectiveVolume * 100
 

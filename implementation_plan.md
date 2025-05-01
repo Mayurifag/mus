@@ -32,27 +32,29 @@
 - [x] When we close tab and open again, should be paused from the same track same time.
 - [x] Refactor all css and whats applying by js:
   - [x] Common things like hidden/visible/etc. should be extracted into their own css classes and used in html in elements.
-  - [ ] scss??
   - [x] Javascript has to be changed to apply classes, not hardcoding styles
   - [x] Fix css problem with next/prev track bug. Logic has not to go through all elements because thats shit performance.
 - [ ] cache - current track, next. When click 'next' - remove -2 tracks from cache. Keep 3 tracks in cache. Make sure tracks are actually given chunk by chunk
-- [ ] Define Album entity
 - [ ] album little images converting/saving/showing on
 - [ ] fast search - has to be server side
-- [ ] minimum volume bug - has to mute everything, doesnt mute
+- [x] minimum volume bug - has to mute everything, doesnt mute
 
 ## Phase 6: Release MVP
 
 - [ ] Github Actions CI fixes
-- [x] Dockerized CD
+- [ ] Dockerized CD
 
 ## Phase 7: after MVP
 
+- [ ] Run through prompt about enhancing project, get TODOs done
+- [ ] Make /state sending through navigator.beacon. Its not THAT robust though and needs tests for my browser workflows.
 - [x] Add Stylelint for CSS linting and formatting
 - [x] Add ESLint (standard config) for JS linting
+- [ ] Define Album entity
 - [ ] Many-to-many relation between tracks/albums/artists
 - [ ] Define Playlist entity
 - [ ] Implement playlist management service (Deferred)
+- [ ] Move to scss. Redone css from scratch.
 
 ## Edit files in place and upload from user computer
 

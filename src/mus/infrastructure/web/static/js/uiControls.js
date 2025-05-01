@@ -2,7 +2,7 @@ import { audioManager } from './audioManager.js'
 import { trackManager } from './trackManager.js'
 
 export const uiControls = {
-  init(initialState = null) {
+  init (initialState = null) {
     this.playPauseButton = document.getElementById('play-pause-button')
     this.prevButton = document.getElementById('prev-button')
     this.nextButton = document.getElementById('next-button')
@@ -25,7 +25,7 @@ export const uiControls = {
     this.setupEventListeners()
   },
 
-  setupEventListeners() {
+  setupEventListeners () {
     // Play/Pause button
     this.playPauseButton.addEventListener('click', () => {
       if (audioManager.isPaused()) {
@@ -97,7 +97,7 @@ export const uiControls = {
     })
   },
 
-  setupSliderInteraction(wrapperElement, fillElement, thumbElement, updateCallback) {
+  setupSliderInteraction (wrapperElement, fillElement, thumbElement, updateCallback) {
     let isDragging = false
 
     const updateSliderUI = (value) => {
@@ -135,7 +135,7 @@ export const uiControls = {
     })
   },
 
-  updateTimeDisplay() {
+  updateTimeDisplay () {
     // Added checks for NaN/Infinity which can happen before duration is known
     const currentTime = audioManager.getCurrentTime()
     const duration = audioManager.getDuration()
@@ -153,14 +153,14 @@ export const uiControls = {
     }
   },
 
-  updateSliderUI(fillElement, thumbElement, value) {
+  updateSliderUI (fillElement, thumbElement, value) {
     const clampedValue = Math.min(1, Math.max(0, value))
     const percentage = clampedValue * 100
     fillElement.style.setProperty('--slider-percentage', `${percentage}%`)
     thumbElement.style.setProperty('--slider-percentage', `${percentage}%`)
   },
 
-  formatTime(seconds) {
+  formatTime (seconds) {
     if (isNaN(seconds) || !isFinite(seconds)) return '0:00' // Handle invalid input
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = Math.floor(seconds % 60)

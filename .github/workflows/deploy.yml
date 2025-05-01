@@ -15,7 +15,6 @@ permissions:
 
 jobs:
   deploy-dockerhub:
-    needs: test-e2e
     runs-on: ubuntu-latest
     steps:
       - name: Set up QEMU
@@ -34,9 +33,9 @@ jobs:
         with:
           push: true
           tags: |
-            mayurifag/mus:latest
-            mayurifag/mus:${{ github.sha }}
-      - name: Trigger mayurifag.ru deploy
+            ${{ secrets.DOCKERHUB_USERNAME }}/mus:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/mus:${{ github.sha }}
+      - name: Trigger watchtower
         env:
           WATCHTOWER_TOKEN: ${{ secrets.WATCHTOWER_HTTP_API_TOKEN }}
           WATCHTOWER_URL: ${{ secrets.WATCHTOWER_URL }}
