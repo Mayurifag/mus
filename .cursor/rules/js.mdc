@@ -138,3 +138,68 @@ metadata:
   priority: high
   version: 1.0
 </rule>
+
+<rule>
+name: js_discourage_comments
+description: Guidelines for minimizing comments in JavaScript code
+filters:
+  - type: file_extension
+    pattern: "\\.(js|mjs)$"
+  - type: content
+    pattern: "(/\\*[^*]*\\*+(?:[^/*][^*]*\\*+)*/|//[^\\n]*|/\\*\\*[^*]*\\*+(?:[^/*][^*]*\\*+)*/)"
+
+actions:
+  - type: suggest
+    message: |
+      Comments in JavaScript should be avoided in favor of self-documenting code:
+
+      1. General Guidelines:
+         - Remove existing comments and JSDoc blocks
+         - Use descriptive variable and function names
+         - Break complex logic into well-named functions
+         - Let the code structure explain itself
+
+      2. Exceptions (only cases where comments are allowed):
+         - Complex algorithms that cannot be simplified
+         - Non-obvious business logic requiring domain knowledge
+         - Browser-specific workarounds with bug references
+         - Public API documentation (minimal)
+
+      3. When a comment is necessary:
+         - Keep it brief and focused
+         - Explain WHY, not WHAT
+         - Include links to relevant issues/specs
+         - Remove outdated comments immediately
+
+      Examples:
+      ```js
+      // Bad: Unnecessary comment
+      // Function to handle track selection
+      function handleTrackSelection(trackId) {
+        // Get track element
+        const track = document.getElementById(trackId);
+        // Update selected state
+        track.classList.add('selected');
+      }
+
+      // Good: Self-documenting code
+      function selectTrack(trackId) {
+        const track = document.getElementById(trackId);
+        track.classList.add('selected');
+      }
+
+      // Acceptable: Complex algorithm explanation
+      function calculateTrackProgress(currentTime, duration) {
+        /*
+         * Using logarithmic scale for smoother progress bar movement
+         * at higher durations. Log base 10 provides good visual balance
+         * between short (<1min) and long (>10min) tracks.
+         */
+        return Math.log10(1 + currentTime) / Math.log10(1 + duration);
+      }
+      ```
+
+metadata:
+  priority: high
+  version: 1.0
+</rule>

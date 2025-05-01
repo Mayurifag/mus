@@ -5,53 +5,107 @@ alwaysApply: false
 ---
 # Python Development Standards
 
-## Overview
-This document defines the standards and guidelines for Python development in the mus project.
+<rule>
+name: python_best_practices
+description: Core Python development standards and guidelines for the project
+filters:
+  - type: file_extension
+    pattern: "\\.py$"
+  - type: content
+    pattern: "(?s).*"
 
-## Code Style
-- Use type hints for all function parameters and return values
-- Follow PEP 8 style guide consistently
-- Use docstrings for all public functions and classes
-- Use async/await for all I/O operations
-- Use context managers for resource management
-- Avoid dynamic attribute access and type checking:
-  - Do not use hasattr() for attribute existence checks
-  - Do not use getattr() for dynamic attribute access
-  - Do not use isinstance() for type checking
-  - Instead, use explicit type checking and direct attribute access
-  - For optional attributes, handle their absence through proper error handling or default values
-- Follow DRY (Don't Repeat Yourself) principles:
-  - Extract repeated code into reusable functions or methods
-  - Use data structures (e.g., dictionaries, sets) to avoid repetitive conditionals
-  - Maintain a single source of truth for configuration and constants
-  - Avoid duplicating business logic across different parts of the codebase
-  - Use inheritance or composition to share common functionality
-  - Consider using design patterns to eliminate code duplication
+actions:
+  - type: suggest
+    message: |
+      Follow these Python development standards:
 
-## Testing Standards
-- Write tests for all public functions and classes
-- Use pytest fixtures for test setup
-- Use pytest-asyncio for async tests
-- Maintain test coverage above 80%
-- Include both unit and integration tests
+      1. Code Style:
+         - Strictly adhere to PEP 8
+         - Use type hints for ALL function signatures and variables
+         - Keep functions/methods short and focused (single responsibility)
+         - Use descriptive variable and function names
+         - Limit line length to 88 characters (black default)
 
-## Logging Practices
-- Use structlog for all logging
-- Include relevant context in log messages
-- Use appropriate log levels (debug, info, warning, error)
-- Log exceptions with full stack traces
-- Structure logs for easy parsing
+      2. Clean Code & DRY:
+         - Extract repeated logic into reusable functions/classes
+         - Use data structures to avoid repetitive conditionals
+         - Maintain single source of truth for configuration
+         - Consider design patterns to eliminate duplication
+         - Break complex operations into smaller, focused functions
 
-## Error Handling
-- Use custom exceptions for domain-specific errors
-- Handle all exceptions at the appropriate level
-- Log all errors with context
-- Return meaningful error messages to clients
-- Document error handling strategies
+      3. Async/IO:
+         - Use async/await for ALL I/O operations
+         - Never block the event loop
+         - Use aiohttp for HTTP requests
+         - Use aiosqlite for database operations
+         - Handle async context managers properly
 
-## Dependency Management
-- Use uv for package management
-- Pin all dependencies to specific versions
-- Document all dependencies in pyproject.toml
-- Keep dependencies up to date
-- Test after dependency updates
+      4. Resource Management:
+         - Always use context managers (with statements) for resources
+         - Use async with for async resources
+         - Ensure proper cleanup in finally blocks
+         - Handle file operations with context managers
+         - Use contextlib when creating custom context managers
+
+      5. Error Handling:
+         - Create custom exceptions for domain-specific errors
+         - Handle exceptions at appropriate levels
+         - Never catch Exception without re-raising
+         - Use try/except blocks judiciously
+         - Include relevant context in error messages
+
+      6. Testing:
+         - Write tests for all public functions/classes
+         - Use pytest fixtures for setup
+         - Use pytest-asyncio for async tests
+         - Maintain >80% test coverage
+         - Write both unit and integration tests
+
+      7. Logging:
+         - Use structlog exclusively
+         - Include relevant context in logs
+         - Use appropriate log levels
+         - Log exceptions with full stack traces
+         - Structure logs for easy parsing
+
+metadata:
+  priority: high
+  version: 1.0
+</rule>
+
+<rule>
+name: python_discourage_comments
+description: Guidelines for minimizing comments in Python code
+filters:
+  - type: file_extension
+    pattern: "\\.py$"
+  - type: content
+    pattern: "(#[^\\n]*|\"\"\"[^\"]*\"\"\")"
+
+actions:
+  - type: suggest
+    message: |
+      Comments and docstrings should be avoided in favor of self-documenting code:
+
+      1. General Guidelines:
+         - Remove existing comments and docstrings
+         - Use clear, descriptive names instead of comments
+         - Break complex logic into well-named functions
+         - Let the code speak for itself
+
+      2. Exceptions (only cases where comments are allowed):
+         - Complex algorithms that cannot be simplified
+         - Non-obvious business logic that requires domain knowledge
+         - Temporary workarounds with ticket references
+         - Public API documentation (minimal)
+
+      3. When a comment is necessary:
+         - Keep it brief and focused
+         - Explain WHY, not WHAT
+         - Include links to relevant tickets/docs
+         - Update or remove outdated comments
+
+metadata:
+  priority: high
+  version: 1.0
+</rule>

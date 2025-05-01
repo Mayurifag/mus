@@ -5,54 +5,72 @@ alwaysApply: true
 ---
 # Makefile Standards
 
-## Overview
-This document defines the standards and guidelines for Makefile usage and automation in the mus project.
+<rule>
+name: makefile_best_practices
+description: Core Makefile standards and guidelines for the project
+filters:
+  - type: file_name
+    pattern: "Makefile|.*\\.mk$"
+  - type: content
+    pattern: "(?s).*"
 
-## AI Agent Capabilities
-- AI agent can execute any make command directly
-- AI agent can run make targets without user intervention
-- AI agent can chain multiple make commands
-- AI agent can handle make command output and errors
-- AI agent can suggest and execute appropriate make commands
+actions:
+  - type: suggest
+    message: |
+      Follow these Makefile standards:
 
-## General Rules
-- Keep Makefile targets simple and focused
-- Use .PHONY for all targets
-- Include help text for all targets
-- Use consistent naming conventions
-- Keep targets in appropriate .mk files
+      1. Target Definition:
+         - Use .PHONY for ALL non-file targets
+         - Standard target names:
+           * deps: Install dependencies
+           * sync: Sync dependencies
+           * lock: Update lock files
+           * lint: Run linters
+           * format: Run formatters
+           * test: Run tests
+           * clean: Clean build artifacts
+           * build: Build the project
+           * run-dev: Run development server
+         - Group related targets in separate .mk files
 
-## Dependency Management
-- Use uv for package management
-- Keep requirements.txt as lock file
-- Update dependencies regularly
-- Document dependency changes
-- Test after dependency updates
+      2. Variable Usage:
+         - Use UPPER_CASE for Make variables
+         - Use ?= for default values:
+           ```makefile
+           PYTHON ?= python3
+           COVERAGE ?= 80
+           ```
+         - Define variables at the top
+         - Use := for immediate expansion
+         - Use += for appending values
 
-## Build Process
-- Use Docker for builds
-- Keep build process reproducible
-- Cache dependencies appropriately
-- Minimize build time
-- Handle build errors gracefully
+      3. Recipe Simplicity:
+         - Keep recipes concise
+         - Prefer Make functions over shell:
+           * Use $(wildcard) instead of shell find
+           * Use $(patsubst) instead of shell sed
+           * Use $(filter) instead of shell grep
+         - One command per line
+         - Use @ to suppress command echo
 
-## Testing Standards
-- Run tests before commits
-- Include test coverage targets
-- Support different test environments
-- Document test requirements
-- Keep test commands consistent
+      4. Argument Handling:
+         - Support direct argument passing:
+           ```makefile
+           .PHONY: uv-install
+           uv-install:
+               uv pip install $(ARGS)
+           ```
+         - Use target-specific variables
+         - Document required arguments
 
-## Development Workflow
-- Support development workflow
-- Include development-specific targets
-- Document development setup
-- Support different environments
-- Keep development tools up to date
+      5. Dependencies:
+         - Use uv for Python packages
+         - Keep requirements.txt as lock
+         - Document all changes
+         - Test after updates
+         - Support virtual environments
 
-## Deployment Process
-- Support different deployment targets
-- Include deployment-specific targets
-- Document deployment process
-- Handle deployment errors
-- Support rollback if needed
+metadata:
+  priority: high
+  version: 1.0
+</rule>

@@ -87,3 +87,60 @@ metadata:
   priority: high
   version: 1.0
 </rule>
+
+<rule>
+name: css_discourage_comments
+description: Guidelines for minimizing comments in CSS code
+filters:
+  - type: file_extension
+    pattern: "\\.(css|scss)$"
+  - type: content
+    pattern: "/\\*[^*]*\\*+(?:[^/*][^*]*\\*+)*/"
+
+actions:
+  - type: suggest
+    message: |
+      Comments in CSS should be avoided in favor of self-documenting code:
+
+      1. General Guidelines:
+         - Remove existing comments
+         - Use semantic class names instead of comments
+         - Follow BEM naming for clear structure
+         - Let the code structure explain itself
+
+      2. Exceptions (only cases where comments are allowed):
+         - Complex selectors that cannot be simplified
+         - Non-obvious calculations or magic numbers
+         - Browser-specific workarounds with bug references
+         - Critical accessibility considerations
+
+      3. When a comment is necessary:
+         - Keep it brief and focused
+         - Explain WHY, not WHAT
+         - Include links to relevant issues/specs
+         - Remove outdated comments immediately
+
+      Examples:
+      ```css
+      /* Bad: Unnecessary comment */
+      .header {
+        /* Add padding to header */
+        padding: 20px;
+      }
+
+      /* Good: Self-documenting code */
+      .header {
+        padding: var(--spacing-lg);
+      }
+
+      /* Acceptable: Complex calculation explanation */
+      .grid {
+        /* 32px gap + 16px border on each side */
+        gap: calc(var(--spacing-base) * 2 + var(--border-width) * 2);
+      }
+      ```
+
+metadata:
+  priority: high
+  version: 1.0
+</rule>

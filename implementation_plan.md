@@ -49,6 +49,7 @@
 - [ ] fast search - has to be server side
 - [ ] Run through prompt about enhancing project, get TODOs done
 - [ ] Make /state sending through navigator.beacon. Its not THAT robust though and needs tests for my browser workflows.
+- [ ] Load state should also scroll webpage so track to play will be centered
 - [x] Add Stylelint for CSS linting and formatting
 - [x] Add ESLint (standard config) for JS linting
 - [ ] Define Album entity
