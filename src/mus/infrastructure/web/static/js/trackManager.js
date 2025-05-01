@@ -6,13 +6,13 @@ export const trackManager = {
   currentIndex: -1,
   initialState: null,
 
-  init (trackListContainer, initialState = null) {
+  init(trackListContainer, initialState = null) {
     this.trackListContainer = trackListContainer
     this.initialState = initialState
     this.setupEventListeners()
   },
 
-  setupEventListeners () {
+  setupEventListeners() {
     this.trackListContainer.addEventListener('click', (e) => {
       const trackItem = e.target.closest('.track-item')
       if (!trackItem) return
@@ -51,7 +51,7 @@ export const trackManager = {
     })
   },
 
-  initializeTrackList () {
+  initializeTrackList() {
     if (this.initializing) return
     this.initializing = true
 
@@ -139,7 +139,7 @@ export const trackManager = {
     this.initializing = false
   },
 
-  playTrackAtIndex (index) {
+  playTrackAtIndex(index) {
     if (index < 0 || index >= this.tracklist.length) {
       console.warn(`Attempted to play invalid index: ${index}`)
       return
@@ -167,11 +167,12 @@ export const trackManager = {
     }
   },
 
-  updateTrackInfo (index) {
+  updateTrackInfo(index) {
     const titleElement = document.getElementById('footer-track-title')
     const artistElement = document.getElementById('footer-track-artist')
+    const coverElement = document.getElementById('footer-cover-img')
 
-    if (!titleElement || !artistElement) {
+    if (!titleElement || !artistElement || !coverElement) {
       console.error('Footer track info elements not found')
       return
     }
@@ -179,6 +180,7 @@ export const trackManager = {
     if (index < 0 || index >= this.tracklist.length) {
       titleElement.textContent = 'No Track Selected'
       artistElement.textContent = ''
+      coverElement.src = '/static/images/placeholder.svg'
       return
     }
 
@@ -188,6 +190,7 @@ export const trackManager = {
       console.warn(`Track item with ID ${trackId} not found in DOM for info update.`)
       titleElement.textContent = 'Loading...'
       artistElement.textContent = ''
+      coverElement.src = '/static/images/placeholder.svg'
       return
     }
 
@@ -196,23 +199,35 @@ export const trackManager = {
       console.warn(`Track details div not found for track ID ${trackId}.`)
       titleElement.textContent = 'Error'
       artistElement.textContent = ''
+      coverElement.src = '/static/images/placeholder.svg'
       return
     }
 
-    const artistTitleText = Array.from(trackDetails.childNodes)
-      .filter(node => node.nodeType === Node.TEXT_NODE)
-      .map(node => node.textContent.trim())
-      .join('')
+    const trackText = trackDetails.querySelector('.track-text')
+    if (!trackText) {
+      console.warn(`Track text div not found for track ID ${trackId}.`)
+      titleElement.textContent = 'Error'
+      artistElement.textContent = ''
+      coverElement.src = '/static/images/placeholder.svg'
+      return
+    }
 
-    const parts = artistTitleText.split('—').map(s => s.trim())
-    const artist = parts.length > 1 ? parts[0] : 'Unknown Artist'
-    const title = parts.length > 1 ? parts[1] : parts[0] || 'Unknown Title'
+    const textContent = trackText.textContent.trim()
+    const [artist, title] = textContent.split(' — ').map(s => s.trim())
 
-    titleElement.textContent = title
-    artistElement.textContent = artist
+    titleElement.textContent = title || 'Unknown Title'
+    artistElement.textContent = artist || 'Unknown Artist'
+
+    // Update cover image
+    const coverImg = trackDetails.querySelector('.track-cover-small')
+    if (coverImg) {
+      coverElement.src = coverImg.src.replace('_small.webp', '_medium.webp')
+    } else {
+      coverElement.src = '/static/images/placeholder.svg'
+    }
   },
 
-  updatePlayingTrack (index) {
+  updatePlayingTrack(index) {
     // TODO: fix this, we should optionally give here index of prev track and only update that item, not all of them
     const trackItems = this.trackListContainer.querySelectorAll('.track-item')
     trackItems.forEach(item => {
@@ -236,7 +251,7 @@ export const trackManager = {
     }
   },
 
-  getNextTrack () {
+  getNextTrack() {
     if (this.tracklist.length === 0) return -1
     if (this.currentIndex < this.tracklist.length - 1) {
       return this.currentIndex + 1
@@ -244,7 +259,7 @@ export const trackManager = {
     return -1
   },
 
-  getPreviousTrack () {
+  getPreviousTrack() {
     if (this.tracklist.length === 0) return -1
     if (this.currentIndex > 0) {
       return this.currentIndex - 1
@@ -252,7 +267,7 @@ export const trackManager = {
     return -1
   },
 
-  getCurrentTrackId () {
+  getCurrentTrackId() {
     if (this.currentIndex >= 0 && this.currentIndex < this.tracklist.length) {
       const id = parseInt(this.tracklist[this.currentIndex])
       return isNaN(id) ? null : id

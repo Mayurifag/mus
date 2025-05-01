@@ -35,7 +35,7 @@
   - [x] Javascript has to be changed to apply classes, not hardcoding styles
   - [x] Fix css problem with next/prev track bug. Logic has not to go through all elements because thats shit performance.
 - [ ] cache - current track, next. When click 'next' - remove -2 tracks from cache. Keep 3 tracks in cache. Make sure tracks are actually given chunk by chunk
-- [ ] album little images converting/saving/showing on
+- [x] album little images converting/saving/showing on
 - [ ] fast search - has to be server side
 - [x] minimum volume bug - has to mute everything, doesnt mute
 

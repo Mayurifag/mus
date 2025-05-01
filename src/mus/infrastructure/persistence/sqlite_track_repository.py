@@ -2,11 +2,21 @@ from pathlib import Path
 
 import aiosqlite
 import structlog
+from aiosqlite import Row
 
 from mus.domain.repositories.track_repository import ITrackRepository
 from mus.domain.track import Track
 
 logger = structlog.get_logger()
+
+# Column indices in the tracks table
+ID_COL = 0
+TITLE_COL = 1
+ARTIST_COL = 2
+DURATION_COL = 3
+FILE_PATH_COL = 4
+ADDED_AT_COL = 5
+HAS_COVER_COL = 6
 
 
 class SQLiteTrackRepository(ITrackRepository):
@@ -23,19 +33,30 @@ class SQLiteTrackRepository(ITrackRepository):
                     artist TEXT NOT NULL,
                     duration INTEGER NOT NULL,
                     file_path TEXT NOT NULL UNIQUE,
-                    added_at INTEGER NOT NULL
+                    added_at INTEGER NOT NULL,
+                    has_cover BOOLEAN DEFAULT 0
                 )
                 """
             )
-            await db.commit()
+            # Add has_cover column if it doesn't exist (for backward compatibility)
+            try:
+                await db.execute(
+                    "ALTER TABLE tracks ADD COLUMN has_cover BOOLEAN DEFAULT 0"
+                )
+                await db.commit()
+                logger.info("Added has_cover column to tracks table")
+            except aiosqlite.OperationalError:
+                # Column already exists
+                pass
 
-    async def add(self, track: Track) -> None:
+    async def add(self, track: Track) -> int:
         await self._init_db()
         async with aiosqlite.connect(self.db_path) as db:
-            await db.execute(
+            cursor = await db.execute(
                 """
-                INSERT INTO tracks (title, artist, duration, file_path, added_at)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO tracks
+                (title, artist, duration, file_path, added_at, has_cover)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
                     track.title,
@@ -43,7 +64,19 @@ class SQLiteTrackRepository(ITrackRepository):
                     track.duration,
                     str(track.file_path),
                     track.added_at,
+                    track.has_cover,
                 ),
+            )
+            await db.commit()
+            if cursor.lastrowid is None:
+                raise RuntimeError("Failed to get ID of inserted track")
+            return cursor.lastrowid
+
+    async def set_cover_flag(self, track_id: int, has_cover: bool) -> None:
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "UPDATE tracks SET has_cover = ? WHERE id = ?",
+                (has_cover, track_id),
             )
             await db.commit()
 
@@ -63,17 +96,7 @@ class SQLiteTrackRepository(ITrackRepository):
                 "SELECT * FROM tracks WHERE title LIKE ?", (f"%{query}%",)
             ) as cursor:
                 rows = await cursor.fetchall()
-                return [
-                    Track(
-                        id=row[0],
-                        title=row[1],
-                        artist=row[2],
-                        duration=row[3],
-                        file_path=Path(row[4]),
-                        added_at=row[5],
-                    )
-                    for row in rows
-                ]
+                return [self._row_to_track(row) for row in rows]
 
     async def get_all(self) -> list[Track]:
         await self._init_db()
@@ -82,17 +105,7 @@ class SQLiteTrackRepository(ITrackRepository):
                 "SELECT * FROM tracks ORDER BY added_at DESC"
             ) as cursor:
                 rows = await cursor.fetchall()
-                return [
-                    Track(
-                        id=row[0],
-                        title=row[1],
-                        artist=row[2],
-                        duration=row[3],
-                        file_path=Path(row[4]),
-                        added_at=row[5],
-                    )
-                    for row in rows
-                ]
+                return [self._row_to_track(row) for row in rows]
 
     async def clear_all_tracks(self) -> None:
         await self._init_db()
@@ -106,7 +119,7 @@ class SQLiteTrackRepository(ITrackRepository):
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute(
                 """
-                SELECT id, title, artist, duration, file_path, added_at
+                SELECT id, title, artist, duration, file_path, added_at, has_cover
                 FROM tracks
                 WHERE id = ?
                 """,
@@ -115,11 +128,23 @@ class SQLiteTrackRepository(ITrackRepository):
                 row = await cursor.fetchone()
                 if row is None:
                     return None
-                return Track(
-                    id=row[0],
-                    title=row[1],
-                    artist=row[2],
-                    duration=row[3],
-                    file_path=Path(row[4]),
-                    added_at=row[5],
-                )
+                return self._row_to_track(row)
+
+    def _row_to_track(self, row: Row | tuple) -> Track:
+        """Convert a database row to a Track object.
+
+        Args:
+            row: A database row, either as a tuple or aiosqlite.Row.
+
+        Returns:
+            Track: A Track object created from the row data.
+        """
+        return Track(
+            id=row[ID_COL],
+            title=row[TITLE_COL],
+            artist=row[ARTIST_COL],
+            duration=row[DURATION_COL],
+            file_path=Path(row[FILE_PATH_COL]),
+            added_at=row[ADDED_AT_COL],
+            has_cover=bool(row[HAS_COVER_COL]) if len(row) > HAS_COVER_COL else False,
+        )

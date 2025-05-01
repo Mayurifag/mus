@@ -1,5 +1,6 @@
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -70,78 +71,146 @@ def tracks(track1, track2):
     return [track1, track2]
 
 
-async def test_get_initial_state_with_valid_state(track1):
-    state = PlayerState(
-        current_track_id=1, progress_seconds=30.5, volume_level=0.75, is_muted=True
+@pytest.fixture
+def load_player_state_use_case():
+    use_case = MagicMock()
+    use_case.execute = AsyncMock()
+    return use_case
+
+
+@pytest.fixture
+def track_repository():
+    repo = MagicMock()
+    repo.get_all = AsyncMock()
+    return repo
+
+
+@pytest.fixture
+def initial_state_service(load_player_state_use_case, track_repository):
+    return InitialStateService(load_player_state_use_case, track_repository)
+
+
+async def test_get_initial_state_with_valid_state(initial_state_service):
+    # Setup test data
+    track1 = Track(
+        id=1,
+        title="Test Track 1",
+        artist="Test Artist 1",
+        duration=180,
+        file_path=Path("/test/path1.mp3"),
+        added_at=1234567890,
+        has_cover=True,
+    )
+    track2 = Track(
+        id=2,
+        title="Test Track 2",
+        artist="Test Artist 2",
+        duration=240,
+        file_path=Path("/test/path2.mp3"),
+        added_at=1234567891,
+        has_cover=False,
     )
 
-    service = InitialStateService(
-        load_player_state_use_case=MockLoadPlayerStateUseCase(state),
-        track_repository=MockTrackRepository([track1]),
-    )
-
-    result = await service.get_initial_state()
-    assert result["player_state"]["current_track_id"] == state.current_track_id
-    assert result["player_state"]["progress_seconds"] == state.progress_seconds
-    assert result["player_state"]["volume_level"] == state.volume_level
-    assert result["player_state"]["is_muted"] == state.is_muted
-    assert len(result["tracks"]) == 1
-    assert result["tracks"][0].id == track1.id
-
-
-async def test_get_initial_state_with_nonexistent_track(tracks):
-    state = PlayerState(
-        current_track_id=999,  # Non-existent track ID
+    initial_state_service._track_repository.get_all.return_value = [track1, track2]
+    initial_state_service._load_player_state.execute.return_value = PlayerState(
+        current_track_id=1,
         progress_seconds=30.5,
-        volume_level=0.75,
-        is_muted=True,
+        volume_level=0.8,
+        is_muted=False,
     )
 
-    service = InitialStateService(
-        load_player_state_use_case=MockLoadPlayerStateUseCase(state),
-        track_repository=MockTrackRepository(tracks),
+    # Execute
+    result = await initial_state_service.get_initial_state()
+
+    # Verify
+    assert result["tracks"][0]["id"] == track1.id
+    assert result["tracks"][0]["title"] == track1.title
+    assert result["tracks"][0]["artist"] == track1.artist
+    assert result["tracks"][0]["has_cover"] is True
+    assert result["tracks"][0]["cover_small_url"] == "/covers/small/1.webp"
+    assert result["tracks"][0]["cover_medium_url"] == "/covers/medium/1.webp"
+
+    assert result["tracks"][1]["id"] == track2.id
+    assert result["tracks"][1]["title"] == track2.title
+    assert result["tracks"][1]["artist"] == track2.artist
+    assert result["tracks"][1]["has_cover"] is False
+    assert result["tracks"][1]["cover_small_url"] == "/static/images/placeholder.svg"
+    assert result["tracks"][1]["cover_medium_url"] == "/static/images/placeholder.svg"
+
+    assert result["player_state"]["current_track_id"] == 1
+    assert result["player_state"]["progress_seconds"] == 30.5
+    assert result["player_state"]["volume_level"] == 0.8
+    assert result["player_state"]["is_muted"] is False
+
+
+async def test_get_initial_state_with_nonexistent_track(initial_state_service):
+    # Setup test data
+    track1 = Track(
+        id=1,
+        title="Test Track 1",
+        artist="Test Artist 1",
+        duration=180,
+        file_path=Path("/test/path1.mp3"),
+        added_at=1234567890,
     )
 
-    result = await service.get_initial_state()
-    assert result["player_state"]["current_track_id"] == tracks[0].id
+    initial_state_service._track_repository.get_all.return_value = [track1]
+    initial_state_service._load_player_state.execute.return_value = PlayerState(
+        current_track_id=2,  # Track ID that doesn't exist
+        progress_seconds=30.5,
+        volume_level=0.8,
+        is_muted=False,
+    )
+
+    # Execute
+    result = await initial_state_service.get_initial_state()
+
+    # Verify
+    assert (
+        result["player_state"]["current_track_id"] == 1
+    )  # Should default to first track
+    assert result["player_state"]["progress_seconds"] == 0.0  # Should reset progress
+    assert result["player_state"]["volume_level"] == 1.0  # Should use default volume
+    assert result["player_state"]["is_muted"] is False
+
+
+async def test_get_initial_state_with_no_state(initial_state_service):
+    # Setup test data
+    track1 = Track(
+        id=1,
+        title="Test Track 1",
+        artist="Test Artist 1",
+        duration=180,
+        file_path=Path("/test/path1.mp3"),
+        added_at=1234567890,
+    )
+
+    initial_state_service._track_repository.get_all.return_value = [track1]
+    initial_state_service._load_player_state.execute.return_value = None
+
+    # Execute
+    result = await initial_state_service.get_initial_state()
+
+    # Verify
+    assert (
+        result["player_state"]["current_track_id"] == 1
+    )  # Should default to first track
     assert result["player_state"]["progress_seconds"] == 0.0
     assert result["player_state"]["volume_level"] == 1.0
     assert result["player_state"]["is_muted"] is False
-    assert len(result["tracks"]) == 2
 
 
-async def test_get_initial_state_with_no_state():
-    # Create mock implementations
-    load_player_state = MockLoadPlayerStateUseCase(None)
-    track_repository = MockTrackRepository([])
+async def test_get_initial_state_with_no_tracks(initial_state_service):
+    # Setup test data
+    initial_state_service._track_repository.get_all.return_value = []
+    initial_state_service._load_player_state.execute.return_value = None
 
-    service = InitialStateService(load_player_state, track_repository)
-    initial_state = await service.get_initial_state()
+    # Execute
+    result = await initial_state_service.get_initial_state()
 
-    assert initial_state == {
-        "tracks": [],
-        "player_state": {
-            "current_track_id": None,
-            "progress_seconds": 0.0,
-            "volume_level": 1.0,
-            "is_muted": False,
-        },
-    }
-
-
-async def test_get_initial_state_with_no_tracks():
-    state = PlayerState(
-        current_track_id=1, progress_seconds=30.5, volume_level=0.75, is_muted=True
-    )
-
-    service = InitialStateService(
-        load_player_state_use_case=MockLoadPlayerStateUseCase(state),
-        track_repository=MockTrackRepository([]),
-    )
-
-    result = await service.get_initial_state()
+    # Verify
+    assert len(result["tracks"]) == 0
     assert result["player_state"]["current_track_id"] is None
     assert result["player_state"]["progress_seconds"] == 0.0
     assert result["player_state"]["volume_level"] == 1.0
     assert result["player_state"]["is_muted"] is False
-    assert len(result["tracks"]) == 0

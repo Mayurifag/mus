@@ -1,5 +1,7 @@
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 
 import structlog
 from fastapi import FastAPI, HTTPException, Request
@@ -11,7 +13,6 @@ from mus.config import get_music_dir
 from mus.dependencies import (
     get_initial_state_service,
     get_scan_tracks_use_case,
-    get_search_tracks_use_case,
     get_track_repository,
 )
 from mus.infrastructure.logging_config import setup_logging
@@ -21,6 +22,7 @@ setup_logging()
 log = structlog.get_logger()
 
 APP_START_TIME = int(datetime.now().timestamp())
+COVERS_DIR = os.environ.get("COVERS_DIR", "/app/data/covers")
 
 
 @asynccontextmanager
@@ -80,9 +82,9 @@ async def root(request: Request):
 async def get_tracks(request: Request):
     """Get all tracks."""
     log.info("Getting all tracks")
-    search_use_case = get_search_tracks_use_case()
-    tracks = await search_use_case.get_all()
-    return render_template(request, "_track_list.html", tracks=tracks)
+    initial_state_service = get_initial_state_service()
+    initial_state = await initial_state_service.get_initial_state()
+    return render_template(request, "_track_list.html", tracks=initial_state["tracks"])
 
 
 @app.post("/scan")
@@ -118,3 +120,28 @@ async def stream_audio_by_id(track_id: int):
         }.get(track.file_path.suffix.lower(), "audio/mpeg"),
         filename=track.file_path.name,
     )
+
+
+@app.get("/covers/{size}/{track_id:int}.webp")
+async def get_cover(size: str, track_id: int):
+    """Serve cover art images.
+
+    Args:
+        size: Size of the cover image ('small' or 'medium')
+        track_id: ID of the track
+
+    Returns:
+        FileResponse: The cover image file
+    """
+    if size not in ["small", "medium"]:
+        raise HTTPException(status_code=400, detail="Invalid size")
+
+    cover_path = Path(COVERS_DIR) / f"{track_id}_{size}.webp"
+    if not cover_path.exists():
+        # Return placeholder image
+        return FileResponse(
+            "src/mus/infrastructure/web/static/images/placeholder.svg",
+            media_type="image/svg+xml",
+        )
+
+    return FileResponse(str(cover_path), media_type="image/webp")
