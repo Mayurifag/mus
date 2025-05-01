@@ -3,10 +3,10 @@
   {% for track in tracks %}
   <div class="track-item" data-track-id="{{ track.id }}">
     <div class="track-details">
-      <img loading="lazy" class="track-cover-small" src="{{ track.cover_small_url }}" alt="Cover for {{ track.title }}"
-        width="40" height="40">
       <div class="track-text">
         <button class="play-button" data-playing="false"></button>
+        <img loading="lazy" class="track-cover-small" src="{{ track.cover_small_url }}"
+          alt="Cover for {{ track.title }}" width="40" height="40">
         {{ track.artist }} — {{ track.title }}
       </div>
     </div>

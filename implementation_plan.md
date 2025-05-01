@@ -36,7 +36,6 @@
   - [x] Fix css problem with next/prev track bug. Logic has not to go through all elements because thats shit performance.
 - [ ] cache - current track, next. When click 'next' - remove -2 tracks from cache. Keep 3 tracks in cache. Make sure tracks are actually given chunk by chunk
 - [x] album little images converting/saving/showing on
-- [ ] fast search - has to be server side
 - [x] minimum volume bug - has to mute everything, doesnt mute
 
 ## Phase 6: Release MVP
@@ -46,6 +45,8 @@
 
 ## Phase 7: after MVP
 
+- [ ] Force rescan - make this button better!!
+- [ ] fast search - has to be server side
 - [ ] Run through prompt about enhancing project, get TODOs done
 - [ ] Make /state sending through navigator.beacon. Its not THAT robust though and needs tests for my browser workflows.
 - [x] Add Stylelint for CSS linting and formatting

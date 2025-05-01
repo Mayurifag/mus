@@ -16,8 +16,8 @@ class AsyncIteratorMock:
     async def __anext__(self):
         try:
             return self.items.pop(0)
-        except IndexError:
-            raise StopAsyncIteration
+        except IndexError as err:
+            raise StopAsyncIteration from err
 
 
 @pytest.fixture

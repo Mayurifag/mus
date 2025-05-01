@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import ClassVar
 
@@ -11,7 +11,7 @@ class FileSystemScanner(IFileScanner):
     def __init__(self, root_dir: Path):
         self.root_dir = root_dir
 
-    async def find_music_files(self, directory: Path) -> AsyncIterator[Path]:
+    async def find_music_files(self, directory: Path) -> AsyncGenerator[Path, None]:
         stack = [directory]
         while stack:
             current_dir = stack.pop()
@@ -25,5 +25,4 @@ class FileSystemScanner(IFileScanner):
                     elif item.is_dir():
                         stack.append(item)
             except PermissionError:
-                # Skip directories we don't have permission to access
                 continue
