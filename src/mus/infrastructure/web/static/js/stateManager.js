@@ -58,7 +58,7 @@ class StateManager {
     }
   }
 
-  startPeriodicSaving (getCurrentState, isPaused, intervalMs = 1500) {
+  startPeriodicSaving (getCurrentState, isPaused, intervalMs = 5000) {
     this.stopPeriodicSaving()
     this._saveInterval = setInterval(() => {
       // Only save state if the player is not paused

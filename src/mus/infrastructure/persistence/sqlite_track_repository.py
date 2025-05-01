@@ -23,6 +23,10 @@ class SQLiteTrackRepository(ITrackRepository):
     def __init__(self, db_path: str):
         self.db_path = db_path
 
+    async def initialize_schema(self) -> None:
+        """Initialize the database schema, creating tables and indices."""
+        await self._init_db()
+
     async def _init_db(self):
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
@@ -36,6 +40,12 @@ class SQLiteTrackRepository(ITrackRepository):
                     added_at INTEGER NOT NULL,
                     has_cover BOOLEAN DEFAULT 0
                 )
+                """
+            )
+            # Create index on added_at for faster sorting
+            await db.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_tracks_added_at ON tracks(added_at DESC)
                 """
             )
             # Add has_cover column if it doesn't exist (for backward compatibility)

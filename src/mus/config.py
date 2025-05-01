@@ -14,3 +14,11 @@ def get_music_dir() -> Path:
     if not music_dir.exists():
         os.makedirs(music_dir, exist_ok=True)
     return music_dir
+
+
+# Covers directory configuration
+def get_covers_dir() -> Path:
+    covers_dir = Path(os.getenv("COVERS_DIR", "/app/data/covers"))
+    if not covers_dir.exists():
+        os.makedirs(covers_dir, exist_ok=True)
+    return covers_dir

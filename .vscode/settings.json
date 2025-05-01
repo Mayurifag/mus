@@ -2,7 +2,11 @@
   "python.analysis.typeCheckingMode": "basic",
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.fixAll.ruff": "always"
+    "source.fixAll.ruff": "always",
+    "source.fixAll.eslint": "always"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
   },
   "files.exclude": {
     "**/.git": true,

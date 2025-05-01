@@ -67,12 +67,7 @@ actions:
          - Use appropriate log levels
          - Log exceptions with full stack traces
          - Structure logs for easy parsing
-
-metadata:
-  priority: high
-  version: 1.0
 </rule>
-
 <rule>
 name: python_discourage_comments
 description: Guidelines for minimizing comments in Python code
@@ -104,6 +99,44 @@ actions:
          - Explain WHY, not WHAT
          - Include links to relevant tickets/docs
          - Update or remove outdated comments
+</rule>
+<rule>
+name: python_discourage_generic_terms
+description: Guidelines for avoiding generic terms in Python code
+filters:
+  - type: file_extension
+    pattern: "\\.py$"
+  - type: content
+    pattern: "(class|def)\\s+(\\w*)(Service|Util|Helper|Manager)\\b"
+
+actions:
+  - type: suggest
+    message: |
+      Avoid generic terms in class and function names. Instead use domain-specific or behavior-describing names:
+
+      1. Instead of 'Service':
+         - Use 'Interactor' for application use cases
+         - Use 'Repository' for data access
+         - Use 'Adapter' for external system integration
+         - Use 'Component' for reusable functionality
+         - Use domain-specific terms that describe the purpose
+
+      2. Instead of 'Util' or 'Helper':
+         - Create a focused class with a specific responsibility
+         - Name it after what it does (e.g., 'MetadataExtractor', 'CoverProcessor')
+         - Consider if functionality belongs in an existing domain class
+
+      3. Instead of 'Manager':
+         - Use 'Coordinator' for orchestration
+         - Use 'Factory' for object creation
+         - Use 'Registry' for tracking objects
+         - Use domain-specific terms
+
+      4. General Guidelines:
+         - Names should describe what the code does
+         - Use domain terminology from requirements
+         - Follow Clean Architecture naming conventions
+         - Consider patterns like Command, Strategy, or Observer
 
 metadata:
   priority: high

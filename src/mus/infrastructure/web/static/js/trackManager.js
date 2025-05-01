@@ -235,13 +235,7 @@ export const trackManager = {
     titleElement.textContent = title || 'Unknown Title'
     artistElement.textContent = artist || 'Unknown Artist'
 
-    // Update cover image
-    const coverImg = trackDetails.querySelector('.track-cover-small')
-    if (coverImg) {
-      coverElement.src = coverImg.src.replace('_small.webp', '_medium.webp')
-    } else {
-      coverElement.src = '/static/images/placeholder.svg'
-    }
+    coverElement.src = `/covers/medium/${trackId}.webp`
   },
 
   updatePlayingTrack (index) {

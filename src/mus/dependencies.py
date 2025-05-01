@@ -1,10 +1,11 @@
 from mus.application.components.metadata_extractor import MetadataExtractor
 from mus.application.services.cover_service import CoverService
+from mus.application.use_cases.full_scan_interactor import FullScanInteractor
 from mus.application.use_cases.load_player_state import LoadPlayerStateUseCase
 from mus.application.use_cases.save_player_state import SavePlayerStateUseCase
 from mus.application.use_cases.scan_tracks import ScanTracksUseCase
 from mus.application.use_cases.search_tracks import SearchTracksUseCase
-from mus.config import get_database_url, get_music_dir
+from mus.config import get_covers_dir, get_database_url, get_music_dir
 from mus.infrastructure.persistence.sqlite_player_state_repository import (
     SQLitePlayerStateRepository,
 )
@@ -60,4 +61,15 @@ def get_initial_state_service() -> InitialStateService:
     return InitialStateService(
         load_player_state_use_case=get_load_player_state_use_case(),
         track_repository=get_track_repository(),
+    )
+
+
+def get_full_scan_interactor() -> FullScanInteractor:
+    db_path = get_database_url().replace("sqlite+aiosqlite:///", "")
+    return FullScanInteractor(
+        track_repository=get_track_repository(),
+        scan_tracks_use_case=get_scan_tracks_use_case(),
+        db_path=db_path,
+        covers_dir=get_covers_dir(),
+        music_dir=get_music_dir(),
     )

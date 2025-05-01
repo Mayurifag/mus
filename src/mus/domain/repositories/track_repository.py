@@ -7,6 +7,11 @@ from mus.domain.track import Track
 
 class ITrackRepository(Protocol):
     @abstractmethod
+    async def initialize_schema(self) -> None:
+        """Initialize the database schema, creating tables and indices."""
+        pass
+
+    @abstractmethod
     async def add(self, track: Track) -> int:
         """Add a track to the repository.
 

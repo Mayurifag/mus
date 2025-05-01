@@ -1,5 +1,5 @@
 services:
-  web:
+  mus:
     container_name: mus_server
     build:
       context: ..

@@ -133,10 +133,6 @@ examples:
         console.error('Failed to fetch tracks:', error);
         showErrorMessage('Failed to load tracks');
       }
-
-metadata:
-  priority: high
-  version: 1.0
 </rule>
 
 <rule>
@@ -198,6 +194,45 @@ actions:
         return Math.log10(1 + currentTime) / Math.log10(1 + duration);
       }
       ```
+</rule>
+
+<rule>
+name: js_discourage_generic_terms
+description: Guidelines for avoiding generic terms in JavaScript code
+filters:
+  - type: file_extension
+    pattern: "\\.(js|jsx|ts|tsx)$"
+  - type: content
+    pattern: "(class|function|const)\\s+(\\w*)(Service|Util|Helper|Manager)\\b"
+
+actions:
+  - type: suggest
+    message: |
+      Avoid generic terms in class, function, and variable names. Instead use domain-specific or behavior-describing names:
+
+      1. Instead of 'Service':
+         - Use 'Client' for API interactions
+         - Use 'Store' for state management
+         - Use 'Provider' for context/dependency injection
+         - Use 'Handler' for event handling
+         - Use domain-specific terms that describe the purpose
+
+      2. Instead of 'Util' or 'Helper':
+         - Create focused modules with specific responsibilities
+         - Name them after what they do (e.g., 'formatDate', 'validateInput')
+         - Consider if functionality belongs in a component or hook
+
+      3. Instead of 'Manager':
+         - Use 'Controller' for UI logic
+         - Use 'Hook' for reusable behavior
+         - Use 'Factory' for object creation
+         - Use domain-specific terms
+
+      4. General Guidelines:
+         - Names should describe what the code does
+         - Use domain terminology from requirements
+         - Follow React/TypeScript best practices
+         - Consider common patterns like HOCs, Hooks, or Render Props
 
 metadata:
   priority: high

@@ -10,8 +10,8 @@ from ..ports.cover_processor import ICoverProcessor
 class CoverService(ICoverProcessor):
     """Service for processing and saving cover art images."""
 
-    SMALL_SIZE: Final[tuple[int, int]] = (40, 40)
-    MEDIUM_SIZE: Final[tuple[int, int]] = (56, 56)
+    SMALL_SIZE: Final[tuple[int, int]] = (80, 80)
+    MEDIUM_SIZE: Final[tuple[int, int]] = (128, 128)
     DEFAULT_COVERS_DIR: Final[str] = "/app/data/covers"
 
     def __init__(self, covers_dir: str | None = None) -> None:
@@ -58,14 +58,14 @@ class CoverService(ICoverProcessor):
                 self.SMALL_SIZE[0], height=self.SMALL_SIZE[1], size=pyvips.Size.FORCE
             )
             small_path = os.path.join(self.covers_dir, f"{track_id}_small.webp")
-            small.webpsave(small_path, Q=75, lossless=False, strip=True)
+            small.webpsave(small_path, Q=100, lossless=True, strip=True)
 
             # Process medium size
             medium = image.thumbnail_image(
                 self.MEDIUM_SIZE[0], height=self.MEDIUM_SIZE[1], size=pyvips.Size.FORCE
             )
             medium_path = os.path.join(self.covers_dir, f"{track_id}_medium.webp")
-            medium.webpsave(medium_path, Q=75, lossless=False, strip=True)
+            medium.webpsave(medium_path, Q=100, lossless=True, strip=True)
 
             return True
 

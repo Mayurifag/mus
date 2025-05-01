@@ -1,8 +1,6 @@
 import hashlib
-import os
 from contextlib import asynccontextmanager
 from datetime import datetime
-from pathlib import Path
 
 import structlog
 from fastapi import FastAPI, HTTPException, Request
@@ -10,10 +8,10 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from mus.config import get_music_dir
+from mus.config import get_covers_dir
 from mus.dependencies import (
+    get_full_scan_interactor,
     get_initial_state_service,
-    get_scan_tracks_use_case,
     get_track_repository,
 )
 from mus.infrastructure.logging_config import setup_logging
@@ -23,20 +21,16 @@ setup_logging()
 log = structlog.get_logger()
 
 APP_START_TIME = int(datetime.now().timestamp())
-COVERS_DIR = os.environ.get("COVERS_DIR", "/app/data/covers")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        repository = get_track_repository()
-        log.info("Clearing existing tracks before initial scan")
-        await repository.clear_all_tracks()
+        interactor = get_full_scan_interactor()
+        await interactor.execute()
     except Exception as e:
-        log.exception("Failed to clear tracks before initial scan", exc_info=e)
-
-    scan_use_case = get_scan_tracks_use_case()
-    await scan_use_case.execute(get_music_dir())
+        log.exception("Failed to perform initial scan", exc_info=e)
+        raise
     yield
 
 
@@ -92,11 +86,8 @@ async def get_tracks(request: Request):
 async def scan_tracks():
     """Trigger track scanning."""
     log.info("Manual scan triggered")
-    repository = get_track_repository()
-    log.info("Clearing existing tracks before scan")
-    await repository.clear_all_tracks()
-    scan_use_case = get_scan_tracks_use_case()
-    await scan_use_case.execute(get_music_dir())
+    interactor = get_full_scan_interactor()
+    await interactor.execute()
     return HTMLResponse(
         "Scan completed", status_code=200, headers={"HX-Trigger": "refreshTrackList"}
     )
@@ -146,7 +137,7 @@ async def get_cover(size: str, track_id: int):
     if size not in ["small", "medium"]:
         raise HTTPException(status_code=400, detail="Invalid size")
 
-    cover_path = Path(COVERS_DIR) / f"{track_id}_{size}.webp"
+    cover_path = get_covers_dir() / f"{track_id}_{size}.webp"
     if not cover_path.exists():
         # Return placeholder image
         return FileResponse(
