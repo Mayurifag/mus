@@ -45,7 +45,8 @@
 
 ## Phase 7: after MVP
 
-- [ ] Force rescan - make this button better!!
+- [ ] shuffle/repeat buttons for controls
+- [ ] Add right panel. Add rescan button there.
 - [ ] fast search - has to be server side
 - [ ] Run through prompt about enhancing project, get TODOs done
 - [ ] Make /state sending through navigator.beacon. Its not THAT robust though and needs tests for my browser workflows.

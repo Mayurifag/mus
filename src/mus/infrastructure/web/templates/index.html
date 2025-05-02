@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MUS - Music Player</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', path='favicon.ico') }}">
   <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
   <script src="https://unpkg.com/htmx.org@1.9.10" defer></script>
 </head>
@@ -57,10 +58,6 @@
             <div class="custom-slider-thumb"></div>
           </div>
         </div>
-      </div>
-      <button id="actions-menu-button" class="control-button">⋮</button>
-      <div id="actions-menu" class="actions-menu-popup">
-        <button id="scan-button-menu" class="menu-button" hx-post="/scan" hx-swap="none">Scan Music</button>
       </div>
     </div>
 

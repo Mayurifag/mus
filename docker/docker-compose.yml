@@ -1,6 +1,5 @@
 services:
   mus:
-    container_name: mus_server
     build:
       context: ..
       dockerfile: docker/Dockerfile
