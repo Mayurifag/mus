@@ -22,3 +22,12 @@ def get_covers_dir() -> Path:
     if not covers_dir.exists():
         os.makedirs(covers_dir, exist_ok=True)
     return covers_dir
+
+
+# Authentication configuration
+def get_secret_auth_route() -> str | None:
+    return os.getenv("SECRET_AUTH_ROUTE")
+
+
+def get_session_cookie_secret() -> str | None:
+    return get_secret_auth_route()

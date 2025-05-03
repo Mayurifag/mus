@@ -317,7 +317,6 @@ button {
 }
 
 .footer-center-zone {
-
   width: 100%;
   margin: 0 auto;
   display: flex;
@@ -327,6 +326,7 @@ button {
 
 .player-controls-container {
   display: grid;
+
   /* grid-template-columns: 1fr auto 1fr; */
   align-items: center;
   width: 100%;

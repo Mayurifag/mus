@@ -16,6 +16,7 @@ from mus.dependencies import (
 )
 from mus.infrastructure.logging_config import setup_logging
 from mus.infrastructure.web.api.state_router import router as state_router
+from mus.infrastructure.web.middleware.auth_middleware import AuthMiddleware
 
 setup_logging()
 log = structlog.get_logger()
@@ -35,6 +36,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="mus", lifespan=lifespan)
+app.add_middleware(AuthMiddleware)
 app.mount(
     "/static", StaticFiles(directory="src/mus/infrastructure/web/static"), name="static"
 )
