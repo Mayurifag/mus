@@ -211,30 +211,19 @@ export const trackManager = {
       return
     }
 
-    const trackDetails = currentTrackItem.querySelector('.track-details')
-    if (!trackDetails) {
-      console.warn(`Track details div not found for track ID ${trackId}.`)
+    const title = currentTrackItem.dataset.title
+    const artist = currentTrackItem.dataset.artist
+
+    if (!title || !artist) {
+      console.warn(`Title or artist data not found for track ID ${trackId}.`)
       titleElement.textContent = 'Error'
       artistElement.textContent = ''
       coverElement.src = '/static/images/placeholder.svg'
       return
     }
 
-    const trackText = trackDetails.querySelector('.track-text')
-    if (!trackText) {
-      console.warn(`Track text div not found for track ID ${trackId}.`)
-      titleElement.textContent = 'Error'
-      artistElement.textContent = ''
-      coverElement.src = '/static/images/placeholder.svg'
-      return
-    }
-
-    const textContent = trackText.textContent.trim()
-    const [artist, title] = textContent.split(' — ').map(s => s.trim())
-
-    titleElement.textContent = title || 'Unknown Title'
-    artistElement.textContent = artist || 'Unknown Artist'
-
+    titleElement.textContent = title
+    artistElement.textContent = artist
     coverElement.src = `/covers/medium/${trackId}.webp`
   },
 
