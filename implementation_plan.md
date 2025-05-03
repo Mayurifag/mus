@@ -45,6 +45,8 @@
 
 ## Phase 7: after MVP
 
+- [ ] Use custom icons
+- [x] Make a Progressive Web App
 - [ ] shuffle/repeat buttons for controls
 - [ ] Add right panel. Add rescan button there.
 - [ ] fast search - has to be server side

@@ -5,6 +5,16 @@ import { stateManager } from './stateManager.js'
 import { volumeManager } from './volume.js'
 
 document.addEventListener('DOMContentLoaded', () => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/service-worker.js')
+      .then(registration => {
+        console.log('ServiceWorker registration successful')
+      })
+      .catch(error => {
+        console.error('ServiceWorker registration failed:', error)
+      })
+  }
+
   // Load initial state
   const initialState = stateManager.loadInitialState()
 
