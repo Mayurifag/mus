@@ -65,7 +65,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return response
 
         session_cookie = request.cookies.get(COOKIE_NAME)
-        logger.debug(
+        logger.info(
             "Checking auth cookie",
             path=request_path,
             cookie_value=session_cookie,
@@ -84,7 +84,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             )
             return PlainTextResponse("Forbidden", status_code=403)
 
-        logger.debug(
+        logger.info(
             "Auth succeeded: cookie matched", path=request_path, client=request.client
         )
         return await call_next(request)
