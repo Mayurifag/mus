@@ -45,7 +45,9 @@
 
 ## Phase 7: after MVP
 
-- [ ] Use custom icons
+- [ ] Try to comment seek forward/back functionality to prevent ios 17 music player functionality to not show prev/next buttons
+- [ ] Use custom icons for player controls
+- [ ] Get rid of medium image. Always use original' webp fixed sizes
 - [x] Make a Progressive Web App
 - [ ] shuffle/repeat buttons for controls
 - [ ] Add right panel. Add rescan button there.
@@ -53,6 +55,7 @@
 - [ ] Run through prompt about enhancing project, get TODOs done
 - [ ] Make /state sending through navigator.beacon. Its not THAT robust though and needs tests for my browser workflows.
 - [ ] Load state should also scroll webpage so track to play will be centered
+- [ ] Fix PWA icon having white background on the back
 - [ ] Startup: get back logs and make truly async
 - [x] Add Stylelint for CSS linting and formatting
 - [x] Add ESLint (standard config) for JS linting
@@ -86,6 +89,7 @@
 - [ ] Define Album entity
 - [ ] Many-to-many relation between tracks/albums/artists
 - [ ] Define Playlist entity
+- [ ] Hotkeys
 
 ## Notes
 - Project management rules are defined in `.cursor/rules/`
