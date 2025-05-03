@@ -1,4 +1,7 @@
 // Audio playback and management functionality
+import { mediaSessionManager } from './mediaSessionManager.js'
+import { trackManager } from './trackManager.js'
+
 export const audioManager = {
   audioPlayer: null,
   preloadedTracks: new Map(),
@@ -7,14 +10,45 @@ export const audioManager = {
   init (audioElement) {
     this.audioPlayer = audioElement
     this.preloadedTracks.clear()
+
+    // Set up media session handlers
+    mediaSessionManager.setActionHandlers({
+      onPlay: () => this.play(),
+      onPause: () => this.pause(),
+      onNextTrack: () => {
+        const nextIndex = trackManager.getNextTrack()
+        if (nextIndex !== -1) {
+          trackManager.playTrackAtIndex(nextIndex)
+        }
+      },
+      onPreviousTrack: () => {
+        const prevIndex = trackManager.getPreviousTrack()
+        if (prevIndex !== -1) {
+          trackManager.playTrackAtIndex(prevIndex)
+        }
+      },
+      onSeekTo: (time) => this.seek(time / this.getDuration()),
+      getPositionState: () => ({
+        duration: this.getDuration() || 0,
+        position: this.getCurrentTime() || 0,
+        playbackRate: this.audioPlayer.playbackRate
+      })
+    })
   },
 
   play () {
-    return this.audioPlayer.play()
+    const playPromise = this.audioPlayer.play()
+    if (playPromise) {
+      playPromise.then(() => {
+        mediaSessionManager.updatePlaybackState('playing')
+      })
+    }
+    return playPromise
   },
 
   pause () {
     this.audioPlayer.pause()
+    mediaSessionManager.updatePlaybackState('paused')
   },
 
   seek (position) {

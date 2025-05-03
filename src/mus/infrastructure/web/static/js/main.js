@@ -3,6 +3,7 @@ import { trackManager } from './trackManager.js'
 import { uiControls } from './uiControls.js'
 import { stateManager } from './stateManager.js'
 import { volumeManager } from './volume.js'
+// import { mediaSessionManager } from './mediaSessionManager.js'
 
 document.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator) {

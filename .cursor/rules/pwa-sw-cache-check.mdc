@@ -44,7 +44,7 @@ actions:
         '/static/js/volume.js',
         '/static/manifest.json',
         '/static/images/placeholder.svg', // If used offline
-        '/static/icons/icon-512x512.png' // Core app icon
+        '/static/android-chrome-512x512.png' // Core app icon
       ]
       ```
       **Note:** Only include assets *essential* for the basic application shell to load offline. Not every static file needs to be in this initial cache.

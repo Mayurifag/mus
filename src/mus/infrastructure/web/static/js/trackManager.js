@@ -1,5 +1,6 @@
 import { audioManager } from './audioManager.js'
 import { uiControls } from './uiControls.js'
+import { mediaSessionManager } from './mediaSessionManager.js'
 
 export const trackManager = {
   tracklist: [],
@@ -198,6 +199,7 @@ export const trackManager = {
       titleElement.textContent = 'No Track Selected'
       artistElement.textContent = ''
       coverElement.src = '/static/images/placeholder.svg'
+      mediaSessionManager.updateMetadata('No Track Selected', '', '/static/images/android-chrome-512x512.png')
       return
     }
 
@@ -208,23 +210,28 @@ export const trackManager = {
       titleElement.textContent = 'Loading...'
       artistElement.textContent = ''
       coverElement.src = '/static/images/placeholder.svg'
+      mediaSessionManager.updateMetadata('Loading...', '', '/static/images/android-chrome-512x512.png')
       return
     }
 
     const title = currentTrackItem.dataset.title
     const artist = currentTrackItem.dataset.artist
+    const hasCover = currentTrackItem.dataset.hasCover === 'true'
 
     if (!title || !artist) {
       console.warn(`Title or artist data not found for track ID ${trackId}.`)
       titleElement.textContent = 'Error'
       artistElement.textContent = ''
       coverElement.src = '/static/images/placeholder.svg'
+      mediaSessionManager.updateMetadata('Error', '', '/static/images/android-chrome-512x512.png')
       return
     }
 
     titleElement.textContent = title
     artistElement.textContent = artist
-    coverElement.src = `/covers/medium/${trackId}.webp`
+    const artworkUrl = hasCover ? `/covers/medium/${trackId}.webp` : '/static/images/android-chrome-512x512.png'
+    coverElement.src = artworkUrl
+    mediaSessionManager.updateMetadata(title, artist, artworkUrl)
   },
 
   updatePlayingTrack (index) {

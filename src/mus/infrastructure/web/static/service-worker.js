@@ -8,6 +8,7 @@ const STATIC_ASSETS = [
   '/static/js/uiControls.js',
   '/static/js/stateManager.js',
   '/static/js/volume.js',
+  '/static/js/mediaSessionManager.js',
   '/static/manifest.json',
   '/static/images/placeholder.svg',
   '/static/android-chrome-512x512.png',
