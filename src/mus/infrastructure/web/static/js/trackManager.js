@@ -199,7 +199,7 @@ export const trackManager = {
       titleElement.textContent = 'No Track Selected'
       artistElement.textContent = ''
       coverElement.src = '/static/images/placeholder.svg'
-      mediaSessionManager.updateMetadata('No Track Selected', '', '/static/images/android-chrome-512x512.png')
+      mediaSessionManager.updateMetadata('No Track Selected', '', '/static/android-chrome-512x512.png')
       return
     }
 
@@ -210,7 +210,7 @@ export const trackManager = {
       titleElement.textContent = 'Loading...'
       artistElement.textContent = ''
       coverElement.src = '/static/images/placeholder.svg'
-      mediaSessionManager.updateMetadata('Loading...', '', '/static/images/android-chrome-512x512.png')
+      mediaSessionManager.updateMetadata('Loading...', '', '/static/android-chrome-512x512.png')
       return
     }
 
@@ -223,13 +223,13 @@ export const trackManager = {
       titleElement.textContent = 'Error'
       artistElement.textContent = ''
       coverElement.src = '/static/images/placeholder.svg'
-      mediaSessionManager.updateMetadata('Error', '', '/static/images/android-chrome-512x512.png')
+      mediaSessionManager.updateMetadata('Error', '', '/static/android-chrome-512x512.png')
       return
     }
 
     titleElement.textContent = title
     artistElement.textContent = artist
-    const artworkUrl = hasCover ? `/covers/medium/${trackId}.webp` : '/static/images/android-chrome-512x512.png'
+    const artworkUrl = hasCover ? `/covers/medium/${trackId}.webp` : '/static/android-chrome-512x512.png'
     coverElement.src = artworkUrl
     mediaSessionManager.updateMetadata(title, artist, artworkUrl)
   },

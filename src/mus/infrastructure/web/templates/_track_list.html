@@ -1,8 +1,8 @@
 {% if tracks %}
 <div class="track-list">
   {% for track in tracks %}
-  <div class="track-item" data-track-id="{{ track.id }}" data-title="{{ track.title }}"
-    data-artist="{{ track.artist }}">
+  <div class="track-item" data-track-id="{{ track.id }}" data-title="{{ track.title }}" data-artist="{{ track.artist }}"
+    data-has-cover="{{ track.has_cover|lower }}">
     <div class="track-text">
       <button class="play-button" data-playing="false"></button>
       <img loading="lazy" class="track-cover-small" src="{{ track.cover_small_url }}" alt="Cover for {{ track.title }}"
