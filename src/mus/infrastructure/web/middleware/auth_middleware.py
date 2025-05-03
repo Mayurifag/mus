@@ -17,7 +17,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         self.secret_route = get_secret_auth_route()
         self.cookie_secret = self.secret_route
         logger.info(
-            "AuthMiddleware initialized", secret_route_present=bool(self.secret_route)
+            "AuthMiddleware initialized", secret_route_present=self.secret_route
         )
 
     async def dispatch(
@@ -68,6 +68,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 path=request.url.path,
                 cookie_value=session_cookie,
                 client=request.client,
+                wanted=self.secret_route,
+                scheme=request.scope.get("scheme"),
             )
             return PlainTextResponse("Forbidden", status_code=403)
 
