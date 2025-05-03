@@ -31,7 +31,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 max_age=COOKIE_MAX_AGE,
                 httponly=True,
                 samesite="lax",
-                secure=request.url.is_secure,
+                secure=request.scope.get("scheme") == "https",
             )
             return response
 
