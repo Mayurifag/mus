@@ -24,7 +24,7 @@ def setup_logging():
 
     # Configure root logger for Uvicorn logs
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         stream=sys.stdout,
         format="%(message)s",
     )

@@ -26,7 +26,8 @@ def get_covers_dir() -> Path:
 
 # Authentication configuration
 def get_secret_auth_route() -> str | None:
-    return os.getenv("SECRET_AUTH_ROUTE")
+    secret_route = os.getenv("SECRET_AUTH_ROUTE")
+    return secret_route.strip("/") if secret_route else None
 
 
 def get_session_cookie_secret() -> str | None:
