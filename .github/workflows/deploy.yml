@@ -13,6 +13,10 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy-dockerhub:
     runs-on: ubuntu-latest
@@ -35,6 +39,8 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/mus:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/mus:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - name: Trigger watchtower
         env:
           WATCHTOWER_TOKEN: ${{ secrets.WATCHTOWER_HTTP_API_TOKEN }}

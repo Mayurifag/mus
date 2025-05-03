@@ -40,7 +40,7 @@
 
 ## Phase 6: Release MVP
 
-- [ ] Github Actions CI fixes
+- [x] Github Actions CI fixes
 - [ ] Dockerized CD
 
 ## Phase 7: after MVP
