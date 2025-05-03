@@ -51,13 +51,12 @@
 - [ ] Run through prompt about enhancing project, get TODOs done
 - [ ] Make /state sending through navigator.beacon. Its not THAT robust though and needs tests for my browser workflows.
 - [ ] Load state should also scroll webpage so track to play will be centered
+- [ ] Startup: get back logs and make truly async
 - [x] Add Stylelint for CSS linting and formatting
 - [x] Add ESLint (standard config) for JS linting
-- [ ] Define Album entity
-- [ ] Many-to-many relation between tracks/albums/artists
-- [ ] Define Playlist entity
 - [ ] Implement playlist management service (Deferred)
 - [ ] Move to scss. Redone css from scratch.
+- [ ] Rewrite README.md
 
 ## Edit files in place and upload from user computer
 
@@ -82,6 +81,9 @@
 - [ ] Artist page with all their tracks
 - [ ] Artist can have many similar names (Тату = t.A.T.u.)
 - [ ] Saving state through websocket
+- [ ] Define Album entity
+- [ ] Many-to-many relation between tracks/albums/artists
+- [ ] Define Playlist entity
 
 ## Notes
 - Project management rules are defined in `.cursor/rules/`
