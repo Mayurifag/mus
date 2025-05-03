@@ -1,5 +1,5 @@
 ---
-name: Deploy to GitHub Pages
+name: Deploy to Dockerhub
 
 "on":
   push:
