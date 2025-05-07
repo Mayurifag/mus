@@ -1,13 +1,11 @@
 DOCKER_COMPOSE_CMD := docker compose -f docker/docker-compose.yml
 
-.PHONY: run-dev stop ci
+.PHONY: up stop ci
 
-run-dev:
-	@echo "Starting development server..."
-	@$(DOCKER_COMPOSE_CMD) up --build
+up:
+	@$(DOCKER_COMPOSE_CMD) up --remove-orphans -d
 
 stop:
-	@echo "Stopping containers..."
 	@$(DOCKER_COMPOSE_CMD) down
 
 ci: format lint test

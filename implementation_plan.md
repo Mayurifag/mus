@@ -45,6 +45,9 @@
 
 ## Phase 7: after MVP
 
+- [ ] Refactor: divide frontend/backend folders and docker services + production deploy
+- [ ] Fix footer for iphone
+- [ ] Track title in tab name
 - [ ] Try to comment seek forward/back functionality to prevent ios 17 music player functionality to not show prev/next buttons
 - [ ] Use custom icons for player controls
 - [ ] Get rid of medium image. Always use original' webp fixed sizes
