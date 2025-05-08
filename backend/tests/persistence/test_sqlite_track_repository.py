@@ -1,8 +1,6 @@
 import pytest
 import pytest_asyncio
-from sqlmodel import SQLModel
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlmodel.ext.asyncio.session import AsyncSession
+
 
 from src.mus.domain.entities.track import Track
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
@@ -10,46 +8,13 @@ from src.mus.infrastructure.persistence.sqlite_track_repository import (
 )
 
 
-# Create a test database engine
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-engine = create_async_engine(TEST_DATABASE_URL)
-
-
 @pytest_asyncio.fixture
-async def session():
-    async with AsyncSession(engine) as session:
-        yield session
-
-
-@pytest_asyncio.fixture
-async def setup_test_db():
-    # Create tables
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-    yield
-    # Tear down - remove tables
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
-
-
-@pytest_asyncio.fixture
-async def repository(session):
-    return SQLiteTrackRepository(session)
-
-
-@pytest_asyncio.fixture
-async def sample_track():
-    return Track(
-        title="Test Track",
-        artist="Test Artist",
-        duration=180,  # 3 minutes
-        file_path="/path/to/test.mp3",
-        has_cover=False,
-    )
+async def repository(track_repository):
+    return track_repository
 
 
 @pytest.mark.asyncio
-async def test_add_track(setup_test_db, repository, sample_track):
+async def test_add_track(repository, sample_track):
     """Test adding a new track."""
     # Add the track
     added_track = await repository.add(sample_track)
@@ -70,7 +35,7 @@ async def test_add_track(setup_test_db, repository, sample_track):
 
 
 @pytest.mark.asyncio
-async def test_get_all_tracks(setup_test_db, repository, sample_track):
+async def test_get_all_tracks(repository, sample_track):
     """Test retrieving all tracks."""
     # Add a few tracks
     track1 = await repository.add(sample_track)
@@ -95,7 +60,7 @@ async def test_get_all_tracks(setup_test_db, repository, sample_track):
 
 
 @pytest.mark.asyncio
-async def test_exists_by_path(setup_test_db, repository, sample_track):
+async def test_exists_by_path(repository, sample_track):
     """Test checking if a track exists by file path."""
     # Add a track
     await repository.add(sample_track)
@@ -110,7 +75,7 @@ async def test_exists_by_path(setup_test_db, repository, sample_track):
 
 
 @pytest.mark.asyncio
-async def test_set_cover_flag(setup_test_db, session, sample_track):
+async def test_set_cover_flag(session, sample_track):
     """Test setting the has_cover flag."""
     repository = SQLiteTrackRepository(session)
 
@@ -135,7 +100,7 @@ async def test_set_cover_flag(setup_test_db, session, sample_track):
 
 
 @pytest.mark.asyncio
-async def test_upsert_track_insert_new(setup_test_db, repository, sample_track):
+async def test_upsert_track_insert_new(repository, sample_track):
     """Test upserting a new track."""
     # Upsert a new track
     track = await repository.upsert_track(sample_track)
@@ -152,7 +117,7 @@ async def test_upsert_track_insert_new(setup_test_db, repository, sample_track):
 
 
 @pytest.mark.asyncio
-async def test_upsert_track_update_existing(setup_test_db, repository, sample_track):
+async def test_upsert_track_update_existing(repository, sample_track):
     """Test upserting a track that already exists."""
     # First add the track
     original_track = await repository.add(sample_track)

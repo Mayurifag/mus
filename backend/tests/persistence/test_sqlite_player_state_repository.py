@@ -1,54 +1,17 @@
 import pytest
 import pytest_asyncio
-from sqlmodel import SQLModel
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlmodel.ext.asyncio.session import AsyncSession
+
 
 from src.mus.domain.entities.player_state import PlayerState
-from src.mus.infrastructure.persistence.sqlite_player_state_repository import (
-    SQLitePlayerStateRepository,
-)
-
-
-# Create a test database engine
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-engine = create_async_engine(TEST_DATABASE_URL)
 
 
 @pytest_asyncio.fixture
-async def session():
-    async with AsyncSession(engine) as session:
-        yield session
-
-
-@pytest_asyncio.fixture
-async def setup_test_db():
-    # Create tables
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-    yield
-    # Tear down - remove tables
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
-
-
-@pytest_asyncio.fixture
-async def repository(session):
-    return SQLitePlayerStateRepository(session)
-
-
-@pytest_asyncio.fixture
-async def sample_state():
-    return PlayerState(
-        current_track_id=42,
-        progress_seconds=30,
-        volume_level=0.8,
-        is_muted=False,
-    )
+async def repository(player_state_repository):
+    return player_state_repository
 
 
 @pytest.mark.asyncio
-async def test_save_and_load_state(setup_test_db, repository, sample_state):
+async def test_save_and_load_state(repository, sample_state):
     """Test saving and loading player state."""
     # Save the state
     saved_state = await repository.save_state(sample_state)
@@ -71,7 +34,7 @@ async def test_save_and_load_state(setup_test_db, repository, sample_state):
 
 
 @pytest.mark.asyncio
-async def test_update_existing_state(setup_test_db, repository, sample_state):
+async def test_update_existing_state(repository, sample_state):
     """Test updating an existing player state."""
     # First save the initial state
     await repository.save_state(sample_state)
@@ -104,14 +67,14 @@ async def test_update_existing_state(setup_test_db, repository, sample_state):
 
 
 @pytest.mark.asyncio
-async def test_load_nonexistent_state(setup_test_db, repository):
+async def test_load_nonexistent_state(repository):
     """Test loading a state that doesn't exist yet."""
     state = await repository.load_state()
     assert state is None
 
 
 @pytest.mark.asyncio
-async def test_upsert_state_insert_new(setup_test_db, repository, sample_state):
+async def test_upsert_state_insert_new(repository, sample_state):
     """Test upserting a new player state."""
     # Upsert a new state
     state = await repository.upsert_state(sample_state)
@@ -131,7 +94,7 @@ async def test_upsert_state_insert_new(setup_test_db, repository, sample_state):
 
 
 @pytest.mark.asyncio
-async def test_upsert_state_update_existing(setup_test_db, repository, sample_state):
+async def test_upsert_state_update_existing(repository, sample_state):
     """Test upserting a player state that already exists."""
     # First add the state
     original_state = await repository.save_state(sample_state)
