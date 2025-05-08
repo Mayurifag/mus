@@ -1,0 +1,44 @@
+from typing import Optional
+
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from mus.domain.entities.player_state import PlayerState
+
+
+class SQLitePlayerStateRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def save_state(self, state: PlayerState) -> PlayerState:
+        existing_state = await self.load_state()
+
+        if existing_state:
+            # Update existing state
+            existing_state.current_track_id = state.current_track_id
+            existing_state.progress_seconds = state.progress_seconds
+            existing_state.volume_level = state.volume_level
+            existing_state.is_muted = state.is_muted
+
+            self.session.add(existing_state)
+            await self.session.commit()
+            await self.session.refresh(existing_state)
+            return existing_state
+        else:
+            # Create new state
+            new_state = PlayerState(
+                id=1,  # Always use id=1 for singleton player state
+                current_track_id=state.current_track_id,
+                progress_seconds=state.progress_seconds,
+                volume_level=state.volume_level,
+                is_muted=state.is_muted,
+            )
+            self.session.add(new_state)
+            await self.session.commit()
+            await self.session.refresh(new_state)
+            return new_state
+
+    async def load_state(self) -> Optional[PlayerState]:
+        statement = select(PlayerState).where(PlayerState.id == 1)
+        result = await self.session.exec(statement)
+        return result.first()

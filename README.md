@@ -1,53 +1,85 @@
-# mus - Personal Music Server
+# Mus Next Generation
 
-A personal music server built with Python, FastAPI, and HTMX.
+## Introduction
+
+*To be completed: Brief overview of the Mus Next Generation project.*
 
 ## Features
 
-- Async Python backend with FastAPI
-- HTMX for dynamic frontend interactions
-- Structured logging with structlog
-- Docker support for easy deployment
-- Hexagonal architecture for clean code organization
+- Modern desktop and web music server
+- Universal app with Tauri 2.0
+- Vite/React/TypeScript frontend
+- FastAPI/SQLModel backend
+- Secure authentication for web access
+- Dockerized development and production
 
-## Setup
+## Tech Stack
 
-1. Create a virtual environment:
+- **Frontend:** Vite, React, TypeScript, Zustand, Tailwind CSS, Shadcn/UI, TanStack Query, date-fns
+- **Backend:** FastAPI, SQLModel, Uvicorn, python-jose, Pytest, HTTPX
+- **Desktop:** Tauri 2.0
+- **Containerization:** Docker, Docker Compose
+
+## Getting Started
+
+### Setup
+
+1. **Backend**
+
+   Copy the sample environment variables:
+
    ```bash
+   cd backend
+   cp .env.example .env
+   ```
+
+   Edit the `.env` file and set the following variables:
+
+   ```
+   # Authentication Settings
+   AUTH_SECRET_KEY=your-super-secure-jwt-signing-key-change-in-production
+   LOGIN_SECRET=your-login-secret-change-in-production
+
+   # Database
+   DATABASE_URL=sqlite:///./mus.db
+   ```
+
+   Install dependencies:
+
+   ```bash
+   cd backend
    uv venv
+   source .venv/bin/activate
+   uv pip install -e .
    ```
 
-2. Install dependencies:
+2. **Frontend** (to be completed)
+
+### Running
+
+1. **Backend**
+
    ```bash
-   make lock
-   make sync
+   cd backend
+   source .venv/bin/activate
+   uvicorn src.mus.main:app --reload
    ```
 
-3. Build and run:
-   ```bash
-   make build
-   make run-dev
-   ```
+   The backend will be available at http://localhost:8000
 
-## Development
+   You can log in via the web interface by visiting:
+   http://localhost:8000/api/v1/auth/login-via-secret/your-login-secret-change-in-production
 
-- Run tests: `make test`
-- Lint code: `make lint`
-- Format code: `make format`
-- Clean build artifacts: `make clean`
+2. **Frontend** (to be completed)
 
-## Architecture
+## Project Structure
 
-The project follows a hexagonal architecture pattern:
+```
+backend/    # FastAPI backend (Hexagonal Architecture)
+frontend/   # Vite/React/TS frontend (SPA, Tauri shell)
+docker/     # Dockerfiles, Compose, makefiles
+```
 
-- `domain/`: Core business logic and entities
-- `application/`: Use cases and application services
-- `infrastructure/`: Adapters for external systems (web, persistence, etc.)
+## Usage
 
-## Logging
-
-The application uses structlog for structured JSON logging. Logs are written to stdout in JSON format.
-
-## License
-
-MIT
+*To be completed: Usage instructions and example workflows.*

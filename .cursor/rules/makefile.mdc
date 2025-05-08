@@ -1,75 +1,91 @@
----
-description:
-globs:
-alwaysApply: true
----
 # Makefile Standards
 
 <rule>
 name: makefile_best_practices
-description: Core Makefile standards and guidelines for the project
+
+# Makefile Standards
+
+<rule>
+name: makefile_best_practices
+
+# Updated for multi-makefile structure (project.mk, backend.mk, frontend.mk)
+description: Core Makefile standards and guidelines for the project, supporting modular .mk files for frontend, backend, and project-level orchestration.
 filters:
   - type: file_name
     pattern: "Makefile|.*\\.mk$"
   - type: content
     pattern: "(?s).*"
-
 actions:
   - type: suggest
     message: |
       Follow these Makefile standards:
 
-      1. Target Definition:
+      1. File Structure:
+         - Use modular .mk files: project.mk (orchestrates), backend.mk, frontend.mk (service-specific)
+         - Place .mk files in docker/makefiles/
+         - Root Makefile should only include and delegate to these .mk files
+
+      2. Target Definition:
          - Use .PHONY for ALL non-file targets
-         - Standard target names:
-           * deps: Install dependencies
-           * sync: Sync dependencies
-           * lock: Update lock files
+         - Standard target names (for each .mk):
+           * install: Install dependencies
            * lint: Run linters
            * format: Run formatters
            * test: Run tests
            * clean: Clean build artifacts
            * build: Build the project
-           * run-dev: Run development server
-         - Group related targets in separate .mk files
+           * dev: Run development server
+         - Add service-specific targets as needed
 
-      2. Variable Usage:
+      3. Variable Usage:
          - Use UPPER_CASE for Make variables
-         - Use ?= for default values:
-           ```makefile
-           PYTHON ?= python3
-           COVERAGE ?= 80
-           ```
+         - Use ?= for default values
          - Define variables at the top
          - Use := for immediate expansion
          - Use += for appending values
 
-      3. Recipe Simplicity:
+      4. Recipe Simplicity:
          - Keep recipes concise
-         - Prefer Make functions over shell:
-           * Use $(wildcard) instead of shell find
-           * Use $(patsubst) instead of shell sed
-           * Use $(filter) instead of shell grep
+         - Prefer Make functions over shell
          - One command per line
          - Use @ to suppress command echo
 
-      4. Argument Handling:
-         - Support direct argument passing:
-           ```makefile
-           .PHONY: uv-install
-           uv-install:
-               uv pip install $(ARGS)
-           ```
+      5. Argument Handling:
+         - Support direct argument passing
          - Use target-specific variables
          - Document required arguments
 
-      5. Dependencies:
+      6. Command Usage:
+         - All project scripts, dev, build, lint, test, and CI/CD actions must be run via make targets only (never raw shell commands)
+         - Do not run npm, npx, uv, pytest, etc. directly—always use the appropriate make target
+         - If a new command is needed, add it to the relevant .mk file and document it
+
+      7. Dependencies:
          - Use uv for Python packages
          - Keep requirements.txt as lock
          - Document all changes
          - Test after updates
          - Support virtual environments
 
+metadata:
+  priority: high
+  version: 2.0
+</rule>
+
+<rule>
+name: makefile_python_dependency_management
+# Enforce dependency management via Makefile
+filters:
+  - type: file_name
+    pattern: "Makefile|.*\\.mk$"
+  - type: content
+    pattern: "(?s).*"
+actions:
+  - type: suggest
+    message: |
+      All Python dependencies must be added using:
+        make back-uv-install <package>
+      Do not edit pyproject.toml or requirements.txt directly. The Makefile is the single source of truth for dependency management.
 metadata:
   priority: high
   version: 1.0

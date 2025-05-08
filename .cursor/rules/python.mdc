@@ -142,3 +142,24 @@ metadata:
   priority: high
   version: 1.0
 </rule>
+<rule>
+name: python_test_first_and_async_main
+# Enforce test-first and async FastAPI main
+filters:
+  - type: file_extension
+    pattern: "\\.py$"
+  - type: content
+    pattern: "(?s).*"
+actions:
+  - type: suggest
+    message: |
+      1. Always write tests before writing implementation code (test-first/TDD).
+      2. For FastAPI main.py:
+         - The app must be fully async (all endpoints async def).
+         - OpenAPI generation (app.openapi()) must work without error.
+      3. Do not skip tests for any new feature or endpoint.
+      4. Tests must cover both success and error cases for all endpoints.
+metadata:
+  priority: high
+  version: 1.0
+</rule>
