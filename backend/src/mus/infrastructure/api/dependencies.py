@@ -3,8 +3,8 @@ from jose import JWTError, jwt
 from typing import Optional, Dict, Any
 from datetime import datetime, UTC
 
-from mus.config import settings
-from mus.infrastructure.api.auth import ALGORITHM, COOKIE_NAME
+from src.mus.config import settings
+from src.mus.infrastructure.api.auth import ALGORITHM, COOKIE_NAME
 
 
 async def get_current_user(

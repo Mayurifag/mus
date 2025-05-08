@@ -14,7 +14,9 @@ certifi==2025.4.26
     #   httpcore
     #   httpx
 cffi==1.17.1
-    # via cryptography
+    # via
+    #   cryptography
+    #   pyvips
 click==8.1.8
     # via uvicorn
 cryptography==44.0.3
@@ -66,6 +68,8 @@ pytest-asyncio==0.26.0
 python-dotenv==1.1.0
     # via uvicorn
 python-jose==3.4.0
+    # via mus (pyproject.toml)
+pyvips==3.0.0
     # via mus (pyproject.toml)
 pyyaml==6.0.2
     # via uvicorn

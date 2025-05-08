@@ -3,11 +3,6 @@ from fastapi.testclient import TestClient
 from httpx import Response
 from typing import Generator
 from jose import jwt
-import sys
-from pathlib import Path
-
-# Add the src directory to the Python path
-sys.path.append(str(Path(__file__).parent.parent))
 
 from src.mus.main import app
 from src.mus.config import settings

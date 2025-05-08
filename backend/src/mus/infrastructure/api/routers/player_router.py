@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from mus.application.dtos.player_state import PlayerStateDTO
-from mus.application.use_cases.manage_player_state_use_case import (
+from src.mus.application.dtos.player_state import PlayerStateDTO
+from src.mus.application.use_cases.manage_player_state_use_case import (
     ManagePlayerStateUseCase,
 )
-from mus.infrastructure.database import get_session
-from mus.infrastructure.persistence.sqlite_player_state_repository import (
+from src.mus.infrastructure.database import get_session_generator
+from src.mus.infrastructure.persistence.sqlite_player_state_repository import (
     SQLitePlayerStateRepository,
 )
 
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api/v1/player", tags=["player"])
 
 
 async def get_player_state_use_case(
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session_generator),
 ) -> ManagePlayerStateUseCase:
     repository = SQLitePlayerStateRepository(session)
     return ManagePlayerStateUseCase(repository)

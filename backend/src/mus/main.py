@@ -2,16 +2,17 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from typing import Dict, Any
 
-from mus.infrastructure.api.auth import router as auth_router
-from mus.infrastructure.api.dependencies import get_current_user
-from mus.infrastructure.api.routers.player_router import router as player_router
-from mus.infrastructure.database import init_db
+from src.mus.infrastructure.api.auth import router as auth_router
+from src.mus.infrastructure.api.dependencies import get_current_user
+from src.mus.infrastructure.api.routers.player_router import router as player_router
+from src.mus.infrastructure.api.routers.track_router import router as track_router
+from src.mus.infrastructure.database import create_db_and_tables
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize database on startup
-    await init_db()
+    await create_db_and_tables()
     yield
 
 
@@ -24,6 +25,7 @@ app = FastAPI(
 # Include routers
 app.include_router(auth_router)
 app.include_router(player_router)
+app.include_router(track_router)
 
 
 @app.get("/", response_model=Dict[str, Any])

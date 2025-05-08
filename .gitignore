@@ -64,7 +64,6 @@ $RECYCLE.BIN/
 *.rej
 
 # Misc
-*.lock
 *.log
 *.sqlite3
 *.db
@@ -82,3 +81,6 @@ htmlcov/
 
 # CI/CD
 .github/workflows/*.log
+
+# Application specific
+mus_database.db

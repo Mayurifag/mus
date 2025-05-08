@@ -1,6 +1,6 @@
-from mus.application.dtos.player_state import PlayerStateDTO
-from mus.domain.entities.player_state import PlayerState
-from mus.infrastructure.persistence.sqlite_player_state_repository import (
+from src.mus.application.dtos.player_state import PlayerStateDTO
+from src.mus.domain.entities.player_state import PlayerState
+from src.mus.infrastructure.persistence.sqlite_player_state_repository import (
     SQLitePlayerStateRepository,
 )
 

@@ -16,6 +16,6 @@ class TrackDTO(BaseModel):
 
     # URLs are constructed by the API layer based on track_id
     cover_small_url: Optional[str] = None
-    cover_medium_url: Optional[str] = None
+    cover_original_url: Optional[str] = None
 
     model_config = {"from_attributes": True}

@@ -25,6 +25,7 @@ actions:
          - Keep functions/methods short and focused (single responsibility)
          - Use descriptive variable and function names
          - Limit line length to 88 characters (black default)
+         - Never use `# type: ignore` and similar things to disable linter warnings.
 
       2. Clean Code & DRY:
          - Extract repeated logic into reusable functions/classes

@@ -1,91 +1,102 @@
-# Makefile Standards
+---
+description:
+globs:
+alwaysApply: true
+---
+name: makefile_guidelines
+description: Provides rules for generating and using makefile commands and standards for writing/organizing Makefiles in this project.
 
 <rule>
-name: makefile_best_practices
-
-# Makefile Standards
-
-<rule>
-name: makefile_best_practices
-
-# Updated for multi-makefile structure (project.mk, backend.mk, frontend.mk)
-description: Core Makefile standards and guidelines for the project, supporting modular .mk files for frontend, backend, and project-level orchestration.
+name: makefile_usage_and_standards
+description: Ensures make commands are generated correctly, provides context on available commands, and enforces Makefile writing standards.
 filters:
-  - type: file_name
-    pattern: "Makefile|.*\\.mk$"
+  # Filter 1: Trigger on usage/suggestion of 'make command'
   - type: content
-    pattern: "(?s).*"
+    # Matches 'make some-command', 'suggest using make build', etc.
+    pattern: "(make\\s+[a-zA-Z0-9-]+)|(suggest.*make\\s+[a-zA-Z0-9-]+)"
+  # Filter 2: Trigger when editing Makefile (.mk) files
+  - type: file_extension
+    pattern: "\\.mk$"
+
 actions:
   - type: suggest
     message: |
-      Follow these Makefile standards:
+      **Makefile Usage & Writing Guidelines:**
 
-      1. File Structure:
-         - Use modular .mk files: project.mk (orchestrates), backend.mk, frontend.mk (service-specific)
-         - Place .mk files in docker/makefiles/
-         - Root Makefile should only include and delegate to these .mk files
+      ---
+      **Part 1: Using Makefile Commands**
+      ---
 
-      2. Target Definition:
-         - Use .PHONY for ALL non-file targets
-         - Standard target names (for each .mk):
-           * install: Install dependencies
-           * lint: Run linters
-           * format: Run formatters
-           * test: Run tests
-           * clean: Clean build artifacts
-           * build: Build the project
-           * dev: Run development server
-         - Add service-specific targets as needed
+      **1. Correct Format:**
+         - Always use the format `make target [arg1] [arg2] ...`
+         - **DO NOT** use `ARGS="arg1 arg2"`. The Makefile parses arguments directly.
+         - Do not add obvious comments
+         - Example: `make install pytest-asyncio pytest-mock` (Correct)
+         - Example: `make install ARGS="pytest-asyncio pytest-mock"` (Incorrect)
+         - Use make commands in project directory, not subfolders like `backend`, `frontend` and so on.
 
-      3. Variable Usage:
-         - Use UPPER_CASE for Make variables
-         - Use ?= for default values
-         - Define variables at the top
-         - Use := for immediate expansion
-         - Use += for appending values
+      **2. Use Make, Not Direct Commands:**
+         - Run Docker operations via `make`: `make up`, `make build`, `make down`. (Not `docker-compose ...`)
+         - Install Python packages via `make`: `make install <package>`. (Not `pip install ...`)
+         - Do not forget to update available commands after adding new ones or removing.
+         - Always check if there are commands which might be executing using `make`
 
-      4. Recipe Simplicity:
-         - Keep recipes concise
-         - Prefer Make functions over shell
-         - One command per line
-         - Use @ to suppress command echo
+      ---
+      **Part 2: Writing & Organizing Makefiles (`.mk` files)**
+      ---
 
-      5. Argument Handling:
-         - Support direct argument passing
-         - Use target-specific variables
-         - Document required arguments
+      **1. Organization:**
+         - Split Makefiles by domain/service (e.g., `docker.mk`, `postgres.mk`) in `./docker/makefiles/`.
+         - Keep each `.mk` file focused. Use `include` in the root `Makefile`.
 
-      6. Command Usage:
-         - All project scripts, dev, build, lint, test, and CI/CD actions must be run via make targets only (never raw shell commands)
-         - Do not run npm, npx, uv, pytest, etc. directly—always use the appropriate make target
-         - If a new command is needed, add it to the relevant .mk file and document it
+      **2. Target Naming:**
+         - Use lowercase with hyphens (e.g., `postgres-query`, `click-tables`).
+         - Prefix service-specific commands (e.g., `postgres-up`).
+         - Use descriptive names indicating the action.
 
-      7. Dependencies:
-         - Use uv for Python packages
-         - Keep requirements.txt as lock
-         - Document all changes
-         - Test after updates
-         - Support virtual environments
+      **3. PHONY Targets:**
+         - **Always** declare `.PHONY` for targets not creating files, placed directly above the target.
+         ```makefile
+         .PHONY: build
+         build:
+             docker-compose build --pull
+         ```
 
-metadata:
-  priority: high
-  version: 2.0
-</rule>
+      **4. Variables:**
+         - Use `UPPERCASE` for variables, defined at the top of the `.mk` file.
+         - Use `:=` for immediate assignment (preferred).
+         - Use descriptive names (e.g., `POSTGRES_RUN_NO_DEPS`).
 
-<rule>
-name: makefile_python_dependency_management
-# Enforce dependency management via Makefile
-filters:
-  - type: file_name
-    pattern: "Makefile|.*\\.mk$"
-  - type: content
-    pattern: "(?s).*"
-actions:
-  - type: suggest
-    message: |
-      All Python dependencies must be added using:
-        make back-uv-install <package>
-      Do not edit pyproject.toml or requirements.txt directly. The Makefile is the single source of truth for dependency management.
+examples:
+  - input: "Install pytest-asyncio using pip"
+    output: "Use `make install pytest-asyncio`"
+  - input: "pip install pytest-asyncio"
+    output: "make install pytest-asyncio"
+  - input: "make install ARGS='pytest-asyncio pytest-mock'"
+    output: "make install pytest-asyncio pytest-mock"
+  - input: "docker-compose up -d"
+    output: "make up"
+  - input: "How do I run the tests?"
+    output: "Use `make test`"
+
+  - input: |
+      # In docker.mk
+      Restart: # No .PHONY, Capitalized
+        docker-compose restart $(ARGS)
+    output: |
+      Suggest changing to:
+      ```makefile
+      .PHONY: restart
+      restart:
+          docker-compose restart $(ARGS)
+      ```
+  - input: |
+      # In postgres.mk
+      postgres_query: # Underscore instead of hyphen
+          ${POSTGRES_RUN_NO_DEPS} psql -U postgres -c "$(ARGS)"
+    output: |
+       Suggest changing target name to `postgres-query`.
+
 metadata:
   priority: high
   version: 1.0

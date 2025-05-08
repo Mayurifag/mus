@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, UTC
 from typing import Dict, Optional, Any
 from jose import jwt
 
-from mus.config import settings
+from src.mus.config import settings
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours

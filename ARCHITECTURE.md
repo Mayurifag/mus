@@ -21,6 +21,7 @@ Mus Next Generation is a modern rewrite of the Mus personal music server, featur
 - **Architecture:** Hexagonal (domain, application, infrastructure)
 - **Authentication:** JWT (python-jose), cookie-based for web
 - **Testing:** Pytest, HTTPX, pytest-asyncio
+- **Image Processing:** pyvips
 - **Directory Structure:**
   - `src/mus/domain/`, `src/mus/application/`, `src/mus/infrastructure/`
 
@@ -54,7 +55,6 @@ The authentication system is specifically designed for web access, while Tauri d
 
 1. **Initial Authentication:**
    - User accesses: `/api/v1/auth/login-via-secret/{secret_key}`
-   - Backend validates the secret key against `LOGIN_SECRET` environment variable
    - If valid, a JWT token is generated with `sub`, `exp`, and `iat` claims
    - Token is set as an HttpOnly cookie named `mus_auth_token`
    - User is redirected to the root path (`/`)

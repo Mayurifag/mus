@@ -38,10 +38,6 @@
    ```
    # Authentication Settings
    AUTH_SECRET_KEY=your-super-secure-jwt-signing-key-change-in-production
-   LOGIN_SECRET=your-login-secret-change-in-production
-
-   # Database
-   DATABASE_URL=sqlite:///./mus.db
    ```
 
    Install dependencies:
