@@ -34,7 +34,7 @@
         "files_to_modify": "`backend/src/mus/config.py,backend/src/mus/infrastructure/api/auth.py,backend/src/mus/infrastructure/database.py,backend/src/mus/infrastructure/scanner/file_system_scanner.py,backend/src/mus/infrastructure/scanner/cover_processor.py,.gitignore`"
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Update Backend Cover Processing (Original and Small WebP)",
         "details": "Modify the cover processing service (e.g., `CoverProcessor` or its equivalent in `backend/src/mus/infrastructure/scanner/`) to: 1. Generate an 'original' WebP cover by converting the input image data to WebP format while maintaining its original dimensions. 2. Generate a 'small' WebP cover, resizing to a fixed dimension (e.g., 80x80 pixels) and converting to WebP. 3. Remove any logic for generating 'medium' sized covers. 4. Update cover image file naming to reflect these changes (e.g., `{track_id}_original.webp`, `{track_id}_small.webp`). Apply relevant rules from `.cursor/rules/python.mdc`.",
         "files_to_modify": "`backend/src/mus/infrastructure/scanner/cover_processor.py`"
