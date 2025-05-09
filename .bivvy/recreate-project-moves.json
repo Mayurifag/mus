@@ -40,7 +40,7 @@
         "files_to_modify": "`backend/src/mus/infrastructure/scanner/cover_processor.py`"
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Update Backend Cover API Endpoint and TrackDTO for New Cover URLs",
         "details": "1. In `backend/src/mus/application/dtos/track.py`, modify the `TrackDTO` Pydantic model: remove the `cover_medium_url` field, and add `cover_original_url: Optional[str] = None`. The `cover_small_url` field remains. 2. Update the cover API endpoint `GET /api/v1/tracks/{track_id}/covers/{size}.webp` in `backend/src/mus/infrastructure/api/routers/track_router.py` (or its new location if refactored from `R3W7` climb): change `size` parameter validation to accept 'original' and 'small'. Remove support for 'medium'. Ensure it serves the correct WebP files based on the new naming convention. 3. Update the logic responsible for populating `TrackDTO` instances (likely within the API router handling `GET /api/v1/tracks`) to: correctly construct `cover_original_url` (e.g., `/api/v1/tracks/{track_id}/covers/original.webp`) and `cover_small_url` (e.g., `/api/v1/tracks/{track_id}/covers/small.webp`) if `has_cover` is true. 4. Adjust any associated API schema definitions (e.g., in `backend/src/mus/infrastructure/api/schemas.py`) if they directly reference or re-export `TrackDTO`. Apply relevant rules from `.cursor/rules/python.mdc`.",
         "files_to_modify": "`backend/src/mus/application/dtos/track.py,backend/src/mus/infrastructure/api/routers/track_router.py,backend/src/mus/infrastructure/api/schemas.py`"
