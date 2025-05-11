@@ -3,8 +3,8 @@ from sqlmodel import select, desc
 from sqlmodel.ext.asyncio.session import AsyncSession
 from fastapi import Depends
 
-from mus.domain.entities.track import Track
-from mus.infrastructure.database import get_session_generator
+from src.mus.domain.entities.track import Track
+from src.mus.infrastructure.database import get_session_generator
 
 
 class SQLiteTrackRepository:

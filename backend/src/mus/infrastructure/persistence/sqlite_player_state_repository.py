@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from mus.domain.entities.player_state import PlayerState
+from src.mus.domain.entities.player_state import PlayerState
 
 
 class SQLitePlayerStateRepository:
