@@ -10,6 +10,11 @@ async def repository(player_state_repository):
     return player_state_repository
 
 
+# We ignore warning of exec instead of execute because SQLAlchemy doesn't natively support upsert syntax
+warning_filter = "ignore::DeprecationWarning:src.mus.infrastructure.persistence.sqlite_player_state_repository"
+
+
+@pytest.mark.filterwarnings(warning_filter)
 @pytest.mark.asyncio
 async def test_save_and_load_state(repository, sample_state):
     """Test saving and loading player state."""
@@ -33,6 +38,7 @@ async def test_save_and_load_state(repository, sample_state):
     assert loaded_state.is_muted is False
 
 
+@pytest.mark.filterwarnings(warning_filter)
 @pytest.mark.asyncio
 async def test_update_existing_state(repository, sample_state):
     """Test updating an existing player state."""
