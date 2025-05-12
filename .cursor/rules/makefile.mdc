@@ -31,13 +31,13 @@ actions:
          - Always use the format `make target [arg1] [arg2] ...`
          - **DO NOT** use `ARGS="arg1 arg2"`. The Makefile parses arguments directly.
          - Do not add obvious comments
-         - Example: `make install pytest-asyncio pytest-mock` (Correct)
-         - Example: `make install ARGS="pytest-asyncio pytest-mock"` (Incorrect)
+         - Example: `make back-uv-install pytest-asyncio pytest-mock` (Correct)
+         - Example: `make back-uv-install ARGS="pytest-asyncio pytest-mock"` (Incorrect)
          - Use make commands in project directory, not subfolders like `backend`, `frontend` and so on.
 
       **2. Use Make, Not Direct Commands:**
          - Run Docker operations via `make`: `make up`, `make build`, `make down`. (Not `docker-compose ...`)
-         - Install Python packages via `make`: `make install <package>`. (Not `pip install ...`)
+         - Install Python packages via `make`: `make back-uv-install <package>`. (Not `pip install ...`)
          - Do not forget to update available commands after adding new ones or removing.
          - Always check if there are commands which might be executing using `make`
 
@@ -69,11 +69,11 @@ actions:
 
 examples:
   - input: "Install pytest-asyncio using pip"
-    output: "Use `make install pytest-asyncio`"
+    output: "Use `make back-uv-install pytest-asyncio`"
   - input: "pip install pytest-asyncio"
-    output: "make install pytest-asyncio"
-  - input: "make install ARGS='pytest-asyncio pytest-mock'"
-    output: "make install pytest-asyncio pytest-mock"
+    output: "make back-uv-install pytest-asyncio"
+  - input: "make back-uv-install ARGS='pytest-asyncio pytest-mock'"
+    output: "make back-uv-install pytest-asyncio pytest-mock"
   - input: "docker-compose up -d"
     output: "make up"
   - input: "How do I run the tests?"

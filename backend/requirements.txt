@@ -43,6 +43,8 @@ idna==3.10
     #   httpx
 iniconfig==2.1.0
     # via pytest
+mutagen==1.47.0
+    # via mus (pyproject.toml)
 packaging==25.0
     # via pytest
 pluggy==1.5.0

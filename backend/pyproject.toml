@@ -15,6 +15,7 @@ dependencies = [
   "aiosqlite>=0.21.0",
   "greenlet>=3.2.1",
   "pyvips>=3.0.0",
+  "mutagen>=1.47.0",
 ]
 
 [build-system]
