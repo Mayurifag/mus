@@ -1,9 +1,8 @@
 from enum import Enum
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from fastapi.responses import FileResponse
-from typing import List
+from typing import List, Final
 import os
-
 from src.mus.application.dtos.track import TrackDTO
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
@@ -17,6 +16,13 @@ class CoverSize(str, Enum):
     ORIGINAL = "original"
 
 
+AUDIO_CONTENT_TYPES: Final = {
+    ".mp3": "audio/mpeg",
+    ".flac": "audio/flac",
+    ".wav": "audio/wav",
+}
+
+
 router = APIRouter(prefix="/api/v1/tracks", tags=["tracks"])
 
 
@@ -28,12 +34,10 @@ async def get_tracks(
     """Get all tracks."""
     tracks = await track_repository.get_all()
 
-    # Convert entities to DTOs and add cover URLs
     track_dtos = []
     for track in tracks:
         track_dto = TrackDTO.model_validate(track)
 
-        # If track has cover, construct URLs
         if track.has_cover:
             track_dto.cover_small_url = (
                 f"{request.url_for('get_track_cover', track_id=track.id, size='small')}"
@@ -43,6 +47,37 @@ async def get_tracks(
         track_dtos.append(track_dto)
 
     return track_dtos
+
+
+@router.get("/{track_id}/stream")
+async def stream_track(
+    track_id: int = Path(..., gt=0),
+    track_repository: SQLiteTrackRepository = Depends(),
+) -> FileResponse:
+    """
+    Stream a track audio file.
+    """
+    track = await track_repository.get_by_id(track_id)
+    if not track:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Track with ID {track_id} not found",
+        )
+
+    if not os.path.isfile(track.file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Audio file for track {track_id} not found",
+        )
+
+    file_ext = os.path.splitext(track.file_path)[1].lower()
+    content_type = AUDIO_CONTENT_TYPES.get(file_ext, "audio/mpeg")
+
+    return FileResponse(
+        path=track.file_path,
+        media_type=content_type,
+        filename=os.path.basename(track.file_path),
+    )
 
 
 @router.get("/{track_id}/covers/{size}.webp", name="get_track_cover")
@@ -56,7 +91,6 @@ async def get_track_cover(
 
     Size can be 'small' (80x80) or 'original' (original dimensions).
     """
-    # Get track from database
     track = await track_repository.get_by_id(track_id)
     if not track:
         raise HTTPException(
@@ -70,11 +104,8 @@ async def get_track_cover(
             detail="This track has no cover image",
         )
 
-    # Construct path to cover file
-    # CoverProcessor saves covers to ./data/covers/{track_id}_{size}.webp
     cover_path = f"./data/covers/{track_id}_{size.value}.webp"
 
-    # Check if file exists
     if not os.path.isfile(cover_path):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -82,5 +113,5 @@ async def get_track_cover(
         )
 
     return FileResponse(
-        cover_path, media_type="image/webp", filename=f"cover_{size.value}.webp"
+        path=cover_path, media_type="image/webp", filename=f"cover_{size.value}.webp"
     )

@@ -1,20 +1,19 @@
 import pytest
 import httpx
-from unittest.mock import patch, MagicMock
+import asyncio
+from unittest.mock import patch, MagicMock, AsyncMock
 from fastapi.testclient import TestClient
+from src.mus.infrastructure.api.routers.track_router import stream_track
 
 
 def test_get_tracks(app, session, sample_track):
     """Test that tracks are returned correctly."""
-    # Add track to database
     session.add(sample_track)
     sample_track.has_cover = True
-    import asyncio
 
     asyncio.get_event_loop().run_until_complete(session.commit())
 
     with TestClient(app) as client:
-        # Make the request
         response = client.get("/api/v1/tracks")
         assert response.status_code == 200
 
@@ -23,10 +22,54 @@ def test_get_tracks(app, session, sample_track):
         assert tracks[0]["title"] == "Test Track"
         assert tracks[0]["artist"] == "Test Artist"
 
-        # Check that cover URLs are constructed correctly
         assert "covers/small.webp" in tracks[0]["cover_small_url"]
         assert "covers/original.webp" in tracks[0]["cover_original_url"]
         assert "cover_medium_url" not in tracks[0]
+
+
+@pytest.mark.asyncio
+async def test_stream_track_not_found(app):
+    """Test 404 when track is not found."""
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get("/api/v1/tracks/999/stream")
+        assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_stream_track_file_not_found(app):
+    """Test 404 when audio file doesn't exist."""
+    track_id = 1
+
+    with patch("os.path.isfile", return_value=False), patch(
+        "src.mus.infrastructure.persistence.sqlite_track_repository.SQLiteTrackRepository.get_by_id",
+        return_value=MagicMock(id=track_id, file_path="/non/existent/path.mp3"),
+    ):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            response = await ac.get(f"/api/v1/tracks/{track_id}/stream")
+            assert response.status_code == 404
+
+
+def test_stream_track_success():
+    """Test successful audio file streaming - simplified test."""
+    track_mock = MagicMock(id=1, file_path="/fake/path.mp3")
+    repo_mock = AsyncMock()
+    repo_mock.get_by_id.return_value = track_mock
+
+    file_response_mock = MagicMock(status_code=200)
+
+    with patch("os.path.isfile", return_value=True), patch(
+        "fastapi.responses.FileResponse", return_value=file_response_mock
+    ):
+        result = asyncio.get_event_loop().run_until_complete(
+            stream_track(track_id=1, track_repository=repo_mock)
+        )
+
+        assert result.status_code == 200
+        repo_mock.get_by_id.assert_called_once_with(1)
 
 
 def test_get_track_cover_not_found(app):
@@ -39,8 +82,6 @@ def test_get_track_cover_not_found(app):
 @pytest.mark.asyncio
 async def test_get_track_cover_invalid_size(app):
     """Test 422 when an invalid size is provided."""
-    # This test assumes a track with id=1 exists and has no cover
-    # You may need to create a track via an API call if available
     track_id = 1
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
@@ -52,7 +93,6 @@ async def test_get_track_cover_invalid_size(app):
 @pytest.mark.asyncio
 async def test_get_track_cover_no_cover(app):
     """Test 404 when track has no cover."""
-    # This test assumes a track with id=1 exists and has no cover
     track_id = 1
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
@@ -64,7 +104,6 @@ async def test_get_track_cover_no_cover(app):
 @pytest.mark.asyncio
 async def test_get_track_cover_file_not_found(app):
     """Test 404 when the cover file doesn't exist."""
-    # This test assumes a track with id=1 exists and has a cover flag set
     track_id = 1
     with patch("os.path.isfile", return_value=False):
         async with httpx.AsyncClient(
@@ -77,7 +116,6 @@ async def test_get_track_cover_file_not_found(app):
 @pytest.mark.asyncio
 async def test_get_track_cover_success(app):
     """Test successful cover retrieval."""
-    # This test assumes a track with id=1 exists and has a cover flag set
     track_id = 1
     with (
         patch("os.path.isfile", return_value=True),

@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
-
 from src.mus.application.dtos.player_state import PlayerStateDTO
 from src.mus.application.use_cases.manage_player_state_use_case import (
     ManagePlayerStateUseCase,

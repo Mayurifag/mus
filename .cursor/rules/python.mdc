@@ -19,55 +19,57 @@ actions:
     message: |
       Follow these Python development standards:
 
-      1. Code Style:
-         - Strictly adhere to PEP 8
-         - Use type hints for ALL function signatures and variables
-         - Keep functions/methods short and focused (single responsibility)
-         - Use descriptive variable and function names
-         - Limit line length to 88 characters (black default)
-         - Never use `# type: ignore` and similar things to disable linter warnings.
+      1. Code Style & Formatting:
+         - Strictly adhere to PEP 8.
+         - Limit line length to 88 characters (black default).
+         - Use type hints for ALL function signatures and variables where practical.
+         - Keep functions/methods short and focused (single responsibility).
+         - Use descriptive variable and function names.
+         - Never use `# type: ignore` or similar constructs to silence linter warnings; address the underlying issue.
 
-      2. Clean Code & DRY:
-         - Extract repeated logic into reusable functions/classes
-         - Use data structures to avoid repetitive conditionals
-         - Maintain single source of truth for configuration
-         - Consider design patterns to eliminate duplication
-         - Break complex operations into smaller, focused functions
+      2. Import Placement:
+         - All `import` statements MUST be placed at the very top of the file.
+         - Imports should follow module-level comments and docstrings.
+         - Imports MUST precede any module globals, constants, or executable code.
+         - Do NOT place imports inside functions, methods, classes, or other nested scopes.
 
-      3. Async/IO:
-         - Use async/await for ALL I/O operations
-         - Never block the event loop
-         - Use aiohttp for HTTP requests
-         - Use aiosqlite for database operations
-         - Handle async context managers properly
+      3. Clean Code & DRY:
+         - Extract repeated logic into reusable functions/classes.
+         - Use data structures (e.g., dictionaries for dispatch) to avoid repetitive conditionals.
+         - Maintain a single source of truth for configuration and constants.
+         - Consider relevant design patterns to eliminate duplication and improve structure.
+         - Break complex operations into smaller, well-named, testable functions.
 
-      4. Resource Management:
-         - Always use context managers (with statements) for resources
-         - Use async with for async resources
-         - Ensure proper cleanup in finally blocks
-         - Handle file operations with context managers
-         - Use contextlib when creating custom context managers
+      4. Async/IO:
+         - Use async/await for ALL potentially blocking I/O operations (network, file system, database).
+         - Never block the event loop with synchronous I/O calls in async code.
+         - Use appropriate async libraries (e.g., `httpx` for HTTP, `aiosqlite` for SQLite).
+         - Handle async context managers (`async with`) correctly for resource management.
 
-      5. Error Handling:
-         - Create custom exceptions for domain-specific errors
-         - Handle exceptions at appropriate levels
-         - Never catch Exception without re-raising
-         - Use try/except blocks judiciously
-         - Include relevant context in error messages
+      5. Resource Management:
+         - Always use context managers (`with` statements, `async with` for async resources) for resources like files, network connections, database sessions, locks, etc.
+         - Ensure proper resource cleanup, potentially using `try...finally` if context managers are not applicable.
 
-      6. Testing:
-         - Write tests for all public functions/classes
-         - Use pytest fixtures for setup
-         - Use pytest-asyncio for async tests
-         - Maintain >80% test coverage
-         - Write both unit and integration tests
+      6. Error Handling:
+         - Define and raise custom, specific exceptions for domain-specific errors rather than using generic `Exception`.
+         - Handle exceptions at the appropriate level where context can be added or recovery is possible.
+         - Never use a bare `except:` clause. Catch specific exceptions. Avoid catching `Exception` or `BaseException` unless you are re-raising or performing essential cleanup.
+         - Include relevant context in error messages and logs.
 
-      7. Logging:
-         - Use structlog exclusively
-         - Include relevant context in logs
-         - Use appropriate log levels
-         - Log exceptions with full stack traces
-         - Structure logs for easy parsing
+      7. Testing:
+         - Write tests for all public functions/classes/methods.
+         - Employ Test-Driven Development (TDD) where appropriate.
+         - Use pytest fixtures for test setup and teardown.
+         - Use `pytest-asyncio` for testing async code.
+         - Maintain high test coverage (aim for >80%).
+         - Write both unit tests (isolating components) and integration tests (verifying interactions).
+
+      8. Logging:
+         - Use a structured logging library (e.g., `structlog` if configured, otherwise Python's standard `logging`).
+         - Include relevant context (e.g., request IDs, user IDs) in log records.
+         - Use appropriate log levels (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+         - Log exceptions with full stack traces using `logging.exception()`.
+         - Structure logs (e.g., JSON format) for easier parsing and analysis by machines.
 </rule>
 <rule>
 name: python_discourage_comments
@@ -81,25 +83,23 @@ filters:
 actions:
   - type: suggest
     message: |
-      Comments and docstrings should be avoided in favor of self-documenting code:
+      Comments and excessive docstrings should be avoided in favor of self-documenting code:
 
       1. General Guidelines:
-         - Remove existing comments and docstrings
-         - Use clear, descriptive names instead of comments
-         - Break complex logic into well-named functions
-         - Let the code speak for itself
+         - Prefer clear, descriptive names for variables, functions, classes, and modules over explanatory comments.
+         - Refactor complex logic into smaller, well-named functions whose purpose is obvious.
+         - Let the code's structure and naming convey its intent. Remove comments that merely restate what the code does.
 
-      2. Exceptions (only cases where comments are allowed):
-         - Complex algorithms that cannot be simplified
-         - Non-obvious business logic that requires domain knowledge
-         - Temporary workarounds with ticket references
-         - Public API documentation (minimal)
+      2. Exceptions (Use comments sparingly, only when essential):
+         - Explaining *why* something is done a certain way, especially if non-obvious (e.g., referencing a specific algorithm, workaround for a known issue).
+         - Documenting complex regular expressions or mathematical formulas.
+         - Adding `TODO`, `FIXME`, or `XXX` markers with clear explanations or ticket references for temporary workarounds or known issues.
+         - Module-level docstrings explaining the purpose of the file.
+         - Minimal docstrings for public APIs (functions/classes) explaining usage, arguments, and return values if they cannot be made obvious through naming and type hints alone.
 
-      3. When a comment is necessary:
-         - Keep it brief and focused
-         - Explain WHY, not WHAT
-         - Include links to relevant tickets/docs
-         - Update or remove outdated comments
+      3. Comment Maintenance:
+         - Keep comments up-to-date with the code.
+         - Remove outdated or incorrect comments immediately.
 </rule>
 <rule>
 name: python_discourage_generic_terms
@@ -113,35 +113,25 @@ filters:
 actions:
   - type: suggest
     message: |
-      Avoid generic terms in class and function names. Instead use domain-specific or behavior-describing names:
+      Avoid generic suffixes like 'Service', 'Util', 'Helper', or 'Manager' in class and function names. Use names that describe the specific responsibility or domain concept:
 
-      1. Instead of 'Service':
-         - Use 'Interactor' for application use cases
-         - Use 'Repository' for data access
-         - Use 'Adapter' for external system integration
-         - Use 'Component' for reusable functionality
-         - Use domain-specific terms that describe the purpose
+      1. Instead of '...Service':
+         - Consider '...Repository' or '...Gateway' for data access/persistence.
+         - Consider '...UseCase' or '...Interactor' for application-specific business logic orchestration.
+         - Consider '...Adapter' for integrating with external systems.
+         - Use domain-specific nouns that clearly state the purpose (e.g., `OrderProcessor`, `PaymentGateway`, `NotificationDispatcher`).
 
-      2. Instead of 'Util' or 'Helper':
-         - Create a focused class with a specific responsibility
-         - Name it after what it does (e.g., 'MetadataExtractor', 'CoverProcessor')
-         - Consider if functionality belongs in an existing domain class
+      2. Instead of '...Util' or '...Helper':
+         - Group related utility functions into modules with specific names (e.g., `string_formatting.py`, `date_calculations.py`).
+         - If it's a class, name it after the specific task it performs (e.g., `MetadataExtractor`, `CoverProcessor`, `UrlValidator`).
+         - Evaluate if the functionality truly belongs in a separate utility or if it could be a method on an existing domain class.
 
-      3. Instead of 'Manager':
-         - Use 'Coordinator' for orchestration
-         - Use 'Factory' for object creation
-         - Use 'Registry' for tracking objects
-         - Use domain-specific terms
+      3. Instead of '...Manager':
+         - Prefer names that describe the management aspect more concretely: '...Coordinator', '...Registry', '...Controller', '...Orchestrator', '...Factory'.
+         - Use domain-specific terms if applicable (e.g., `SessionCoordinator`, `PluginRegistry`, `ProcessController`).
 
-      4. General Guidelines:
-         - Names should describe what the code does
-         - Use domain terminology from requirements
-         - Follow Clean Architecture naming conventions
-         - Consider patterns like Command, Strategy, or Observer
-
-metadata:
-  priority: high
-  version: 1.0
+      4. General Guideline:
+         - Choose names that clearly communicate the *intent* and *responsibility* of the code construct within the context of the application's domain.
 </rule>
 <rule>
 name: python_test_first_and_async_main
@@ -154,12 +144,12 @@ filters:
 actions:
   - type: suggest
     message: |
-      1. Always write tests before writing implementation code (test-first/TDD).
-      2. For FastAPI main.py:
-         - The app must be fully async (all endpoints async def).
-         - OpenAPI generation (app.openapi()) must work without error.
-      3. Do not skip tests for any new feature or endpoint.
-      4. Tests must cover both success and error cases for all endpoints.
+      1. Testing First: Always strive to write tests *before* or *concurrently with* implementation code (Test-First / TDD). Ensure requirements are captured in tests.
+      2. Async FastAPI:
+         - All FastAPI path operation functions (endpoints) MUST be defined using `async def`.
+         - Ensure the application remains fully asynchronous; avoid calling blocking code directly within async functions. Use tools like `anyio.to_thread.run_sync` for unavoidable sync code.
+      3. Test Coverage: Do not skip writing tests for any new feature, endpoint, or significant logic change. Tests must cover both successful execution paths and expected error conditions (e.g., invalid input, resource not found).
+      4. OpenAPI Validation: Ensure `app.openapi()` can be called without errors, indicating a valid OpenAPI schema can be generated from the app structure and models.
 metadata:
   priority: high
   version: 1.0

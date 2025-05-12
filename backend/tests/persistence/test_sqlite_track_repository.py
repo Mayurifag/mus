@@ -1,7 +1,5 @@
 import pytest
 import pytest_asyncio
-
-
 from src.mus.domain.entities.track import Track
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,

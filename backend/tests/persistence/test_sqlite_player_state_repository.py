@@ -1,7 +1,5 @@
 import pytest
 import pytest_asyncio
-
-
 from src.mus.domain.entities.player_state import PlayerState
 
 

@@ -17,12 +17,10 @@ from src.mus.infrastructure.persistence.sqlite_player_state_repository import (
 from src.mus.infrastructure.database import get_session_generator
 from src.mus.main import app as fastapi_app
 
-# Use file-based SQLite for testing
 TEST_DB_PATH = "./test.db"
 TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
 
 
-# Remove the test database file before the test session
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_test_db_file():
     if os.path.exists(TEST_DB_PATH):
@@ -32,7 +30,6 @@ def cleanup_test_db_file():
         os.remove(TEST_DB_PATH)
 
 
-# Create a single engine for the whole test session
 engine = create_async_engine(
     TEST_DATABASE_URL, poolclass=NullPool, connect_args={"check_same_thread": False}
 )
@@ -68,7 +65,7 @@ async def sample_track():
     return Track(
         title="Test Track",
         artist="Test Artist",
-        duration=180,  # 3 minutes
+        duration=180,
         file_path="/path/to/test.mp3",
         has_cover=False,
     )
@@ -86,10 +83,6 @@ async def sample_state():
 
 @pytest_asyncio.fixture
 async def app():
-    # Import the FastAPI app for testing
-    from sqlmodel.ext.asyncio.session import AsyncSession
-
-    # Override the session dependency to use our test engine
     async def _get_session_override():
         async with AsyncSession(engine) as session:
             yield session

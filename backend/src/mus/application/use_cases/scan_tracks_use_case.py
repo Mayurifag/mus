@@ -2,7 +2,6 @@ from fastapi import Depends
 from typing import List, Optional
 from pathlib import Path
 from sqlmodel import select
-
 from src.mus.domain.entities.track import Track
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
