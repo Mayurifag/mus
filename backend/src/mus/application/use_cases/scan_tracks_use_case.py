@@ -1,6 +1,7 @@
 from fastapi import Depends
 from typing import List, Optional
 from pathlib import Path
+from sqlmodel import select
 
 from src.mus.domain.entities.track import Track
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
@@ -38,6 +39,13 @@ class ScanTracksUseCase:
         for directory in scan_directories:
             async for file_path in self.file_system_scanner.find_music_files(directory):
                 try:
+                    # Check if track already exists in database
+                    existing_track = None
+                    result = await self.track_repository.session.exec(
+                        select(Track).where(Track.file_path == str(file_path))
+                    )
+                    existing_track = result.first()
+
                     # Extract metadata from file
                     # This would normally come from a MetadataExtractor
                     # For simplicity, we're just using the file name as title and "Unknown" as artist
@@ -55,17 +63,14 @@ class ScanTracksUseCase:
                     )
 
                     # Use the upsert_track method to add or update the track
-                    saved_track = await self.track_repository.upsert_track(track)
+                    await self.track_repository.upsert_track(track)
 
                     # Process cover art (if available)
                     # This is simplified - would normally extract cover art from the file
                     # For now, we just assume no cover art
 
                     # Update track counts based on whether this was an insert or update
-                    # Note: This logic assumes that if the ID in saved_track matches what we
-                    # provided, it's a new insert; otherwise, it was updated
-                    is_new_track = track.id is None and saved_track.id is not None
-                    if is_new_track:
+                    if existing_track is None:
                         tracks_added += 1
                     else:
                         tracks_updated += 1

@@ -2,6 +2,7 @@ from typing import List, Optional
 from sqlmodel import select, desc
 from sqlmodel.ext.asyncio.session import AsyncSession
 from fastapi import Depends
+from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
 
 from src.mus.domain.entities.track import Track
 from src.mus.infrastructure.database import get_session_generator
@@ -58,24 +59,40 @@ class SQLiteTrackRepository:
 
         Returns the final state of the track from the database.
         """
-        # Check if track exists
+        # Convert track_data to a dictionary for the UPSERT operation
+        track_dict = {
+            "title": track_data.title,
+            "artist": track_data.artist,
+            "duration": track_data.duration,
+            "file_path": track_data.file_path,
+            "has_cover": track_data.has_cover,
+        }
+
+        # If track_data has an ID, include it in the dictionary
+        if track_data.id is not None:
+            track_dict["id"] = track_data.id
+
+        # Create upsert statement
+        stmt = sqlite_upsert(Track).values(**track_dict)
+
+        # Configure on_conflict_do_update to update all fields except id and added_at
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["file_path"],
+            set_={
+                "title": stmt.excluded.title,
+                "artist": stmt.excluded.artist,
+                "duration": stmt.excluded.duration,
+                "has_cover": stmt.excluded.has_cover,
+            },
+        )
+
+        # Execute the statement
+        # Note: Using execute instead of exec because SQLModel's exec doesn't support dialect-specific insert
+        await self.session.execute(stmt)
+        await self.session.commit()
+
+        # Retrieve the updated or inserted track
         result = await self.session.exec(
             select(Track).where(Track.file_path == track_data.file_path)
         )
-        existing_track = result.first()
-
-        if existing_track:
-            # Update existing track fields except id and added_at
-            existing_track.title = track_data.title
-            existing_track.artist = track_data.artist
-            existing_track.duration = track_data.duration
-            existing_track.has_cover = track_data.has_cover
-            await self.session.commit()
-            await self.session.refresh(existing_track)
-            return existing_track
-        else:
-            # Add new track
-            self.session.add(track_data)
-            await self.session.commit()
-            await self.session.refresh(track_data)
-            return track_data
+        return result.one()

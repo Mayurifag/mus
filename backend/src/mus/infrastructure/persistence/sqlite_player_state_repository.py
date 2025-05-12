@@ -10,7 +10,6 @@ class SQLitePlayerStateRepository:
         self._session = session
 
     async def save_state(self, state: PlayerState) -> PlayerState:
-        """Save player state using SQLite's UPSERT functionality."""
         state_data = {
             "id": 1,
             "current_track_id": state.current_track_id,
@@ -39,7 +38,6 @@ class SQLitePlayerStateRepository:
         return persisted_state
 
     async def load_state(self) -> PlayerState | None:
-        """Load the current player state."""
         stmt = select(PlayerState).where(PlayerState.id == 1)
         result = await self._session.exec(stmt)
         return result.one_or_none()
