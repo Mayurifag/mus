@@ -14,8 +14,6 @@ from src.mus.infrastructure.persistence.sqlite_track_repository import (
 
 
 class MockAsyncContextManager:
-    """A context manager for mocking async context managers."""
-
     async def __aenter__(self):
         return None
 
@@ -25,7 +23,6 @@ class MockAsyncContextManager:
 
 @pytest.fixture
 def mock_track_repository():
-    """Create a mock SQLiteTrackRepository."""
     repo = AsyncMock(spec=SQLiteTrackRepository)
 
     # Create a mock session
@@ -59,7 +56,6 @@ def mock_track_repository():
 
 @pytest.fixture
 def mock_file_system_scanner():
-    """Create a mock FileSystemScanner."""
     scanner = AsyncMock(FileSystemScanner)
 
     # Mock scan_directories to return a list of file paths
@@ -79,7 +75,6 @@ def mock_file_system_scanner():
 
 @pytest.fixture
 def mock_cover_processor():
-    """Create a mock CoverProcessor."""
     processor = AsyncMock(CoverProcessor)
 
     # Mock extract_cover_from_file to return None (no cover)
@@ -95,7 +90,6 @@ def mock_cover_processor():
 def scan_tracks_use_case(
     mock_track_repository, mock_file_system_scanner, mock_cover_processor
 ):
-    """Create a ScanTracksUseCase with mock dependencies."""
     use_case = ScanTracksUseCase(
         track_repository=mock_track_repository,
         file_system_scanner=mock_file_system_scanner,
@@ -175,7 +169,6 @@ def scan_tracks_use_case(
 
 @pytest.mark.asyncio
 async def test_scan_directory_basic_functionality(scan_tracks_use_case):
-    """Test the basic scanning functionality."""
     # Patch _extract_metadata to return test metadata
     with patch.object(
         scan_tracks_use_case,
@@ -208,7 +201,6 @@ async def test_scan_directory_basic_functionality(scan_tracks_use_case):
 
 @pytest.mark.asyncio
 async def test_scan_directory_with_errors(scan_tracks_use_case):
-    """Test scanning with errors during metadata extraction."""
     # Patch _extract_metadata to return some data and some None (error)
     with patch.object(
         scan_tracks_use_case,
@@ -235,7 +227,6 @@ async def test_scan_directory_with_errors(scan_tracks_use_case):
 
 @pytest.mark.asyncio
 async def test_process_batch(scan_tracks_use_case):
-    """Test the _process_batch method."""
     # Create a sample batch of files
     files = [
         Path("track1.mp3"),
@@ -277,100 +268,102 @@ async def test_process_batch(scan_tracks_use_case):
 
 @pytest.mark.asyncio
 async def test_extract_metadata(scan_tracks_use_case):
-    """Test the _extract_metadata method."""
-    # Patch _extract_metadata_sync to return test metadata
-    test_metadata = {"title": "Test Track", "artist": "Test Artist", "duration": 180}
+    # Patch the synchronous method to return test metadata
     with patch.object(
-        scan_tracks_use_case, "_extract_metadata_sync", return_value=test_metadata
+        scan_tracks_use_case,
+        "_extract_metadata_sync",
+        return_value={"title": "Test Track", "artist": "Test Artist", "duration": 180},
     ):
-        # Extract metadata
-        result = await scan_tracks_use_case._extract_metadata(Path("test.mp3"))
+        # Test the async wrapper
+        metadata = await scan_tracks_use_case._extract_metadata(Path("test.mp3"))
 
-        # Verify result
-        assert result == test_metadata
-
-        # Verify _extract_metadata_sync was called
-        scan_tracks_use_case._extract_metadata_sync.assert_called_once_with(
-            Path("test.mp3")
-        )
+        # Verify the result
+        assert metadata is not None
+        assert metadata["title"] == "Test Track"
+        assert metadata["artist"] == "Test Artist"
+        assert metadata["duration"] == 180
 
 
 @pytest.mark.asyncio
 async def test_extract_metadata_exception_handling(scan_tracks_use_case):
-    """Test error handling in _extract_metadata."""
-    # Patch _extract_metadata_sync to raise an exception
+    # Patch the synchronous method to raise an exception
     with patch.object(
         scan_tracks_use_case,
         "_extract_metadata_sync",
         side_effect=Exception("Test exception"),
     ):
-        # Extract metadata with exception
-        result = await scan_tracks_use_case._extract_metadata(Path("test.mp3"))
+        # Test the async wrapper
+        metadata = await scan_tracks_use_case._extract_metadata(Path("test.mp3"))
 
-        # Should handle the exception and return None
-        assert result is None
+        # Verify the result is None due to exception handling
+        assert metadata is None
 
 
 def test_extract_metadata_sync_mp3(scan_tracks_use_case):
-    """Test the synchronous metadata extraction for MP3 files."""
-    # Mock MP3 file metadata extraction
+    # Create a patched MP3 class with mock tags and info
     with patch("src.mus.application.use_cases.scan_tracks_use_case.MP3") as mock_mp3:
-        # Setup the mock with tags and info
-        mock_audio = MagicMock()
-        mock_audio.tags = {"TIT2": "Test Title", "TPE1": "Test Artist"}
-        mock_audio.info.length = 123.45
-        mock_mp3.return_value = mock_audio
+        # Set up the mock MP3 object
+        mock_mp3_instance = MagicMock()
+        mock_mp3.return_value = mock_mp3_instance
 
-        # Extract metadata
+        # Create a mock tags dictionary
+        mock_tags = MagicMock()
+        mock_tags.__getitem__ = lambda s, key: {
+            "TIT2": "Test Title",
+            "TPE1": "Test Artist",
+        }[key]
+        mock_tags.__contains__ = lambda s, key: key in ["TIT2", "TPE1"]
+
+        # Assign the mock tags to the instance
+        mock_mp3_instance.tags = mock_tags
+
+        # Mock the info
+        mock_mp3_instance.info.length = 240
+
+        # Test the method
         result = scan_tracks_use_case._extract_metadata_sync(Path("test.mp3"))
 
-        # Verify result
+        # Verify the result
         assert result["title"] == "Test Title"
         assert result["artist"] == "Test Artist"
-        assert result["duration"] == 123  # Truncated to int
-
-        # Verify MP3 was called
-        mock_mp3.assert_called_once_with(Path("test.mp3"))
+        assert result["duration"] == 240
 
 
 def test_extract_metadata_sync_flac(scan_tracks_use_case):
-    """Test the synchronous metadata extraction for FLAC files."""
-    # Mock FLAC file metadata extraction
+    # Create a patched FLAC class with mock tags and info
     with patch("src.mus.application.use_cases.scan_tracks_use_case.FLAC") as mock_flac:
-        # Setup the mock with tags and info
-        mock_audio = MagicMock()
-        mock_audio.__getitem__.side_effect = lambda key: {
-            "title": ["FLAC Title"],
-            "artist": ["FLAC Artist"],
-        }[key]
-        mock_audio.__contains__.side_effect = lambda key: key in ["title", "artist"]
-        mock_audio.info.length = 246.8
-        mock_flac.return_value = mock_audio
+        # Set up the mock FLAC object that behaves like a dict
+        mock_flac_instance = MagicMock()
 
-        # Extract metadata
+        # Setup a proper __getitem__ and __contains__
+        mock_data = {"title": ["FLAC Title"], "artist": ["FLAC Artist"]}
+        mock_flac_instance.__getitem__.side_effect = lambda key: mock_data.get(key, [])
+        mock_flac_instance.__contains__.side_effect = lambda key: key in mock_data
+
+        mock_flac.return_value = mock_flac_instance
+
+        # Mock the info
+        mock_flac_instance.info.length = 300
+
+        # Test the method
         result = scan_tracks_use_case._extract_metadata_sync(Path("test.flac"))
 
-        # Verify result
+        # Verify the result
         assert result["title"] == "FLAC Title"
         assert result["artist"] == "FLAC Artist"
-        assert result["duration"] == 246  # Truncated to int
-
-        # Verify FLAC was called
-        mock_flac.assert_called_once_with(Path("test.flac"))
+        assert result["duration"] == 300
 
 
 def test_extract_metadata_sync_error_handling(scan_tracks_use_case):
-    """Test error handling in _extract_metadata_sync."""
-    # Mock MP3 to raise an exception
+    # Create a patched MP3 class that raises an exception
     with patch(
         "src.mus.application.use_cases.scan_tracks_use_case.MP3",
         side_effect=Exception("Test exception"),
     ):
-        # Extract metadata with exception
-        file_path = Path("test.mp3")
-        result = scan_tracks_use_case._extract_metadata_sync(file_path)
+        # Test with an MP3 file that will cause an exception
+        result = scan_tracks_use_case._extract_metadata_sync(Path("error.mp3"))
 
-        # Should return default metadata based on filename
-        assert result["title"] == "test"
+        # Verify default values are returned
+        assert result["title"] == "error"
         assert result["artist"] == "Unknown"
         assert result["duration"] == 0

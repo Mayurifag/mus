@@ -30,7 +30,6 @@ async def scan_music_directory(
     try:
         return await use_case.scan_directory(scan_request.directory_paths)
     except Exception as e:
-        # Return a structured error response with status code 500
         return ScanResponseDTO(
             success=False,
             message=f"Error during scan: {str(e)}",

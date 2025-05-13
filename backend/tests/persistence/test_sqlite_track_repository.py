@@ -18,7 +18,6 @@ async def repository(track_repository):
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings(warning_filter)
 async def test_add_track(repository, sample_track):
-    """Test adding a new track."""
     # Add the track
     added_track = await repository.add(sample_track)
 
@@ -40,7 +39,6 @@ async def test_add_track(repository, sample_track):
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings(warning_filter)
 async def test_get_all_tracks(repository, sample_track):
-    """Test retrieving all tracks."""
     # Add a few tracks
     track1 = await repository.add(sample_track)
 
@@ -66,7 +64,6 @@ async def test_get_all_tracks(repository, sample_track):
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings(warning_filter)
 async def test_exists_by_path(repository, sample_track):
-    """Test checking if a track exists by file path."""
     # Add a track
     await repository.add(sample_track)
 
@@ -82,7 +79,6 @@ async def test_exists_by_path(repository, sample_track):
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings(warning_filter)
 async def test_set_cover_flag(session, sample_track):
-    """Test setting the has_cover flag."""
     repository = SQLiteTrackRepository(session)
 
     # Add a track
@@ -108,7 +104,6 @@ async def test_set_cover_flag(session, sample_track):
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings(warning_filter)
 async def test_upsert_track_insert_new(repository, sample_track):
-    """Test upserting a new track."""
     # Upsert a new track
     track = await repository.upsert_track(sample_track)
 
@@ -126,7 +121,6 @@ async def test_upsert_track_insert_new(repository, sample_track):
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings(warning_filter)
 async def test_upsert_track_update_existing(repository, sample_track):
-    """Test upserting a track that already exists."""
     # First add the track
     original_track = await repository.add(sample_track)
     original_id = original_track.id

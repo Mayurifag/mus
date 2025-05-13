@@ -10,8 +10,6 @@ from src.mus.infrastructure.persistence.sqlite_track_repository import (
 
 
 class CoverSize(str, Enum):
-    """Valid cover image sizes."""
-
     SMALL = "small"
     ORIGINAL = "original"
 
@@ -31,7 +29,6 @@ async def get_tracks(
     request: Request,
     track_repository: SQLiteTrackRepository = Depends(),
 ) -> List[TrackDTO]:
-    """Get all tracks."""
     tracks = await track_repository.get_all()
 
     track_dtos = []
@@ -54,9 +51,6 @@ async def stream_track(
     track_id: int = Path(..., gt=0),
     track_repository: SQLiteTrackRepository = Depends(),
 ) -> FileResponse:
-    """
-    Stream a track audio file.
-    """
     track = await track_repository.get_by_id(track_id)
     if not track:
         raise HTTPException(
@@ -86,11 +80,6 @@ async def get_track_cover(
     size: CoverSize = Path(...),
     track_repository: SQLiteTrackRepository = Depends(),
 ) -> FileResponse:
-    """
-    Get a track cover image in WebP format.
-
-    Size can be 'small' (80x80) or 'original' (original dimensions).
-    """
     track = await track_repository.get_by_id(track_id)
     if not track:
         raise HTTPException(

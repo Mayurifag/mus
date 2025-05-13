@@ -24,7 +24,7 @@ class ScanTracksUseCase:
         self.track_repository = track_repository
         self.file_system_scanner = file_system_scanner
         self.cover_processor = cover_processor
-        self.batch_size = 20  # Process 20 tracks at a time
+        self.batch_size = 20
 
     async def scan_directory(
         self, directory_paths: Optional[List[str]] = None
@@ -34,15 +34,12 @@ class ScanTracksUseCase:
         errors = 0
         error_details: List[str] = []
 
-        # For tracking progress
         progress = ScanProgressDTO()
 
-        # Convert string paths to Path objects
         scan_directories: Optional[List[Path]] = None
         if directory_paths:
             scan_directories = [Path(path) for path in directory_paths]
 
-        # Collect all files first to determine total count
         all_files: List[Path] = []
         async for file_path in self.file_system_scanner.scan_directories(
             scan_directories
@@ -51,7 +48,6 @@ class ScanTracksUseCase:
 
         progress.total_files = len(all_files)
 
-        # Process files in batches
         for i in range(0, len(all_files), self.batch_size):
             batch = all_files[i : i + self.batch_size]
             batch_stats = await self._process_batch(batch, progress)
@@ -61,7 +57,6 @@ class ScanTracksUseCase:
             errors += batch_stats["errors"]
             error_details.extend(batch_stats["error_details"])
 
-            # Update progress
             progress.processed_files += len(batch)
             progress.added_tracks = tracks_added
             progress.errors = errors
@@ -78,18 +73,14 @@ class ScanTracksUseCase:
     async def _process_batch(
         self, files: List[Path], progress: ScanProgressDTO
     ) -> Dict[str, Any]:
-        """Process a batch of files within a transaction"""
         batch_stats = {"added": 0, "updated": 0, "errors": 0, "error_details": []}
 
-        # Begin transaction
         async with self.track_repository.session.begin():
-            # Extract metadata and prepare tracks for upsert
             metadata_tasks = []
             for file_path in files:
                 task = asyncio.create_task(self._extract_metadata(file_path))
                 metadata_tasks.append((file_path, task))
 
-            # Upsert tracks and collect track IDs for cover processing
             tracks_to_process: List[Tuple[int, Path]] = []
 
             for file_path, task in metadata_tasks:
@@ -102,7 +93,6 @@ class ScanTracksUseCase:
                         )
                         continue
 
-                    # Create Track entity with extracted metadata
                     track = Track(
                         title=metadata["title"],
                         artist=metadata["artist"],
@@ -111,14 +101,11 @@ class ScanTracksUseCase:
                         has_cover=False,
                     )
 
-                    # Upsert track
                     upserted_track = await self.track_repository.upsert_track(track)
 
-                    # Add to list for cover processing if track has ID
                     if upserted_track.id is not None:
                         tracks_to_process.append((upserted_track.id, file_path))
 
-                    # Determine if this was an add or update
                     if upserted_track.added_at == track.added_at:
                         batch_stats["added"] += 1
                     else:
@@ -130,13 +117,11 @@ class ScanTracksUseCase:
                         f"Error processing {file_path}: {str(e)}"
                     )
 
-        # Process covers after the transaction completes (can be done outside transaction)
         if tracks_to_process:
             cover_results = await self.cover_processor.process_tracks_covers_batch(
                 tracks_to_process
             )
 
-            # Update has_cover flag for tracks with successfully processed covers
             async with self.track_repository.session.begin():
                 for track_id, success in cover_results.items():
                     if success:
@@ -145,19 +130,15 @@ class ScanTracksUseCase:
         return batch_stats
 
     async def _extract_metadata(self, file_path: Path) -> Optional[Dict[str, Any]]:
-        """Extract metadata from an audio file using mutagen"""
         try:
-            # Run mutagen in a thread pool since it's CPU-bound
             return await asyncio.to_thread(self._extract_metadata_sync, file_path)
         except Exception:
             return None
 
     def _extract_metadata_sync(self, file_path: Path) -> Dict[str, Any]:
-        """Synchronous implementation of metadata extraction"""
         try:
             file_ext = file_path.suffix.lower()
 
-            # Default values
             metadata = {
                 "title": file_path.stem,
                 "artist": "Unknown",
@@ -167,37 +148,30 @@ class ScanTracksUseCase:
             if file_ext == ".mp3":
                 audio = MP3(file_path)
 
-                # Extract title
                 if audio.tags and "TIT2" in audio.tags:
                     metadata["title"] = str(audio.tags["TIT2"])
 
-                # Extract artist
                 if audio.tags and "TPE1" in audio.tags:
                     metadata["artist"] = str(audio.tags["TPE1"])
 
-                # Extract duration (in seconds)
                 if audio.info.length:
                     metadata["duration"] = int(audio.info.length)
 
             elif file_ext == ".flac":
                 audio = FLAC(file_path)
 
-                # Extract title
                 if "title" in audio:
                     metadata["title"] = audio["title"][0]
 
-                # Extract artist
                 if "artist" in audio:
                     metadata["artist"] = audio["artist"][0]
 
-                # Extract duration
                 if audio.info.length:
                     metadata["duration"] = int(audio.info.length)
 
             return metadata
 
         except Exception:
-            # In case of errors, return default metadata based on filename
             return {
                 "title": file_path.stem,
                 "artist": "Unknown",
