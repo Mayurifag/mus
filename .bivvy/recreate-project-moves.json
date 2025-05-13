@@ -93,16 +93,16 @@
         "files_to_modify": "`backend/tests/api/test_track_api.py,backend/tests/api/test_player_state_api.py,backend/tests/api/test_scan_api.py,backend/tests/application/test_scan_tracks_use_case.py,backend/tests/application/test_manage_player_state_use_case.py`"
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Update Tests and Run Linters/Formatters (Backend Focus)",
         "details": "Context: Ensure all backend tests pass and linters/formatters are clean before starting frontend work. Expected Files Modified: Potentially any backend file (`*.py`) or test file (`backend/tests/**/*.py`). Commands: Run `make back-format`, `make back-lint`, `make back-test`. Rules: Follow `.cursor/rules/python.mdc`, `.cursor/rules/makefile.mdc`, `.cursor/rules/makefile_commands.mdc`. Nuances: Iteratively fix any errors or warnings reported by Ruff (linting, formatting) and Pytest until `make back-format`, `make back-lint`, `make back-test` all pass cleanly. Verify test coverage meets target (>80%). The AI assistant must not leave any comments in files. Execute `make ci` at the end and fix all warnings/errors.",
         "files_to_modify": "`backend/src/**/*.py,backend/tests/**/*.py`",
         "rest": true
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Frontend: Initialize SvelteKit Project and Core Dependencies",
-        "details": "Context: Set up the SvelteKit project structure and install necessary base dependencies. Expected Files Modified: `frontend/package.json,frontend/svelte.config.js,frontend/vite.config.ts,frontend/tsconfig.json`, plus generated SvelteKit files. Commands: Ensure `frontend/` exists and is empty. RUN `npm create svelte@latest frontend` (select Skeleton project, TypeScript, ESLint, Prettier). `cd frontend`. RUN `npm install lucide-svelte date-fns clsx tailwind-merge`. Rules: Follow `.cursor/rules/typescript.mdc`, `.cursor/rules/svelte.mdc` (if exists), `.cursor/rules/json.mdc`. Use `context7` MCP server (tokens: 5000-20000, max 3 tries) for `create-svelte` options if needed. Nuances: Verify `package.json` includes SvelteKit, Svelte, Vite, TS, ESLint, Prettier, installed libs. Basic config files generated. The AI assistant must not leave any comments in files. Execute `make ci` at the end and fix all warnings/errors.",
+        "details": "Context: Set up the SvelteKit project structure and install necessary base dependencies. Expected Files Modified: `frontend/package.json,frontend/svelte.config.js,frontend/vite.config.ts,frontend/tsconfig.json`, plus generated SvelteKit files. Commands: Ensure `frontend/` exists and is empty. Skeleton project, TypeScript, ESLint, Prettier. `cd frontend`. Create docker/makefiles/frontend.mk file which will have all needed commands for frontend. For example, it might have `front-npx-install` command, like the backend `back-uv-install` one. Use it to install `lucide-svelte date-fns clsx tailwind-merge`. Rules: Follow `.cursor/rules/typescript.mdc`, `.cursor/rules/svelte.mdc` (if exists), `.cursor/rules/json.mdc`. Use `context7` MCP server (tokens: 5000-20000, max 3 tries) for `create-svelte` options if needed. Nuances: Verify `package.json` includes SvelteKit, Svelte, Vite, TS, ESLint, Prettier, installed libs. Basic config files generated. The AI assistant must not leave any comments in files. Execute `make ci` at the end and fix all warnings/errors.",
         "files_to_modify": "`frontend/`"
       },
       {
