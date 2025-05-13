@@ -1,0 +1,73 @@
+---
+description: Rules and best practices for Svelte component development, focusing on SvelteKit, TypeScript, performance, and testability, with minimal comments.
+globs: ["*.svelte"]
+alwaysApply: false
+---
+# Svelte Development Standards (SvelteKit & TypeScript Focus)
+
+<rule>
+name: svelte_best_practices
+description: Core Svelte development standards for clarity, performance, and maintainability.
+filters:
+  - type: file_extension
+    pattern: "\\.svelte$"
+  - type: content
+    pattern: "(?s).*" # Apply to all svelte file content
+
+actions:
+  - type: suggest
+    message: |
+      Follow these Svelte development standards:
+
+      1.  **Structure & Syntax:**
+          - File Structure: `<script lang="ts">...</script>`, then `<style>...</style>` (if component-specific styles are needed beyond Tailwind), then the HTML template.
+          - TypeScript: Always use `lang="ts"` in the script tag.
+          - Props:
+            - Define props using `export let propName: type;`.
+            - Provide default values for optional props if appropriate: `export let count: number = 0;`.
+            - For complex objects or arrays, define explicit TypeScript interfaces/types in `src/lib/types/`.
+          - Imports: Place all import statements at the top of the `<script>` block.
+
+      2.  **Self-Documenting Code & Minimal Comments:**
+          - No comments unless explaining *why* a complex or non-obvious piece of logic is necessary (e.g., a workaround, a specific algorithm choice).
+          - Prefer clear, descriptive names for variables, functions, components, and props.
+          - Logic within `<script>` tags should be broken down into small, well-named functions if it becomes complex.
+
+      3.  **State Management:**
+          - Local State: Use reactive declarations (`let count = 0; $: doubled = count * 2;`) for component-local state.
+          - Shared State: Utilize Svelte Stores (`writable`, `readable`, `derived`) from `src/lib/stores/` for state shared across components or routes.
+            - Subscribe to stores using the `$`-prefix auto-subscription syntax (e.g., `$playerStore.isPlaying`).
+          - Data Fetching: Use SvelteKit's `load` functions in `+page.ts` or `+layout.ts` (or their `.server.ts` counterparts) for loading data before a component renders.
+
+      4.  **Performance Considerations:**
+          - Reactivity: Be mindful of reactive dependencies. Avoid unnecessary re-computations.
+          - Loops: Use keyed `#each` blocks (`{#each items as item (item.id)}`) when iterating over lists where element identity is important or elements can be reordered/added/removed, to help Svelte efficiently update the DOM.
+          - Conditional Rendering: Use `{#if ...}`, `{:else if ...}`, `{:else}` blocks for conditional rendering.
+          - Component Composition: Break down large components into smaller, reusable ones.
+          - Event Handling: Use Svelte's event directives (`on:event={handler}`). Consider event modifiers (e.g., `on:click|once`, `on:submit|preventDefault`).
+
+      5.  **Styling (Tailwind CSS & Shadcn-Svelte):**
+          - Primarily use Tailwind CSS utility classes directly in your HTML template.
+          - Leverage `shadcn-svelte` components for UI, customizing them via props and Tailwind classes.
+          - **Shadcn-Svelte Workflow:** Remember that `shadcn-svelte` components are typically added to your project codebase (e.g., `src/lib/components/ui`). You customize their appearance *directly* using Tailwind classes within their Svelte files. This is a core part of minimizing external custom CSS.
+          - If component-specific styles are absolutely necessary and cannot be achieved with Tailwind (after considering `tailwind.config.js` extensions), use the `<style>` block. Keep such styles minimal.
+          - Use `clsx` and `tailwind-merge` (available via `cn` utility from `shadcn-svelte`) for conditional or merged class names.
+
+      6.  **Accessibility (A11y):**
+          - Use semantic HTML elements (`<nav>`, `<button>`, `<article>`, etc.).
+          - Provide ARIA attributes where necessary to enhance accessibility, especially for custom components or complex interactions.
+          - Ensure interactive elements are keyboard accessible.
+          - Include `alt` text for images.
+
+      7.  **Testability:**
+          - Design components with clear props and events to facilitate testing.
+          - Business logic should ideally reside in Svelte stores, utility functions in `src/lib/utils`, or API services in `src/lib/services`, which can be tested independently.
+          - Components should primarily focus on presentation and user interaction.
+          - Write tests using Vitest and `@testing-library/svelte` for component rendering, interaction, and state changes.
+
+      8.  **SvelteKit Specifics:**
+          - Routing: Understand and use file-based routing in `src/routes`.
+          - Layouts: Utilize `+layout.svelte` for shared UI structure.
+          - Endpoints: For server-side logic not directly tied to a page, use SvelteKit API routes (`+server.ts`).
+          - Form Actions: Use SvelteKit's form actions for data mutations.
+</rule>
