@@ -4,6 +4,7 @@
 	import { cn } from '$lib/utils.js';
 
 	type $$Props = Props;
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Svelte type export
 	type $$Events = Events;
 
 	let className: $$Props['class'] = undefined;
