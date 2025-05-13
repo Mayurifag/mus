@@ -29,7 +29,6 @@ actions:
 
       2. Import Placement:
          - All `import` statements MUST be placed at the very top of the file.
-         - Imports should follow module-level comments and docstrings.
          - Imports MUST precede any module globals, constants, or executable code.
          - Do NOT place imports inside functions, methods, classes, or other nested scopes.
 

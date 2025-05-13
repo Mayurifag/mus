@@ -87,7 +87,7 @@
         "files_to_modify": "`backend/pyproject.toml,backend/tests/conftest.py,backend/tests/persistence/test_sqlite_track_repository.py,backend/tests/persistence/test_sqlite_player_state_repository.py,backend/tests/test_auth.py`"
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Backend Tests: API Endpoint and Use Case Tests",
         "details": "Context: Write integration tests for the main API endpoints and unit/integration tests for the use cases. Expected Files Modified: `backend/tests/api/test_track_api.py,backend/tests/api/test_player_state_api.py,backend/tests/api/test_scan_api.py,backend/tests/application/test_scan_tracks_use_case.py,backend/tests/application/test_manage_player_state_use_case.py`. Rules: Follow `.cursor/rules/python.mdc`. Nuances: Test track endpoints (`GET /tracks`, `GET /tracks/{id}/stream`, `GET /tracks/{id}/covers/{size}` - success, 404s, placeholders). Test player state endpoints (`GET /state`, `POST /state`). Test scan endpoint (`POST /scan` - trigger, response, mock use case). Test `ScanTracksUseCase` (mock repo/scanner/processor, verify orchestration). Test `ManagePlayerStateUseCase`. Aim for >80% coverage. The AI assistant must not leave any comments in files. Execute `make ci` at the end and fix all warnings/errors.",
         "files_to_modify": "`backend/tests/api/test_track_api.py,backend/tests/api/test_player_state_api.py,backend/tests/api/test_scan_api.py,backend/tests/application/test_scan_tracks_use_case.py,backend/tests/application/test_manage_player_state_use_case.py`"
