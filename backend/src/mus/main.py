@@ -6,6 +6,7 @@ from src.mus.infrastructure.api.auth import router as auth_router
 from src.mus.infrastructure.api.dependencies import get_current_user
 from src.mus.infrastructure.api.routers.player_router import router as player_router
 from src.mus.infrastructure.api.routers.track_router import router as track_router
+from src.mus.infrastructure.api.routers.scan_router import router as scan_router
 from src.mus.infrastructure.database import create_db_and_tables
 
 
@@ -26,6 +27,7 @@ app = FastAPI(
 app.include_router(auth_router)
 app.include_router(player_router)
 app.include_router(track_router)
+app.include_router(scan_router)
 
 
 @app.get("/", response_model=Dict[str, Any])

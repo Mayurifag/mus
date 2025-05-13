@@ -75,7 +75,7 @@
         "files_to_modify": "`backend/src/mus/infrastructure/scanner/file_system_scanner.py,backend/src/mus/infrastructure/scanner/cover_processor.py,backend/src/mus/application/use_cases/scan_tracks_use_case.py`"
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Backend: Implement Scan Endpoint and Finalize API Routers",
         "details": "Context: Create the API endpoint to trigger a library scan and ensure all backend API routes are correctly set up. Expected Files Modified: `backend/src/mus/infrastructure/api/routers/scan_router.py,backend/src/mus/main.py`. Rules: Follow `.cursor/rules/python.mdc`. Nuances: Create `scan_router.py`. Implement `POST /api/v1/scan`. This endpoint should trigger the `ScanTracksUseCase`. Return a `ScanResponseDTO`. Register the `scan_router` in `main.py`. Review all routers (`auth`, `player`, `track`, `scan`) and ensure they are included and endpoints match PRD/Architecture. Confirm endpoints are not JWT protected. Testing Requirement: Add comprehensive unit and integration tests for all new/modified functionality. The AI assistant must not leave any comments in files. Execute `make ci` at the end and fix all warnings/errors.",
         "files_to_modify": "`backend/src/mus/infrastructure/api/routers/scan_router.py,backend/src/mus/main.py`"
