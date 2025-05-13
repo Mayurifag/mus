@@ -8,6 +8,10 @@ front-install:
 front-npm-install:
 	cd $(FRONTEND_DIR) && npm install $(ARGS)
 
+.PHONY: front-npm-dev-install
+front-npm-dev-install:
+	cd $(FRONTEND_DIR) && npm install -D $(ARGS)
+
 .PHONY: front-dev
 front-dev:
 	cd $(FRONTEND_DIR) && npm run dev

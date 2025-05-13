@@ -1,9 +1,7 @@
 <script lang="ts">
-	import '../app.postcss';
+	import '../app.css';
+
+	let { children } = $props();
 </script>
 
-<div class="min-h-screen flex flex-col bg-background text-foreground">
-	<main class="flex-1">
-		<slot />
-	</main>
-</div>
+{@render children()}

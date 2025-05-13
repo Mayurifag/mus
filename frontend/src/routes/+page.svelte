@@ -1,8 +1,2 @@
-<script lang="ts">
-	import { onMount } from 'svelte';
-</script>
-
-<div class="container mx-auto p-4">
-	<h1 class="text-2xl font-bold mb-4">Mus Music Player</h1>
-	<p>Welcome to Mus - Your music player application</p>
-</div>
+<h1>Welcome to SvelteKit</h1>
+<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
