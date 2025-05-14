@@ -70,5 +70,6 @@
       ]
     }
   },
-  "terminal.integrated.defaultProfile.windows": "cursorFriendlyBash"
+  "terminal.integrated.defaultProfile.windows": "cursorFriendlyBash",
+  "svelte.enable-ts-plugin": true
 }
