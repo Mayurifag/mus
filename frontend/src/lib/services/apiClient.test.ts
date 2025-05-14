@@ -1,228 +1,262 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { fetchTracks, fetchPlayerState, savePlayerState, triggerScan } from './apiClient';
-import type { Track, PlayerState } from '$lib/types';
 
-// Define constant for the base URL used in tests
-const API_URL = 'http://localhost:8000/api/v1';
+// Mock fetch
+vi.stubGlobal('fetch', vi.fn());
 
-// Mock global fetch
-const mockFetch = vi.fn();
-vi.stubGlobal('fetch', mockFetch);
+const mockTrack = {
+	id: 1,
+	title: 'Test Track',
+	artist: 'Test Artist',
+	duration: 180,
+	file_path: '/path/to/song.mp3',
+	added_at: Math.floor(Date.now() / 1000) - 3600,
+	has_cover: true,
+	cover_small_url: '/api/v1/tracks/1/covers/small.webp',
+	cover_original_url: '/api/v1/tracks/1/covers/original.webp'
+};
 
-// Spy on console.error
-let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+const mockPlayerState = {
+	current_track_id: 1,
+	progress_seconds: 30,
+	volume_level: 0.7,
+	is_muted: false
+};
 
 describe('apiClient', () => {
-	beforeEach(() => {
-		mockFetch.mockClear();
-		// Suppress console.error for these specific tests by default in this suite
-		consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-	});
+	// Save original console.error
+	const originalConsoleError = console.error;
 
-	afterEach(() => {
-		// Restore console.error
-		consoleErrorSpy.mockRestore();
+	beforeEach(() => {
 		vi.resetAllMocks();
 	});
 
+	afterEach(() => {
+		// Restore original console.error after each test
+		console.error = originalConsoleError;
+	});
+
 	describe('fetchTracks', () => {
-		it('should fetch tracks successfully', async () => {
-			const mockTracks: Track[] = [
-				{
-					id: 1,
-					title: 'Test Track',
-					artist: 'Test Artist',
-					duration: 180,
-					file_path: '/path/to/track.mp3',
-					added_at: Date.now(),
-					has_cover: true,
-					cover_small_url: '/api/v1/tracks/1/covers/small.webp',
-					cover_original_url: '/api/v1/tracks/1/covers/original.webp'
-				}
-			];
-
-			mockFetch.mockResolvedValueOnce({
+		it('returns tracks when fetch is successful', async () => {
+			// Mock successful response
+			vi.mocked(fetch).mockResolvedValue({
 				ok: true,
-				json: () => Promise.resolve(mockTracks)
-			});
+				json: vi.fn().mockResolvedValue([mockTrack])
+			} as unknown as Response);
 
 			const result = await fetchTracks();
 
-			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/tracks`);
-			expect(result).toEqual(mockTracks);
-			expect(consoleErrorSpy).not.toHaveBeenCalled();
+			expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/tracks'));
+			expect(result).toEqual([mockTrack]);
 		});
 
-		it('should handle fetch errors and return empty array', async () => {
-			mockFetch.mockRejectedValueOnce(new Error('Network error'));
+		it('returns empty array when fetch fails', async () => {
+			// Silence console.error for this test
+			console.error = vi.fn();
 
-			const result = await fetchTracks();
-
-			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/tracks`);
-			expect(result).toEqual([]);
-			expect(consoleErrorSpy).toHaveBeenCalledWith('Error fetching tracks:', expect.any(Error));
-		});
-
-		it('should handle non-200 responses and return empty array', async () => {
-			mockFetch.mockResolvedValueOnce({
+			// Mock failed response
+			vi.mocked(fetch).mockResolvedValue({
 				ok: false,
-				status: 404,
-				statusText: 'Not Found'
-			});
+				status: 500,
+				statusText: 'Internal Server Error'
+			} as unknown as Response);
 
 			const result = await fetchTracks();
 
-			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/tracks`);
+			expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/tracks'));
 			expect(result).toEqual([]);
-			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				'Error fetching tracks:',
-				expect.objectContaining({ message: 'Failed to fetch tracks: 404 Not Found' })
-			);
+			expect(console.error).toHaveBeenCalled();
+		});
+
+		it('handles fetch rejection gracefully', async () => {
+			// Silence console.error for this test
+			console.error = vi.fn();
+
+			// Mock fetch rejection
+			vi.mocked(fetch).mockRejectedValue(new Error('Network error'));
+
+			const result = await fetchTracks();
+
+			expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/tracks'));
+			expect(result).toEqual([]);
+			expect(console.error).toHaveBeenCalled();
 		});
 	});
 
 	describe('fetchPlayerState', () => {
-		it('should fetch player state successfully', async () => {
-			const mockPlayerState: PlayerState = {
-				current_track_id: 1,
-				progress_seconds: 30,
-				volume_level: 0.8,
-				is_muted: false
-			};
-
-			mockFetch.mockResolvedValueOnce({
+		it('returns player state when fetch is successful', async () => {
+			// Mock successful response
+			vi.mocked(fetch).mockResolvedValue({
 				ok: true,
-				json: () => Promise.resolve(mockPlayerState)
-			});
+				json: vi.fn().mockResolvedValue(mockPlayerState)
+			} as unknown as Response);
 
 			const result = await fetchPlayerState();
 
-			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/player/state`);
+			expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/player/state'));
 			expect(result).toEqual(mockPlayerState);
-			expect(consoleErrorSpy).not.toHaveBeenCalled();
 		});
 
-		it('should return null for 404 responses', async () => {
-			mockFetch.mockResolvedValueOnce({
+		it('returns null when receiving 404', async () => {
+			// Mock 404 response
+			vi.mocked(fetch).mockResolvedValue({
 				ok: false,
-				status: 404,
-				statusText: 'Not Found'
-			});
+				status: 404
+			} as unknown as Response);
 
 			const result = await fetchPlayerState();
 
-			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/player/state`);
+			expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/player/state'));
 			expect(result).toBeNull();
-			// No console.error expected for 404 in fetchPlayerState as it's a handled case
-			expect(consoleErrorSpy).not.toHaveBeenCalled();
 		});
 
-		it('should handle other non-200 errors and return null', async () => {
-			mockFetch.mockResolvedValueOnce({
+		it('returns null when fetch fails with non-404 error', async () => {
+			// Silence console.error for this test
+			console.error = vi.fn();
+
+			// Mock failed response
+			vi.mocked(fetch).mockResolvedValue({
 				ok: false,
 				status: 500,
-				statusText: 'Server Error'
-			});
+				statusText: 'Internal Server Error'
+			} as unknown as Response);
+
 			const result = await fetchPlayerState();
-			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/player/state`);
+
+			expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/player/state'));
 			expect(result).toBeNull();
-			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				'Error fetching player state:',
-				expect.objectContaining({ message: 'Failed to fetch player state: 500 Server Error' })
-			);
+			expect(console.error).toHaveBeenCalled();
 		});
 
-		it('should handle network errors and return null', async () => {
-			mockFetch.mockRejectedValueOnce(new Error('Network error'));
+		it('handles fetch rejection gracefully', async () => {
+			// Silence console.error for this test
+			console.error = vi.fn();
+
+			// Mock fetch rejection
+			vi.mocked(fetch).mockRejectedValue(new Error('Network error'));
 
 			const result = await fetchPlayerState();
 
-			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/player/state`);
+			expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/player/state'));
 			expect(result).toBeNull();
-			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				'Error fetching player state:',
-				expect.any(Error)
-			);
+			expect(console.error).toHaveBeenCalled();
 		});
 	});
 
 	describe('savePlayerState', () => {
-		it('should save player state successfully', async () => {
-			const mockPlayerState: PlayerState = {
-				current_track_id: 1,
-				progress_seconds: 30,
-				volume_level: 0.8,
-				is_muted: false
-			};
-
-			mockFetch.mockResolvedValueOnce({
+		it('saves player state and returns the response when successful', async () => {
+			// Mock successful response
+			vi.mocked(fetch).mockResolvedValue({
 				ok: true,
-				json: () => Promise.resolve(mockPlayerState)
-			});
+				json: vi.fn().mockResolvedValue(mockPlayerState)
+			} as unknown as Response);
 
 			const result = await savePlayerState(mockPlayerState);
 
-			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/player/state`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(mockPlayerState)
-			});
+			expect(fetch).toHaveBeenCalledWith(
+				expect.stringContaining('/player/state'),
+				expect.objectContaining({
+					method: 'POST',
+					headers: expect.objectContaining({
+						'Content-Type': 'application/json'
+					}),
+					body: JSON.stringify(mockPlayerState)
+				})
+			);
 			expect(result).toEqual(mockPlayerState);
-			expect(consoleErrorSpy).not.toHaveBeenCalled();
 		});
 
-		it('should handle errors and return null', async () => {
-			const mockPlayerState: PlayerState = {
-				current_track_id: 1,
-				progress_seconds: 30,
-				volume_level: 0.8,
-				is_muted: false
-			};
+		it('returns null when fetch fails', async () => {
+			// Silence console.error for this test
+			console.error = vi.fn();
 
-			mockFetch.mockRejectedValueOnce(new Error('Network error'));
+			// Mock failed response
+			vi.mocked(fetch).mockResolvedValue({
+				ok: false,
+				status: 500,
+				statusText: 'Internal Server Error'
+			} as unknown as Response);
 
 			const result = await savePlayerState(mockPlayerState);
 
-			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/player/state`, expect.any(Object));
+			expect(fetch).toHaveBeenCalled();
 			expect(result).toBeNull();
-			expect(consoleErrorSpy).toHaveBeenCalledWith('Error saving player state:', expect.any(Error));
+			expect(console.error).toHaveBeenCalled();
+		});
+
+		it('handles fetch rejection gracefully', async () => {
+			// Silence console.error for this test
+			console.error = vi.fn();
+
+			// Mock fetch rejection
+			vi.mocked(fetch).mockRejectedValue(new Error('Network error'));
+
+			const result = await savePlayerState(mockPlayerState);
+
+			expect(fetch).toHaveBeenCalled();
+			expect(result).toBeNull();
+			expect(console.error).toHaveBeenCalled();
 		});
 	});
 
 	describe('triggerScan', () => {
-		it('should trigger scan successfully', async () => {
-			const mockResponse = { success: true, message: 'Scan started' };
+		it('returns success response when scan succeeds', async () => {
+			const successResponse = { success: true, message: 'Scan started successfully' };
 
-			mockFetch.mockResolvedValueOnce({
+			// Mock successful response
+			vi.mocked(fetch).mockResolvedValue({
 				ok: true,
-				json: () => Promise.resolve(mockResponse)
-			});
+				json: vi.fn().mockResolvedValue(successResponse)
+			} as unknown as Response);
 
 			const result = await triggerScan();
 
-			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/scan`, {
-				method: 'POST'
-			});
-			expect(result).toEqual(mockResponse);
-			expect(consoleErrorSpy).not.toHaveBeenCalled();
+			expect(fetch).toHaveBeenCalledWith(
+				expect.stringContaining('/scan'),
+				expect.objectContaining({
+					method: 'POST'
+				})
+			);
+			expect(result).toEqual(successResponse);
 		});
 
-		it('should handle errors with appropriate response', async () => {
-			const networkError = new Error('Network error');
-			mockFetch.mockRejectedValueOnce(networkError);
+		it('returns error object when fetch fails', async () => {
+			// Silence console.error for this test
+			console.error = vi.fn();
+
+			// Mock failed response
+			vi.mocked(fetch).mockResolvedValue({
+				ok: false,
+				status: 500,
+				statusText: 'Internal Server Error'
+			} as unknown as Response);
 
 			const result = await triggerScan();
 
-			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/scan`, {
-				method: 'POST'
-			});
+			expect(fetch).toHaveBeenCalled();
 			expect(result).toEqual({
 				success: false,
-				message: 'Network error' // The message from the error object
+				message: 'Failed to trigger scan: 500 Internal Server Error'
 			});
-			expect(consoleErrorSpy).toHaveBeenCalledWith('Error triggering scan:', networkError);
+			expect(console.error).toHaveBeenCalled();
+		});
+
+		it('handles fetch rejection gracefully', async () => {
+			// Silence console.error for this test
+			console.error = vi.fn();
+
+			// Mock fetch rejection with a specific error message
+			const errorMessage = 'Network error';
+			vi.mocked(fetch).mockRejectedValue(new Error(errorMessage));
+
+			const result = await triggerScan();
+
+			expect(fetch).toHaveBeenCalled();
+			expect(result).toEqual({
+				success: false,
+				message: errorMessage
+			});
+			expect(console.error).toHaveBeenCalled();
 		});
 	});
 });

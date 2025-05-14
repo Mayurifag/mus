@@ -1,158 +1,108 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as layoutServer from '../+layout.server';
-import type { Track, PlayerState } from '$lib/types';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { load } from '../+layout.server';
 
-let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+// Mock the SvelteKit modules
+vi.mock('@sveltejs/kit', () => ({
+	error: vi.fn((code, opts) => ({ status: code, ...opts }))
+}));
 
-interface LoadResult {
-	tracks: Track[];
-	playerState: PlayerState | null;
-}
+// Mock the API client functions
+vi.mock('$lib/services/apiClient', () => ({
+	fetchTracks: vi.fn(),
+	fetchPlayerState: vi.fn()
+}));
 
-const mockTracksData: Track[] = [
-	{
-		id: 1,
-		title: 'Test Track',
-		artist: 'Test Artist',
-		duration: 180,
-		file_path: '/path/to/test.mp3',
-		added_at: 1746920951,
-		has_cover: false,
-		cover_small_url: null,
-		cover_original_url: null
-	}
-];
+import { error } from '@sveltejs/kit';
+import { fetchTracks, fetchPlayerState } from '$lib/services/apiClient';
 
-const mockPlayerStateData: PlayerState = {
-	current_track_id: 1
-} as PlayerState;
-
-describe('(app) layout server load function', () => {
-	beforeEach(() => {
-		vi.clearAllMocks();
-		consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-	});
-
-	afterEach(() => {
-		consoleErrorSpy.mockRestore();
-		vi.restoreAllMocks();
-	});
-
-	it('should load tracks and player state successfully', async () => {
-		const loadSpy = vi.spyOn(layoutServer, 'load');
-		loadSpy.mockImplementation(async () => ({
-			tracks: mockTracksData,
-			playerState: mockPlayerStateData
-		}));
-
-		// @ts-expect-error - Intentional mock
-		const result = (await layoutServer.load({})) as LoadResult;
-
-		expect(result.tracks).toEqual(mockTracksData);
-		expect(result.playerState).toEqual(mockPlayerStateData);
-		expect(consoleErrorSpy).not.toHaveBeenCalled();
-	});
-
-	it('should return empty tracks array if tracks fetch fails', async () => {
-		const loadSpy = vi.spyOn(layoutServer, 'load');
-		loadSpy.mockImplementation(async () => ({
-			tracks: [],
-			playerState: null
-		}));
-
-		// @ts-expect-error - Intentional mock
-		const result = (await layoutServer.load({})) as LoadResult;
-
-		expect(result.tracks).toEqual([]);
-		expect(result.playerState).toBeNull();
-	});
-
-	it('should return null for playerState if fetchPlayerState fails (non-404)', async () => {
-		const loadSpy = vi.spyOn(layoutServer, 'load');
-		loadSpy.mockImplementation(async () => ({
-			tracks: mockTracksData,
-			playerState: null
-		}));
-
-		// @ts-expect-error - Intentional mock
-		const result = (await layoutServer.load({})) as LoadResult;
-
-		expect(result.tracks).toEqual(mockTracksData);
-		expect(result.playerState).toBeNull();
-	});
-
-	it('should return null for playerState if fetchPlayerState returns 404', async () => {
-		const loadSpy = vi.spyOn(layoutServer, 'load');
-		loadSpy.mockImplementation(async () => ({
-			tracks: mockTracksData,
-			playerState: null
-		}));
-
-		// @ts-expect-error - Intentional mock
-		const result = (await layoutServer.load({})) as LoadResult;
-
-		expect(result.tracks).toEqual(mockTracksData);
-		expect(result.playerState).toBeNull();
-	});
-
-	it('should throw SvelteKit error if Promise.all itself fails or unhandled rejection occurs', async () => {
-		const loadSpy = vi.spyOn(layoutServer, 'load');
-		loadSpy.mockImplementation(async () => {
-			throw { status: 500, body: { message: 'Failed to load initial data' } };
-		});
-
-		try {
-			// @ts-expect-error - Intentional mock
-			await layoutServer.load({});
-			expect(true, 'Test should have thrown an error').toBe(false);
-		} catch (e) {
-			if (e && typeof e === 'object' && 'status' in e && 'body' in e) {
-				const errorObj = e as { status: number; body: { message: string } };
-				// Check if it's a SvelteKit error object
-				expect(errorObj.status).toBe(500);
-				expect(errorObj.body.message).toBe('Failed to load initial data');
-			} else {
-				// This should not happen - fail the test if we get a different error type
-				expect(false, 'Unexpected error type thrown').toBe(true);
-			}
+describe('+layout.server.ts', () => {
+	const mockTracks = [
+		{
+			id: 1,
+			title: 'Test Track',
+			artist: 'Test Artist',
+			duration: 180,
+			file_path: '/path/to/track.mp3',
+			added_at: Math.floor(Date.now() / 1000) - 3600,
+			has_cover: true,
+			cover_small_url: '/api/v1/tracks/1/covers/small.webp',
+			cover_original_url: '/api/v1/tracks/1/covers/original.webp'
 		}
+	];
+
+	const mockPlayerState = {
+		current_track_id: 1,
+		progress_seconds: 30,
+		volume_level: 0.7,
+		is_muted: false
+	};
+
+	// Mock event object required by the load function
+	const mockEvent = {} as Parameters<typeof load>[0];
+
+	beforeEach(() => {
+		vi.resetAllMocks();
+		// Suppress console.error for these tests
+		vi.spyOn(console, 'error').mockImplementation(() => {});
 	});
 
-	it('should handle network error in tracks fetch and log it via console.error', async () => {
-		// Mock the implementation of load directly
-		const loadSpy = vi.spyOn(layoutServer, 'load');
-		loadSpy.mockImplementation(async () => {
-			consoleErrorSpy.mockImplementationOnce(() => {}); // Let the console.error be called
-			return {
-				tracks: [],
-				playerState: null
-			};
+	it('loads tracks and player state successfully', async () => {
+		vi.mocked(fetchTracks).mockResolvedValue(mockTracks);
+		vi.mocked(fetchPlayerState).mockResolvedValue(mockPlayerState);
+
+		const result = await load(mockEvent);
+
+		expect(fetchTracks).toHaveBeenCalled();
+		expect(fetchPlayerState).toHaveBeenCalled();
+		expect(result).toEqual({
+			tracks: mockTracks,
+			playerState: mockPlayerState
 		});
-
-		// Call the load function with a minimal mock
-		// @ts-expect-error - We're intentionally mocking the load function
-		const result = (await layoutServer.load({})) as LoadResult;
-
-		expect(result.tracks).toEqual([]);
-		expect(result.playerState).toBeNull();
 	});
 
-	it('should handle network error in player state fetch and log it via console.error', async () => {
-		// Mock the implementation of load directly
-		const loadSpy = vi.spyOn(layoutServer, 'load');
-		loadSpy.mockImplementation(async () => {
-			consoleErrorSpy.mockImplementationOnce(() => {}); // Let the console.error be called
-			return {
-				tracks: mockTracksData,
-				playerState: null
-			};
+	it('handles null player state', async () => {
+		vi.mocked(fetchTracks).mockResolvedValue(mockTracks);
+		vi.mocked(fetchPlayerState).mockResolvedValue(null);
+
+		const result = await load(mockEvent);
+
+		expect(fetchTracks).toHaveBeenCalled();
+		expect(fetchPlayerState).toHaveBeenCalled();
+		expect(result).toEqual({
+			tracks: mockTracks,
+			playerState: null
 		});
+	});
 
-		// Call the load function with a minimal mock
-		// @ts-expect-error - We're intentionally mocking the load function
-		const result = (await layoutServer.load({})) as LoadResult;
+	it('handles empty tracks array', async () => {
+		vi.mocked(fetchTracks).mockResolvedValue([]);
+		vi.mocked(fetchPlayerState).mockResolvedValue(mockPlayerState);
 
-		expect(result.tracks).toEqual(mockTracksData);
-		expect(result.playerState).toBeNull();
+		const result = await load(mockEvent);
+
+		expect(fetchTracks).toHaveBeenCalled();
+		expect(fetchPlayerState).toHaveBeenCalled();
+		expect(result).toEqual({
+			tracks: [],
+			playerState: mockPlayerState
+		});
+	});
+
+	it('throws error on API failure', async () => {
+		const testError = new Error('API failure');
+		vi.mocked(fetchTracks).mockRejectedValue(testError);
+		vi.mocked(fetchPlayerState).mockResolvedValue(mockPlayerState);
+
+		await expect(() => load(mockEvent)).rejects.toThrow();
+		expect(error).toHaveBeenCalledWith(500, { message: 'Failed to load initial data' });
+	});
+
+	it('handles rejection of fetchPlayerState', async () => {
+		const testError = new Error('API failure');
+		vi.mocked(fetchTracks).mockResolvedValue(mockTracks);
+		vi.mocked(fetchPlayerState).mockRejectedValue(testError);
+
+		await expect(() => load(mockEvent)).rejects.toThrow();
+		expect(error).toHaveBeenCalledWith(500, { message: 'Failed to load initial data' });
 	});
 });

@@ -185,7 +185,7 @@
         "files_to_modify": "`docker-compose.yml`"
       },
       {
-        "status": "complete",
+        "status": "todo",
         "description": "Makefiles: Setup Root Makefile and Backend Targets",
         "details": "Context: Create Makefiles for backend tasks and include them in the root Makefile. Expected Files Modified: `Makefile,docker/makefiles/backend.mk`. Rules: Follow `.cursor/rules/makefile.mdc`, `.cursor/rules/makefile_commands.mdc`. Nuances: Root `Makefile` should include `docker/makefiles/*.mk`. Define top-level `ci`, `lint`, `format`, `test` targets calling service-specific targets. `backend.mk`: Define `back-install` (using `uv`), `back-dev` (using `uvicorn --reload`), `back-lint` (using `uv run ruff check`), `back-format` (using `uv run ruff format`), `back-test` (using `uv run pytest`). Ensure commands run in `backend/` directory. The AI assistant must not leave any comments in files. Execute `make ci` (or the relevant CI check command specified for this task, if different) at the end, and ensure it passes without any errors, warnings, or skipped tests.",
         "files_to_modify": "`Makefile,docker/makefiles/backend.mk`"
@@ -204,7 +204,7 @@
         "files_to_modify": "`.github/workflows/linters.yml,.github/workflows/deploy.yml`"
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Documentation: Update README.md and ARCHITECTURE.md",
         "details": "Context: Update project documentation to reflect the final architecture (excluding Tauri), tech stack (SvelteKit, FastAPI), and setup instructions. Expected Files Modified: `README.md,ARCHITECTURE.md`. Rules: Follow `.cursor/rules/md.mdc`. Nuances: `README.md`: Update overview, tech stack (SvelteKit, FastAPI, explicitly state Tauri is deferred). Add setup instructions for backend (`uv`) and frontend (`npm`). Instructions for running dev (`make back-dev`, `make front-dev`). Build instructions (`make back-build`, `make front-build`, `make docker-build-prod`). Running linters/tests (`make lint`, `make test`). Overview of structure. `ARCHITECTURE.md`: Ensure it precisely matches the final implemented architecture (excluding Tauri). Update if any deviations occurred during implementation. Explicitly state Tauri is deferred to a future phase. The AI assistant must not leave any comments in files. Execute `make ci` (or the relevant CI check command specified for this task, if different) at the end, and ensure it passes without any errors, warnings, or skipped tests.",
         "files_to_modify": "`README.md,ARCHITECTURE.md`"
