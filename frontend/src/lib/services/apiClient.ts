@@ -1,11 +1,14 @@
 import type { Track, PlayerState } from '$lib/types';
 
-// Function to get API base URL - makes testing easier
-export function getApiBaseUrl(): string {
-	// In development, use the absolute URL, in production use relative path
+function getApiBaseUrl(): string {
 	const isDev = import.meta.env.DEV;
-	const apiBase = isDev ? 'http://localhost:8000' : '';
-	return `${apiBase}/api/v1`;
+	const isServer = import.meta.env.SSR;
+
+	if (isServer || isDev) {
+		return 'http://localhost:8000/api/v1';
+	}
+
+	return '/api/v1';
 }
 
 const API_BASE_URL = getApiBaseUrl();
@@ -31,7 +34,6 @@ export async function fetchPlayerState(): Promise<PlayerState | null> {
 
 		if (!response.ok) {
 			if (response.status === 404) {
-				// No state exists yet, return null
 				return null;
 			}
 			throw new Error(`Failed to fetch player state: ${response.status} ${response.statusText}`);
