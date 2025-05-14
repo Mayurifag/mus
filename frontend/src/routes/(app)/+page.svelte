@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { trackStore } from '$lib/stores/trackStore';
+	import TrackList from '$lib/components/domain/TrackList.svelte';
 
 	// Access the store with the $ syntax for reactivity
-	$: trackCount = $trackStore.tracks.length;
+	$: tracks = $trackStore.tracks;
+	$: trackCount = tracks.length;
 </script>
 
 <div class="container mx-auto p-4">
@@ -14,5 +16,5 @@
 		<p class="mb-4">No tracks found. Use the scan function to add tracks.</p>
 	{/if}
 
-	<!-- The track list and player footer components will be implemented in subsequent tasks -->
+	<TrackList {tracks} />
 </div>
