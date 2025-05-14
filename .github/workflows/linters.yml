@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  python-lint:
+  backend-lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,48 +32,70 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/uv
-          key: uv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}
+          key: uv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('backend/pyproject.toml') }}
           restore-keys: |
             uv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-
-      - name: Install dependencies
-        run: uv pip install --system -r requirements.txt
-      - name: Run Python linting
-        run: make lint-py
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          uv pip install --system .
+      - name: Run backend linting
+        run: make back-lint
 
-  css-lint:
+  backend-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v1
+      - uses: actions/setup-python@v5
+        id: setup-python
         with:
-          bun-version: latest
-      - name: Cache Bun dependencies
+          python-version: '3.12'
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - name: Install system dependencies for pyvips
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvips-dev
+      - name: Cache uv dependencies
         uses: actions/cache@v4
         with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lockb') }}
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('backend/pyproject.toml') }}
           restore-keys: |
-            bun-${{ runner.os }}-
-      - name: Install dependencies
-        run: bun install
-      - name: Run CSS linting
-        run: make lint-css
+            uv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          uv pip install --system .
+      - name: Run backend tests
+        run: make back-test
 
-  javascript-lint:
+  frontend-lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v1
+      - uses: actions/setup-node@v4
         with:
-          bun-version: latest
-      - name: Cache Bun dependencies
-        uses: actions/cache@v4
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+      - name: Run frontend linting
+        run: make front-lint
+
+  frontend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lockb') }}
-          restore-keys: |
-            bun-${{ runner.os }}-
-      - name: Install dependencies
-        run: bun install
-      - name: Run JavaScript linting
-        run: make lint-js
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+      - name: Run frontend tests
+        run: make front-test

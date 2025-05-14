@@ -185,23 +185,17 @@
         "files_to_modify": "`docker-compose.yml`"
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Makefiles: Setup Root Makefile and Backend Targets",
         "details": "Context: Create Makefiles for backend tasks and include them in the root Makefile. Expected Files Modified: `Makefile,docker/makefiles/backend.mk`. Rules: Follow `.cursor/rules/makefile.mdc`, `.cursor/rules/makefile_commands.mdc`. Nuances: Root `Makefile` should include `docker/makefiles/*.mk`. Define top-level `ci`, `lint`, `format`, `test` targets calling service-specific targets. `backend.mk`: Define `back-install` (using `uv`), `back-dev` (using `uvicorn --reload`), `back-lint` (using `uv run ruff check`), `back-format` (using `uv run ruff format`), `back-test` (using `uv run pytest`). Ensure commands run in `backend/` directory. The AI assistant must not leave any comments in files. Execute `make ci` (or the relevant CI check command specified for this task, if different) at the end, and ensure it passes without any errors, warnings, or skipped tests.",
         "files_to_modify": "`Makefile,docker/makefiles/backend.mk`"
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Makefiles: Setup Frontend and Docker Targets",
         "details": "Context: Create Makefiles for frontend and Docker operations. Expected Files Modified: `docker/makefiles/frontend.mk,docker/makefiles/docker.mk,frontend/package.json`. Rules: Follow `.cursor/rules/makefile.mdc`, `.cursor/rules/makefile_commands.mdc`. Nuances: `frontend.mk`: Define `front-install` (`npm install`), `front-dev` (`npm run dev`), `front-build` (`npm run build`), `front-lint` (`npm run lint`), `front-format` (`npm run format`), `front-test` (`npm run test`). Ensure corresponding scripts exist in `frontend/package.json`. `docker.mk`: Define `docker-build-prod`, `docker-up`, `docker-down`, `docker-logs`, `docker-rebuild` using `docker build` and `docker-compose`. The AI assistant must not leave any comments in files. Execute `make ci` (or the relevant CI check command specified for this task, if different) at the end, and ensure it passes without any errors, warnings, or skipped tests.",
         "files_to_modify": "`docker/makefiles/frontend.mk,docker/makefiles/docker.mk,frontend/package.json`",
         "rest": true
-      },
-      {
-        "status": "todo",
-        "description": "CI/CD: Update GitHub Workflows (Linters, Testers, Deploy)",
-        "details": "Context: Update GitHub Actions workflows to accommodate the new SvelteKit frontend and use Make targets. Expected Files Modified: `.github/workflows/linters.yml,.github/workflows/deploy.yml`. Rules: Follow `.cursor/rules/yaml.mdc`. Nuances: `linters.yml`: Add/update `frontend-lint` job (setup Node, `npm install`, `make front-lint`). Add/update `frontend-test` job (setup Node, `npm install`, `make front-test`). Ensure backend jobs use `uv` and `make back-lint`/`make back-test`. `deploy.yml`: Ensure trigger conditions are correct. Update Docker build step to use `docker/production.Dockerfile` path correctly. Ensure Docker Hub login and image tagging (`latest`, SHA) are correct. The AI assistant must not leave any comments in files. Execute `make ci` (or the relevant CI check command specified for this task, if different) at the end, and ensure it passes without any errors, warnings, or skipped tests.",
-        "files_to_modify": "`.github/workflows/linters.yml,.github/workflows/deploy.yml`"
       },
       {
         "status": "complete",
@@ -210,7 +204,13 @@
         "files_to_modify": "`README.md,ARCHITECTURE.md`"
       },
       {
-        "status": "todo",
+        "status": "complete",
+        "description": "CI/CD: Update GitHub Workflows (Linters, Testers, Deploy)",
+        "details": "Context: Update GitHub Actions workflows to accommodate the new SvelteKit frontend and use Make targets. Expected Files Modified: `.github/workflows/linters.yml,.github/workflows/deploy.yml`. Rules: Follow `.cursor/rules/yaml.mdc`. Nuances: `linters.yml`: Add/update `frontend-lint` job (setup Node, `npm install`, `make front-lint`). Add/update `frontend-test` job (setup Node, `npm install`, `make front-test`). Ensure backend jobs use `uv` and `make back-lint`/`make back-test`. `deploy.yml`: Ensure trigger conditions are correct. Update Docker build step to use `docker/production.Dockerfile` path correctly. Ensure Docker Hub login and image tagging (`latest`, SHA) are correct. The AI assistant must not leave any comments in files. Execute `make ci` (or the relevant CI check command specified for this task, if different) at the end, and ensure it passes without any errors, warnings, or skipped tests.",
+        "files_to_modify": "`.github/workflows/linters.yml,.github/workflows/deploy.yml`"
+      },
+      {
+        "status": "complete",
         "description": "Final Review, E2E Testing, and Refinements",
         "details": "Context: Perform end-to-end testing and final checks before considering the rewrite complete. Expected Files Modified: Potentially any file based on E2E findings. Nuances: Test Web version (secret key login, playback, scan, state persistence, responsiveness). Review code quality, clarity, adherence to rules. Refine UI/UX. Check configurations (`.env`, Docker, Makefiles, CI). Audit dependencies (`uv`, `npm`). Run `make format lint test ci` final time. The AI assistant must not leave any comments in files. Execute `make ci` (or the relevant CI check command specified for this task, if different) at the end, and ensure it passes without any errors, warnings, or skipped tests.",
         "files_to_modify": "`./`",
