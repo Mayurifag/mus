@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from typing import Dict, Any
+import os
 
 from src.mus.infrastructure.api.auth import router as auth_router
 from src.mus.infrastructure.api.dependencies import get_current_user
@@ -40,7 +42,7 @@ app.include_router(track_router)
 app.include_router(scan_router)
 
 
-@app.get("/", response_model=Dict[str, Any])
+@app.get("/api", response_model=Dict[str, Any])
 async def read_root() -> Dict[str, Any]:
     return {"status": "ok", "message": "Mus backend is running"}
 
@@ -53,3 +55,11 @@ async def get_current_user_info(
     Get current authenticated user info (protected endpoint example)
     """
     return {"user": current_user, "authenticated": True}
+
+
+static_path = "/app/static_root"
+if not os.path.exists(static_path):
+    static_path = "static"
+
+if os.path.exists(static_path):
+    app.mount("/", StaticFiles(directory=static_path, html=True), name="frontend")

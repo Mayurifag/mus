@@ -1,14 +1,28 @@
 services:
-  mus:
+  backend:
     build:
       context: ..
-      dockerfile: docker/Dockerfile
+      dockerfile: docker/backend.Dockerfile
     ports:
       - "8000:8000"
     volumes:
-      - ..:/app:cached
-      - mus_data:/app/data
-      - /Users/mayurifag/Nextcloud/Music:/music:ro
+      - ../backend/src:/app/src
+      - ../data:/app/data
+      - ../music:/app/music
+    environment:
+      - SECRET_KEY=dev_secret_key_please_change_in_production
+    restart: unless-stopped
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../frontend:/app
+    command: npm run dev -- --host
+    depends_on:
+      - backend
 
 volumes:
   mus_data:

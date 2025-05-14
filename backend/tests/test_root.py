@@ -12,7 +12,7 @@ async def test_root_endpoint() -> None:
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        response = await ac.get("/")
+        response = await ac.get("/api")
     assert response.status_code == 200
     data: Dict[str, Any] = response.json()
     assert "status" in data and data["status"] == "ok"

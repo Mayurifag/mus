@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+pytest-report.xml
+
+# Environments
+.venv
+venv/
+ENV/
+
+# Database
+*.db
+mus_database.db
+
+# Caches
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Log files
+*.log
+
+# Editor directories and files
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# Environment variables
+.env
+.env.*
+!.env.example

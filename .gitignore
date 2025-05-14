@@ -33,9 +33,6 @@ pnpm-debug.log*
 # Docker
 *.log
 docker-compose.override.yml
-.docker/
-.dockerignore
-Dockerfile*
 
 # macOS
 .DS_Store

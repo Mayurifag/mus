@@ -160,14 +160,14 @@
         "files_to_modify": "`frontend/vite.config.ts,frontend/package.json,frontend/tests/setup.ts,frontend/src/lib/stores/playerStore.test.ts,frontend/src/lib/stores/trackStore.test.ts,frontend/src/lib/components/domain/TrackItem.test.ts`"
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Frontend Tests: PlayerFooter, API/Load Functions, and Integration Tests",
         "details": "Context: Write tests for more complex components, API interactions, and basic page flows. Expected Files Modified: `frontend/src/lib/components/layout/PlayerFooter.test.ts,frontend/src/lib/services/apiClient.test.ts,frontend/src/routes/(app)/+layout.server.test.ts,frontend/src/routes/(app)/+page.test.ts`. Rules: Follow `.cursor/rules/typescript.mdc`, `.cursor/rules/svelte.mdc` (if exists). Use `context7` MCP server (tokens: 5000-20000, max 3 tries) for mocking SvelteKit `load` functions and using `msw` with Vitest. Nuances: Test `PlayerFooter` interactions (button clicks, slider changes, mock stores). Test `apiClient` functions using `msw` to mock `fetch`. Test `load` functions (mock `fetch` or `apiClient`, verify returned data structure). Write basic integration test for `+page.svelte` (render page, mock `load`, verify `TrackList` and `PlayerFooter` appear, simulate track click). Aim for >70% coverage. The AI assistant must not leave any comments in files. Execute `make ci` (or the relevant CI check command specified for this task, if different) at the end, and ensure it passes without any errors, warnings, or skipped tests.",
         "files_to_modify": "`frontend/src/lib/components/layout/PlayerFooter.test.ts,frontend/src/lib/services/apiClient.test.ts,frontend/src/routes/(app)/+layout.server.test.ts,frontend/src/routes/(app)/+page.test.ts`",
         "rest": true
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Docker: Create Dockerignore Files and Backend Dockerfile",
         "details": "Context: Set up ignore files for Docker contexts and create the Dockerfile for the backend service. Expected Files Modified: `backend/.dockerignore,frontend/.dockerignore,.dockerignore,docker/backend.Dockerfile`. Rules: Follow `.cursor/rules/docker.mdc`. Nuances: Ensure `.dockerignore` files exclude build artifacts, env files, IDE folders, `node_modules`, `target`, etc. `backend.Dockerfile`: use Python slim image, install `uv`, install deps using `uv pip install --system`, copy backend source, expose port 8000, set `CMD` to run `uvicorn`. The AI assistant must not leave any comments in files. Execute `make ci` (or the relevant CI check command specified for this task, if different) at the end, and ensure it passes without any errors, warnings, or skipped tests.",
         "files_to_modify": "`backend/.dockerignore,frontend/.dockerignore,.dockerignore,docker/backend.Dockerfile`"
@@ -179,9 +179,9 @@
         "files_to_modify": "`docker/production.Dockerfile,backend/src/mus/main.py`"
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Docker: Create Docker Compose for Local Development",
-        "details": "Context: Define a `docker-compose.yml` file for easy local development setup. Expected Files Modified: `docker-compose.yml`. Rules: Follow `.cursor/rules/docker.mdc`, `.cursor/rules/yaml.mdc`. Nuances: Define `backend` service using `backend.Dockerfile` context, map port 8000, mount `./backend/src`, `./data`, `./music`. Set necessary environment variables (use `.env` file ideally, but provide defaults like `SECRET_KEY`). Define `frontend` service (optional, can run `npm run dev` locally): use `node:alpine` image, mount `./frontend`, map port 5173, set command `npm run dev -- --host`. Define named volumes. The AI assistant must not leave any comments in files. Execute `make ci` (or the relevant CI check command specified for this task, if different) at the end, and ensure it passes without any errors, warnings, or skipped tests.",
+        "details": "Context: Define a `docker-compose.yml` file for easy local development setup. Expected Files Modified: `docker-compose.yml`. Rules: Follow `.cursor/rules/docker.mdc`, `.cursor/rules/yaml.mdc`. Nuances: Define `backend` service using `backend.Dockerfile` context, map port 8000, mount `./backend/src`, `./data`, `./music`. Set necessary environment variables (use `.env` file ideally, but provide defaults like `SECRET_KEY`). Define `frontend` service (optional, can run `npm run dev` locally): use `node:alpine` image, mount `./frontend`, map port 5173, set command `npm run dev -- --host`. Define named volumes. Perhaps add frontend.Dockerfile so it would be easier to run frontend in docker-compose. The AI assistant must not leave any comments in files. Execute `make ci` (or the relevant CI check command specified for this task, if different) at the end, and ensure it passes without any errors, warnings, or skipped tests.",
         "files_to_modify": "`docker-compose.yml`"
       },
       {
