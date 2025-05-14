@@ -130,7 +130,7 @@
         "files_to_modify": "`frontend/src/lib/services/apiClient.ts,frontend/src/routes/(app)/+layout.server.ts`"
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Frontend: Implement PlayerFooter Component (Layout and Basic Controls)",
         "details": "Context: Build the main player control UI component fixed at the bottom of the screen. Expected Files Modified: `frontend/src/lib/components/layout/PlayerFooter.svelte`. Rules: Follow `.cursor/rules/svelte.mdc` (if exists), `.cursor/rules/typescript.mdc`. Use `context7` MCP server (tokens: 5000-20000, max 3 tries) for `shadcn-svelte` Button, Slider, Card components and `lucide-svelte` icon usage. Nuances: Use `Card` for footer bar. Display current track cover (`cover_original_url`), title, artist (from `playerStore`). Add `Button` components for Previous, Play/Pause, Next using `lucide-svelte` icons. Implement seekable progress `Slider`, display current/total time (use `date-fns` for formatting). Add Mute/Unmute `Button` and volume `Slider`. Style with Tailwind. Component should react to changes in `playerStore`. Testing Requirement: Add comprehensive unit and integration tests for all new/modified functionality. The AI assistant must not leave any comments in files. Execute `make ci` at the end and fix all warnings/errors.",
         "files_to_modify": "`frontend/src/lib/components/layout/PlayerFooter.svelte`"

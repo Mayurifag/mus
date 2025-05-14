@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fetchTracks, fetchPlayerState, savePlayerState, triggerScan } from './apiClient';
 import type { Track, PlayerState } from '$lib/types';
 
+// Define constant for the base URL used in tests
+const API_URL = 'http://localhost:8000/api/v1';
+
 // Mock global fetch
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
@@ -45,7 +48,7 @@ describe('apiClient', () => {
 
 			const result = await fetchTracks();
 
-			expect(mockFetch).toHaveBeenCalledWith('/api/v1/tracks');
+			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/tracks`);
 			expect(result).toEqual(mockTracks);
 			expect(consoleErrorSpy).not.toHaveBeenCalled();
 		});
@@ -55,7 +58,7 @@ describe('apiClient', () => {
 
 			const result = await fetchTracks();
 
-			expect(mockFetch).toHaveBeenCalledWith('/api/v1/tracks');
+			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/tracks`);
 			expect(result).toEqual([]);
 			expect(consoleErrorSpy).toHaveBeenCalledWith('Error fetching tracks:', expect.any(Error));
 		});
@@ -69,7 +72,7 @@ describe('apiClient', () => {
 
 			const result = await fetchTracks();
 
-			expect(mockFetch).toHaveBeenCalledWith('/api/v1/tracks');
+			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/tracks`);
 			expect(result).toEqual([]);
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
 				'Error fetching tracks:',
@@ -94,7 +97,7 @@ describe('apiClient', () => {
 
 			const result = await fetchPlayerState();
 
-			expect(mockFetch).toHaveBeenCalledWith('/api/v1/player/state');
+			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/player/state`);
 			expect(result).toEqual(mockPlayerState);
 			expect(consoleErrorSpy).not.toHaveBeenCalled();
 		});
@@ -108,7 +111,7 @@ describe('apiClient', () => {
 
 			const result = await fetchPlayerState();
 
-			expect(mockFetch).toHaveBeenCalledWith('/api/v1/player/state');
+			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/player/state`);
 			expect(result).toBeNull();
 			// No console.error expected for 404 in fetchPlayerState as it's a handled case
 			expect(consoleErrorSpy).not.toHaveBeenCalled();
@@ -121,7 +124,7 @@ describe('apiClient', () => {
 				statusText: 'Server Error'
 			});
 			const result = await fetchPlayerState();
-			expect(mockFetch).toHaveBeenCalledWith('/api/v1/player/state');
+			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/player/state`);
 			expect(result).toBeNull();
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
 				'Error fetching player state:',
@@ -134,7 +137,7 @@ describe('apiClient', () => {
 
 			const result = await fetchPlayerState();
 
-			expect(mockFetch).toHaveBeenCalledWith('/api/v1/player/state');
+			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/player/state`);
 			expect(result).toBeNull();
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
 				'Error fetching player state:',
@@ -159,7 +162,7 @@ describe('apiClient', () => {
 
 			const result = await savePlayerState(mockPlayerState);
 
-			expect(mockFetch).toHaveBeenCalledWith('/api/v1/player/state', {
+			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/player/state`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -182,7 +185,7 @@ describe('apiClient', () => {
 
 			const result = await savePlayerState(mockPlayerState);
 
-			expect(mockFetch).toHaveBeenCalledWith('/api/v1/player/state', expect.any(Object));
+			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/player/state`, expect.any(Object));
 			expect(result).toBeNull();
 			expect(consoleErrorSpy).toHaveBeenCalledWith('Error saving player state:', expect.any(Error));
 		});
@@ -199,7 +202,7 @@ describe('apiClient', () => {
 
 			const result = await triggerScan();
 
-			expect(mockFetch).toHaveBeenCalledWith('/api/v1/scan', {
+			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/scan`, {
 				method: 'POST'
 			});
 			expect(result).toEqual(mockResponse);
@@ -212,7 +215,7 @@ describe('apiClient', () => {
 
 			const result = await triggerScan();
 
-			expect(mockFetch).toHaveBeenCalledWith('/api/v1/scan', {
+			expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/scan`, {
 				method: 'POST'
 			});
 			expect(result).toEqual({

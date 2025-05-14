@@ -1,12 +1,13 @@
 import { error } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import type { Track, PlayerState } from '$lib/types';
+import { getApiBaseUrl } from '$lib/services/apiClient';
 
-const API_BASE_URL = '/api/v1';
+const ACTUAL_API_BASE_URL = getApiBaseUrl();
 
 export const load: LayoutServerLoad = async ({ fetch: svelteKitFetch }) => {
 	try {
-		const tracksPromise = svelteKitFetch(`${API_BASE_URL}/tracks`)
+		const tracksPromise = svelteKitFetch(`${ACTUAL_API_BASE_URL}/tracks`)
 			.then(async (res) => {
 				if (!res.ok) {
 					// Log the error response text for better debugging
@@ -23,7 +24,7 @@ export const load: LayoutServerLoad = async ({ fetch: svelteKitFetch }) => {
 				return [] as Track[]; // Ensure return type matches, return empty on error
 			});
 
-		const playerStatePromise = svelteKitFetch(`${API_BASE_URL}/player/state`)
+		const playerStatePromise = svelteKitFetch(`${ACTUAL_API_BASE_URL}/player/state`)
 			.then(async (res) => {
 				if (!res.ok) {
 					if (res.status === 404) {

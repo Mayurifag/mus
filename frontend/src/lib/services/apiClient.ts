@@ -1,6 +1,14 @@
 import type { Track, PlayerState } from '$lib/types';
 
-const API_BASE_URL = '/api/v1';
+// Function to get API base URL - makes testing easier
+export function getApiBaseUrl(): string {
+	// In development, use the absolute URL, in production use relative path
+	const isDev = import.meta.env.DEV;
+	const apiBase = isDev ? 'http://localhost:8000' : '';
+	return `${apiBase}/api/v1`;
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 export async function fetchTracks(): Promise<Track[]> {
 	try {

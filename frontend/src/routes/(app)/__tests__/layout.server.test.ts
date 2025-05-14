@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { load } from '../+layout.server';
 import type { Track, PlayerState } from '$lib/types';
+import { getApiBaseUrl } from '$lib/services/apiClient';
+
+// Mock the API base URL function for tests
+vi.mock('$lib/services/apiClient', () => ({
+	getApiBaseUrl: () => 'http://localhost:8000/api/v1'
+}));
+
+// Get the mocked base URL to use in tests
+const API_BASE_URL = getApiBaseUrl();
 
 // Spy on console.error
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
@@ -53,8 +62,8 @@ describe('(app) layout server load function', () => {
 			typeof load
 		>[0])) as LoadReturn;
 
-		expect(mockSvelteKitFetch).toHaveBeenCalledWith('/api/v1/tracks');
-		expect(mockSvelteKitFetch).toHaveBeenCalledWith('/api/v1/player/state');
+		expect(mockSvelteKitFetch).toHaveBeenCalledWith(`${API_BASE_URL}/tracks`);
+		expect(mockSvelteKitFetch).toHaveBeenCalledWith(`${API_BASE_URL}/player/state`);
 		expect(result.tracks).toEqual(mockTracksData);
 		expect(result.playerState).toEqual(mockPlayerStateData);
 		expect(consoleErrorSpy).not.toHaveBeenCalled();
