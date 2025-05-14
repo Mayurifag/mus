@@ -148,13 +148,13 @@
         "files_to_modify": "`frontend/src/lib/components/layout/PlayerFooter.svelte,frontend/src/lib/components/domain/TrackItem.svelte,frontend/src/routes/(app)/+layout.svelte,frontend/src/routes/(app)/+page.svelte`"
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Frontend: Implement PWA Manifest and Basic Service Worker",
         "details": "Context: Add Progressive Web App capabilities for offline app shell access. Expected Files Modified: `frontend/static/manifest.json,frontend/static/images/icon-192.png,frontend/static/images/icon-512.png,frontend/src/service-worker.ts,frontend/src/hooks.client.ts`. Rules: Follow `.cursor/rules/json.mdc`, `.cursor/rules/typescript.mdc`. Use `context7` MCP server (tokens: 5000-20000, max 3 tries) for SvelteKit service worker integration and PWA manifest structure. Use `desktop-commander` MCP server to add placeholder icons. Nuances: Create `manifest.json` with required fields (`name`, `short_name`, `icons`, `start_url`, `display`, `background_color`, `theme_color`). Add sample 192x192 and 512x512 icons. Implement basic `service-worker.ts` using `@sveltejs/kit/service-worker` module for caching built assets (`$service-worker.files`) and potentially app shell. Register SW in `hooks.client.ts` (or `+layout.svelte` `onMount`). Testing Requirement: Add comprehensive unit and integration tests for all new/modified functionality. The AI assistant must not leave any comments in files. Execute `make ci` (or the relevant CI check command specified for this task, if different) at the end, and ensure it passes without any errors, warnings, or skipped tests.",
         "files_to_modify": "`frontend/static/manifest.json,frontend/static/images/icon-192.png,frontend/static/images/icon-512.png,frontend/src/service-worker.ts,frontend/src/hooks.client.ts`"
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Frontend Tests: Setup Vitest and Basic Component/Store Tests",
         "details": "Context: Configure the testing environment and write initial tests for stores and simple components. Expected Files Modified: `frontend/vite.config.ts,frontend/package.json,frontend/tests/setup.ts,frontend/src/lib/stores/playerStore.test.ts,frontend/src/lib/stores/trackStore.test.ts,frontend/src/lib/components/domain/TrackItem.test.ts`. Rules: Follow `.cursor/rules/typescript.mdc`. Use `context7` MCP server (tokens: 5000-20000, max 3 tries) for Vitest configuration with Svelte and `@testing-library/svelte` usage. Nuances: Install `@testing-library/svelte`, `vitest`, `jsdom`, `msw`. Configure Vitest in `vite.config.ts` (environment `jsdom`, `globals: true`). Create `tests/setup.ts` for `testing-library` extensions. Add test scripts to `package.json`. Write tests for Svelte stores (initial state, actions). Test `TrackItem` rendering with mock data, verify displayed info, simulate click. The AI assistant must not leave any comments in files. Execute `make ci` (or the relevant CI check command specified for this task, if different) at the end, and ensure it passes without any errors, warnings, or skipped tests.",
         "files_to_modify": "`frontend/vite.config.ts,frontend/package.json,frontend/tests/setup.ts,frontend/src/lib/stores/playerStore.test.ts,frontend/src/lib/stores/trackStore.test.ts,frontend/src/lib/components/domain/TrackItem.test.ts`"
@@ -173,7 +173,7 @@
         "files_to_modify": "`backend/.dockerignore,frontend/.dockerignore,.dockerignore,docker/backend.Dockerfile`"
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Docker: Create Production Dockerfile (Multi-stage)",
         "details": "Context: Create a multi-stage Dockerfile for production that builds the frontend and combines it with the backend. Expected Files Modified: `docker/production.Dockerfile,backend/src/mus/main.py`. Rules: Follow `.cursor/rules/docker.mdc`, `.cursor/rules/python.mdc`. Use `context7` MCP server (tokens: 5000-20000, max 3 tries) for FastAPI `StaticFiles` mounting documentation. Nuances: Stage 1 (`frontend-builder`): Use `node:alpine`, copy `frontend` code, run `npm install`, run `npm run build`. Stage 2: Use Python slim image, install `uv`, install backend deps, copy backend code. Copy built frontend assets from Stage 1 (from `/app/frontend/build`) to a location in backend stage (e.g., `/app/backend/static_root`). In `backend/src/mus/main.py`, add `app.mount(\"/\", StaticFiles(directory=\"/app/backend/static_root\", html=True), name=\"static\")` to serve the frontend. Define volumes for `/app/data` and `/music`. Set final `CMD`. Testing Requirement: Add comprehensive unit and integration tests for all new/modified functionality. The AI assistant must not leave any comments in files. Execute `make ci` (or the relevant CI check command specified for this task, if different) at the end, and ensure it passes without any errors, warnings, or skipped tests.",
         "files_to_modify": "`docker/production.Dockerfile,backend/src/mus/main.py`"
@@ -185,7 +185,7 @@
         "files_to_modify": "`docker-compose.yml`"
       },
       {
-        "status": "todo",
+        "status": "complete",
         "description": "Makefiles: Setup Root Makefile and Backend Targets",
         "details": "Context: Create Makefiles for backend tasks and include them in the root Makefile. Expected Files Modified: `Makefile,docker/makefiles/backend.mk`. Rules: Follow `.cursor/rules/makefile.mdc`, `.cursor/rules/makefile_commands.mdc`. Nuances: Root `Makefile` should include `docker/makefiles/*.mk`. Define top-level `ci`, `lint`, `format`, `test` targets calling service-specific targets. `backend.mk`: Define `back-install` (using `uv`), `back-dev` (using `uvicorn --reload`), `back-lint` (using `uv run ruff check`), `back-format` (using `uv run ruff format`), `back-test` (using `uv run pytest`). Ensure commands run in `backend/` directory. The AI assistant must not leave any comments in files. Execute `make ci` (or the relevant CI check command specified for this task, if different) at the end, and ensure it passes without any errors, warnings, or skipped tests.",
         "files_to_modify": "`Makefile,docker/makefiles/backend.mk`"

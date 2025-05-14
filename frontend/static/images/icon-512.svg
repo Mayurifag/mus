@@ -1,0 +1,8 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#020817"/>
+  <text x="256" y="286" font-family="Arial, sans-serif" font-size="120" text-anchor="middle" fill="white">Mus</text>
+  <path d="M256 128 C160 128 120 204 120 256 C120 308 160 384 256 384 C352 384 392 308 392 256 C392 204 352 128 256 128 Z" fill="none" stroke="white" stroke-width="10"/>
+  <circle cx="196" cy="236" r="20" fill="white"/>
+  <circle cx="316" cy="236" r="20" fill="white"/>
+  <path d="M192 316 C212 344 300 344 320 316" fill="none" stroke="white" stroke-width="8"/>
+</svg>
