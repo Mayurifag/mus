@@ -1,0 +1,18 @@
+export interface Track {
+	id: number;
+	title: string;
+	artist: string;
+	duration: number; // Duration in seconds
+	file_path: string;
+	added_at: number; // Unix timestamp
+	has_cover: boolean;
+	cover_small_url: string | null;
+	cover_original_url: string | null;
+}
+
+export interface PlayerState {
+	current_track_id: number | null;
+	progress_seconds: number; // Current playback position in seconds
+	volume_level: number; // Volume level between 0.0 and 1.0
+	is_muted: boolean;
+}
