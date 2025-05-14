@@ -31,3 +31,7 @@ front-format:
 .PHONY: front-test
 front-test:
 	cd $(FRONTEND_DIR) && npm run test
+
+.PHONY: front-svelte-check
+front-svelte-check:
+	cd $(FRONTEND_DIR) && npm run check

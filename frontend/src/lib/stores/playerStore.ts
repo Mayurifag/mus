@@ -24,15 +24,18 @@ function createPlayerStore() {
 
 	return {
 		subscribe,
+		update,
 		setTrack: (track: Track) =>
 			update((state) => ({ ...state, currentTrack: track, duration: track.duration })),
 		play: () => update((state) => ({ ...state, isPlaying: true })),
 		pause: () => update((state) => ({ ...state, isPlaying: false })),
 		togglePlayPause: () => update((state) => ({ ...state, isPlaying: !state.isPlaying })),
 		setCurrentTime: (time: number) => update((state) => ({ ...state, currentTime: time })),
+		setDuration: (duration: number) => update((state) => ({ ...state, duration })),
 		setVolume: (volume: number) =>
 			update((state) => ({ ...state, volume: Math.max(0, Math.min(1, volume)) })),
 		toggleMute: () => update((state) => ({ ...state, isMuted: !state.isMuted })),
+		setMuted: (isMuted: boolean) => update((state) => ({ ...state, isMuted })),
 		reset: () => set(initialState)
 	};
 }

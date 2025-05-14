@@ -32,9 +32,9 @@
 			<div class="flex w-1/3 items-center space-x-4">
 				{#if $playerStore.currentTrack}
 					<div class="h-14 w-14 overflow-hidden rounded-md">
-						{#if $playerStore.currentTrack.has_cover && $playerStore.currentTrack.cover_small_url}
+						{#if $playerStore.currentTrack.has_cover && $playerStore.currentTrack.cover_original_url}
 							<img
-								src={$playerStore.currentTrack.cover_small_url}
+								src={$playerStore.currentTrack.cover_original_url}
 								alt="Album Cover"
 								class="h-full w-full object-cover"
 							/>
@@ -69,6 +69,7 @@
 						class="h-9 w-9"
 						on:click={() => trackStore.previousTrack()}
 						aria-label="Previous Track"
+						disabled={!$playerStore.currentTrack}
 					>
 						<SkipBack class="h-5 w-5" />
 					</Button>
@@ -78,6 +79,7 @@
 						class="h-10 w-10"
 						on:click={() => playerStore.togglePlayPause()}
 						aria-label={$playerStore.isPlaying ? 'Pause' : 'Play'}
+						disabled={!$playerStore.currentTrack}
 					>
 						{#if $playerStore.isPlaying}
 							<Pause class="h-6 w-6" />
@@ -91,6 +93,7 @@
 						class="h-9 w-9"
 						on:click={() => trackStore.nextTrack()}
 						aria-label="Next Track"
+						disabled={!$playerStore.currentTrack}
 					>
 						<SkipForward class="h-5 w-5" />
 					</Button>
@@ -105,6 +108,7 @@
 						max={$playerStore.duration || 100}
 						step={1}
 						class="flex-1"
+						disabled={!$playerStore.currentTrack}
 					/>
 					<span class="text-muted-foreground w-10 text-xs">
 						{formatTime($playerStore.duration)}

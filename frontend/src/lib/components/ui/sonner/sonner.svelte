@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { Toaster as Sonner, type ToasterProps as SonnerProps } from 'svelte-sonner';
-	import { mode } from 'mode-watcher';
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Svelte type export
 	type $$Props = SonnerProps;
+
+	export let theme: 'light' | 'dark' | 'system' = 'dark'; // Use dark theme by default
 </script>
 
 <Sonner
-	theme={$mode}
+	{theme}
 	class="toaster group"
 	toastOptions={{
 		classes: {

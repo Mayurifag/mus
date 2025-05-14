@@ -1,8 +1,9 @@
 <script lang="ts">
 	import type { Track } from '$lib/types';
 	import { trackStore } from '$lib/stores/trackStore';
+	import { playerStore } from '$lib/stores/playerStore';
 	import { formatDistanceToNow } from 'date-fns';
-	import { Play } from 'lucide-svelte';
+	import { Play, Pause } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 
 	export let track: Track;
@@ -20,7 +21,11 @@
 	}
 
 	function playTrack() {
-		trackStore.playTrack(index);
+		if (isSelected && $playerStore.isPlaying) {
+			playerStore.pause();
+		} else {
+			trackStore.playTrack(index);
+		}
 	}
 
 	function handlePlayButtonClick(event: MouseEvent) {
@@ -34,6 +39,8 @@
 			playTrack();
 		}
 	}
+
+	$: isCurrentlyPlaying = isSelected && $playerStore.isPlaying;
 </script>
 
 <div
@@ -73,10 +80,14 @@
 	<Button
 		variant="ghost"
 		size="icon"
-		class="h-8 w-8 opacity-0 transition-opacity group-hover:opacity-100"
+		class="h-8 w-8"
 		on:click={handlePlayButtonClick}
-		aria-label="Play track"
+		aria-label={isCurrentlyPlaying ? 'Pause track' : 'Play track'}
 	>
-		<Play class="h-4 w-4" />
+		{#if isCurrentlyPlaying}
+			<Pause class="h-4 w-4" />
+		{:else}
+			<Play class="h-4 w-4" />
+		{/if}
 	</Button>
 </div>

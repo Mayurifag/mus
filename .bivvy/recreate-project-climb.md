@@ -1,7 +1,7 @@
 ---
 id: R3W7
 type: feature
-description: Full project rewrite to Tauri 2.0, SvelteKit/TS frontend, FastAPI/SQLModel backend.
+description: Full project rewrite with SvelteKit/TS frontend, FastAPI/SQLModel backend (Tauri 2.0 desktop application deferred to a future phase).
 ---
 ## Project Rewrite: Mus Next Generation (SvelteKit Frontend)
 
@@ -10,18 +10,16 @@ description: Full project rewrite to Tauri 2.0, SvelteKit/TS frontend, FastAPI/S
 ### 1. Feature Overview
 
 *   **Feature Name and ID:** Mus Project Rewrite (R3W7)
-*   **Purpose Statement:** To modernize the Mus personal music server by rebuilding it with a contemporary technology stack, including a universal desktop application layer with Tauri 2.0, a rich client-side frontend using SvelteKit/TypeScript, and a refined FastAPI backend with an async SQLModel/SQLite database. The rewrite aims to enhance user experience, maintainability, security, developer productivity, and leverage SvelteKit's performance characteristics.
+*   **Purpose Statement:** To modernize the Mus personal music server by rebuilding it with a contemporary technology stack, including a rich client-side frontend using SvelteKit/TypeScript, and a refined FastAPI backend with an async SQLModel/SQLite database. The rewrite aims to enhance user experience, maintainability, security, developer productivity, and leverage SvelteKit's performance characteristics. Desktop application integration with Tauri is deferred to a future phase.
 *   **Problem Being Solved:**
     *   Outdated frontend technology (HTMX, vanilla JS) limiting UI/UX capabilities.
-    *   Desire for a native desktop application experience.
     *   Need for a more robust and clearly structured backend API.
     *   Opportunity to implement a more standard and secure authentication mechanism for *web access*.
     *   Improve overall project structure, tooling, and maintainability.
     *   Leverage Svelte's compile-time approach for potentially better frontend performance.
 *   **Success Metrics:**
-    *   Successful build and packaging of a universal desktop application (Tauri 2.0) for at least one major OS.
     *   Fully functional frontend (SvelteKit/TS) replicating and enhancing core music playback features.
-    *   Backend API (FastAPI/SQLModel) successfully serving the frontend and Tauri app.
+    *   Backend API (FastAPI/SQLModel) successfully serving the frontend.
     *   Authentication for web access functioning as specified.
     *   Project structure implemented as per the new layout (`frontend/`, `backend/`, `docker/`).
     *   All core features from the previous version (playback, browsing, state persistence, scanning) are present and working.
@@ -51,17 +49,14 @@ description: Full project rewrite to Tauri 2.0, SvelteKit/TS frontend, FastAPI/S
     *   If valid, backend generates a JWT and sets an HttpOnly, Secure (in prod), SameSite=Lax cookie (`mus_auth_token`).
     *   Backend redirects to the frontend's main page (`/`).
     *   Subsequent API requests *from the web browser* automatically include this cookie.
-    *   The Tauri application will *not* use this secret key flow and will access the API directly without JWT authentication.
+    *   Direct API clients (i.e., not using the secret key web flow) will access the API directly without JWT authentication for designated endpoints.
 *   **Frontend Application (SvelteKit):**
     *   Single Page Application (SPA) experience.
     *   Responsive design.
     *   Dark theme by default.
     *   PWA capabilities: app shell, metadata caching (for offline app shell availability).
-*   **Tauri Desktop Application:**
-    *   Wrap the SvelteKit frontend build output into a universal desktop application.
-    *   Basic native integration (e.g., window management).
 *   **API:**
-    *   JSON RESTful API for communication between frontend/Tauri and backend. Endpoints detailed in `ARCHITECTURE.md`.
+    *   JSON RESTful API for communication between frontend and backend. Endpoints detailed in `ARCHITECTURE.md`.
 
 #### 2.2. Technical Requirements
 
@@ -86,19 +81,16 @@ description: Full project rewrite to Tauri 2.0, SvelteKit/TS frontend, FastAPI/S
     *   Architecture: Hexagonal (`domain/`, `application/`, `infrastructure/`).
     *   Testing: Pytest, `pytest-asyncio`, HTTPX via `TestClient`.
     *   Libraries: `python-jose` for JWTs (HS256 algorithm), `pyvips` for cover processing.
-*   **Tauri 2.0:**
-    *   Setup to package the SvelteKit frontend build output (from `frontend/build`).
-    *   Configuration via `frontend/src-tauri/tauri.conf.json` (or alternative).
 *   **Docker:**
     *   `docker/backend.Dockerfile`: For backend development/CI.
     *   `docker/production.Dockerfile`: Multi-stage build (builds SvelteKit frontend, combines with backend).
     *   `docker-compose.yml`: For local development orchestration.
 *   **Makefiles:**
     *   Root `Makefile` includes `docker/makefiles/*.mk`.
-    *   Targets for install, dev, build, lint, test for frontend, backend, Tauri, and Docker.
+    *   Targets for install, dev, build, lint, test for frontend, backend, and Docker.
 *   **Security:**
     *   HttpOnly, Secure, SameSite=Lax cookies for web authentication JWT.
-    *   Backend API endpoints (`/api/v1/tracks`, `/api/v1/tracks/.../stream`, `/api/v1/tracks/.../covers/...`, `/api/v1/scan`, `/api/v1/player/state`) accessible *without* JWT authentication (for Tauri and simple web access after initial gate). The secret key flow is the gate for web browser access to the *frontend*, not directly protecting most API data endpoints.
+    *   Backend API endpoints (`/api/v1/tracks`, `/api/v1/tracks/.../stream`, `/api/v1/tracks/.../covers/...`, `/api/v1/scan`, `/api/v1/player/state`) accessible *without* JWT authentication (for direct API clients and simple web access after initial gate). The secret key flow is the gate for web browser access to the *frontend*, not directly protecting most API data endpoints.
 *   **Performance:**
     *   Efficient track scanning and metadata/cover extraction.
     *   Responsive frontend UI leveraging Svelte's compiled nature.
@@ -108,7 +100,7 @@ description: Full project rewrite to Tauri 2.0, SvelteKit/TS frontend, FastAPI/S
 #### 2.3. User Requirements (Implicit)
 
 *   Intuitive music playback interface.
-*   Straightforward setup/installation (especially desktop app).
+*   Straightforward setup/installation.
 *   Stable and reliable operation.
 
 #### 2.4. Constraints
@@ -123,7 +115,6 @@ description: Full project rewrite to Tauri 2.0, SvelteKit/TS frontend, FastAPI/S
 
 *   **Frontend Architecture:** See `ARCHITECTURE.md` Section 2. Uses SvelteKit conventions (`src/routes`, `src/lib`).
 *   **Backend Architecture:** See `ARCHITECTURE.md` Section 3. Follows Hexagonal Architecture.
-*   **Tauri Setup:** See `ARCHITECTURE.md` Section 4. Configured in `frontend/src-tauri/`.
 *   **API Endpoints:** Defined in `ARCHITECTURE.md` Section 7 & 3.
 *   **Data Models:** Defined in `ARCHITECTURE.md` Section 8 (`Track`, `PlayerState`).
 *   **Authentication Flow (Web):** Detailed in `ARCHITECTURE.md` Section 7.
@@ -133,7 +124,6 @@ description: Full project rewrite to Tauri 2.0, SvelteKit/TS frontend, FastAPI/S
 *   **New Dependencies:**
     *   **Frontend:** `@sveltejs/kit`, `svelte`, `@sveltejs/adapter-auto`, `vite`, `typescript`, `tailwindcss`, `postcss`, `autoprefixer`, `shadcn-svelte`, `bits-ui`, `clsx`, `tailwind-variants`, `tailwind-merge`, `lucide-svelte`, `date-fns`, `@testing-library/svelte`, `vitest`, `jsdom`, `msw`.
     *   **Backend:** (Existing from previous moves) `fastapi`, `sqlmodel`, `uvicorn`, `python-jose[cryptography]`, `pytest`, `pytest-asyncio`, `httpx`, `aiosqlite`, `pyvips`.
-    *   **Tauri:** `@tauri-apps/cli`, `@tauri-apps/api`.
 *   **Prerequisite Changes:**
     *   Complete removal/replacement of old frontend (HTMX/JS/CSS).
     *   Creation of new `frontend/` directory using SvelteKit template.
@@ -142,12 +132,11 @@ description: Full project rewrite to Tauri 2.0, SvelteKit/TS frontend, FastAPI/S
     *   Updated Makefiles and Dockerfiles for SvelteKit.
     *   Updated CI/CD configuration in `.github/workflows/` for SvelteKit.
 *   **Implementation Considerations:**
-    *   Phased approach: Finalize Backend core functionality & tests -> Frontend setup & core -> Frontend features -> Tauri integration -> Docker & CI refinement.
+    *   Phased approach: Finalize Backend core functionality & tests -> Frontend setup & core -> Frontend features -> Docker & CI refinement.
     *   Leverage SvelteKit's `load` functions for efficient data loading.
     *   Manage state effectively using Svelte Stores.
     *   Ensure Tailwind CSS purging is correctly configured in SvelteKit.
     *   Configure Vite/SvelteKit for optimal build and development.
-    *   Handle Tauri build process and frontend communication needs.
 *   **Security Considerations:**
     *   Secure JWT handling for web access cookie.
     *   Environment variables for all secrets.
@@ -165,9 +154,6 @@ description: Full project rewrite to Tauri 2.0, SvelteKit/TS frontend, FastAPI/S
     *   Unit tests for components, stores, utils using Vitest and `@testing-library/svelte`.
     *   Integration tests for page flows using Vitest and potentially MSW for mocking API/`load` functions.
     *   Aim for >70% test coverage.
-*   **Tauri:**
-    *   Manual testing of interaction between frontend and backend within the Tauri shell.
-    *   Testing build and packaging process.
 
 ### 6. Design Assets (Conceptual)
 
@@ -177,8 +163,8 @@ description: Full project rewrite to Tauri 2.0, SvelteKit/TS frontend, FastAPI/S
 
 ### 7. Future Considerations
 
+*   **Desktop Application (Tauri 2.0):** Universal desktop application wrapping the SvelteKit frontend. Deeper native integrations (notifications, media keys).
 *   Advanced PWA features (offline audio).
-*   Deeper Tauri native integrations (notifications, media keys).
 *   Theme switcher.
 *   Playlist management.
 *   User accounts (beyond secret key).

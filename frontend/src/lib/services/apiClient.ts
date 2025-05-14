@@ -13,6 +13,10 @@ function getApiBaseUrl(): string {
 
 const API_BASE_URL = getApiBaseUrl();
 
+export function getStreamUrl(trackId: number): string {
+	return `${API_BASE_URL}/tracks/${trackId}/stream`;
+}
+
 export async function fetchTracks(): Promise<Track[]> {
 	try {
 		const response = await fetch(`${API_BASE_URL}/tracks`);
