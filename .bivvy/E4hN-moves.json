@@ -16,7 +16,7 @@
       "filepaths_to_modify": "`frontend/package.json,frontend/package-lock.json,frontend/postcss.config.js,ARCHITECTURE.md,README.md,.bivvy/E4hN-climb.md,frontend/src/app.css,frontend/tailwind.config.js`"
     },
     {
-      "status": "todo",
+      "status": "completed",
       "description": "Refactor Frontend Dependencies, Remove Autoprefixer, and Add Uninstall Command",
       "details": "1. Ensure the `front-npm-uninstall` make target exists in `docker/makefiles/frontend.mk` (it should execute `cd $(FRONTEND_DIR) && npm uninstall $(ARGS)`). If not, create it. 2. Use the make target to attempt removal of `@playwright/test` and `autoprefixer` from `frontend/package.json` devDependencies by executing `make front-npm-uninstall ARGS=\"@playwright/test autoprefixer\"`. This is a cleanup step; these packages might not be present. 3. Identify runtime dependencies currently in `devDependencies`: `bits-ui`, `clsx`, `mode-watcher`, `svelte-sonner`, `tailwind-merge`, `tailwind-variants`. For each of these, first uninstall them from `devDependencies` using `make front-npm-uninstall ARGS=\"<package-name>\"`. Then, install them into `dependencies` using `make front-npm-install ARGS=\"<package-name>\"`. Update `frontend/package.json` and `frontend/package-lock.json` accordingly. 4. Execute `make ci` from the project root. Resolve any linting, formatting, testing, or build issues arising from these dependency changes to ensure the command passes successfully. Testing: A successful `make ci` (including frontend build, lint, and unit tests) is required.",
       "rules_filepaths_to_follow": "`.cursor/rules/makefile.mdc,.cursor/rules/makefile_commands.mdc,.cursor/rules/json.mdc`",

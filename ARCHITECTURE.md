@@ -124,7 +124,3 @@ The core architecture consists of:
 ## 10. End-to-End Testing (Future)
 
 End-to-End (E2E) testing is planned for a future phase. This will likely involve a dedicated E2E testing setup, potentially located in a root `mus/e2e/` directory, focusing on testing the application as deployed in the production Docker container.
-
-## 10. End-to-End Testing (Future)
-
-End-to-End (E2E) testing is planned for a future phase. This will likely involve a dedicated E2E testing setup, potentially located in a root `mus/e2e/` directory, focusing on testing the application as deployed in the production Docker container.
