@@ -1,0 +1,33 @@
+{
+  "Climb": "E4hN",
+  "moves": [
+    {
+      "status": "todo",
+      "description": "Refactor Track Listing: Remove Pagination from Backend and Frontend",
+      "details": "Modify the backend to return a simple List[TrackDTO] for all tracks, removing PagedResponseDTO. Update the frontend to consume this simplified list. Ensure all related DTOs, schemas, repository methods, API endpoints, API client functions, data loading functions, and tests are updated accordingly. PagedResponseDTO should be completely removed from the codebase.",
+      "rules_filepaths_to_follow": "`.cursor/rules/python.mdc,.cursor/rules/typescript.mdc,.cursor/rules/svelte.mdc`",
+      "filepaths_to_modify": "`backend/src/mus/infrastructure/persistence/sqlite_track_repository.py,backend/src/mus/infrastructure/api/routers/track_router.py,backend/src/mus/application/dtos/responses.py,backend/src/mus/application/dtos/__init__.py,backend/src/mus/infrastructure/api/schemas.py,backend/tests/api/test_track_api.py,backend/tests/persistence/test_sqlite_track_repository.py,frontend/src/lib/services/apiClient.ts,frontend/src/routes/(app)/+layout.server.ts,frontend/src/routes/(app)/+layout.svelte,frontend/src/routes/(app)/+page.svelte,frontend/src/routes/(app)/__tests__/layout.server.test.ts,frontend/src/lib/services/apiClient.test.ts`"
+    },
+    {
+      "status": "todo",
+      "description": "Implement Conditional CORS Middleware in Backend",
+      "details": "Modify `backend/src/mus/main.py` to enable CORS middleware only if the `APP_ENV` environment variable is NOT set to 'production'. If `APP_ENV` is 'production', the CORS middleware should be omitted. Add integration tests to verify CORS headers' presence or absence based on `APP_ENV`.",
+      "rules_filepaths_to_follow": "`.cursor/rules/python.mdc`",
+      "filepaths_to_modify": "`backend/src/mus/main.py,backend/tests/test_main_cors.py`"
+    },
+    {
+      "status": "todo",
+      "description": "Implement Development Startup Process: DB Reset, Cover Cleaning, and Async Scan",
+      "details": "Modify the `lifespan` context manager in `backend/src/mus/main.py`. If `APP_ENV` is not 'production': 1. Reset the database by dropping and recreating all tables using the existing async engine (`async with engine.begin() as conn: await conn.run_sync(SQLModel.metadata.drop_all)` then `create_all`). 2. Empty the `./data/covers` directory. 3. Asynchronously initiate music scanning using `ScanTracksUseCase`, ensuring server startup is not blocked. Add tests for this conditional startup logic, including DB operations, directory cleaning, and async task creation.",
+      "rules_filepaths_to_follow": "`.cursor/rules/python.mdc`",
+      "filepaths_to_modify": "`backend/src/mus/main.py,backend/tests/test_main_startup.py`"
+    },
+    {
+      "status": "todo",
+      "description": "Configure Music Directory via MUSIC_DIR Environment Variable",
+      "details": "Modify `backend/src/mus/infrastructure/scanner/file_system_scanner.py` to use the `MUSIC_DIR` environment variable. If `MUSIC_DIR` is unset, it should default to `./music`. Ensure the scanner and related directory creation logic use this configured path. Update tests for `FileSystemScanner` to verify it respects `MUSIC_DIR` and the default.",
+      "rules_filepaths_to_follow": "`.cursor/rules/python.mdc`",
+      "filepaths_to_modify": "`backend/src/mus/infrastructure/scanner/file_system_scanner.py,backend/tests/infrastructure/test_file_system_scanner.py`"
+    }
+  ]
+}

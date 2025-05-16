@@ -10,6 +10,7 @@ The core architecture consists of:
 *   **Backend:** A RESTful API server built with FastAPI (Python 3.12+) using asynchronous operations, SQLModel for database interaction (SQLite), and following Hexagonal Architecture principles.
 *   **Desktop Shell:** *(Future Phase)* Tauri 2.0 will wrap the SvelteKit frontend, providing a native desktop application experience.
 *   **Containerization:** Docker is used for development, testing, and production deployment, orchestrated with Docker Compose for local development.
+*   **Makefiles:** Located in `makefiles/`. Provide convenient targets (`make build`, `make up`, `make lint`, `make test`, etc.) abstracting Docker and service-specific commands. The root `Makefile` includes these.
 
 ## 2. Frontend Architecture (SvelteKit)
 
@@ -84,7 +85,6 @@ The core architecture consists of:
     *   `docker/backend.Dockerfile`: Builds a development/CI image for the backend using `uv`.
     *   `docker/production.Dockerfile`: Multi-stage build. Stage 1 builds the SvelteKit frontend assets (`npm run build`). Stage 2 sets up the Python environment, installs backend dependencies, copies the backend code, and copies the built frontend assets from Stage 1 into a location served by FastAPI (`/app/backend/static_root`). FastAPI is configured to serve these static assets.
     *   `docker-compose.yml`: Orchestrates local development, defining services for the backend and potentially the frontend dev server (though often frontend dev is run locally), mounting volumes for code, data, and music.
-*   **Makefiles:** Located in `docker/makefiles/`. Provide convenient targets (`make build`, `make up`, `make lint`, `make test`, etc.) abstracting Docker and service-specific commands. The root `Makefile` includes these.
 
 ## 6. Data Flow & Interaction
 

@@ -3,4 +3,4 @@ ARGS = $(filter-out $@,$(MAKECMDGOALS))
 %:
 	@:
 
-include docker/makefiles/*.mk
+include makefiles/*.mk

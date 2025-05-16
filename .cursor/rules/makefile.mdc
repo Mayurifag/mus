@@ -46,7 +46,7 @@ actions:
       ---
 
       **1. Organization:**
-         - Split Makefiles by domain/service (e.g., `docker.mk`, `postgres.mk`) in `./docker/makefiles/`.
+         - Split Makefiles by domain/service (e.g., `docker.mk`, `postgres.mk`) in `./makefiles/`.
          - Keep each `.mk` file focused. Use `include` in the root `Makefile`.
 
       **2. Target Naming:**
