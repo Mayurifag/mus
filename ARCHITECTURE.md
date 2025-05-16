@@ -42,7 +42,7 @@ The core architecture consists of:
     *   `static/`: Static assets (images, fonts, `manifest.json`).
     *   `tests/`: Vitest unit tests.
     *   `src-tauri/`: Tauri specific configuration and Rust code (if any).
-    *   `svelte.config.js`, `vite.config.ts`, `tailwind.config.js`, `postcss.config.js`, `tsconfig.json`, `.eslintrc.cjs`, `.prettierrc`.
+    *   `svelte.config.js`, `vite.config.ts`, `tailwind.config.js`, `.eslintrc.cjs`, `.prettierrc`.
 
 ## 3. Backend Architecture (FastAPI)
 

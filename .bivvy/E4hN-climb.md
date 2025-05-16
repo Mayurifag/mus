@@ -74,7 +74,7 @@ description: Enhance backend with configurable music directory, conditional CORS
 *   Environment Variables: `APP_ENV` (for CORS and startup routine), `MUSIC_DIR`.
 *   Database Operations: Use `SQLModel.metadata.drop_all/create_all` with `conn.run_sync()` on an `AsyncConnection` from the async engine for DB reset.
 *   Asynchronous Operations: Startup scan must be non-blocking.
-*   Build tools (`svelte`, `@sveltejs/kit`, `vite`, `typescript`, `tailwindcss`) remain in `devDependencies`. Explicit `postcss` dependency removed. Runtime utilities (`date-fns`, `lucide-svelte`, `bits-ui`, `clsx`, etc.) must be in `dependencies`.
+*   Build tools (`svelte`, `@sveltejs/kit`, `vite`, `typescript`, `tailwindcss`) remain in `devDependencies`. Runtime utilities (`date-fns`, `lucide-svelte`, `bits-ui`, `clsx`, etc.) must be in `dependencies`.
 
 ## Development Details
 
@@ -88,7 +88,6 @@ description: Enhance backend with configurable music directory, conditional CORS
     *   `docker/makefiles/frontend.mk` (new `front-npm-uninstall` target, usage of `front-npm-install`)
     *   `frontend/package.json` (dependency changes, script updates, `postcss` removal)
     *   `frontend/package-lock.json` (updated by npm)
-    *   `frontend/postcss.config.js` (to be removed)
     *   `frontend/src/app.css` (checked for non-standard PostCSS syntax)
     *   `frontend/e2e/` (to be removed)
     *   `frontend/playwright.config.ts` (to be removed)
