@@ -1,25 +1,27 @@
 ---
 id: E4hN
 type: feature
-description: Enhance backend with configurable music directory, conditional CORS, development startup routines (DB reset, async scan), simplified track listing, frontend dependency refactor (including Autoprefixer removal), and temporarily remove E2E tests with ARCHITECTURE.md update.
+description: Enhance backend with configurable music directory, conditional CORS, development startup routines (DB reset, async scan), simplified track listing, frontend dependency refactor (including Autoprefixer and PostCSS removal), and temporarily remove E2E tests with ARCHITECTURE.md update.
 ---
 
 ## Feature Overview
 
-*   **Feature Name and ID:** Backend Enhancements, Frontend Dependency Refactor, and E2E Test Restructure Prep (E4hN)
-*   **Purpose Statement:** To improve the development experience, configurability, and API structure of the Mus backend; refactor frontend dependencies for clarity and correctness (including removing Autoprefixer); and to temporarily remove the current E2E testing setup while updating `ARCHITECTURE.md` to reflect a future E2E strategy. This includes making the music source directory configurable, adjusting CORS behavior for dev/prod, automating data reset/scan on dev startup, simplifying track listing, and correcting `package.json` dependency categorizations.
+*   **Feature Name and ID:** Backend Enhancements, Frontend Dependency Refactor & PostCSS Removal, and E2E Test Restructure Prep (E4hN)
+*   **Purpose Statement:** To improve the development experience, configurability, and API structure of the Mus backend; refactor frontend dependencies for clarity and correctness (including removing Autoprefixer and PostCSS); and to temporarily remove the current E2E testing setup while updating `ARCHITECTURE.md` to reflect a future E2E strategy. This includes making the music source directory configurable, adjusting CORS behavior for dev/prod, automating data reset/scan on dev startup, simplifying track listing, correcting `package.json` dependency categorizations, and removing explicit PostCSS setup.
 *   **Problem Being Solved:**
     *   Incorrect categorization of some frontend runtime dependencies as `devDependencies`.
-    *   Presence of unused frontend dependencies (`@playwright/test`, `autoprefixer`).
+    *   Presence of unused or implicitly handled frontend dependencies (`@playwright/test`, `autoprefixer`, `postcss`).
     *   Current E2E testing setup needs revision; temporary removal allows focused development and planning for a new strategy.
     *   Hardcoded music directory limits development flexibility.
     *   Static CORS policy not ideal for differing dev/prod needs.
     *   Manual data reset and scanning during development is cumbersome.
     *   Paginated track listing API is currently an over-optimization for the frontend's needs.
+    *   Explicit PostCSS setup might be redundant if handled by `@tailwindcss/vite`.
 *   **Success Metrics:**
     *   Frontend `package.json` correctly categorizes runtime and development dependencies.
-    *   `@playwright/test` and `autoprefixer` are removed from frontend dependencies.
-    *   `postcss.config.js` (if applicable) no longer configures Autoprefixer.
+    *   `@playwright/test`, `autoprefixer`, and `postcss` are removed from frontend dependencies.
+    *   `frontend/postcss.config.js` is removed.
+    *   Documentation (`ARCHITECTURE.md`, `README.md`) updated to reflect PostCSS removal.
     *   A `front-npm-uninstall` make target is available and used.
     *   All current E2E testing infrastructure (files, configs, scripts from `frontend/e2e/`) is removed.
     *   `ARCHITECTURE.md` is updated to remove current E2E details and outline a future E2E testing section.
@@ -33,11 +35,12 @@ description: Enhance backend with configurable music directory, conditional CORS
 
 #### Functional Requirements
 
-1.  **Frontend Dependency Refactoring & Autoprefixer Removal:**
+1.  **Frontend Dependency Refactoring, Autoprefixer & PostCSS Removal:**
     *   The `frontend/package.json` shall be refactored.
     *   The `@playwright/test` devDependency shall be removed.
     *   The `autoprefixer` devDependency shall be removed.
-    *   The `frontend/postcss.config.js` (if present and `autoprefixer` is configured within its plugins) shall be updated to remove the Autoprefixer plugin.
+    *   The `postcss` devDependency shall be removed.
+    *   The `frontend/postcss.config.js` file shall be removed.
     *   The following devDependencies shall be moved to runtime `dependencies`: `bits-ui`, `clsx`, `mode-watcher`, `svelte-sonner`, `tailwind-merge`, `tailwind-variants`.
     *   A new Makefile target `front-npm-uninstall` shall be added to `docker/makefiles/frontend.mk` to execute `npm uninstall $(ARGS)` within the `frontend` directory context.
 2.  **Temporary Removal of E2E Testing & Documentation Update:**
@@ -67,11 +70,11 @@ description: Enhance backend with configurable music directory, conditional CORS
 #### Technical Requirements
 
 *   Backend: Python 3.12+, FastAPI, SQLModel, Uvicorn.
-*   Frontend: SvelteKit, TypeScript, npm.
+*   Frontend: SvelteKit, TypeScript, npm, Tailwind CSS via `@tailwindcss/vite`.
 *   Environment Variables: `APP_ENV` (for CORS and startup routine), `MUSIC_DIR`.
 *   Database Operations: Use `SQLModel.metadata.drop_all/create_all` with `conn.run_sync()` on an `AsyncConnection` from the async engine for DB reset.
 *   Asynchronous Operations: Startup scan must be non-blocking.
-*   Build tools (`svelte`, `@sveltejs/kit`, `vite`, `typescript`, `tailwindcss`, `postcss`) remain in `devDependencies`. Runtime utilities (`date-fns`, `lucide-svelte`, `bits-ui`, `clsx`, etc.) must be in `dependencies`.
+*   Build tools (`svelte`, `@sveltejs/kit`, `vite`, `typescript`, `tailwindcss`) remain in `devDependencies`. Explicit `postcss` dependency removed. Runtime utilities (`date-fns`, `lucide-svelte`, `bits-ui`, `clsx`, etc.) must be in `dependencies`.
 
 ## Development Details
 
@@ -80,14 +83,17 @@ description: Enhance backend with configurable music directory, conditional CORS
     *   Understanding of FastAPI `lifespan` events.
     *   Familiarity with SQLAlchemy/SQLModel DDL operations with an async engine.
     *   Understanding of `npm` dependency management (`dependencies` vs `devDependencies`).
+    *   Confirmation that `@tailwindcss/vite` handles PostCSS needs implicitly.
 *   **Relevant Files:**
     *   `docker/makefiles/frontend.mk` (new `front-npm-uninstall` target, usage of `front-npm-install`)
-    *   `frontend/package.json` (dependency changes, script updates)
+    *   `frontend/package.json` (dependency changes, script updates, `postcss` removal)
     *   `frontend/package-lock.json` (updated by npm)
-    *   `frontend/postcss.config.js` (if `autoprefixer` is configured there)
+    *   `frontend/postcss.config.js` (to be removed)
+    *   `frontend/src/app.css` (checked for non-standard PostCSS syntax)
     *   `frontend/e2e/` (to be removed)
     *   `frontend/playwright.config.ts` (to be removed)
-    *   `ARCHITECTURE.md` (E2E section update)
+    *   `ARCHITECTURE.md` (E2E section update, PostCSS removal)
+    *   `README.md` (PostCSS removal from tech stack)
     *   `backend/src/mus/main.py` (CORS, lifespan)
     *   `backend/src/mus/infrastructure/database.py` (Engine usage)
     *   `backend/src/mus/infrastructure/scanner/file_system_scanner.py` (`MUSIC_DIR`)
@@ -104,16 +110,16 @@ description: Enhance backend with configurable music directory, conditional CORS
     *   Ensure robust error handling for directory cleaning and DB operations in the startup routine.
     *   Manually instantiate `ScanTracksUseCase` and its dependencies within the `lifespan` context, as FastAPI's `Depends` won't work directly there. A session from `get_session_generator` will be needed.
     *   The user's specific path (`/Users/mayurifag/Nextcloud/Music`) should be set via the `MUSIC_DIR` environment variable in their local development setup (e.g., `.env` file or Makefile target), not hardcoded in the application.
-    *   Carefully manage `npm uninstall` and `npm install` sequences to correctly move dependencies.
+    *   Carefully manage `npm uninstall` and `npm install` sequences to correctly move dependencies and remove PostCSS.
 
 ## Testing Approach
 
-*   **Frontend Dependency Refactoring & Autoprefixer Removal:**
-    *   Verify `@playwright/test` and `autoprefixer` are removed from `frontend/package.json`.
+*   **Frontend Dependency Refactoring & Autoprefixer/PostCSS Removal:**
+    *   Verify `@playwright/test`, `autoprefixer`, and `postcss` are removed from `frontend/package.json`.
     *   Verify specified packages (`bits-ui`, `clsx`, etc.) are moved from `devDependencies` to `dependencies` in `frontend/package.json`.
-    *   Verify `postcss.config.js` no longer includes `autoprefixer` (if applicable and it was present).
+    *   Verify `frontend/postcss.config.js` is deleted.
     *   Verify `front-npm-uninstall` target exists and functions correctly in `docker/makefiles/frontend.mk`.
-    *   Verify `make ci` passes after all changes, ensuring frontend build, linting, and tests are successful.
+    *   Verify `make ci` passes after all changes, ensuring frontend build, linting, and tests are successful and styles are correctly applied.
 *   **E2E Test Removal & ARCHITECTURE.md Update:** Verify removal of specified files and script updates. Verify `ARCHITECTURE.md` reflects the changes.
 *   **Simplified Track Listing & PagedResponseDTO Removal:**
     *   Unit tests for `SQLiteTrackRepository` to ensure `get_all()` fetches all tracks without pagination.

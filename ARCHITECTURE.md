@@ -40,7 +40,7 @@ The core architecture consists of:
         *   `hooks.client.ts`: Client-side hooks (e.g., service worker registration).
         *   `service-worker.ts`: Service worker logic.
     *   `static/`: Static assets (images, fonts, `manifest.json`).
-    *   `tests/`: Vitest unit and integration tests.
+    *   `tests/`: Vitest unit tests.
     *   `src-tauri/`: Tauri specific configuration and Rust code (if any).
     *   `svelte.config.js`, `vite.config.ts`, `tailwind.config.js`, `postcss.config.js`, `tsconfig.json`, `.eslintrc.cjs`, `.prettierrc`.
 
@@ -120,6 +120,10 @@ The core architecture consists of:
 *   **Hardcoded Paths (Backend):** Database, music, and covers directories are currently hardcoded in relevant backend modules for simplicity, managed with `os.makedirs`. This could be made configurable via environment variables if needed later.
 *   **Web vs. Tauri Auth:** *(Future Phase)* Separate authentication strategy acknowledges the different trust levels and user experience goals for web access vs. the planned desktop application.
 *   **Makefile Abstraction:** Simplifies common development tasks (linting, testing, building, running).
+
+## 10. End-to-End Testing (Future)
+
+End-to-End (E2E) testing is planned for a future phase. This will likely involve a dedicated E2E testing setup, potentially located in a root `mus/e2e/` directory, focusing on testing the application as deployed in the production Docker container.
 
 ## 10. End-to-End Testing (Future)
 

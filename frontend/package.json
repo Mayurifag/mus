@@ -24,7 +24,6 @@
     "@tailwindcss/vite": "^4.0.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/svelte": "^5.2.4",
-    "autoprefixer": "^10.4.21",
     "bits-ui": "^0.22.0",
     "clsx": "^2.1.1",
     "eslint": "^9.18.0",
