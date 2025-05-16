@@ -8,11 +8,8 @@ from typing import ClassVar, List, Optional, Set
 class FileSystemScanner:
     SUPPORTED_EXTENSIONS: ClassVar[set[str]] = {".mp3", ".flac"}
 
-    # Hardcoded music directory path
-    MUSIC_DIR = "./music"
-
     def __init__(self):
-        # Create music directory if it doesn't exist
+        self.MUSIC_DIR = os.getenv("MUSIC_DIR", "./music")
         os.makedirs(self.MUSIC_DIR, exist_ok=True)
         self.root_dir = Path(self.MUSIC_DIR)
 

@@ -64,6 +64,40 @@ def file_system_scanner(test_music_dir):
     return scanner
 
 
+@pytest.fixture
+def custom_music_dir():
+    """Create a temporary custom music directory."""
+    base_dir = Path("./custom_music")
+    os.makedirs(base_dir, exist_ok=True)
+
+    yield base_dir
+
+    if base_dir.exists():
+        try:
+            os.rmdir(base_dir)
+        except OSError:
+            pass
+
+
+def test_music_dir_environment_variable(monkeypatch, custom_music_dir):
+    """Test that FileSystemScanner uses MUSIC_DIR environment variable."""
+    custom_path = str(custom_music_dir)
+    monkeypatch.setenv("MUSIC_DIR", custom_path)
+
+    scanner = FileSystemScanner()
+    assert scanner.MUSIC_DIR == custom_path
+    assert scanner.root_dir == Path(custom_path)
+
+
+def test_music_dir_default_value(monkeypatch):
+    """Test that FileSystemScanner uses default music directory when MUSIC_DIR is not set."""
+    monkeypatch.delenv("MUSIC_DIR", raising=False)
+
+    scanner = FileSystemScanner()
+    assert scanner.MUSIC_DIR == "./music"
+    assert scanner.root_dir == Path("./music")
+
+
 @pytest.mark.asyncio
 async def test_find_music_files(file_system_scanner, test_music_dir):
     """Test finding music files in a directory."""

@@ -44,7 +44,7 @@
       "filepaths_to_modify": "`backend/src/mus/main.py,backend/tests/test_main_startup.py`"
     },
     {
-      "status": "todo",
+      "status": "completed",
       "description": "Configure Music Directory via MUSIC_DIR Environment Variable",
       "details": "Modify `backend/src/mus/infrastructure/scanner/file_system_scanner.py` to use the `MUSIC_DIR` environment variable (read via `os.getenv('MUSIC_DIR', './music')`). If `MUSIC_DIR` is unset, it should default to `./music`. Ensure the scanner and related directory creation logic use this configured path. Ensure `make ci` passes. Testing: Update tests for `FileSystemScanner` (e.g., in `backend/tests/infrastructure/test_file_system_scanner.py`) to verify it respects `MUSIC_DIR` and the default.",
       "rules_filepaths_to_follow": "`.cursor/rules/python.mdc,.cursor/rules/makefile_commands.mdc`",
