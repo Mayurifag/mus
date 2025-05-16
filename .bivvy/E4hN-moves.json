@@ -23,7 +23,7 @@
       "filepaths_to_modify": "`docker/makefiles/frontend.mk,frontend/package.json,frontend/package-lock.json`"
     },
     {
-      "status": "todo",
+      "status": "completed",
       "description": "Refactor Track Listing: Remove Pagination from Backend and Frontend",
       "details": "Modify the backend to return a simple List[TrackDTO] for all tracks, removing PagedResponseDTO. Update the frontend to consume this simplified list. Ensure all related DTOs, schemas, repository methods, API endpoints, API client functions, data loading functions, and tests are updated accordingly. PagedResponseDTO should be completely removed from the backend codebase. Frontend code in `+layout.server.ts` and related components consuming track lists must be updated. Ensure `make ci` passes. Testing: Add/update unit and integration tests for backend repository methods (`get_all`), API endpoint (`GET /api/v1/tracks`), and DTO removal. For frontend, update tests for `apiClient.ts` (`fetchTracks`) and `+layout.server.ts` (if applicable) to handle `List[TrackDTO]`.",
       "rules_filepaths_to_follow": "`.cursor/rules/python.mdc,.cursor/rules/typescript.mdc,.cursor/rules/svelte.mdc,.cursor/rules/makefile_commands.mdc`",

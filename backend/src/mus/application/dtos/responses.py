@@ -1,9 +1,6 @@
-from typing import Any, Dict, Generic, List, Optional, TypeVar
+from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, Field
-
-
-T = TypeVar("T")
+from pydantic import BaseModel
 
 
 class StatusResponseDTO(BaseModel):
@@ -20,13 +17,3 @@ class ErrorResponseDTO(BaseModel):
     message: str
     error_code: Optional[str] = None
     details: Optional[Dict[str, Any]] = None
-
-
-class PagedResponseDTO(BaseModel, Generic[T]):
-    """Paged response DTO for collections."""
-
-    items: List[T]
-    total: int
-    page: int = 1
-    page_size: int = Field(ge=1)
-    has_more: bool = False

@@ -3,7 +3,6 @@
 from src.mus.application.dtos.player_state import PlayerStateDTO
 from src.mus.application.dtos.responses import (
     ErrorResponseDTO,
-    PagedResponseDTO,
     StatusResponseDTO,
 )
 from src.mus.application.dtos.scan import (
@@ -21,5 +20,4 @@ __all__ = [
     "ScanResponseDTO",
     "StatusResponseDTO",
     "ErrorResponseDTO",
-    "PagedResponseDTO",
 ]
