@@ -2,9 +2,8 @@ import type { Track, PlayerState } from '$lib/types';
 
 function getApiBaseUrl(): string {
 	const isDev = import.meta.env.DEV;
-	const isServer = import.meta.env.SSR;
 
-	if (isServer || isDev) {
+	if (isDev) {
 		return 'http://localhost:8000/api/v1';
 	}
 

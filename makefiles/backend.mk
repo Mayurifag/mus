@@ -1,4 +1,4 @@
-BACKEND_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../../backend)
+BACKEND_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../backend)
 
 .PHONY: back-lint
 back-lint:

@@ -1,4 +1,4 @@
-FRONTEND_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../../frontend)
+FRONTEND_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../frontend)
 
 .PHONY: front-install
 front-install:
@@ -11,6 +11,10 @@ front-npm-install:
 .PHONY: front-npm-dev-install
 front-npm-dev-install:
 	cd $(FRONTEND_DIR) && npm install -D $(ARGS)
+
+.PHONY: front-npm-uninstall
+front-npm-uninstall:
+	cd $(FRONTEND_DIR) && npm uninstall $(ARGS)
 
 .PHONY: front-dev
 front-dev:
