@@ -10,6 +10,7 @@ class FileSystemScanner:
 
     def __init__(self):
         self.MUSIC_DIR = os.getenv("MUSIC_DIR", "./music")
+        print(f"MUSIC_DIR: {self.MUSIC_DIR}")
         os.makedirs(self.MUSIC_DIR, exist_ok=True)
         self.root_dir = Path(self.MUSIC_DIR)
 

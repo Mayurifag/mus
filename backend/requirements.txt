@@ -68,7 +68,9 @@ pytest==8.3.5
 pytest-asyncio==0.26.0
     # via mus (pyproject.toml)
 python-dotenv==1.1.0
-    # via uvicorn
+    # via
+    #   mus (pyproject.toml)
+    #   uvicorn
 python-jose==3.4.0
     # via mus (pyproject.toml)
 pyvips==3.0.0
