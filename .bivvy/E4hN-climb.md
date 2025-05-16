@@ -27,7 +27,7 @@ description: Enhance backend with configurable music directory, conditional CORS
     *   `ARCHITECTURE.md` is updated to remove current E2E details and outline a future E2E testing section.
     *   `GET /api/v1/tracks` returns a simple list of all tracks. `PagedResponseDTO` is removed.
     *   CORS middleware is applied conditionally based on `APP_ENV`.
-    *   On development startup (when `APP_ENV` is not "production"), the database is reset, covers folder is cleaned, and music scanning starts asynchronously.
+    *   On startup the database is reset, covers folder is cleaned, and music scanning starts asynchronously.
     *   The music directory for scanning is configurable via the `MUSIC_DIR` environment variable, defaulting to `./music`.
     *   All changes are covered by appropriate unit/integration tests and `make ci` passes.
 
@@ -58,7 +58,7 @@ description: Enhance backend with configurable music directory, conditional CORS
     *   The FastAPI backend shall apply CORS middleware (allowing `http://localhost:5173` and standard permissive methods/headers) if the `APP_ENV` environment variable is *not* equal to "production".
     *   If `APP_ENV` is "production", CORS middleware shall *not* be applied.
 5.  **Development Startup Routine:**
-    *   When the FastAPI application starts and `APP_ENV` is *not* "production":
+    *   When the FastAPI application starts:
         *   The SQLite database shall be completely reset: all tables dropped and then recreated based on `SQLModel.metadata`. This operation must use the existing asynchronous engine.
         *   The contents of the `./data/covers` directory shall be removed.
         *   The `ScanTracksUseCase.scan_directory()` method shall be invoked asynchronously to start scanning for music. This process must not block the server from becoming ready to handle requests.

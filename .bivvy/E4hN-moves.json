@@ -30,7 +30,7 @@
       "filepaths_to_modify": "`backend/src/mus/infrastructure/persistence/sqlite_track_repository.py,backend/src/mus/infrastructure/api/routers/track_router.py,backend/src/mus/application/dtos/responses.py,backend/src/mus/application/dtos/__init__.py,backend/src/mus/infrastructure/api/schemas.py,backend/tests/api/test_track_api.py,backend/tests/persistence/test_sqlite_track_repository.py,frontend/src/lib/services/apiClient.ts,frontend/src/routes/(app)/+layout.server.ts,frontend/src/routes/(app)/+layout.svelte,frontend/src/routes/(app)/+page.svelte,frontend/src/routes/(app)/__tests__/layout.server.test.ts,frontend/src/lib/services/apiClient.test.ts`"
     },
     {
-      "status": "todo",
+      "status": "completed",
       "description": "Implement Conditional CORS Middleware in Backend",
       "details": "Modify `backend/src/mus/main.py` to enable CORS middleware only if the `APP_ENV` environment variable is NOT set to 'production'. If `APP_ENV` is 'production', the CORS middleware should be omitted. Ensure `make ci` passes. Testing: Add integration tests (e.g., in `backend/tests/test_main_cors.py`) to verify CORS headers' presence (allowing `http://localhost:5173`) or absence based on `APP_ENV` value via OPTIONS requests.",
       "rules_filepaths_to_follow": "`.cursor/rules/python.mdc,.cursor/rules/makefile_commands.mdc`",
