@@ -15,7 +15,3 @@ indent_style = tab
 [{**/*.Dockerfile}]
 # Visually better splitting of long RUN commands
 indent_size = 4
-
-[{**/*.ts}]
-# Use tabs because Prettier is configured to use tabs
-indent_style = tab

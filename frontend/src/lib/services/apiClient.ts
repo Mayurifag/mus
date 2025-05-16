@@ -1,91 +1,104 @@
-import type { Track, PlayerState } from '$lib/types';
+import type { Track, PlayerState } from "$lib/types";
 
 function getApiBaseUrl(): string {
-	const isDev = import.meta.env.DEV;
+  const isDev = import.meta.env.DEV;
 
-	if (isDev) {
-		return 'http://localhost:8000/api/v1';
-	}
+  if (isDev) {
+    return "http://localhost:8000/api/v1";
+  }
 
-	return '/api/v1';
+  return "/api/v1";
 }
 
 const API_BASE_URL = getApiBaseUrl();
 
 export function getStreamUrl(trackId: number): string {
-	return `${API_BASE_URL}/tracks/${trackId}/stream`;
+  return `${API_BASE_URL}/tracks/${trackId}/stream`;
 }
 
 export async function fetchTracks(): Promise<Track[]> {
-	try {
-		const response = await fetch(`${API_BASE_URL}/tracks`);
+  try {
+    const response = await fetch(`${API_BASE_URL}/tracks`);
 
-		if (!response.ok) {
-			throw new Error(`Failed to fetch tracks: ${response.status} ${response.statusText}`);
-		}
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch tracks: ${response.status} ${response.statusText}`,
+      );
+    }
 
-		return await response.json();
-	} catch (error) {
-		console.error('Error fetching tracks:', error);
-		return [];
-	}
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching tracks:", error);
+    return [];
+  }
 }
 
 export async function fetchPlayerState(): Promise<PlayerState | null> {
-	try {
-		const response = await fetch(`${API_BASE_URL}/player/state`);
+  try {
+    const response = await fetch(`${API_BASE_URL}/player/state`);
 
-		if (!response.ok) {
-			if (response.status === 404) {
-				return null;
-			}
-			throw new Error(`Failed to fetch player state: ${response.status} ${response.statusText}`);
-		}
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(
+        `Failed to fetch player state: ${response.status} ${response.statusText}`,
+      );
+    }
 
-		return await response.json();
-	} catch (error) {
-		console.error('Error fetching player state:', error);
-		return null;
-	}
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching player state:", error);
+    return null;
+  }
 }
 
-export async function savePlayerState(state: PlayerState): Promise<PlayerState | null> {
-	try {
-		const response = await fetch(`${API_BASE_URL}/player/state`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(state)
-		});
+export async function savePlayerState(
+  state: PlayerState,
+): Promise<PlayerState | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/player/state`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(state),
+    });
 
-		if (!response.ok) {
-			throw new Error(`Failed to save player state: ${response.status} ${response.statusText}`);
-		}
+    if (!response.ok) {
+      throw new Error(
+        `Failed to save player state: ${response.status} ${response.statusText}`,
+      );
+    }
 
-		return await response.json();
-	} catch (error) {
-		console.error('Error saving player state:', error);
-		return null;
-	}
+    return await response.json();
+  } catch (error) {
+    console.error("Error saving player state:", error);
+    return null;
+  }
 }
 
-export async function triggerScan(): Promise<{ success: boolean; message: string }> {
-	try {
-		const response = await fetch(`${API_BASE_URL}/scan`, {
-			method: 'POST'
-		});
+export async function triggerScan(): Promise<{
+  success: boolean;
+  message: string;
+}> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/scan`, {
+      method: "POST",
+    });
 
-		if (!response.ok) {
-			throw new Error(`Failed to trigger scan: ${response.status} ${response.statusText}`);
-		}
+    if (!response.ok) {
+      throw new Error(
+        `Failed to trigger scan: ${response.status} ${response.statusText}`,
+      );
+    }
 
-		return await response.json();
-	} catch (error) {
-		console.error('Error triggering scan:', error);
-		return {
-			success: false,
-			message: error instanceof Error ? error.message : 'Unknown error'
-		};
-	}
+    return await response.json();
+  } catch (error) {
+    console.error("Error triggering scan:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
 }
