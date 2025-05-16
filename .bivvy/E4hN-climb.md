@@ -7,14 +7,14 @@ description: Enhance backend with configurable music directory, conditional CORS
 ## Feature Overview
 
 *   **Feature Name and ID:** Backend Enhancements, Frontend Dependency Refactor & PostCSS Removal, and E2E Test Restructure Prep (E4hN)
-*   **Purpose Statement:** To improve the development experience, configurability, and API structure of the Mus backend; refactor frontend dependencies for clarity and correctness (including removing Autoprefixer and PostCSS); and to temporarily remove the current E2E testing setup while updating `ARCHITECTURE.md` to reflect a future E2E strategy. This includes making the music source directory configurable, adjusting CORS behavior for dev/prod, automating data reset/scan on dev startup, simplifying track listing, correcting `package.json` dependency categorizations, and removing explicit PostCSS setup.
+*   **Purpose Statement:** To improve the development experience, configurability, and API structure of the Mus backend; refactor frontend dependencies for clarity and correctness (including removing Autoprefixer and PostCSS); and to temporarily remove the current E2E testing setup while updating `ARCHITECTURE.md` to reflect a future E2E strategy. This includes making the music source directory configurable, adjusting CORS behavior for dev/prod, automating data reset/scan on *every* dev startup, simplifying track listing, correcting `package.json` dependency categorizations, and removing explicit PostCSS setup.
 *   **Problem Being Solved:**
     *   Incorrect categorization of some frontend runtime dependencies as `devDependencies`.
     *   Presence of unused or implicitly handled frontend dependencies (`@playwright/test`, `autoprefixer`, `postcss`).
     *   Current E2E testing setup needs revision; temporary removal allows focused development and planning for a new strategy.
     *   Hardcoded music directory limits development flexibility.
     *   Static CORS policy not ideal for differing dev/prod needs.
-    *   Manual data reset and scanning during development is cumbersome.
+    *   Conditional data reset and scanning during development (based on `APP_ENV`) adds complexity; unconditional reset/scan on every startup simplifies the dev loop.
     *   Paginated track listing API is currently an over-optimization for the frontend's needs.
     *   Explicit PostCSS setup might be redundant if handled by `@tailwindcss/vite`.
 *   **Success Metrics:**
@@ -27,7 +27,7 @@ description: Enhance backend with configurable music directory, conditional CORS
     *   `ARCHITECTURE.md` is updated to remove current E2E details and outline a future E2E testing section.
     *   `GET /api/v1/tracks` returns a simple list of all tracks. `PagedResponseDTO` is removed.
     *   CORS middleware is applied conditionally based on `APP_ENV`.
-    *   On startup the database is reset, covers folder is cleaned, and music scanning starts asynchronously.
+    *   On *every* startup, the database is reset, covers folder is cleaned, and music scanning starts asynchronously.
     *   The music directory for scanning is configurable via the `MUSIC_DIR` environment variable, defaulting to `./music`.
     *   All changes are covered by appropriate unit/integration tests and `make ci` passes.
 
@@ -57,10 +57,10 @@ description: Enhance backend with configurable music directory, conditional CORS
 4.  **Conditional CORS:**
     *   The FastAPI backend shall apply CORS middleware (allowing `http://localhost:5173` and standard permissive methods/headers) if the `APP_ENV` environment variable is *not* equal to "production".
     *   If `APP_ENV` is "production", CORS middleware shall *not* be applied.
-5.  **Development Startup Routine:**
+5.  **Unconditional Development Startup Routine:**
     *   When the FastAPI application starts:
-        *   The SQLite database shall be completely reset: all tables dropped and then recreated based on `SQLModel.metadata`. This operation must use the existing asynchronous engine.
-        *   The contents of the `./data/covers` directory shall be removed.
+        *   The SQLite database shall be completely reset: all tables dropped (`SQLModel.metadata.drop_all`) and then recreated (`SQLModel.metadata.create_all`) based on `SQLModel.metadata`. This operation must use the existing asynchronous engine.
+        *   The contents of the `./data/covers` directory shall be removed (e.g., `shutil.rmtree("./data/covers", ignore_errors=True)`) and the directory recreated (`os.makedirs("./data/covers", exist_ok=True)`).
         *   The `ScanTracksUseCase.scan_directory()` method shall be invoked asynchronously to start scanning for music. This process must not block the server from becoming ready to handle requests.
 6.  **Configurable Music Directory:**
     *   The `FileSystemScanner` shall use the path specified in the `MUSIC_DIR` environment variable as the root for music scanning.
@@ -71,7 +71,7 @@ description: Enhance backend with configurable music directory, conditional CORS
 
 *   Backend: Python 3.12+, FastAPI, SQLModel, Uvicorn.
 *   Frontend: SvelteKit, TypeScript, npm, Tailwind CSS via `@tailwindcss/vite`.
-*   Environment Variables: `APP_ENV` (for CORS and startup routine), `MUSIC_DIR`.
+*   Environment Variables: `APP_ENV` (for CORS), `MUSIC_DIR`. The unconditional startup routine is no longer dependent on `APP_ENV`.
 *   Database Operations: Use `SQLModel.metadata.drop_all/create_all` with `conn.run_sync()` on an `AsyncConnection` from the async engine for DB reset.
 *   Asynchronous Operations: Startup scan must be non-blocking.
 *   Build tools (`svelte`, `@sveltejs/kit`, `vite`, `typescript`, `tailwindcss`) remain in `devDependencies`. Runtime utilities (`date-fns`, `lucide-svelte`, `bits-ui`, `clsx`, etc.) must be in `dependencies`.
@@ -93,8 +93,8 @@ description: Enhance backend with configurable music directory, conditional CORS
     *   `frontend/playwright.config.ts` (to be removed)
     *   `ARCHITECTURE.md` (E2E section update, PostCSS removal)
     *   `README.md` (PostCSS removal from tech stack)
-    *   `backend/src/mus/main.py` (CORS, lifespan)
-    *   `backend/src/mus/infrastructure/database.py` (Engine usage)
+    *   `backend/src/mus/main.py` (CORS, unconditional lifespan startup routines)
+    *   `backend/src/mus/infrastructure/database.py` (Engine usage, potential modifications to `create_db_and_tables` if `drop_all` is added there)
     *   `backend/src/mus/infrastructure/scanner/file_system_scanner.py` (`MUSIC_DIR`)
     *   `backend/src/mus/application/use_cases/scan_tracks_use_case.py` (Invoked in lifespan)
     *   `backend/src/mus/infrastructure/api/routers/track_router.py` (Track listing)
@@ -104,10 +104,10 @@ description: Enhance backend with configurable music directory, conditional CORS
     *   `backend/src/mus/infrastructure/api/schemas.py` (PagedResponseDTO removal)
     *   `frontend/src/lib/services/apiClient.ts` (Track listing)
     *   `frontend/src/routes/(app)/+layout.server.ts` (Track listing)
-    *   Associated test files for all modified backend and frontend modules.
+    *   Associated test files for all modified backend and frontend modules, especially `backend/tests/test_main_startup.py`.
 *   **Implementation Considerations:**
     *   Ensure robust error handling for directory cleaning and DB operations in the startup routine.
-    *   Manually instantiate `ScanTracksUseCase` and its dependencies within the `lifespan` context, as FastAPI's `Depends` won't work directly there. A session from `get_session_generator` will be needed.
+    *   Manually instantiate `ScanTracksUseCase` and its dependencies within the `lifespan` context (or a helper async function called by it), as FastAPI's `Depends` won't work directly there. A session from `get_session_generator` will be needed for the `ScanTracksUseCase`.
     *   The user's specific path (`/Users/mayurifag/Nextcloud/Music`) should be set via the `MUSIC_DIR` environment variable in their local development setup (e.g., `.env` file or Makefile target), not hardcoded in the application.
     *   Carefully manage `npm uninstall` and `npm install` sequences to correctly move dependencies and remove PostCSS.
 
@@ -129,13 +129,13 @@ description: Enhance backend with configurable music directory, conditional CORS
     *   Integration tests for the backend. Set `APP_ENV` to "development" (or unset) and "production" respectively.
     *   Verify presence of `Access-Control-Allow-Origin: http://localhost:5173` (and other relevant CORS headers) in "development" via an OPTIONS request from a test origin.
     *   Verify absence of CORS headers in "production".
-*   **Development Startup Process:**
+*   **Unconditional Development Startup Process:**
     *   Unit/integration tests for the DB reset logic within the `lifespan` manager (mocking DDL calls on `conn.run_sync`).
-    *   Unit tests for the cover directory cleaning logic.
-    *   Integration tests for the `lifespan` manager to ensure it correctly identifies non-production environment (via `APP_ENV`) and triggers:
-        *   DB reset calls.
-        *   Cover cleaning calls.
-        *   Asynchronous invocation of `ScanTracksUseCase.scan_directory()` (mock `ScanTracksUseCase` and `asyncio.create_task`).
+    *   Unit tests for the cover directory cleaning logic (`shutil.rmtree`, `os.makedirs`).
+    *   Integration tests for the `lifespan` manager (e.g., in `backend/tests/test_main_startup.py`) to ensure it *unconditionally* triggers:
+        *   DB reset calls (`SQLModel.metadata.drop_all`, `SQLModel.metadata.create_all`).
+        *   Cover cleaning calls (`shutil.rmtree`, `os.makedirs`).
+        *   Asynchronous invocation of `ScanTracksUseCase.scan_directory()` (mock `ScanTracksUseCase` constructor/instance and `asyncio.create_task`).
 *   **`MUSIC_DIR` Configuration:**
     *   Unit tests for `FileSystemScanner` to verify it reads `MUSIC_DIR` correctly and defaults to `./music` if unset.
     *   Integration tests (potentially as part of scan tests) verifying that the scan process targets the correct directory based on a set `MUSIC_DIR` and the default.

@@ -10,13 +10,40 @@ from src.mus.infrastructure.api.dependencies import get_current_user
 from src.mus.infrastructure.api.routers.player_router import router as player_router
 from src.mus.infrastructure.api.routers.track_router import router as track_router
 from src.mus.infrastructure.api.routers.scan_router import router as scan_router
-from src.mus.infrastructure.database import create_db_and_tables
+from src.mus.infrastructure.database import engine, SQLModel, get_session_generator
+from src.mus.infrastructure.persistence.sqlite_track_repository import (
+    SQLiteTrackRepository,
+)
+from src.mus.infrastructure.scanner.file_system_scanner import FileSystemScanner
+from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
+from src.mus.application.use_cases.scan_tracks_use_case import ScanTracksUseCase
+import shutil
+from pathlib import Path
+import asyncio
+
+
+def run_scan():
+    async def inner():
+        async for session in get_session_generator():
+            repo = SQLiteTrackRepository(session)
+            scanner = FileSystemScanner()
+            processor = CoverProcessor()
+            use_case = ScanTracksUseCase(repo, scanner, processor)
+            await use_case.scan_directory()
+            break
+
+    return inner
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize database on startup
-    await create_db_and_tables()
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.drop_all)
+        await conn.run_sync(SQLModel.metadata.create_all)
+    covers_dir = Path("./data/covers")
+    shutil.rmtree(covers_dir, ignore_errors=True)
+    os.makedirs(covers_dir, exist_ok=True)
+    asyncio.create_task(run_scan()())
     yield
 
 

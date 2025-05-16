@@ -4,7 +4,6 @@ from fastapi.testclient import TestClient
 from sqlmodel import select, text
 from unittest.mock import patch, AsyncMock
 
-from src.mus.main import app
 from src.mus.domain.entities.player_state import PlayerState
 
 # Suppress DeprecationWarning about session.execute() vs session.exec()
@@ -12,7 +11,7 @@ warning_filter = "ignore::DeprecationWarning:src.mus.infrastructure.persistence.
 
 
 @pytest.fixture
-def client():
+def client(app):
     with TestClient(app) as test_client:
         yield test_client
 
