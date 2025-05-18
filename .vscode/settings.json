@@ -12,6 +12,18 @@
   "[javascript]": {
     "editor.defaultFormatter": "dbaeumer.vscode-eslint"
   },
+  "[json]": {
+    "editor.wordWrap": "on"
+  },
+  "[jsonc]": {
+    "editor.wordWrap": "on"
+  },
+  "[markdown]": {
+    "editor.wordWrap": "on"
+  },
+  "workbench.editorAssociations": {
+    "*.mdc": "default"
+  },
   "files.exclude": {
     "**/.git": true,
     "**/.svn": true,
