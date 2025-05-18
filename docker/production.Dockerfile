@@ -40,5 +40,8 @@ COPY --from=frontend-builder /app/frontend/.svelte-kit/output/client /app/static
 # Expose the application port
 EXPOSE 8000
 
+# Set environment to production
+ENV APP_ENV="production"
+
 # Set the entrypoint
 CMD ["uvicorn", "src.mus.main:app", "--host", "0.0.0.0", "--port", "8000"]

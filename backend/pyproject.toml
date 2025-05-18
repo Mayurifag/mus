@@ -27,3 +27,4 @@ build-backend = "hatchling.build"
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
 pythonpath = ["."]
+env = ["APP_ENV=test"]

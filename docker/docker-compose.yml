@@ -11,6 +11,7 @@ services:
       - ../music:/app/music
     environment:
       - SECRET_KEY=dev_secret_key_please_change_in_production
+      - APP_ENV=development
     restart: unless-stopped
 
   frontend:

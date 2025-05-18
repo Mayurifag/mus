@@ -5,7 +5,6 @@ from fastapi.staticfiles import StaticFiles
 from typing import Dict, Any
 import os
 from pathlib import Path
-from dotenv import load_dotenv
 import shutil
 
 from src.mus.infrastructure.api.auth import router as auth_router
@@ -20,8 +19,6 @@ from src.mus.infrastructure.persistence.sqlite_track_repository import (
 from src.mus.infrastructure.scanner.file_system_scanner import FileSystemScanner
 from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
 from src.mus.application.use_cases.scan_tracks_use_case import ScanTracksUseCase
-
-load_dotenv()
 
 
 def run_scan():

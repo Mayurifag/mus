@@ -4,8 +4,6 @@
 .vscode
 .idea
 .DS_Store
-.env
-.env.*
 *.log
 *.lock.json
 **/__pycache__/

@@ -35,6 +35,4 @@ mus_database.db
 .DS_Store
 
 # Environment variables
-.env
-.env.*
 !.env.example
