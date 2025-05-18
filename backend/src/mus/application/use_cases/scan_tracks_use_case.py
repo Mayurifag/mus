@@ -4,6 +4,8 @@ from pathlib import Path
 import asyncio
 from mutagen.mp3 import MP3
 from mutagen.flac import FLAC
+import os
+from datetime import datetime, timezone
 
 from src.mus.domain.entities.track import Track
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
@@ -48,6 +50,15 @@ class ScanTracksUseCase:
 
         progress.total_files = len(all_files)
 
+        if not all_files:
+            return ScanResponseDTO(
+                success=True,
+                message="Scan completed: No files found.",
+                tracks_added=0,
+                tracks_updated=0,
+                errors=0,
+            )
+
         for i in range(0, len(all_files), self.batch_size):
             batch = all_files[i : i + self.batch_size]
             batch_stats = await self._process_batch(batch, progress)
@@ -61,9 +72,11 @@ class ScanTracksUseCase:
             progress.added_tracks = tracks_added
             progress.errors = errors
 
+        final_message = f"Scan completed: {tracks_added} added, {tracks_updated} updated, {errors} errors"
+
         return ScanResponseDTO(
             success=True,
-            message=f"Scan completed: {tracks_added} added, {tracks_updated} updated, {errors} errors",
+            message=final_message,
             tracks_added=tracks_added,
             tracks_updated=tracks_updated,
             errors=errors,
@@ -99,6 +112,9 @@ class ScanTracksUseCase:
                         duration=metadata["duration"],
                         file_path=str(file_path),
                         has_cover=False,
+                        added_at=metadata.get(
+                            "mtime", int(datetime.now(timezone.utc).timestamp())
+                        ),
                     )
 
                     upserted_track = await self.track_repository.upsert_track(track)
@@ -139,10 +155,14 @@ class ScanTracksUseCase:
         try:
             file_ext = file_path.suffix.lower()
 
+            # Get file modification time
+            mtime = int(os.path.getmtime(file_path))
+
             metadata = {
                 "title": file_path.stem,
                 "artist": "Unknown",
                 "duration": 0,
+                "mtime": mtime,
             }
 
             if file_ext == ".mp3":
@@ -172,8 +192,16 @@ class ScanTracksUseCase:
             return metadata
 
         except Exception:
+            # Include mtime in fallback metadata if possible
+            fallback_mtime = int(datetime.now(timezone.utc).timestamp())
+            try:
+                fallback_mtime = int(os.path.getmtime(file_path))
+            except Exception:
+                pass  # Use current time if getmtime fails
+
             return {
                 "title": file_path.stem,
                 "artist": "Unknown",
                 "duration": 0,
+                "mtime": fallback_mtime,
             }
