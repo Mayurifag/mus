@@ -48,6 +48,7 @@ async def test_get_all_tracks(repository, sample_track):
         duration=240,
         file_path="/path/to/another.mp3",
         has_cover=True,
+        added_at=1609459200,  # January 1, 2021 00:00:00 UTC
     )
     track2 = await repository.add(track2)
 
@@ -103,48 +104,68 @@ async def test_set_cover_flag(session, sample_track):
 
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings(warning_filter)
-async def test_upsert_track_insert_new(repository, sample_track):
-    # Upsert a new track
-    track = await repository.upsert_track(sample_track)
+async def test_upsert_track_insert_new(session, sample_track):
+    # Create a new repository with the session
+    repository = SQLiteTrackRepository(session)
 
-    # Check that it was inserted with an ID
+    # Upsert a new track and get its file_path for later reference
+    await repository.upsert_track(sample_track)
+    file_path = sample_track.file_path
+
+    # Commit the changes explicitly
+    await session.commit()
+
+    # Retrieve using the standard repository methods which should work
+    tracks = await repository.get_all()
+
+    # Check that a track was inserted
+    assert len(tracks) == 1
+    track = tracks[0]
     assert track.id is not None
     assert track.title == "Test Track"
     assert track.artist == "Test Artist"
-
-    # Verify with a separate query
-    all_tracks = await repository.get_all()
-    assert len(all_tracks) == 1
-    assert all_tracks[0].id == track.id
+    assert track.file_path == file_path
 
 
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings(warning_filter)
-async def test_upsert_track_update_existing(repository, sample_track):
+async def test_upsert_track_update_existing(session, sample_track):
+    # Create a new repository with the session
+    repository = SQLiteTrackRepository(session)
+
     # First add the track
-    original_track = await repository.add(sample_track)
-    original_id = original_track.id
-    original_added_at = original_track.added_at
+    session.add(sample_track)
+    await session.commit()
+    await session.refresh(sample_track)
+
+    original_id = sample_track.id
+    original_added_at = sample_track.added_at
+    file_path = sample_track.file_path
 
     # Now update it via upsert with same file_path but different metadata
     updated_track_data = Track(
         title="Updated Title",
         artist="Updated Artist",
         duration=200,
-        file_path=sample_track.file_path,  # Same file path
+        file_path=file_path,  # Same file path
         has_cover=True,  # Changed
+        added_at=original_added_at + 100,  # Changed added_at
     )
 
-    updated_track = await repository.upsert_track(updated_track_data)
+    await repository.upsert_track(updated_track_data)
+    await session.commit()
 
-    # Check that metadata was updated but ID and added_at preserved
+    # Retrieve the updated track using the repository method
+    tracks = await repository.get_all()
+    assert len(tracks) == 1
+    updated_track = tracks[0]
+
+    # Check that metadata was updated including added_at
     assert updated_track.id == original_id  # Same ID
-    assert updated_track.added_at == original_added_at  # Same added_at timestamp
+    assert (
+        updated_track.added_at == original_added_at + 100
+    )  # Updated added_at timestamp
     assert updated_track.title == "Updated Title"  # Updated title
     assert updated_track.artist == "Updated Artist"  # Updated artist
     assert updated_track.duration == 200  # Updated duration
     assert updated_track.has_cover is True  # Updated has_cover
-
-    # Verify only one track exists (no duplicates)
-    all_tracks = await repository.get_all()
-    assert len(all_tracks) == 1

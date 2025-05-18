@@ -17,6 +17,11 @@ async def test_startup_process_runs_unconditionally():
     mock_engine_begin_conn.__aenter__.return_value = mock_engine_begin_conn
     mock_engine_begin_conn.run_sync = AsyncMock()
     mock_actual_engine_begin = MagicMock(return_value=mock_engine_begin_conn)
+
+    # Mock for the run_scan function
+    mock_run_scan_inner = AsyncMock()
+    mock_run_scan = MagicMock(return_value=mock_run_scan_inner)
+
     with patch(
         "sqlalchemy.ext.asyncio.AsyncEngine.begin", new=mock_actual_engine_begin
     ), patch("src.mus.main.SQLModel.metadata.drop_all") as mock_sql_drop_all, patch(
@@ -26,8 +31,8 @@ async def test_startup_process_runs_unconditionally():
     ) as mock_shutil_rmtree, patch(
         "src.mus.main.os.makedirs"
     ) as mock_os_makedirs, patch("src.mus.main.Path") as mock_path_constructor, patch(
-        "src.mus.main.asyncio.create_task", new=MagicMock()
-    ) as mock_asyncio_create_task:
+        "src.mus.main.run_scan", new=mock_run_scan
+    ):
         mock_covers_dir_path_instance = MagicMock(spec=Path)
         mock_path_constructor.return_value = mock_covers_dir_path_instance
         with TestClient(actual_app) as client:
@@ -42,7 +47,9 @@ async def test_startup_process_runs_unconditionally():
             mock_os_makedirs.assert_called_once_with(
                 mock_covers_dir_path_instance, exist_ok=True
             )
-            mock_asyncio_create_task.assert_called_once()
+            # Verify run_scan was called and awaited
+            mock_run_scan.assert_called_once()
+            mock_run_scan_inner.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -52,6 +59,11 @@ async def test_startup_process_runs_in_production():
     mock_engine_begin_conn.__aenter__.return_value = mock_engine_begin_conn
     mock_engine_begin_conn.run_sync = AsyncMock()
     mock_actual_engine_begin = MagicMock(return_value=mock_engine_begin_conn)
+
+    # Mock for the run_scan function
+    mock_run_scan_inner = AsyncMock()
+    mock_run_scan = MagicMock(return_value=mock_run_scan_inner)
+
     with patch(
         "sqlalchemy.ext.asyncio.AsyncEngine.begin", new=mock_actual_engine_begin
     ), patch("src.mus.main.SQLModel.metadata.drop_all") as mock_sql_drop_all, patch(
@@ -61,8 +73,8 @@ async def test_startup_process_runs_in_production():
     ) as mock_shutil_rmtree, patch(
         "src.mus.main.os.makedirs"
     ) as mock_os_makedirs, patch("src.mus.main.Path") as mock_path_constructor, patch(
-        "src.mus.main.asyncio.create_task", new=MagicMock()
-    ) as mock_asyncio_create_task:
+        "src.mus.main.run_scan", new=mock_run_scan
+    ):
         mock_covers_dir_path_instance = MagicMock(spec=Path)
         mock_path_constructor.return_value = mock_covers_dir_path_instance
         with TestClient(actual_app) as client:
@@ -77,5 +89,7 @@ async def test_startup_process_runs_in_production():
             mock_os_makedirs.assert_called_once_with(
                 mock_covers_dir_path_instance, exist_ok=True
             )
-            mock_asyncio_create_task.assert_called_once()
+            # Verify run_scan was called and awaited
+            mock_run_scan.assert_called_once()
+            mock_run_scan_inner.assert_awaited_once()
     del os.environ["APP_ENV"]

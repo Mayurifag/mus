@@ -68,6 +68,7 @@ async def sample_track():
         duration=180,
         file_path="/path/to/test.mp3",
         has_cover=False,
+        added_at=1609459200,  # January 1, 2021 00:00:00 UTC
     )
 
 

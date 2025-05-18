@@ -127,6 +127,7 @@ def scan_tracks_use_case(
                     duration=metadata["duration"],
                     file_path=str(file_path),
                     has_cover=False,
+                    added_at=metadata.get("mtime", 1609459200),  # Use mtime or default
                 )
 
                 # Upsert track
@@ -301,7 +302,12 @@ async def test_extract_metadata_exception_handling(scan_tracks_use_case):
 
 def test_extract_metadata_sync_mp3(scan_tracks_use_case):
     # Create a patched MP3 class with mock tags and info
-    with patch("src.mus.application.use_cases.scan_tracks_use_case.MP3") as mock_mp3:
+    with patch(
+        "src.mus.application.use_cases.scan_tracks_use_case.MP3"
+    ) as mock_mp3, patch(
+        "src.mus.application.use_cases.scan_tracks_use_case.os.path.getmtime",
+        return_value=1609459200,  # January 1, 2021 00:00:00 UTC
+    ):
         # Set up the mock MP3 object
         mock_mp3_instance = MagicMock()
         mock_mp3.return_value = mock_mp3_instance
@@ -327,11 +333,17 @@ def test_extract_metadata_sync_mp3(scan_tracks_use_case):
         assert result["title"] == "Test Title"
         assert result["artist"] == "Test Artist"
         assert result["duration"] == 240
+        assert result["mtime"] == 1609459200
 
 
 def test_extract_metadata_sync_flac(scan_tracks_use_case):
     # Create a patched FLAC class with mock tags and info
-    with patch("src.mus.application.use_cases.scan_tracks_use_case.FLAC") as mock_flac:
+    with patch(
+        "src.mus.application.use_cases.scan_tracks_use_case.FLAC"
+    ) as mock_flac, patch(
+        "src.mus.application.use_cases.scan_tracks_use_case.os.path.getmtime",
+        return_value=1609459200,  # January 1, 2021 00:00:00 UTC
+    ):
         # Set up the mock FLAC object that behaves like a dict
         mock_flac_instance = MagicMock()
 
@@ -352,6 +364,7 @@ def test_extract_metadata_sync_flac(scan_tracks_use_case):
         assert result["title"] == "FLAC Title"
         assert result["artist"] == "FLAC Artist"
         assert result["duration"] == 300
+        assert result["mtime"] == 1609459200
 
 
 def test_extract_metadata_sync_error_handling(scan_tracks_use_case):

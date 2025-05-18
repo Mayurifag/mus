@@ -7,7 +7,6 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 import shutil
-import asyncio
 
 from src.mus.infrastructure.api.auth import router as auth_router
 from src.mus.infrastructure.api.dependencies import get_current_user
@@ -46,7 +45,7 @@ async def lifespan(app: FastAPI):
     covers_dir = Path("./data/covers")
     shutil.rmtree(covers_dir, ignore_errors=True)
     os.makedirs(covers_dir, exist_ok=True)
-    asyncio.create_task(run_scan()())
+    await run_scan()()
     yield
 
 

@@ -40,7 +40,6 @@ class SQLiteTrackRepository:
         track = await self.session.get(Track, track_id)
         if track:
             track.has_cover = has_cover
-            await self.session.commit()
 
     async def upsert_track(self, track_data: Track) -> Track:
         track_dict = {
@@ -49,6 +48,7 @@ class SQLiteTrackRepository:
             "duration": track_data.duration,
             "file_path": track_data.file_path,
             "has_cover": track_data.has_cover,
+            "added_at": track_data.added_at,
         }
 
         if track_data.id is not None:
@@ -63,11 +63,11 @@ class SQLiteTrackRepository:
                 "artist": stmt.excluded.artist,
                 "duration": stmt.excluded.duration,
                 "has_cover": stmt.excluded.has_cover,
+                "added_at": stmt.excluded.added_at,
             },
         )
 
         await self.session.execute(stmt)
-        await self.session.commit()
 
         result = await self.session.exec(
             select(Track).where(Track.file_path == track_data.file_path)

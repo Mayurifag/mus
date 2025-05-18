@@ -8,6 +8,10 @@ from src.mus.infrastructure.api.routers.track_router import stream_track
 
 def test_get_tracks(app, session, sample_track):
     """Test that tracks are returned correctly."""
+    # Ensure sample_track has added_at set
+    if not hasattr(sample_track, "added_at") or sample_track.added_at is None:
+        sample_track.added_at = 1609459200  # January 1, 2021 00:00:00 UTC
+
     session.add(sample_track)
     sample_track.has_cover = True
 
