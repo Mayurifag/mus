@@ -4,9 +4,12 @@ from fastapi.responses import FileResponse
 from typing import List, Final
 import os
 from src.mus.application.dtos.track import TrackDTO
+from src.mus.infrastructure.api.dependencies import get_track_repository
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
 )
+from src.mus.config import settings
+import asyncio
 
 
 class CoverSize(str, Enum):
@@ -27,7 +30,7 @@ router = APIRouter(prefix="/api/v1/tracks", tags=["tracks"])
 @router.get("", response_model=List[TrackDTO])
 async def get_tracks(
     request: Request,
-    track_repository: SQLiteTrackRepository = Depends(),
+    track_repository: SQLiteTrackRepository = Depends(get_track_repository),
 ) -> List[TrackDTO]:
     tracks = await track_repository.get_all()
 
@@ -49,7 +52,7 @@ async def get_tracks(
 @router.get("/{track_id}/stream")
 async def stream_track(
     track_id: int = Path(..., gt=0),
-    track_repository: SQLiteTrackRepository = Depends(),
+    track_repository: SQLiteTrackRepository = Depends(get_track_repository),
 ) -> FileResponse:
     track = await track_repository.get_by_id(track_id)
     if not track:
@@ -78,7 +81,7 @@ async def stream_track(
 async def get_track_cover(
     track_id: int = Path(..., gt=0),
     size: CoverSize = Path(...),
-    track_repository: SQLiteTrackRepository = Depends(),
+    track_repository: SQLiteTrackRepository = Depends(get_track_repository),
 ) -> FileResponse:
     track = await track_repository.get_by_id(track_id)
     if not track:
@@ -93,9 +96,10 @@ async def get_track_cover(
             detail="This track has no cover image",
         )
 
-    cover_path = f"./data/covers/{track_id}_{size.value}.webp"
+    cover_file_name = f"{track_id}_{size.value}.webp"
+    cover_path = settings.COVERS_DIR_PATH / cover_file_name
 
-    if not os.path.isfile(cover_path):
+    if not await asyncio.to_thread(os.path.isfile, cover_path):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Cover image for track {track_id} with size {size} not found",

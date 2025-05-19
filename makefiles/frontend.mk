@@ -26,7 +26,7 @@ front-build:
 
 .PHONY: front-lint
 front-lint:
-	cd $(FRONTEND_DIR) && npm run lint
+	cd $(FRONTEND_DIR) && rm -rf coverage/ && npm run lint
 
 .PHONY: front-format
 front-format:

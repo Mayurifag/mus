@@ -15,6 +15,8 @@ class ManagePlayerStateUseCase:
             progress_seconds=player_state_dto.progress_seconds,
             volume_level=player_state_dto.volume_level,
             is_muted=player_state_dto.is_muted,
+            is_shuffle=player_state_dto.is_shuffle,
+            is_repeat=player_state_dto.is_repeat,
         )
 
         saved_state = await self.repository.save_state(player_state)
@@ -26,5 +28,4 @@ class ManagePlayerStateUseCase:
         if player_state:
             return PlayerStateDTO.model_validate(player_state)
 
-        # Return default state if none exists
         return PlayerStateDTO()

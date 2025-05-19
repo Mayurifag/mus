@@ -1,7 +1,6 @@
+/* 2025 tailwindcss fix https://stackoverflow.com/a/79431749/8303979 */
+@import "tailwindcss";
 @config "../tailwind.config.js";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 @layer base {
   :root {

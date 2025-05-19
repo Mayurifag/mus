@@ -4,6 +4,7 @@ import pytest
 from pathlib import Path
 import pyvips
 from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
+import shutil  # Added for cleanup
 
 
 @pytest.fixture
@@ -19,25 +20,20 @@ def sample_image_data():
     return buffer
 
 
+# A temporary directory for covers, created once per module
+@pytest.fixture(scope="module")
+def module_temp_covers_dir():
+    test_dir = Path("./test_covers_module_cp")  # Unique name
+    os.makedirs(test_dir, exist_ok=True)
+    yield test_dir
+    shutil.rmtree(test_dir)  # Cleanup after all tests in module are done
+
+
 @pytest.fixture
-def cover_processor():
+def cover_processor(module_temp_covers_dir: Path):  # Use module-scoped temp dir
     """Create a CoverProcessor instance with a temporary directory."""
-    # Use a temporary directory for testing
-    test_covers_dir = "./test_covers"
-    os.makedirs(test_covers_dir, exist_ok=True)
-
-    # Create processor with the test directory
-    processor = CoverProcessor()
-    processor.COVERS_DIR = test_covers_dir
-    processor.covers_dir = Path(test_covers_dir)
-
-    yield processor
-
-    # Cleanup: remove test files after test
-    for file in os.listdir(test_covers_dir):
-        if file.endswith(".webp"):
-            os.remove(os.path.join(test_covers_dir, file))
-    os.rmdir(test_covers_dir)
+    processor = CoverProcessor(covers_dir_path=module_temp_covers_dir)
+    return processor
 
 
 @pytest.mark.asyncio

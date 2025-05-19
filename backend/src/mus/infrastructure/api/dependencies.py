@@ -1,7 +1,12 @@
-from fastapi import Cookie, HTTPException, status
+from fastapi import Cookie, HTTPException, status, Depends
 from jose import JWTError, jwt
 from typing import Optional, Dict, Any
 from datetime import datetime, UTC
+from sqlmodel.ext.asyncio.session import AsyncSession
+from src.mus.infrastructure.database import get_session_generator
+from src.mus.infrastructure.persistence.sqlite_track_repository import (
+    SQLiteTrackRepository,
+)
 
 from src.mus.config import settings
 from src.mus.infrastructure.api.auth import ALGORITHM, COOKIE_NAME
@@ -33,3 +38,9 @@ async def get_current_user(
         return payload
     except JWTError:
         raise credentials_exception
+
+
+async def get_track_repository(
+    session: AsyncSession = Depends(get_session_generator),
+) -> SQLiteTrackRepository:
+    return SQLiteTrackRepository(session)

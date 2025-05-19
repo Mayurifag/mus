@@ -25,6 +25,8 @@ async def test_save_and_load_state(repository, sample_state):
     assert saved_state.progress_seconds == 30
     assert saved_state.volume_level == 0.8
     assert saved_state.is_muted is False
+    assert saved_state.is_shuffle is False
+    assert saved_state.is_repeat is False
 
     # Load the state and verify
     loaded_state = await repository.load_state()
@@ -34,6 +36,8 @@ async def test_save_and_load_state(repository, sample_state):
     assert loaded_state.progress_seconds == 30
     assert loaded_state.volume_level == 0.8
     assert loaded_state.is_muted is False
+    assert loaded_state.is_shuffle is False
+    assert loaded_state.is_repeat is False
 
 
 @pytest.mark.filterwarnings(warning_filter)
@@ -49,6 +53,8 @@ async def test_update_existing_state(repository, sample_state):
         progress_seconds=60,  # Changed
         volume_level=0.5,  # Changed
         is_muted=True,  # Changed
+        is_shuffle=True,  # Changed
+        is_repeat=True,  # Changed
     )
 
     saved_state = await repository.save_state(updated_state)
@@ -59,6 +65,8 @@ async def test_update_existing_state(repository, sample_state):
     assert saved_state.progress_seconds == 60
     assert saved_state.volume_level == 0.5
     assert saved_state.is_muted is True
+    assert saved_state.is_shuffle is True
+    assert saved_state.is_repeat is True
 
     # Verify by loading
     loaded_state = await repository.load_state()
@@ -68,6 +76,8 @@ async def test_update_existing_state(repository, sample_state):
     assert loaded_state.progress_seconds == 60
     assert loaded_state.volume_level == 0.5
     assert loaded_state.is_muted is True
+    assert loaded_state.is_shuffle is True
+    assert loaded_state.is_repeat is True
 
 
 @pytest.mark.asyncio

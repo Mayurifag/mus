@@ -2,11 +2,15 @@ import pytest
 import httpx
 import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
+from fastapi import FastAPI
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.testclient import TestClient
 from src.mus.infrastructure.api.routers.track_router import stream_track
+from src.mus.domain.entities.track import Track
 
 
-def test_get_tracks(app, session, sample_track):
+@pytest.mark.asyncio
+async def test_get_tracks(app: FastAPI, session: AsyncSession, sample_track: Track):
     """Test that tracks are returned correctly."""
     # Ensure sample_track has added_at set
     if not hasattr(sample_track, "added_at") or sample_track.added_at is None:
@@ -15,10 +19,12 @@ def test_get_tracks(app, session, sample_track):
     session.add(sample_track)
     sample_track.has_cover = True
 
-    asyncio.get_event_loop().run_until_complete(session.commit())
+    await session.commit()
 
-    with TestClient(app) as client:
-        response = client.get("/api/v1/tracks")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get("/api/v1/tracks")
         assert response.status_code == 200
 
         tracks = response.json()
@@ -48,6 +54,7 @@ async def test_stream_track_file_not_found(app):
 
     with patch("os.path.isfile", return_value=False), patch(
         "src.mus.infrastructure.persistence.sqlite_track_repository.SQLiteTrackRepository.get_by_id",
+        new_callable=AsyncMock,
         return_value=MagicMock(id=track_id, file_path="/non/existent/path.mp3"),
     ):
         async with httpx.AsyncClient(
@@ -73,7 +80,7 @@ def test_stream_track_success():
         )
 
         assert result.status_code == 200
-        repo_mock.get_by_id.assert_called_once_with(1)
+        repo_mock.get_by_id.assert_awaited_once_with(1)
 
 
 def test_get_track_cover_not_found(app):

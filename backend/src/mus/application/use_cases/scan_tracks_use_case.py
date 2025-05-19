@@ -1,11 +1,21 @@
-from fastapi import Depends
-from typing import List, Optional, Dict, Any, Tuple
+from typing import (
+    List,
+    Optional,
+    Dict,
+    Any,
+    Tuple,
+    Callable,
+)
 from pathlib import Path
 import asyncio
 from mutagen.mp3 import MP3
 from mutagen.flac import FLAC
 import os
 from datetime import datetime, timezone
+from contextlib import AbstractAsyncContextManager
+import logging
+
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.mus.domain.entities.track import Track
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
@@ -13,17 +23,21 @@ from src.mus.infrastructure.persistence.sqlite_track_repository import (
 )
 from src.mus.infrastructure.scanner.file_system_scanner import FileSystemScanner
 from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
-from src.mus.application.dtos.scan import ScanResponseDTO, ScanProgressDTO
+from src.mus.application.dtos.scan import ScanResponseDTO
+from src.mus.application.dtos.track import TrackDTO
+from src.mus.infrastructure.api.sse_handler import broadcast_sse_event
+
+logger = logging.getLogger(__name__)
 
 
 class ScanTracksUseCase:
     def __init__(
         self,
-        track_repository: SQLiteTrackRepository = Depends(),
-        file_system_scanner: FileSystemScanner = Depends(),
-        cover_processor: CoverProcessor = Depends(),
+        session_factory: Callable[[], AbstractAsyncContextManager[AsyncSession]],
+        file_system_scanner: FileSystemScanner,
+        cover_processor: CoverProcessor,
     ):
-        self.track_repository = track_repository
+        self.session_factory = session_factory
         self.file_system_scanner = file_system_scanner
         self.cover_processor = cover_processor
         self.batch_size = 20
@@ -31,79 +45,102 @@ class ScanTracksUseCase:
     async def scan_directory(
         self, directory_paths: Optional[List[str]] = None
     ) -> ScanResponseDTO:
-        tracks_added = 0
-        tracks_updated = 0
-        errors = 0
-        error_details: List[str] = []
-
-        progress = ScanProgressDTO()
+        tracks_added_total = 0
+        tracks_updated_total = 0
+        errors_total = 0
 
         scan_directories: Optional[List[Path]] = None
         if directory_paths:
             scan_directories = [Path(path) for path in directory_paths]
 
-        all_files: List[Path] = []
-        async for file_path in self.file_system_scanner.scan_directories(
-            scan_directories
-        ):
-            all_files.append(file_path)
+        async with self.session_factory() as session:
+            track_repo = SQLiteTrackRepository(session)
 
-        progress.total_files = len(all_files)
+            async with session.begin():
+                latest_db_added_at = await track_repo.get_latest_track_added_at()
 
-        if not all_files:
-            return ScanResponseDTO(
-                success=True,
-                message="Scan completed: No files found.",
-                tracks_added=0,
-                tracks_updated=0,
-                errors=0,
+            min_mtime_for_scan = (
+                int(latest_db_added_at) if latest_db_added_at is not None else None
             )
 
-        for i in range(0, len(all_files), self.batch_size):
-            batch = all_files[i : i + self.batch_size]
-            batch_stats = await self._process_batch(batch, progress)
+            all_files: List[Path] = []
+            async for file_path in self.file_system_scanner.scan_directories(
+                scan_directories, min_mtime=min_mtime_for_scan
+            ):
+                all_files.append(file_path)
 
-            tracks_added += batch_stats["added"]
-            tracks_updated += batch_stats["updated"]
-            errors += batch_stats["errors"]
-            error_details.extend(batch_stats["error_details"])
+            total_files_to_process = len(all_files)
+            await broadcast_sse_event(
+                {
+                    "type": "scan_progress",
+                    "processed": 0,
+                    "total": total_files_to_process,
+                }
+            )
 
-            progress.processed_files += len(batch)
-            progress.added_tracks = tracks_added
-            progress.errors = errors
+            if not all_files:
+                return ScanResponseDTO(
+                    success=True,
+                    message="Scan completed: No new or modified files found.",
+                    tracks_added=0,
+                    tracks_updated=0,
+                    errors=0,
+                )
 
-        final_message = f"Scan completed: {tracks_added} added, {tracks_updated} updated, {errors} errors"
+            processed_files_count = 0
+            for i in range(0, total_files_to_process, self.batch_size):
+                batch = all_files[i : i + self.batch_size]
+                (
+                    added_in_batch,
+                    updated_in_batch,
+                    errors_in_batch,
+                ) = await self._process_batch(batch, track_repo)
+
+                tracks_added_total += added_in_batch
+                tracks_updated_total += updated_in_batch
+                errors_total += errors_in_batch
+
+                processed_files_count += len(batch)
+                await broadcast_sse_event(
+                    {
+                        "type": "scan_progress",
+                        "processed": processed_files_count,
+                        "total": total_files_to_process,
+                    }
+                )
 
         return ScanResponseDTO(
             success=True,
-            message=final_message,
-            tracks_added=tracks_added,
-            tracks_updated=tracks_updated,
-            errors=errors,
-            error_details=error_details if error_details else None,
+            message=f"Scan completed: {tracks_added_total} added, {tracks_updated_total} updated, {errors_total} errors",
+            tracks_added=tracks_added_total,
+            tracks_updated=tracks_updated_total,
+            errors=errors_total,
         )
 
     async def _process_batch(
-        self, files: List[Path], progress: ScanProgressDTO
-    ) -> Dict[str, Any]:
-        batch_stats = {"added": 0, "updated": 0, "errors": 0, "error_details": []}
+        self,
+        files: List[Path],
+        track_repo: SQLiteTrackRepository,
+    ) -> Tuple[int, int, int]:
+        added_count = 0
+        updated_count = 0
+        error_count = 0
 
-        async with self.track_repository.session.begin():
-            metadata_tasks = []
-            for file_path in files:
-                task = asyncio.create_task(self._extract_metadata(file_path))
-                metadata_tasks.append((file_path, task))
+        async with track_repo.session.begin():
+            metadata_tasks = [
+                asyncio.create_task(self._extract_metadata(file_path))
+                for file_path in files
+            ]
 
-            tracks_to_process: List[Tuple[int, Path]] = []
+            tracks_to_process_covers: List[Tuple[int, Path]] = []
 
-            for file_path, task in metadata_tasks:
+            for i, task in enumerate(metadata_tasks):
+                file_path = files[i]
                 try:
                     metadata = await task
                     if not metadata:
-                        batch_stats["errors"] += 1
-                        batch_stats["error_details"].append(
-                            f"Failed to extract metadata: {file_path}"
-                        )
+                        error_count += 1
+                        logger.warning(f"Failed to extract metadata: {file_path}")
                         continue
 
                     track = Track(
@@ -117,91 +154,106 @@ class ScanTracksUseCase:
                         ),
                     )
 
-                    upserted_track = await self.track_repository.upsert_track(track)
+                    upserted_track = await track_repo.upsert_track(track)
 
                     if upserted_track.id is not None:
-                        tracks_to_process.append((upserted_track.id, file_path))
+                        tracks_to_process_covers.append((upserted_track.id, file_path))
+                        track_dto = TrackDTO.model_validate(upserted_track)
+                        await broadcast_sse_event(
+                            {"type": "track_update", "track": track_dto.model_dump()}
+                        )
 
                     if upserted_track.added_at == track.added_at:
-                        batch_stats["added"] += 1
+                        added_count += 1
                     else:
-                        batch_stats["updated"] += 1
+                        updated_count += 1
 
                 except Exception as e:
-                    batch_stats["errors"] += 1
-                    batch_stats["error_details"].append(
-                        f"Error processing {file_path}: {str(e)}"
-                    )
+                    error_count += 1
+                    logger.error(f"Error processing {file_path}: {str(e)}")
 
-        if tracks_to_process:
+        if tracks_to_process_covers:
             cover_results = await self.cover_processor.process_tracks_covers_batch(
-                tracks_to_process
+                tracks_to_process_covers
             )
-
-            async with self.track_repository.session.begin():
+            async with track_repo.session.begin():
                 for track_id, success in cover_results.items():
                     if success:
-                        await self.track_repository.set_cover_flag(track_id, True)
+                        await track_repo.set_cover_flag(track_id, True)
 
-        return batch_stats
+        return added_count, updated_count, error_count
 
     async def _extract_metadata(self, file_path: Path) -> Optional[Dict[str, Any]]:
         try:
             return await asyncio.to_thread(self._extract_metadata_sync, file_path)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Metadata extraction failed for {file_path}: {e}")
             return None
 
     def _extract_metadata_sync(self, file_path: Path) -> Dict[str, Any]:
         try:
             file_ext = file_path.suffix.lower()
-
-            # Get file modification time
             mtime = int(os.path.getmtime(file_path))
 
             metadata = {
                 "title": file_path.stem,
-                "artist": "Unknown",
+                "artist": "Unknown Artist",
                 "duration": 0,
                 "mtime": mtime,
             }
 
             if file_ext == ".mp3":
                 audio = MP3(file_path)
+                if audio.tags is not None:
+                    title_frame = audio.tags.get("TIT2")
+                    if (
+                        title_frame
+                        and hasattr(title_frame, "text")
+                        and isinstance(title_frame.text, list)
+                        and len(title_frame.text) > 0
+                    ):
+                        metadata["title"] = str(title_frame.text[0])
 
-                if audio.tags and "TIT2" in audio.tags:
-                    metadata["title"] = str(audio.tags["TIT2"])
+                    artist_frame = audio.tags.get("TPE1")
+                    if (
+                        artist_frame
+                        and hasattr(artist_frame, "text")
+                        and isinstance(artist_frame.text, list)
+                        and len(artist_frame.text) > 0
+                    ):
+                        metadata["artist"] = str(artist_frame.text[0])
 
-                if audio.tags and "TPE1" in audio.tags:
-                    metadata["artist"] = str(audio.tags["TPE1"])
-
-                if audio.info.length:
+                if audio.info is not None:
                     metadata["duration"] = int(audio.info.length)
 
             elif file_ext == ".flac":
                 audio = FLAC(file_path)
+                title_list = audio.get("title")
+                if title_list and isinstance(title_list, list) and title_list:
+                    metadata["title"] = str(title_list[0])
 
-                if "title" in audio:
-                    metadata["title"] = audio["title"][0]
+                artist_list = audio.get("artist")
+                if artist_list and isinstance(artist_list, list) and artist_list:
+                    metadata["artist"] = str(artist_list[0])
 
-                if "artist" in audio:
-                    metadata["artist"] = audio["artist"][0]
-
-                if audio.info.length:
+                if audio.info is not None:
                     metadata["duration"] = int(audio.info.length)
 
             return metadata
 
-        except Exception:
-            # Include mtime in fallback metadata if possible
+        except Exception as e:
+            logger.warning(
+                f"Sync metadata extraction failed for {file_path}: {e}, using fallback."
+            )
             fallback_mtime = int(datetime.now(timezone.utc).timestamp())
             try:
                 fallback_mtime = int(os.path.getmtime(file_path))
-            except Exception:
-                pass  # Use current time if getmtime fails
+            except OSError:
+                pass
 
             return {
                 "title": file_path.stem,
-                "artist": "Unknown",
+                "artist": "Unknown Artist",
                 "duration": 0,
                 "mtime": fallback_mtime,
             }

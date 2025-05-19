@@ -16,15 +16,20 @@ class SQLitePlayerStateRepository:
             "progress_seconds": state.progress_seconds,
             "volume_level": state.volume_level,
             "is_muted": state.is_muted,
+            "is_shuffle": state.is_shuffle,
+            "is_repeat": state.is_repeat,
         }
 
         stmt = sqlite_upsert(PlayerState).values(**state_data)
         stmt = stmt.on_conflict_do_update(
             index_elements=["id"],
             set_={
-                key: getattr(stmt.excluded, key)
-                for key, value in state_data.items()
-                if key != "id"
+                "current_track_id": stmt.excluded.current_track_id,
+                "progress_seconds": stmt.excluded.progress_seconds,
+                "volume_level": stmt.excluded.volume_level,
+                "is_muted": stmt.excluded.is_muted,
+                "is_shuffle": stmt.excluded.is_shuffle,
+                "is_repeat": stmt.excluded.is_repeat,
             },
         )
         await self._session.execute(stmt)

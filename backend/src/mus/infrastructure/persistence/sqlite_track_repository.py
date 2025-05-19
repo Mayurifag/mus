@@ -1,15 +1,13 @@
 from typing import List, Optional
-from sqlmodel import select, desc
+from sqlmodel import select, desc, func
 from sqlmodel.ext.asyncio.session import AsyncSession
-from fastapi import Depends
 from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
 
 from src.mus.domain.entities.track import Track
-from src.mus.infrastructure.database import get_session_generator
 
 
 class SQLiteTrackRepository:
-    def __init__(self, session: AsyncSession = Depends(get_session_generator)):
+    def __init__(self, session: AsyncSession):
         self.session = session
 
     async def get_by_id(self, track_id: Optional[int]) -> Optional[Track]:
@@ -73,3 +71,9 @@ class SQLiteTrackRepository:
             select(Track).where(Track.file_path == track_data.file_path)
         )
         return result.one()
+
+    async def get_latest_track_added_at(self) -> Optional[int]:
+        """Fetches the maximum 'added_at' timestamp from all tracks."""
+        result = await self.session.exec(select(func.max(Track.added_at)))
+        latest_added_at = result.one_or_none()
+        return latest_added_at

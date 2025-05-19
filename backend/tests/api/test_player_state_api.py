@@ -50,6 +50,8 @@ async def saved_state(player_state_repository, reset_player_state):
         progress_seconds=60.0,  # Match the value in test_save_player_state_update
         volume_level=0.5,  # Match the value in test_save_player_state_update
         is_muted=True,  # Match the value in test_save_player_state_update
+        is_shuffle=True,
+        is_repeat=False,
     )
     saved = await player_state_repository.save_state(state)
 
@@ -61,6 +63,8 @@ async def saved_state(player_state_repository, reset_player_state):
     assert verify_state.progress_seconds == 60.0
     assert verify_state.volume_level == 0.5
     assert verify_state.is_muted
+    assert verify_state.is_shuffle is True
+    assert verify_state.is_repeat is False
 
     return saved
 
@@ -77,6 +81,8 @@ async def test_get_player_state_exists(client, saved_state):
     assert data["progress_seconds"] == saved_state.progress_seconds
     assert data["volume_level"] == saved_state.volume_level
     assert data["is_muted"] == saved_state.is_muted
+    assert data["is_shuffle"] == saved_state.is_shuffle
+    assert data["is_repeat"] == saved_state.is_repeat
 
 
 @pytest.mark.asyncio
@@ -100,6 +106,8 @@ async def test_get_player_state_not_exists(client, reset_player_state):
         assert data["progress_seconds"] == 0.0
         assert data["volume_level"] == 1.0
         assert data["is_muted"] is False
+        assert data["is_shuffle"] is False
+        assert data["is_repeat"] is False
 
 
 @pytest.mark.asyncio
@@ -110,6 +118,8 @@ async def test_save_player_state_new(client, reset_player_state):
         "progress_seconds": 45.5,
         "volume_level": 0.7,
         "is_muted": True,
+        "is_shuffle": False,
+        "is_repeat": True,
     }
 
     response = client.post("/api/v1/player/state", json=new_state)
@@ -121,6 +131,8 @@ async def test_save_player_state_new(client, reset_player_state):
     assert data["progress_seconds"] == new_state["progress_seconds"]
     assert data["volume_level"] == new_state["volume_level"]
     assert data["is_muted"] == new_state["is_muted"]
+    assert data["is_shuffle"] == new_state["is_shuffle"]
+    assert data["is_repeat"] == new_state["is_repeat"]
 
 
 @pytest.mark.asyncio
@@ -131,6 +143,8 @@ async def test_save_player_state_update(client, saved_state):
         "progress_seconds": 60.0,
         "volume_level": 0.5,
         "is_muted": True,
+        "is_shuffle": False,  # Changed from True in fixture
+        "is_repeat": True,  # Changed from False in fixture
     }
 
     response = client.post("/api/v1/player/state", json=updated_state)
@@ -142,6 +156,8 @@ async def test_save_player_state_update(client, saved_state):
     assert data["progress_seconds"] == updated_state["progress_seconds"]
     assert data["volume_level"] == updated_state["volume_level"]
     assert data["is_muted"] == updated_state["is_muted"]
+    assert data["is_shuffle"] == updated_state["is_shuffle"]
+    assert data["is_repeat"] == updated_state["is_repeat"]
 
 
 @pytest.mark.asyncio

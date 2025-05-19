@@ -17,6 +17,7 @@ dependencies = [
   "pyvips>=3.0.0",
   "mutagen>=1.47.0",
   "python-dotenv>=1.1.0",
+  "pytest-env>=1.1.5",
 ]
 
 [build-system]

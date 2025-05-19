@@ -2,7 +2,7 @@ from typing import AsyncGenerator
 
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 
 # Hardcoded database file path
@@ -15,13 +15,20 @@ engine = create_async_engine(
 )
 
 
+# Use async_sessionmaker for asyncio
+async_session_factory = async_sessionmaker(
+    engine, class_=AsyncSession, expire_on_commit=False
+)
+
+
 async def get_session_generator() -> AsyncGenerator[AsyncSession, None]:
-    """Generate a database session."""
-    session = AsyncSession(engine)
-    try:
+    """Generate a database session using the factory."""
+    async with async_session_factory() as session:
+        # The try/finally is not strictly necessary here as the async with handles exceptions
+        # and ensures session.close() is called. Yielding directly is fine.
         yield session
-    finally:
-        await session.close()
+        # No explicit commit or rollback here, that's responsibility of the caller
+        # or the FastAPI dependency system that uses this generator.
 
 
 async def create_db_and_tables() -> None:

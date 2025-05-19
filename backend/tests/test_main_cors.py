@@ -7,7 +7,6 @@ from src.mus.main import lifespan
 from src.mus.infrastructure.api.auth import router as auth_router
 from src.mus.infrastructure.api.routers.player_router import router as player_router
 from src.mus.infrastructure.api.routers.track_router import router as track_router
-from src.mus.infrastructure.api.routers.scan_router import router as scan_router
 
 
 def create_app_with_env(env_value=None):
@@ -37,7 +36,6 @@ def create_app_with_env(env_value=None):
     app.include_router(auth_router)
     app.include_router(player_router)
     app.include_router(track_router)
-    app.include_router(scan_router)
 
     @app.get("/api")
     async def read_root():

@@ -1,382 +1,316 @@
 import pytest
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-import asyncio
+from pathlib import Path
+from typing import List, Callable, AsyncGenerator
 
-from src.mus.domain.entities.track import Track
-from src.mus.application.dtos.scan import ScanResponseDTO, ScanProgressDTO
+from sqlalchemy.ext.asyncio import AsyncSession
+from contextlib import AbstractAsyncContextManager
+
 from src.mus.application.use_cases.scan_tracks_use_case import ScanTracksUseCase
 from src.mus.infrastructure.scanner.file_system_scanner import FileSystemScanner
 from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
+from src.mus.domain.entities.track import Track
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
 )
 
 
-class MockAsyncContextManager:
-    async def __aenter__(self):
-        return None
-
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        return None
-
-
 @pytest.fixture
-def mock_track_repository():
-    repo = AsyncMock(spec=SQLiteTrackRepository)
-
-    # Create a mock session
-    repo.session = AsyncMock()
-
-    # Mock the session.begin() context manager
-    cm = MockAsyncContextManager()
-    repo.session.begin = AsyncMock(return_value=cm)
-
-    # Mock upsert_track to return an upserted track
-    async def mock_upsert(track):
-        # Create a copy of the track with an ID and other fields
-        upserted = Track(
-            id=1,
-            title=track.title,
-            artist=track.artist,
-            duration=track.duration,
-            file_path=track.file_path,
-            has_cover=track.has_cover,
-            added_at=track.added_at,
+def mock_async_session() -> AsyncMock:
+    session = AsyncMock(spec=AsyncSession)
+    session.begin = MagicMock(
+        return_value=AsyncMock(
+            __aenter__=AsyncMock(return_value=None),
+            __aexit__=AsyncMock(return_value=None),
         )
-        return upserted
-
-    repo.upsert_track.side_effect = mock_upsert
-
-    # Mock set_cover_flag
-    repo.set_cover_flag = AsyncMock()
-
-    return repo
+    )
+    return session
 
 
 @pytest.fixture
-def mock_file_system_scanner():
-    scanner = AsyncMock(FileSystemScanner)
+def mock_session_factory(mock_async_session: AsyncMock) -> MagicMock:
+    # This factory, when called, returns an async context manager that yields the mock_async_session
+    mock_manager = AsyncMock(spec=AbstractAsyncContextManager)
+    mock_manager.__aenter__.return_value = mock_async_session
+    mock_manager.__aexit__.return_value = (
+        None  # Or AsyncMock(return_value=None) if it needs to be awaitable
+    )
 
-    # Mock scan_directories to return a list of file paths
-    async def mock_scan_directories(directories=None, extensions=None):
-        test_files = [
-            Path("track1.mp3"),
-            Path("track2.flac"),
-            Path("track3.mp3"),
-        ]
-        for file_path in test_files:
-            yield file_path
+    factory = MagicMock(spec=Callable[[], AbstractAsyncContextManager[AsyncSession]])
+    factory.return_value = mock_manager
+    return factory
 
-    scanner.scan_directories.side_effect = mock_scan_directories
 
+@pytest.fixture
+def mock_file_system_scanner() -> MagicMock:
+    scanner = MagicMock(spec=FileSystemScanner)
+
+    # Make scan_directories an async generator
+    async def mock_scan_directories(*args, **kwargs) -> AsyncGenerator[Path, None]:
+        if False:  # Ensure it's a generator
+            yield
+
+    scanner.scan_directories = MagicMock(side_effect=mock_scan_directories)
     return scanner
 
 
 @pytest.fixture
-def mock_cover_processor():
-    processor = AsyncMock(CoverProcessor)
-
-    # Mock extract_cover_from_file to return None (no cover)
-    processor.extract_cover_from_file.return_value = None
-
-    # Mock process_tracks_covers_batch to return success for all tracks
-    processor.process_tracks_covers_batch.return_value = {1: True, 2: True, 3: True}
-
+def mock_cover_processor() -> MagicMock:
+    processor = MagicMock(spec=CoverProcessor)
+    processor.process_tracks_covers_batch = AsyncMock(return_value={})
     return processor
 
 
 @pytest.fixture
+def mock_track_repository(mock_async_session: AsyncMock) -> MagicMock:
+    repo = MagicMock(spec=SQLiteTrackRepository)
+    repo.session = (
+        mock_async_session  # Allow access to session if needed for begin_nested etc.
+    )
+    repo.get_latest_track_added_at = AsyncMock(return_value=None)
+    repo.upsert_track = AsyncMock(
+        side_effect=lambda track: track
+    )  # Return the input track by default
+    repo.set_cover_flag = AsyncMock(return_value=None)
+    return repo
+
+
+@pytest.fixture
 def scan_tracks_use_case(
-    mock_track_repository, mock_file_system_scanner, mock_cover_processor
-):
-    use_case = ScanTracksUseCase(
-        track_repository=mock_track_repository,
+    mock_session_factory: MagicMock,
+    mock_file_system_scanner: MagicMock,
+    mock_cover_processor: MagicMock,
+) -> ScanTracksUseCase:
+    return ScanTracksUseCase(
+        session_factory=mock_session_factory,
         file_system_scanner=mock_file_system_scanner,
         cover_processor=mock_cover_processor,
     )
-    use_case.batch_size = 3  # Small batch size for testing
-
-    # Create a patched version of _process_batch that doesn't use transactions
-    async def patched_process_batch(files, progress):
-        batch_stats = {"added": 0, "updated": 0, "errors": 0, "error_details": []}
-
-        # Extract metadata and prepare tracks for upsert
-        metadata_tasks = []
-        for file_path in files:
-            task = asyncio.create_task(use_case._extract_metadata(file_path))
-            metadata_tasks.append((file_path, task))
-
-        # Upsert tracks and collect track IDs for cover processing
-        tracks_to_process = []
-
-        for file_path, task in metadata_tasks:
-            try:
-                metadata = await task
-                if not metadata:
-                    batch_stats["errors"] += 1
-                    batch_stats["error_details"].append(
-                        f"Failed to extract metadata: {file_path}"
-                    )
-                    continue
-
-                # Create Track entity with extracted metadata
-                track = Track(
-                    title=metadata["title"],
-                    artist=metadata["artist"],
-                    duration=metadata["duration"],
-                    file_path=str(file_path),
-                    has_cover=False,
-                    added_at=metadata.get("mtime", 1609459200),  # Use mtime or default
-                )
-
-                # Upsert track
-                upserted_track = await use_case.track_repository.upsert_track(track)
-
-                # Add to list for cover processing if track has ID
-                if upserted_track.id is not None:
-                    tracks_to_process.append((upserted_track.id, file_path))
-
-                # Determine if this was an add or update
-                if upserted_track.added_at == track.added_at:
-                    batch_stats["added"] += 1
-                else:
-                    batch_stats["updated"] += 1
-
-            except Exception as e:
-                batch_stats["errors"] += 1
-                batch_stats["error_details"].append(
-                    f"Error processing {file_path}: {str(e)}"
-                )
-
-        # Process covers
-        if tracks_to_process:
-            cover_results = await use_case.cover_processor.process_tracks_covers_batch(
-                tracks_to_process
-            )
-
-            # Update has_cover flag for tracks with successfully processed covers
-            for track_id, success in cover_results.items():
-                if success:
-                    await use_case.track_repository.set_cover_flag(track_id, True)
-
-        return batch_stats
-
-    # Replace the original method with our patched version
-    use_case._process_batch = patched_process_batch
-
-    return use_case
 
 
 @pytest.mark.asyncio
-async def test_scan_directory_basic_functionality(scan_tracks_use_case):
-    # Patch _extract_metadata to return test metadata
-    with patch.object(
-        scan_tracks_use_case,
-        "_extract_metadata",
-        side_effect=[
-            {"title": "Track 1", "artist": "Artist 1", "duration": 180},
-            {"title": "Track 2", "artist": "Artist 2", "duration": 240},
-            {"title": "Track 3", "artist": "Artist 3", "duration": 200},
-        ],
-    ):
-        # Run the scan
-        result = await scan_tracks_use_case.scan_directory()
+async def test_scan_directory_no_files_found(
+    scan_tracks_use_case: ScanTracksUseCase,
+    mock_file_system_scanner: MagicMock,
+    mock_session_factory: MagicMock,  # To get mock_async_session for SQLiteTrackRepository mock
+    mock_async_session: AsyncMock,
+):
+    """Test that scan completes with no changes if scanner finds no files."""
 
-        # Verify the result
-        assert isinstance(result, ScanResponseDTO)
-        assert result.success is True
-        assert result.tracks_added == 3
-        assert result.tracks_updated == 0
-        assert result.errors == 0
+    # Ensure scan_directories yields nothing
+    async def empty_scan_gen(*args, **kwargs) -> AsyncGenerator[Path, None]:
+        if False:
+            yield  # Make it an async generator
 
-        # Verify repository interactions
-        assert scan_tracks_use_case.track_repository.upsert_track.call_count == 3
+    mock_file_system_scanner.scan_directories.side_effect = empty_scan_gen
 
-        # Verify cover processor interactions
-        assert (
-            scan_tracks_use_case.cover_processor.process_tracks_covers_batch.call_count
-            == 1
-        )
-
-
-@pytest.mark.asyncio
-async def test_scan_directory_with_errors(scan_tracks_use_case):
-    # Patch _extract_metadata to return some data and some None (error)
-    with patch.object(
-        scan_tracks_use_case,
-        "_extract_metadata",
-        side_effect=[
-            {"title": "Track 1", "artist": "Artist 1", "duration": 180},
-            None,  # Extraction error
-            {"title": "Track 3", "artist": "Artist 3", "duration": 200},
-        ],
-    ):
-        # Run the scan
-        result = await scan_tracks_use_case.scan_directory()
-
-        # Verify the result
-        assert result.success is True
-        assert result.tracks_added == 2  # Only 2 successful tracks
-        assert result.tracks_updated == 0
-        assert result.errors == 1
-        assert len(result.error_details) == 1  # One error message
-
-        # Verify repository interactions
-        assert scan_tracks_use_case.track_repository.upsert_track.call_count == 2
-
-
-@pytest.mark.asyncio
-async def test_process_batch(scan_tracks_use_case):
-    # Create a sample batch of files
-    files = [
-        Path("track1.mp3"),
-        Path("track2.flac"),
-        Path("track3.mp3"),
-    ]
-
-    # Create a progress object
-    progress = ScanProgressDTO()
-
-    # Patch _extract_metadata to return test metadata
-    with patch.object(
-        scan_tracks_use_case,
-        "_extract_metadata",
-        side_effect=[
-            {"title": "Track 1", "artist": "Artist 1", "duration": 180},
-            {"title": "Track 2", "artist": "Artist 2", "duration": 240},
-            {"title": "Track 3", "artist": "Artist 3", "duration": 200},
-        ],
-    ):
-        # Process the batch
-        result = await scan_tracks_use_case._process_batch(files, progress)
-
-        # Verify the result
-        assert result["added"] == 3
-        assert result["updated"] == 0
-        assert result["errors"] == 0
-        assert len(result["error_details"]) == 0
-
-        # Verify repository interactions
-        assert scan_tracks_use_case.track_repository.upsert_track.call_count == 3
-
-        # Verify cover processor interactions
-        assert (
-            scan_tracks_use_case.cover_processor.process_tracks_covers_batch.call_count
-            == 1
-        )
-
-
-@pytest.mark.asyncio
-async def test_extract_metadata(scan_tracks_use_case):
-    # Patch the synchronous method to return test metadata
-    with patch.object(
-        scan_tracks_use_case,
-        "_extract_metadata_sync",
-        return_value={"title": "Test Track", "artist": "Test Artist", "duration": 180},
-    ):
-        # Test the async wrapper
-        metadata = await scan_tracks_use_case._extract_metadata(Path("test.mp3"))
-
-        # Verify the result
-        assert metadata is not None
-        assert metadata["title"] == "Test Track"
-        assert metadata["artist"] == "Test Artist"
-        assert metadata["duration"] == 180
-
-
-@pytest.mark.asyncio
-async def test_extract_metadata_exception_handling(scan_tracks_use_case):
-    # Patch the synchronous method to raise an exception
-    with patch.object(
-        scan_tracks_use_case,
-        "_extract_metadata_sync",
-        side_effect=Exception("Test exception"),
-    ):
-        # Test the async wrapper
-        metadata = await scan_tracks_use_case._extract_metadata(Path("test.mp3"))
-
-        # Verify the result is None due to exception handling
-        assert metadata is None
-
-
-def test_extract_metadata_sync_mp3(scan_tracks_use_case):
-    # Create a patched MP3 class with mock tags and info
+    # Mock the repository that gets instantiated inside the use case
     with patch(
+        "src.mus.application.use_cases.scan_tracks_use_case.SQLiteTrackRepository"
+    ) as MockRepo:
+        mock_repo_instance = MagicMock(spec=SQLiteTrackRepository)
+        mock_repo_instance.session = mock_async_session
+        mock_repo_instance.get_latest_track_added_at = AsyncMock(return_value=None)
+        MockRepo.return_value = mock_repo_instance
+
+        result = await scan_tracks_use_case.scan_directory()
+
+    assert result.success is True
+    assert result.tracks_added == 0
+    assert result.tracks_updated == 0
+    assert result.errors == 0
+    assert "No new or modified files found" in result.message
+    mock_file_system_scanner.scan_directories.assert_called_once_with(
+        None, min_mtime=None
+    )
+    mock_repo_instance.get_latest_track_added_at.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_scan_directory_one_new_file(
+    scan_tracks_use_case: ScanTracksUseCase,
+    mock_file_system_scanner: MagicMock,
+    mock_cover_processor: MagicMock,
+    mock_session_factory: MagicMock,
+    mock_async_session: AsyncMock,
+):
+    """Test scanning one new music file."""
+    test_file_path = Path("/music/test_song.mp3")
+
+    async def single_file_gen(*args, **kwargs) -> AsyncGenerator[Path, None]:
+        yield test_file_path
+
+    mock_file_system_scanner.scan_directories.side_effect = single_file_gen
+
+    mock_extracted_metadata = {
+        "title": "Test Song",
+        "artist": "Test Artist",
+        "duration": 180,
+        "mtime": 1234567890,
+    }
+    # Mock the internal _extract_metadata method
+    scan_tracks_use_case._extract_metadata = AsyncMock(
+        return_value=mock_extracted_metadata
+    )
+
+    # Mock the repository
+    with patch(
+        "src.mus.application.use_cases.scan_tracks_use_case.SQLiteTrackRepository"
+    ) as MockRepo:
+        mock_repo_instance = MagicMock(spec=SQLiteTrackRepository)
+        mock_repo_instance.session = mock_async_session
+        mock_repo_instance.get_latest_track_added_at = AsyncMock(return_value=None)
+
+        # Simulate adding a new track
+        async def mock_upsert(track_to_upsert: Track) -> Track:
+            track_to_upsert.id = 1  # Assign an ID as if it's newly created
+            # Keep added_at same to indicate new
+            # track_to_upsert.added_at is already set from metadata mtime
+            return track_to_upsert
+
+        mock_repo_instance.upsert_track = AsyncMock(side_effect=mock_upsert)
+        mock_repo_instance.set_cover_flag = AsyncMock()
+        MockRepo.return_value = mock_repo_instance
+
+        # Mock cover processor to succeed for this track_id
+        mock_cover_processor.process_tracks_covers_batch = AsyncMock(
+            return_value={1: True}
+        )
+
+        # Mock broadcast_sse_event
+        with patch(
+            "src.mus.application.use_cases.scan_tracks_use_case.broadcast_sse_event"
+        ) as mock_broadcast_sse:
+            result = await scan_tracks_use_case.scan_directory()
+
+    assert result.success is True
+    assert result.tracks_added == 1
+    assert result.tracks_updated == 0
+    assert result.errors == 0
+
+    scan_tracks_use_case._extract_metadata.assert_awaited_once_with(test_file_path)
+
+    # Check upsert_track call
+    # Extract the Track object passed to upsert_track
+    upsert_call_args = mock_repo_instance.upsert_track.await_args[0][0]
+    assert isinstance(upsert_call_args, Track)
+    assert upsert_call_args.title == "Test Song"
+    assert upsert_call_args.artist == "Test Artist"
+    assert upsert_call_args.file_path == str(test_file_path)
+
+    mock_cover_processor.process_tracks_covers_batch.assert_awaited_once_with(
+        [(1, test_file_path)]
+    )
+    mock_repo_instance.set_cover_flag.assert_awaited_once_with(1, True)
+
+    # Check SSE events
+    # Initial progress
+    assert mock_broadcast_sse.call_args_list[0][0][0] == {
+        "type": "scan_progress",
+        "processed": 0,
+        "total": 1,
+    }
+    # Track update
+    # mock_broadcast_sse.call_args_list[1][0][0]["type"] == "track_update" # More detailed check needed if this is critical
+    # Final progress
+    assert mock_broadcast_sse.call_args_list[-1][0][0] == {
+        "type": "scan_progress",
+        "processed": 1,
+        "total": 1,
+    }
+
+
+@pytest.mark.asyncio
+async def test_scan_directory_one_new_mp3_file_metadata_extraction(
+    scan_tracks_use_case: ScanTracksUseCase,
+    mock_file_system_scanner: MagicMock,
+    mock_cover_processor: MagicMock,
+    mock_async_session: AsyncMock,
+    # mock_session_factory is implicitly used by the SQLiteTrackRepository patch
+):
+    """Test metadata extraction for a new MP3 file, verifying content passed to repo."""
+    test_mp3_path = Path("/music/sample.mp3")
+
+    async def single_mp3_gen(*args, **kwargs) -> AsyncGenerator[Path, None]:
+        yield test_mp3_path
+
+    mock_file_system_scanner.scan_directories.side_effect = single_mp3_gen
+
+    # Mocks for mutagen.mp3.MP3 behavior
+    mock_mp3_audio = MagicMock()
+    mock_mp3_audio.tags = {
+        "TIT2": MagicMock(text=["MP3 Title"]),
+        "TPE1": MagicMock(text=["MP3 Artist"]),
+    }
+    mock_mp3_audio.info = MagicMock(length=200.5)
+
+    # Mock os.path.getmtime
+    mock_mtime = 1678886400  # Example timestamp
+
+    # Patch os.path.getmtime and mutagen.mp3.MP3 within the use case's execution scope
+    # Also patch the repository for assertions
+    with patch(
+        "src.mus.application.use_cases.scan_tracks_use_case.os.path.getmtime",
+        return_value=mock_mtime,
+    ), patch(
         "src.mus.application.use_cases.scan_tracks_use_case.MP3"
-    ) as mock_mp3, patch(
-        "src.mus.application.use_cases.scan_tracks_use_case.os.path.getmtime",
-        return_value=1609459200,  # January 1, 2021 00:00:00 UTC
-    ):
-        # Set up the mock MP3 object
-        mock_mp3_instance = MagicMock()
-        mock_mp3.return_value = mock_mp3_instance
+    ) as mock_mutagen_mp3, patch(
+        "src.mus.application.use_cases.scan_tracks_use_case.SQLiteTrackRepository"
+    ) as MockRepo, patch(
+        "src.mus.application.use_cases.scan_tracks_use_case.broadcast_sse_event"
+    ) as mock_broadcast_sse:
+        mock_mutagen_mp3.return_value = mock_mp3_audio
 
-        # Create a mock tags dictionary
-        mock_tags = MagicMock()
-        mock_tags.__getitem__ = lambda s, key: {
-            "TIT2": "Test Title",
-            "TPE1": "Test Artist",
-        }[key]
-        mock_tags.__contains__ = lambda s, key: key in ["TIT2", "TPE1"]
+        mock_repo_instance = MagicMock(spec=SQLiteTrackRepository)
+        mock_repo_instance.session = mock_async_session
+        mock_repo_instance.get_latest_track_added_at = AsyncMock(return_value=None)
 
-        # Assign the mock tags to the instance
-        mock_mp3_instance.tags = mock_tags
+        created_tracks_store: List[Track] = []
 
-        # Mock the info
-        mock_mp3_instance.info.length = 240
+        async def mock_upsert_and_store(track_to_upsert: Track) -> Track:
+            track_to_upsert.id = len(created_tracks_store) + 1
+            created_tracks_store.append(track_to_upsert)
+            return track_to_upsert
 
-        # Test the method
-        result = scan_tracks_use_case._extract_metadata_sync(Path("test.mp3"))
+        mock_repo_instance.upsert_track = AsyncMock(side_effect=mock_upsert_and_store)
+        mock_repo_instance.set_cover_flag = AsyncMock()
+        MockRepo.return_value = mock_repo_instance
 
-        # Verify the result
-        assert result["title"] == "Test Title"
-        assert result["artist"] == "Test Artist"
-        assert result["duration"] == 240
-        assert result["mtime"] == 1609459200
+        mock_cover_processor.process_tracks_covers_batch = AsyncMock(
+            return_value={1: True}
+        )
 
+        result = await scan_tracks_use_case.scan_directory()
 
-def test_extract_metadata_sync_flac(scan_tracks_use_case):
-    # Create a patched FLAC class with mock tags and info
-    with patch(
-        "src.mus.application.use_cases.scan_tracks_use_case.FLAC"
-    ) as mock_flac, patch(
-        "src.mus.application.use_cases.scan_tracks_use_case.os.path.getmtime",
-        return_value=1609459200,  # January 1, 2021 00:00:00 UTC
-    ):
-        # Set up the mock FLAC object that behaves like a dict
-        mock_flac_instance = MagicMock()
+    assert result.success is True
+    assert result.tracks_added == 1
+    assert result.tracks_updated == 0
+    assert result.errors == 0
 
-        # Setup a proper __getitem__ and __contains__
-        mock_data = {"title": ["FLAC Title"], "artist": ["FLAC Artist"]}
-        mock_flac_instance.__getitem__.side_effect = lambda key: mock_data.get(key, [])
-        mock_flac_instance.__contains__.side_effect = lambda key: key in mock_data
+    mock_mutagen_mp3.assert_called_once_with(test_mp3_path)
 
-        mock_flac.return_value = mock_flac_instance
+    assert len(created_tracks_store) == 1
+    saved_track = created_tracks_store[0]
 
-        # Mock the info
-        mock_flac_instance.info.length = 300
+    assert saved_track.title == "MP3 Title"
+    assert saved_track.artist == "MP3 Artist"
+    assert saved_track.duration == 200  # Duration should be int
+    assert saved_track.file_path == str(test_mp3_path)
+    assert saved_track.added_at == mock_mtime
+    assert saved_track.has_cover is False  # Initially, before cover flag is set
 
-        # Test the method
-        result = scan_tracks_use_case._extract_metadata_sync(Path("test.flac"))
+    # Check that set_cover_flag was called correctly after successful cover processing
+    mock_repo_instance.set_cover_flag.assert_awaited_once_with(saved_track.id, True)
+    mock_cover_processor.process_tracks_covers_batch.assert_awaited_once_with(
+        [(saved_track.id, test_mp3_path)]
+    )
 
-        # Verify the result
-        assert result["title"] == "FLAC Title"
-        assert result["artist"] == "FLAC Artist"
-        assert result["duration"] == 300
-        assert result["mtime"] == 1609459200
-
-
-def test_extract_metadata_sync_error_handling(scan_tracks_use_case):
-    # Create a patched MP3 class that raises an exception
-    with patch(
-        "src.mus.application.use_cases.scan_tracks_use_case.MP3",
-        side_effect=Exception("Test exception"),
-    ):
-        # Test with an MP3 file that will cause an exception
-        result = scan_tracks_use_case._extract_metadata_sync(Path("error.mp3"))
-
-        # Verify default values are returned
-        assert result["title"] == "error"
-        assert result["artist"] == "Unknown"
-        assert result["duration"] == 0
+    # Verify SSE calls
+    mock_broadcast_sse.assert_any_call(
+        {"type": "scan_progress", "processed": 0, "total": 1}
+    )
+    # More specific check for track_update SSE if necessary
+    # Example: any(call_args[0][0]["type"] == "track_update" for call_args in mock_broadcast_sse.call_args_list)
+    mock_broadcast_sse.assert_any_call(
+        {"type": "scan_progress", "processed": 1, "total": 1}
+    )

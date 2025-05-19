@@ -14,5 +14,7 @@ class PlayerStateDTO(BaseModel):
         default=1.0, ge=0.0, le=1.0, description="Volume level between 0.0 and 1.0"
     )
     is_muted: bool = False
+    is_shuffle: bool = False
+    is_repeat: bool = False
 
     model_config = {"from_attributes": True}

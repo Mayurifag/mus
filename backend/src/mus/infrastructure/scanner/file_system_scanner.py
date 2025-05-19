@@ -3,92 +3,99 @@ import asyncio
 from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import ClassVar, List, Optional, Set
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class FileSystemScanner:
     SUPPORTED_EXTENSIONS: ClassVar[set[str]] = {".mp3", ".flac"}
 
     def __init__(self):
-        self.MUSIC_DIR = os.getenv("MUSIC_DIR", "./music")
-        os.makedirs(self.MUSIC_DIR, exist_ok=True)
-        self.root_dir = Path(self.MUSIC_DIR)
+        self.default_music_dir_str = os.getenv("MUSIC_DIR", "./music")
+        self.default_root_dir = Path(self.default_music_dir_str)
 
-    async def find_music_files(
-        self, directory: Path, extensions: Optional[Set[str]] = None
+    async def _recursive_scan_single_directory(
+        self,
+        directory: Path,
+        extensions: Set[str],
+        min_mtime: Optional[int] = None,
     ) -> AsyncGenerator[Path, None]:
-        if not directory.exists():
+        try:
+            if not await asyncio.to_thread(directory.is_dir):
+                return
+        except OSError as e:
+            logger.warning(f"Cannot access directory {directory}: {e}")
             return
-
-        extensions = extensions or self.SUPPORTED_EXTENSIONS
 
         try:
-            dir_contents = list(directory.iterdir())
-        except (PermissionError, OSError):
+            dir_contents_iter = await asyncio.to_thread(directory.iterdir)
+            dir_contents = await asyncio.to_thread(list, dir_contents_iter)
+        except OSError as e:
+            logger.warning(f"Cannot read directory contents {directory}: {e}")
             return
 
-        # Process files first
         for item in dir_contents:
-            if item.is_file() and item.suffix.lower() in extensions:
-                yield item
+            try:
+                if await asyncio.to_thread(item.is_file):
+                    if item.suffix.lower() in extensions:
+                        if min_mtime is not None:
+                            item_stat = await asyncio.to_thread(item.stat)
+                            if item_stat.st_mtime > min_mtime:
+                                yield item
+                        else:
+                            yield item
+            except OSError as e:
+                logger.warning(f"Cannot access file item {item}: {e}")
 
-        # Then process subdirectories concurrently
-        subdirs = [item for item in dir_contents if item.is_dir()]
-
-        # Process subdirectories in chunks to avoid creating too many tasks
-        chunk_size = 5
-        for i in range(0, len(subdirs), chunk_size):
-            subdirs_chunk = subdirs[i : i + chunk_size]
-            tasks = [
-                self._scan_directory(subdir, extensions) for subdir in subdirs_chunk
-            ]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-            for result in results:
-                if not isinstance(result, list):
-                    # Skip if the result is an exception
-                    continue
-
-                for file_path in result:
-                    yield file_path
-
-    async def _scan_directory(
-        self, directory: Path, extensions: Set[str]
-    ) -> List[Path]:
-        """Helper method to scan a directory and return all matching files."""
-        result = []
-        try:
-            stack = [directory]
-            while stack:
-                current_dir = stack.pop()
-                try:
-                    for item in current_dir.iterdir():
-                        if item.is_file() and item.suffix.lower() in extensions:
-                            result.append(item)
-                        elif item.is_dir():
-                            stack.append(item)
-                except (PermissionError, OSError):
-                    continue
-        except Exception:
-            # Catch any other exceptions to ensure task doesn't fail
-            pass
-
-        return result
+        for item in dir_contents:
+            try:
+                if await asyncio.to_thread(item.is_dir):
+                    async for music_file in self._recursive_scan_single_directory(
+                        item, extensions, min_mtime
+                    ):
+                        yield music_file
+            except OSError as e:
+                logger.warning(
+                    f"Cannot access subdirectory item {item} for recursion: {e}"
+                )
 
     async def scan_directories(
         self,
         directories: Optional[List[Path]] = None,
         extensions: Optional[Set[str]] = None,
+        min_mtime: Optional[int] = None,
     ) -> AsyncGenerator[Path, None]:
-        """
-        Scan multiple directories concurrently for music files
+        scan_dirs_resolved: List[Path]
+        if directories:
+            scan_dirs_resolved = directories
+        else:
+            try:
+                await asyncio.to_thread(
+                    self.default_root_dir.mkdir, parents=True, exist_ok=True
+                )
+                scan_dirs_resolved = [self.default_root_dir]
+            except OSError as e:
+                logger.error(
+                    f"Failed to create or access default music directory {self.default_root_dir}: {e}"
+                )
+                return
 
-        Args:
-            directories: List of directories to scan, defaults to the music directory
-            extensions: Optional set of file extensions to look for
-        """
-        scan_dirs = directories or [self.root_dir]
+        effective_extensions = extensions or self.SUPPORTED_EXTENSIONS
 
-        # Process directories concurrently in batches to avoid overwhelming the system
-        for directory in scan_dirs:
-            async for file_path in self.find_music_files(directory, extensions):
-                yield file_path
+        for base_dir in scan_dirs_resolved:
+            if not await asyncio.to_thread(base_dir.exists):
+                logger.warning(
+                    f"Provided scan directory {base_dir} does not exist. Skipping."
+                )
+                continue
+            if not await asyncio.to_thread(base_dir.is_dir):
+                logger.warning(
+                    f"Provided scan path {base_dir} is not a directory. Skipping."
+                )
+                continue
+
+            async for music_file in self._recursive_scan_single_directory(
+                base_dir, effective_extensions, min_mtime
+            ):
+                yield music_file

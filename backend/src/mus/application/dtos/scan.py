@@ -34,4 +34,3 @@ class ScanResponseDTO(BaseModel):
     tracks_added: int = 0
     tracks_updated: int = 0
     errors: int = 0
-    error_details: Optional[List[str]] = None
