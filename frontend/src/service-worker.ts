@@ -12,8 +12,9 @@ const CACHE = `cache-${version}`;
 const ASSETS = [
   ...build, // the app itself
   ...files, // everything in `static`
-  "/favicon.png",
-  "/manifest.json",
+  // Commented because otherwise there was some error in the console
+  // "/favicon.png",
+  // "/manifest.json",
 ];
 
 // Add routes to cache for offline access

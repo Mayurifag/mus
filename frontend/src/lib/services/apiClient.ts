@@ -1,4 +1,13 @@
 import type { Track, PlayerState } from "$lib/types";
+import xior from "xior";
+
+// Define the structure of SSE events
+export interface MusEvent {
+  message_to_show: string | null;
+  message_level: "success" | "error" | "info" | "warning" | null;
+  action_key: string | null;
+  action_payload: Record<string, unknown> | null;
+}
 
 function getApiBaseUrl(): string {
   const isDev = import.meta.env.DEV;
@@ -12,21 +21,20 @@ function getApiBaseUrl(): string {
 
 const API_BASE_URL = getApiBaseUrl();
 
+// Create a global xior instance with the base URL
+const api = xior.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+});
+
 export function getStreamUrl(trackId: number): string {
   return `${API_BASE_URL}/tracks/${trackId}/stream`;
 }
 
 export async function fetchTracks(): Promise<Track[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/tracks`);
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch tracks: ${response.status} ${response.statusText}`,
-      );
-    }
-
-    return await response.json();
+    const response = await api.get("/tracks");
+    return response.data;
   } catch (error) {
     console.error("Error fetching tracks:", error);
     return [];
@@ -35,19 +43,20 @@ export async function fetchTracks(): Promise<Track[]> {
 
 export async function fetchPlayerState(): Promise<PlayerState | null> {
   try {
-    const response = await fetch(`${API_BASE_URL}/player/state`);
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return null;
-      }
-      throw new Error(
-        `Failed to fetch player state: ${response.status} ${response.statusText}`,
-      );
-    }
-
-    return await response.json();
+    const response = await api.get("/player/state");
+    return response.data;
   } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "response" in error &&
+      error.response &&
+      typeof error.response === "object" &&
+      "status" in error.response &&
+      error.response.status === 404
+    ) {
+      return null;
+    }
     console.error("Error fetching player state:", error);
     return null;
   }
@@ -57,48 +66,45 @@ export async function savePlayerState(
   state: PlayerState,
 ): Promise<PlayerState | null> {
   try {
-    const response = await fetch(`${API_BASE_URL}/player/state`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(state),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to save player state: ${response.status} ${response.statusText}`,
-      );
-    }
-
-    return await response.json();
+    const response = await api.post("/player/state", state);
+    return response.data;
   } catch (error) {
     console.error("Error saving player state:", error);
     return null;
   }
 }
 
-export async function triggerScan(): Promise<{
-  success: boolean;
-  message: string;
-}> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/scan`, {
-      method: "POST",
-    });
+/**
+ * Connects to the SSE endpoint for track updates
+ * @param onMessageCallback Callback function to handle incoming SSE events
+ * @returns The EventSource instance
+ */
+export function connectTrackUpdateEvents(
+  onMessageCallback: (eventData: MusEvent) => void,
+): EventSource {
+  const eventSource = new EventSource(`${API_BASE_URL}/events/track-updates`);
 
-    if (!response.ok) {
-      throw new Error(
-        `Failed to trigger scan: ${response.status} ${response.statusText}`,
-      );
+  eventSource.onmessage = (event) => {
+    try {
+      const eventData = JSON.parse(event.data);
+      onMessageCallback(eventData);
+    } catch (error) {
+      console.error("Error parsing SSE event:", error);
     }
+  };
 
-    return await response.json();
-  } catch (error) {
-    console.error("Error triggering scan:", error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
+  eventSource.onerror = (error) => {
+    console.error("SSE connection error:", error);
+
+    // Attempt to reconnect after a delay
+    setTimeout(() => {
+      console.log("Attempting to reconnect to SSE...");
+      connectTrackUpdateEvents(onMessageCallback);
+    }, 5000);
+
+    // Close the errored connection
+    eventSource.close();
+  };
+
+  return eventSource;
 }

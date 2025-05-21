@@ -107,7 +107,9 @@ async def test_scan_directory_no_files_found(
     # Mock the repository that gets instantiated inside the use case
     with patch(
         "src.mus.application.use_cases.scan_tracks_use_case.SQLiteTrackRepository"
-    ) as MockRepo:
+    ) as MockRepo, patch(
+        "src.mus.application.use_cases.scan_tracks_use_case.broadcast_sse_event"
+    ) as mock_broadcast_sse:
         mock_repo_instance = MagicMock(spec=SQLiteTrackRepository)
         mock_repo_instance.session = mock_async_session
         mock_repo_instance.get_latest_track_added_at = AsyncMock(return_value=None)
@@ -124,6 +126,23 @@ async def test_scan_directory_no_files_found(
         None, min_mtime=None
     )
     mock_repo_instance.get_latest_track_added_at.assert_awaited_once()
+
+    # Verify SSE events for empty scan
+    # Initial progress
+    mock_broadcast_sse.assert_any_call(
+        message_to_show="Scanning 0 files...",
+        message_level="info",
+        action_key="scan_progress",
+        action_payload={"processed": 0, "total": 0},
+    )
+
+    # Final summary
+    mock_broadcast_sse.assert_any_call(
+        message_to_show="Music library scan completed. No changes detected.",
+        message_level="info",
+        action_key=None,
+        action_payload=None,
+    )
 
 
 @pytest.mark.asyncio
@@ -205,19 +224,36 @@ async def test_scan_directory_one_new_file(
 
     # Check SSE events
     # Initial progress
-    assert mock_broadcast_sse.call_args_list[0][0][0] == {
-        "type": "scan_progress",
-        "processed": 0,
-        "total": 1,
-    }
-    # Track update
-    # mock_broadcast_sse.call_args_list[1][0][0]["type"] == "track_update" # More detailed check needed if this is critical
-    # Final progress
-    assert mock_broadcast_sse.call_args_list[-1][0][0] == {
-        "type": "scan_progress",
-        "processed": 1,
-        "total": 1,
-    }
+    mock_broadcast_sse.assert_any_call(
+        message_to_show="Scanning 1 files...",
+        message_level="info",
+        action_key="scan_progress",
+        action_payload={"processed": 0, "total": 1},
+    )
+
+    # Track update event
+    mock_broadcast_sse.assert_any_call(
+        message_to_show="New track: Test Artist - Test Song",
+        message_level="success",
+        action_key="reload_tracks",
+        action_payload=None,
+    )
+
+    # Progress update
+    mock_broadcast_sse.assert_any_call(
+        message_to_show="Scanning progress: 1/1 files",
+        message_level="info",
+        action_key="scan_progress",
+        action_payload={"processed": 1, "total": 1},
+    )
+
+    # Final summary
+    mock_broadcast_sse.assert_any_call(
+        message_to_show="1 new tracks added.",
+        message_level="success",
+        action_key="reload_tracks",
+        action_payload=None,
+    )
 
 
 @pytest.mark.asyncio
@@ -306,11 +342,34 @@ async def test_scan_directory_one_new_mp3_file_metadata_extraction(
     )
 
     # Verify SSE calls
+    # Check for initial progress message
     mock_broadcast_sse.assert_any_call(
-        {"type": "scan_progress", "processed": 0, "total": 1}
+        message_to_show="Scanning 1 files...",
+        message_level="info",
+        action_key="scan_progress",
+        action_payload={"processed": 0, "total": 1},
     )
-    # More specific check for track_update SSE if necessary
-    # Example: any(call_args[0][0]["type"] == "track_update" for call_args in mock_broadcast_sse.call_args_list)
+
+    # Check for progress update
     mock_broadcast_sse.assert_any_call(
-        {"type": "scan_progress", "processed": 1, "total": 1}
+        message_to_show="Scanning progress: 1/1 files",
+        message_level="info",
+        action_key="scan_progress",
+        action_payload={"processed": 1, "total": 1},
+    )
+
+    # Check for new track message
+    mock_broadcast_sse.assert_any_call(
+        message_to_show="New track: MP3 Artist - MP3 Title",
+        message_level="success",
+        action_key="reload_tracks",
+        action_payload=None,
+    )
+
+    # Check for summary message
+    mock_broadcast_sse.assert_any_call(
+        message_to_show="1 new tracks added.",
+        message_level="success",
+        action_key="reload_tracks",
+        action_payload=None,
     )

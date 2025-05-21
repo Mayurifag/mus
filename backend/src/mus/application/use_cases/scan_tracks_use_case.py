@@ -71,14 +71,24 @@ class ScanTracksUseCase:
 
             total_files_to_process = len(all_files)
             await broadcast_sse_event(
-                {
-                    "type": "scan_progress",
+                message_to_show=f"Scanning {total_files_to_process} files...",
+                message_level="info",
+                action_key="scan_progress",
+                action_payload={
                     "processed": 0,
                     "total": total_files_to_process,
-                }
+                },
             )
 
             if not all_files:
+                # Send a message for empty scan
+                await broadcast_sse_event(
+                    message_to_show="Music library scan completed. No changes detected.",
+                    message_level="info",
+                    action_key=None,
+                    action_payload=None,
+                )
+
                 return ScanResponseDTO(
                     success=True,
                     message="Scan completed: No new or modified files found.",
@@ -102,12 +112,41 @@ class ScanTracksUseCase:
 
                 processed_files_count += len(batch)
                 await broadcast_sse_event(
-                    {
-                        "type": "scan_progress",
+                    message_to_show=f"Scanning progress: {processed_files_count}/{total_files_to_process} files",
+                    message_level="info",
+                    action_key="scan_progress",
+                    action_payload={
                         "processed": processed_files_count,
                         "total": total_files_to_process,
-                    }
+                    },
                 )
+
+        # Send a final summary event
+        summary_message = None
+        if tracks_added_total > 0 and tracks_updated_total > 0:
+            summary_message = f"{tracks_added_total} new tracks added, {tracks_updated_total} tracks updated."
+        elif tracks_added_total > 0:
+            summary_message = f"{tracks_added_total} new tracks added."
+        elif tracks_updated_total > 0:
+            summary_message = f"{tracks_updated_total} tracks updated."
+        else:
+            summary_message = "Music library scan completed. No changes detected."
+
+        message_level = (
+            "success" if tracks_added_total > 0 or tracks_updated_total > 0 else "info"
+        )
+        action_key = (
+            "reload_tracks"
+            if tracks_added_total > 0 or tracks_updated_total > 0
+            else None
+        )
+
+        await broadcast_sse_event(
+            message_to_show=summary_message,
+            message_level=message_level,
+            action_key=action_key,
+            action_payload=None,
+        )
 
         return ScanResponseDTO(
             success=True,
@@ -160,7 +199,10 @@ class ScanTracksUseCase:
                         tracks_to_process_covers.append((upserted_track.id, file_path))
                         track_dto = TrackDTO.model_validate(upserted_track)
                         await broadcast_sse_event(
-                            {"type": "track_update", "track": track_dto.model_dump()}
+                            message_to_show=f"New track: {track_dto.artist} - {track_dto.title}",
+                            message_level="success",
+                            action_key="reload_tracks",
+                            action_payload=None,
                         )
 
                     if upserted_track.added_at == track.added_at:

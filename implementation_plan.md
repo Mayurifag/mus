@@ -1,5 +1,13 @@
 # Implementation Plan
 
+  Lets say I have 160 tracks in my db parsed.
+
+When I open website - firstly I see no tracks, after that they have loaded, than blink they are missed and after that they are seen again. Why so?
+
+I want on page open to see them
+
+
+
 ## Phase 1: Core Setup
 - [x] Project structure setup
 - [x] Configuration files

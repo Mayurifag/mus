@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { trackStore } from "$lib/stores/trackStore";
   import { playerStore } from "$lib/stores/playerStore";
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
   import { savePlayerState, getStreamUrl } from "$lib/services/apiClient";
+  import { initEventHandlerService } from "$lib/services/eventHandlerService";
   import type { Track } from "$lib/types";
 
   export let data: {
@@ -19,6 +20,7 @@
   let audio: HTMLAudioElement;
   let trackLoaded = false;
   let saveStateDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let eventSource: EventSource | null = null;
 
   // Initialize stores with server-loaded data
   onMount(() => {
@@ -49,6 +51,16 @@
           playerStore.setCurrentTime(progress_seconds);
         }
       }
+    }
+
+    // Initialize SSE connection for track updates
+    eventSource = initEventHandlerService();
+  });
+
+  // Clean up event source on component destroy
+  onDestroy(() => {
+    if (eventSource) {
+      eventSource.close();
     }
   });
 
