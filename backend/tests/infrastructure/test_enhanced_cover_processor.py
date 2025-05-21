@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 import pyvips
 import shutil
-from unittest.mock import patch, MagicMock, ANY
+from unittest.mock import patch, MagicMock, AsyncMock, ANY
 import os
 
 from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
@@ -138,19 +138,17 @@ async def test_process_tracks_covers_batch(cover_processor, sample_image_data):
     """Test batch processing of track covers."""
 
     # Mock extract_cover_from_file to return test image data
-    async def mock_extract(file_path):
+    async def mock_extract(_):  # Unused parameter
         await asyncio.sleep(0.01)
         return sample_image_data
 
-    # Use new_callable=AsyncMock to ensure the mock is async-aware
+    # Use AsyncMock to ensure the mock is async-aware
     with patch.object(
         cover_processor,
         "extract_cover_from_file",
         side_effect=mock_extract,
-        new_callable=MagicMock(
-            spec=asyncio.Future
-        ),  # To ensure it's awaitable and can have a side_effect
-    ) as mock_extract_method:  # Keep the mock instance if needed for assertions
+        new_callable=AsyncMock,
+    ):
         # Create test data: [(track_id, file_path), ...]
         test_tracks = [
             (1, Path("test1.mp3")),
@@ -189,13 +187,13 @@ async def test_process_tracks_covers_batch_with_error(
             return None  # Simulate extraction failure for test2
         return sample_image_data
 
-    # Use new_callable=AsyncMock
+    # Use AsyncMock
     with patch.object(
         cover_processor,
         "extract_cover_from_file",
         side_effect=mock_extract,
-        new_callable=MagicMock(spec=asyncio.Future),
-    ) as mock_extract_method_error:  # Keep the mock instance if needed for assertions
+        new_callable=AsyncMock,
+    ):
         # Create test data
         test_tracks = [
             (1, Path("test1.mp3")),
