@@ -79,6 +79,8 @@ function createMockStore() {
     duration: 180,
     volume: 0.5,
     isMuted: false,
+    is_shuffle: false,
+    is_repeat: false,
   };
 
   // Update all subscribers

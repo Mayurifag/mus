@@ -15,4 +15,6 @@ export interface PlayerState {
   progress_seconds: number; // Current playback position in seconds
   volume_level: number; // Volume level between 0.0 and 1.0
   is_muted: boolean;
+  is_shuffle: boolean;
+  is_repeat: boolean;
 }

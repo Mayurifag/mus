@@ -35,6 +35,8 @@ describe("+layout.server.ts", () => {
     progress_seconds: 30,
     volume_level: 0.7,
     is_muted: false,
+    is_shuffle: false,
+    is_repeat: false,
   };
 
   // Mock event object required by the load function

@@ -8,6 +8,8 @@ export interface PlayerStoreState {
   duration: number; // in seconds
   volume: number; // 0-1
   isMuted: boolean;
+  is_shuffle: boolean;
+  is_repeat: boolean;
 }
 
 const initialState: PlayerStoreState = {
@@ -17,6 +19,8 @@ const initialState: PlayerStoreState = {
   duration: 0,
   volume: 1.0,
   isMuted: false,
+  is_shuffle: false,
+  is_repeat: false,
 };
 
 function createPlayerStore() {
@@ -29,6 +33,7 @@ function createPlayerStore() {
       update((state) => ({
         ...state,
         currentTrack: track,
+        currentTime: 0,
         duration: track.duration,
       })),
     play: () => update((state) => ({ ...state, isPlaying: true })),
@@ -47,6 +52,10 @@ function createPlayerStore() {
     toggleMute: () =>
       update((state) => ({ ...state, isMuted: !state.isMuted })),
     setMuted: (isMuted: boolean) => update((state) => ({ ...state, isMuted })),
+    toggleShuffle: () =>
+      update((state) => ({ ...state, is_shuffle: !state.is_shuffle })),
+    toggleRepeat: () =>
+      update((state) => ({ ...state, is_repeat: !state.is_repeat })),
     reset: () => set(initialState),
   };
 }

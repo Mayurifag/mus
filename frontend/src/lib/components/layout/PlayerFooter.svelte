@@ -42,7 +42,7 @@
   }
 </script>
 
-<div class="bg-card fixed bottom-0 left-0 right-0 z-50 border-t">
+<div class="bg-card fixed right-0 bottom-0 left-0 z-50 border-t">
   <Card class="rounded-none border-0 shadow-none">
     <div class="flex h-20 items-center px-4">
       <!-- Track Info -->

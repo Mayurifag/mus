@@ -17,6 +17,8 @@
       progress_seconds: number;
       volume_level: number;
       is_muted: boolean;
+      is_shuffle: boolean;
+      is_repeat: boolean;
     };
   };
 
@@ -37,15 +39,32 @@
       trackStore.setTracks(data.tracks);
     }
 
+    let trackSelected = false;
+
     // Initialize player state if available
     if (data.playerState) {
-      const { current_track_id, progress_seconds, volume_level, is_muted } =
-        data.playerState;
+      const {
+        current_track_id,
+        progress_seconds,
+        volume_level,
+        is_muted,
+        is_shuffle,
+        is_repeat,
+      } = data.playerState;
 
       // Set volume and mute state
       playerStore.setVolume(volume_level);
       if (is_muted) {
-        playerStore.toggleMute();
+        playerStore.setMuted(true);
+      }
+
+      // Set shuffle and repeat state
+      if (is_shuffle) {
+        playerStore.update((state) => ({ ...state, is_shuffle: true }));
+      }
+
+      if (is_repeat) {
+        playerStore.update((state) => ({ ...state, is_repeat: true }));
       }
 
       // Set current track if exists
@@ -57,8 +76,15 @@
           trackStore.setCurrentTrackIndex(trackIndex);
           // Set progress
           playerStore.setCurrentTime(progress_seconds);
+          trackSelected = true;
         }
       }
+    }
+
+    // If no track was selected and we have tracks, select the first one
+    if (!trackSelected && data.tracks && data.tracks.length > 0) {
+      trackStore.setCurrentTrackIndex(0);
+      playerStore.pause();
     }
 
     // Initialize SSE connection for track updates
@@ -102,7 +128,19 @@
   }
 
   function handleEnded() {
-    trackStore.nextTrack();
+    // If repeat is enabled, restart the current track
+    if ($playerStore.is_repeat) {
+      if (audio) {
+        audio.currentTime = 0;
+        audio.play().catch((error) => {
+          console.error("Error replaying audio:", error);
+          playerStore.pause();
+        });
+      }
+    } else {
+      // Otherwise go to next track
+      trackStore.nextTrack();
+    }
   }
 
   // Save player state to the backend
@@ -118,6 +156,8 @@
           progress_seconds: $playerStore.currentTime,
           volume_level: $playerStore.volume,
           is_muted: $playerStore.isMuted,
+          is_shuffle: $playerStore.is_shuffle,
+          is_repeat: $playerStore.is_repeat,
         });
       }
     }, 1000); // Save after 1 second of no changes
@@ -146,9 +186,19 @@
     audio.volume = $playerStore.isMuted ? 0 : $playerStore.volume;
   }
 
-  // Save state when relevant values change
-  $: if ($playerStore.currentTrack || $playerStore.currentTime > 0) {
+  $: if (
+    $playerStore.currentTrack &&
+    ($playerStore.isPlaying ||
+      $playerStore.is_shuffle ||
+      $playerStore.is_repeat)
+  ) {
     debouncedSavePlayerState();
+  }
+
+  $: if (browser) {
+    document.title = $playerStore.currentTrack
+      ? `${$playerStore.currentTrack.artist} - ${$playerStore.currentTrack.title}`
+      : "Mus";
   }
 </script>
 
