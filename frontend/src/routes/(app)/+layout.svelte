@@ -138,9 +138,14 @@
         });
       }
     } else {
-      // Otherwise go to next track
+      // Otherwise go to next track with shuffle support
       trackStore.nextTrack();
     }
+  }
+
+  function handleError() {
+    console.error("Audio playback error occurred");
+    playerStore.pause();
   }
 
   // Save player state to the backend
@@ -231,6 +236,7 @@
       on:timeupdate={handleTimeUpdate}
       on:loadedmetadata={handleLoadedMetadata}
       on:ended={handleEnded}
+      on:error={handleError}
       preload="auto"
     ></audio>
   </div>

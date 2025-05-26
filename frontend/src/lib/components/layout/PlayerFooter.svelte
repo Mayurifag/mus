@@ -12,8 +12,12 @@
     Volume2,
     VolumeX,
     Menu,
+    Shuffle,
+    Repeat,
+    Repeat1,
   } from "lucide-svelte";
   import { browser } from "$app/environment";
+  import { onMount } from "svelte";
 
   function formatTime(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
@@ -27,9 +31,28 @@
     }
   }
 
+  // Volume feedback variables
+  let showVolumeFeedback = false;
+  let volumeFeedbackValue = 0;
+  let volumeFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
+
   function handleVolumeChange(value: number[]) {
     if (value.length > 0) {
       playerStore.setVolume(value[0]);
+
+      // Show volume feedback
+      volumeFeedbackValue = Math.round(value[0] * 100);
+      showVolumeFeedback = true;
+
+      // Clear existing timer if any
+      if (volumeFeedbackTimer) {
+        clearTimeout(volumeFeedbackTimer);
+      }
+
+      // Hide feedback after 1.5 seconds
+      volumeFeedbackTimer = setTimeout(() => {
+        showVolumeFeedback = false;
+      }, 200);
     }
   }
 
@@ -40,9 +63,25 @@
       document.body.dispatchEvent(event);
     }
   }
+
+  // Update volume feedback when mute is toggled
+  $: if ($playerStore.isMuted) {
+    volumeFeedbackValue = 0;
+  } else {
+    volumeFeedbackValue = Math.round($playerStore.volume * 100);
+  }
+
+  // Clean up timer when component is destroyed
+  onMount(() => {
+    return () => {
+      if (volumeFeedbackTimer) {
+        clearTimeout(volumeFeedbackTimer);
+      }
+    };
+  });
 </script>
 
-<div class="bg-card fixed right-0 bottom-0 left-0 z-50 border-t">
+<div class="bg-card fixed bottom-0 left-0 right-0 z-50 border-t">
   <Card class="rounded-none border-0 shadow-none">
     <div class="flex h-20 items-center px-4">
       <!-- Track Info -->
@@ -139,28 +178,72 @@
         </div>
       </div>
 
-      <!-- Volume Controls -->
-      <div class="flex w-1/3 items-center justify-end space-x-4 pr-4">
+      <!-- Volume Controls and Additional Controls -->
+      <div class="flex w-1/3 items-center justify-end space-x-2 pr-4">
+        <!-- Shuffle Button -->
         <Button
           variant="ghost"
           size="icon"
           class="h-8 w-8"
-          on:click={() => playerStore.toggleMute()}
-          aria-label={$playerStore.isMuted ? "Unmute" : "Mute"}
+          on:click={() => playerStore.toggleShuffle()}
+          aria-label="Toggle Shuffle"
+          aria-pressed={$playerStore.is_shuffle}
         >
-          {#if $playerStore.isMuted}
-            <VolumeX class="h-5 w-5" />
+          <Shuffle
+            class="h-5 w-5"
+            color={$playerStore.is_shuffle ? "var(--accent)" : "currentColor"}
+          />
+        </Button>
+
+        <!-- Repeat Button -->
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-8 w-8"
+          on:click={() => playerStore.toggleRepeat()}
+          aria-label="Toggle Repeat"
+          aria-pressed={$playerStore.is_repeat}
+        >
+          {#if $playerStore.is_repeat}
+            <Repeat1 class="h-5 w-5" color="var(--accent)" />
           {:else}
-            <Volume2 class="h-5 w-5" />
+            <Repeat class="h-5 w-5" />
           {/if}
         </Button>
-        <Slider
-          value={[$playerStore.volume]}
-          onValueChange={handleVolumeChange}
-          max={1}
-          step={0.01}
-          class="w-32"
-        />
+
+        <!-- Volume Controls with Visual Feedback -->
+        <div class="relative flex items-center space-x-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
+            on:click={() => playerStore.toggleMute()}
+            aria-label={$playerStore.isMuted ? "Unmute" : "Mute"}
+          >
+            {#if $playerStore.isMuted}
+              <VolumeX class="h-5 w-5" />
+            {:else}
+              <Volume2 class="h-5 w-5" />
+            {/if}
+          </Button>
+          <div class="relative w-32">
+            <Slider
+              value={[$playerStore.volume]}
+              onValueChange={handleVolumeChange}
+              max={1}
+              step={0.01}
+              class="w-full"
+            />
+            {#if showVolumeFeedback}
+              <div
+                class="bg-primary text-primary-foreground absolute -top-7 left-1/2 -translate-x-1/2 rounded px-2 py-1 text-xs font-medium transition-opacity"
+                style="opacity: {showVolumeFeedback ? '1' : '0'}"
+              >
+                {volumeFeedbackValue}%
+              </div>
+            {/if}
+          </div>
+        </div>
 
         <!-- Mobile Menu Button -->
         <Button

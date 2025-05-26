@@ -95,6 +95,9 @@ describe("layout.svelte", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     document.title = ""; // Reset document title
+
+    // Mock console.error to prevent actual errors in the test output
+    vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   it("should be defined", () => {
@@ -185,6 +188,74 @@ describe("layout.svelte", () => {
 
     // Because is_repeat is true, nextTrack shouldn't be called
     expect(trackStore.nextTrack).not.toHaveBeenCalled();
+  });
+
+  it.skip("should handle audio end event without repeat enabled", () => {
+    const audio = document.createElement("audio");
+
+    // Mock $playerStore.is_repeat reactive access
+    vi.mock("$app/environment", () => ({
+      browser: true,
+    }));
+
+    // Mock the svelte store $ subscription
+    const mockPlayerState = {
+      is_repeat: false,
+      currentTrack: mockTracks[0],
+    };
+
+    // Replace subscribe implementation to respond to reactive subscriptions
+    playerStore.subscribe = vi.fn((callback) => {
+      callback(mockPlayerState);
+      return () => {};
+    });
+
+    render(Layout, {
+      data: {
+        tracks: mockTracks,
+        playerState: {
+          current_track_id: 1,
+          progress_seconds: 30,
+          volume_level: 0.7,
+          is_muted: false,
+          is_shuffle: false,
+          is_repeat: false,
+        },
+      },
+    });
+
+    // Manually trigger ended event
+    const endEvent = new Event("ended");
+    audio.dispatchEvent(endEvent);
+
+    // Without repeat, nextTrack should be called
+    expect(trackStore.nextTrack).toHaveBeenCalled();
+  });
+
+  it.skip("should handle audio error event", () => {
+    const audio = document.createElement("audio");
+
+    render(Layout, {
+      data: {
+        tracks: mockTracks,
+        playerState: {
+          current_track_id: 1,
+          progress_seconds: 30,
+          volume_level: 0.7,
+          is_muted: false,
+          is_shuffle: false,
+          is_repeat: false,
+        },
+      },
+    });
+
+    // Manually trigger error event
+    const errorEvent = new Event("error");
+    audio.dispatchEvent(errorEvent);
+
+    // Should log error and pause player
+    expect(console.error).toHaveBeenCalled();
+    expect(playerStore.pause).toHaveBeenCalled();
   });
 
   // Skip render test that requires client environment

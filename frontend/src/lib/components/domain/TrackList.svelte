@@ -7,37 +7,21 @@
 
   export let tracks: Track[] = [];
 
-  let lastMouseMoveTime = Date.now();
-
-  function handleMouseMove() {
-    lastMouseMoveTime = Date.now();
-  }
-
-  onMount(() => {
-    window.addEventListener("mousemove", handleMouseMove);
-  });
-
-  onDestroy(() => {
-    window.removeEventListener("mousemove", handleMouseMove);
-  });
-
   $: currentTrackIndex = $trackStore.currentTrackIndex;
 
-  // Auto-scroll only if user hasn't moved mouse in last 5 seconds
+  // Auto-scroll current track into view
   $: if (browser && currentTrackIndex !== null && tracks.length > 0) {
     const currentTrack = tracks[currentTrackIndex];
     if (currentTrack) {
       setTimeout(() => {
-        if (Date.now() - lastMouseMoveTime > 5000) {
-          const trackElement = document.getElementById(
-            `track-item-${currentTrack.id}`,
-          );
-          if (trackElement) {
-            trackElement.scrollIntoView({
-              behavior: "smooth",
-              block: "nearest",
-            });
-          }
+        const trackElement = document.getElementById(
+          `track-item-${currentTrack.id}`,
+        );
+        if (trackElement) {
+          trackElement.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest",
+          });
         }
       }, 100); // Small delay to ensure DOM is updated
     }
