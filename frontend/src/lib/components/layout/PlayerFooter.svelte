@@ -11,7 +11,9 @@
     SkipForward,
     Volume2,
     VolumeX,
+    Menu,
   } from "lucide-svelte";
+  import { browser } from "$app/environment";
 
   function formatTime(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
@@ -28,6 +30,14 @@
   function handleVolumeChange(value: number[]) {
     if (value.length > 0) {
       playerStore.setVolume(value[0]);
+    }
+  }
+
+  // Create a function to dispatch a custom event to toggle the sidebar
+  function toggleMenu() {
+    if (browser) {
+      const event = new CustomEvent("toggle-sheet");
+      document.body.dispatchEvent(event);
     }
   }
 </script>
@@ -151,6 +161,17 @@
           step={0.01}
           class="w-32"
         />
+
+        <!-- Mobile Menu Button -->
+        <Button
+          variant="ghost"
+          size="icon"
+          class="ml-2 md:hidden"
+          on:click={toggleMenu}
+          aria-label="Open menu"
+        >
+          <Menu class="h-5 w-5" />
+        </Button>
       </div>
     </div>
   </Card>

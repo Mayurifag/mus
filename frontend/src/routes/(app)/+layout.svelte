@@ -3,9 +3,12 @@
   import { trackStore } from "$lib/stores/trackStore";
   import { playerStore } from "$lib/stores/playerStore";
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
+  import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
   import { savePlayerState, getStreamUrl } from "$lib/services/apiClient";
   import { initEventHandlerService } from "$lib/services/eventHandlerService";
+  import * as Sheet from "$lib/components/ui/sheet";
   import type { Track } from "$lib/types";
+  import { browser } from "$app/environment";
 
   export let data: {
     tracks: Track[];
@@ -21,6 +24,11 @@
   let trackLoaded = false;
   let saveStateDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   let eventSource: EventSource | null = null;
+  let sheetOpen = false;
+
+  function handleToggleMenu() {
+    sheetOpen = !sheetOpen;
+  }
 
   // Initialize stores with server-loaded data
   onMount(() => {
@@ -55,12 +63,22 @@
 
     // Initialize SSE connection for track updates
     eventSource = initEventHandlerService();
+
+    // Add event listener for menu toggle - only in browser
+    if (browser) {
+      document.body.addEventListener("toggle-sheet", handleToggleMenu);
+    }
   });
 
   // Clean up event source on component destroy
   onDestroy(() => {
     if (eventSource) {
       eventSource.close();
+    }
+
+    // Remove event listener - only in browser
+    if (browser && document) {
+      document.body.removeEventListener("toggle-sheet", handleToggleMenu);
     }
   });
 
@@ -134,14 +152,36 @@
   }
 </script>
 
-<slot />
+<Sheet.Root bind:open={sheetOpen}>
+  <div class="flex h-screen flex-col">
+    <main class="flex flex-1 overflow-hidden">
+      <div class="flex-1 overflow-y-auto p-4">
+        <slot />
+      </div>
 
-<PlayerFooter />
+      <!-- Desktop Sidebar - visible on md screens and up -->
+      <div class="hidden shrink-0 md:block">
+        <RightSidebar />
+      </div>
 
-<audio
-  bind:this={audio}
-  on:timeupdate={handleTimeUpdate}
-  on:loadedmetadata={handleLoadedMetadata}
-  on:ended={handleEnded}
-  preload="auto"
-></audio>
+      <!-- Mobile Sidebar Sheet -->
+      <Sheet.Content side="right" class="w-64">
+        <Sheet.Header>
+          <Sheet.Title>Menu</Sheet.Title>
+          <Sheet.Description>Navigation and library controls</Sheet.Description>
+        </Sheet.Header>
+        <RightSidebar />
+      </Sheet.Content>
+    </main>
+
+    <PlayerFooter />
+
+    <audio
+      bind:this={audio}
+      on:timeupdate={handleTimeUpdate}
+      on:loadedmetadata={handleLoadedMetadata}
+      on:ended={handleEnded}
+      preload="auto"
+    ></audio>
+  </div>
+</Sheet.Root>
