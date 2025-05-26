@@ -1,6 +1,5 @@
 <script lang="ts">
   import { Dialog as SheetPrimitive } from "bits-ui";
-  import { Cross2 } from "svelte-radix";
   import { fly } from "svelte/transition";
   import {
     SheetOverlay,
@@ -37,11 +36,5 @@
     {...$$restProps}
   >
     <slot />
-    <SheetPrimitive.Close
-      class="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:pointer-events-none"
-    >
-      <Cross2 class="h-4 w-4" />
-      <span class="sr-only">Close</span>
-    </SheetPrimitive.Close>
   </SheetPrimitive.Content>
 </SheetPortal>

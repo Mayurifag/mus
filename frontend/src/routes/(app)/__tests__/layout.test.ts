@@ -11,7 +11,7 @@ vi.mock("$lib/stores/trackStore", () => ({
     setTracks: vi.fn(),
     setCurrentTrackIndex: vi.fn(),
     nextTrack: vi.fn(),
-    subscribe: vi.fn(() => () => {}),
+    subscribe: vi.fn(() => () => { }),
   },
 }));
 
@@ -21,7 +21,7 @@ vi.mock("$lib/stores/playerStore", () => ({
     toggleMute: vi.fn(),
     setCurrentTime: vi.fn(),
     update: vi.fn(),
-    subscribe: vi.fn(() => () => {}),
+    subscribe: vi.fn(() => () => { }),
     pause: vi.fn(),
   },
 }));
