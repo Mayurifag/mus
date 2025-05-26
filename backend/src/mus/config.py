@@ -24,15 +24,11 @@ class Config(BaseModel):
     CORS_ALLOWED_ORIGINS_STR: str = os.getenv(
         "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
     )
-    CORS_ALLOWED_ORIGINS: List[str] = []
 
-    @field_validator("CORS_ALLOWED_ORIGINS", mode="before")
-    def assemble_cors_origins(cls, v: List[str], info: ValidationInfo) -> List[str]:
-        values = info.data
-        cors_str = values.get("CORS_ALLOWED_ORIGINS_STR")
-        if isinstance(cors_str, str):
-            return [origin.strip() for origin in cors_str.split(",")]
-        return v
+    @computed_field
+    @property
+    def CORS_ALLOWED_ORIGINS(self) -> List[str]:
+        return [origin.strip() for origin in self.CORS_ALLOWED_ORIGINS_STR.split(",")]
 
     # Define paths relative to BASE_DIR (src/mus/) or allow full paths from env
     # Defaulting to project structure: backend/data/covers, backend/static, backend/music

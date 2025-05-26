@@ -93,6 +93,10 @@
     // Add event listener for menu toggle - only in browser
     if (browser) {
       document.body.addEventListener("toggle-sheet", handleToggleMenu);
+
+      // Add event listeners for player state persistence on page unload
+      window.addEventListener("beforeunload", handleBeforeUnload);
+      document.addEventListener("visibilitychange", handleVisibilityChange);
     }
   });
 
@@ -102,9 +106,15 @@
       eventSource.close();
     }
 
-    // Remove event listener - only in browser
+    if (saveStateDebounceTimer) {
+      clearTimeout(saveStateDebounceTimer);
+    }
+
+    // Remove event listeners - only in browser
     if (browser && document) {
       document.body.removeEventListener("toggle-sheet", handleToggleMenu);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     }
   });
 
@@ -148,6 +158,20 @@
     playerStore.pause();
   }
 
+  // Construct PlayerStateDTO from current store state
+  function constructPlayerStateDTO() {
+    if (!$playerStore.currentTrack) return null;
+
+    return {
+      current_track_id: $playerStore.currentTrack.id,
+      progress_seconds: $playerStore.currentTime,
+      volume_level: $playerStore.volume,
+      is_muted: $playerStore.isMuted,
+      is_shuffle: $playerStore.is_shuffle,
+      is_repeat: $playerStore.is_repeat,
+    };
+  }
+
   // Save player state to the backend
   function debouncedSavePlayerState() {
     if (saveStateDebounceTimer) {
@@ -155,17 +179,69 @@
     }
 
     saveStateDebounceTimer = setTimeout(() => {
-      if ($playerStore.currentTrack) {
-        savePlayerState({
-          current_track_id: $playerStore.currentTrack.id,
-          progress_seconds: $playerStore.currentTime,
-          volume_level: $playerStore.volume,
-          is_muted: $playerStore.isMuted,
-          is_shuffle: $playerStore.is_shuffle,
-          is_repeat: $playerStore.is_repeat,
-        });
+      const playerStateDto = constructPlayerStateDTO();
+      if (playerStateDto) {
+        // Validate the data before sending
+        if (playerStateDto.progress_seconds < 0) {
+          playerStateDto.progress_seconds = 0;
+        }
+        if (playerStateDto.volume_level < 0) {
+          playerStateDto.volume_level = 0;
+        }
+        if (playerStateDto.volume_level > 1) {
+          playerStateDto.volume_level = 1;
+        }
+
+        savePlayerState(playerStateDto);
       }
     }, 1000); // Save after 1 second of no changes
+  }
+
+  // Send player state via navigator.sendBeacon on page unload
+  function sendPlayerStateBeacon() {
+    const playerStateDto = constructPlayerStateDTO();
+    if (playerStateDto && browser && navigator.sendBeacon) {
+      // Cancel any pending debounced save since we're sending immediately
+      if (saveStateDebounceTimer) {
+        clearTimeout(saveStateDebounceTimer);
+        saveStateDebounceTimer = null;
+      }
+
+      // Validate the data before sending
+      if (playerStateDto.progress_seconds < 0) {
+        playerStateDto.progress_seconds = 0;
+      }
+      if (playerStateDto.volume_level < 0) {
+        playerStateDto.volume_level = 0;
+      }
+      if (playerStateDto.volume_level > 1) {
+        playerStateDto.volume_level = 1;
+      }
+
+      const apiBaseUrl = import.meta.env.DEV
+        ? "http://localhost:8000/api/v1"
+        : "/api/v1";
+      const url = `${apiBaseUrl}/player/state`;
+
+      // Create a proper Blob with correct Content-Type for JSON
+      const blob = new Blob([JSON.stringify(playerStateDto)], {
+        type: "application/json",
+      });
+
+      navigator.sendBeacon(url, blob);
+    }
+  }
+
+  // Handle page unload events
+  function handleBeforeUnload() {
+    sendPlayerStateBeacon();
+  }
+
+  // Handle visibility change events
+  function handleVisibilityChange() {
+    if (document.visibilityState === "hidden") {
+      sendPlayerStateBeacon();
+    }
   }
 
   // React to store changes
@@ -191,9 +267,12 @@
     audio.volume = $playerStore.isMuted ? 0 : $playerStore.volume;
   }
 
+  // Trigger debounced save on any relevant player state changes
   $: if (
     $playerStore.currentTrack &&
-    ($playerStore.isPlaying ||
+    ($playerStore.currentTime ||
+      $playerStore.volume ||
+      $playerStore.isMuted ||
       $playerStore.is_shuffle ||
       $playerStore.is_repeat)
   ) {

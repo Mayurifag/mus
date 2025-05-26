@@ -64,4 +64,11 @@ async def track_updates_sse(request: Request):
             if client_queue in active_sse_clients:
                 active_sse_clients.remove(client_queue)
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )

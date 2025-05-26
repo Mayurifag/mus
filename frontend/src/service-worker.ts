@@ -48,8 +48,12 @@ sw.addEventListener("fetch", (event) => {
   // ignore non-GET requests
   if (event.request.method !== "GET") return;
 
+  const url = new URL(event.request.url);
+
+  // Only handle HTTP/HTTPS requests, ignore chrome-extension:// and other schemes
+  if (!url.protocol.startsWith("http")) return;
+
   async function respond() {
-    const url = new URL(event.request.url);
     const cache = await caches.open(CACHE);
 
     // For API requests, try network first
@@ -57,7 +61,12 @@ sw.addEventListener("fetch", (event) => {
       try {
         const response = await fetch(event.request);
         if (response.ok) {
-          cache.put(event.request, response.clone());
+          try {
+            cache.put(event.request, response.clone());
+          } catch (cacheErr) {
+            // Ignore cache errors for unsupported schemes
+            console.warn("Cache put failed:", cacheErr);
+          }
         }
         return response;
       } catch (err) {
@@ -81,7 +90,12 @@ sw.addEventListener("fetch", (event) => {
     try {
       const response = await fetch(event.request);
       if (response.status === 200) {
-        cache.put(event.request, response.clone());
+        try {
+          cache.put(event.request, response.clone());
+        } catch (cacheErr) {
+          // Ignore cache errors for unsupported schemes
+          console.warn("Cache put failed:", cacheErr);
+        }
       }
       return response;
     } catch (err) {

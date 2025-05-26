@@ -23,6 +23,15 @@ const mockPlayerState = {
   is_repeat: false,
 };
 
+const mockPlayerStateWithShuffleRepeat = {
+  current_track_id: 2,
+  progress_seconds: 45,
+  volume_level: 0.8,
+  is_muted: true,
+  is_shuffle: true,
+  is_repeat: true,
+};
+
 describe("apiClient", () => {
   // Save original console.error
   const originalConsoleError = console.error;
@@ -185,6 +194,28 @@ describe("apiClient", () => {
 
       // Verify the result is null
       expect(result).toBeNull();
+    });
+
+    it("saves player state with shuffle and repeat enabled", async () => {
+      // Mock the function implementation
+      vi.mocked(apiClient.savePlayerState).mockResolvedValue(
+        mockPlayerStateWithShuffleRepeat,
+      );
+
+      // Call the function
+      const result = await apiClient.savePlayerState(
+        mockPlayerStateWithShuffleRepeat,
+      );
+
+      // Verify the function was called with the correct arguments
+      expect(apiClient.savePlayerState).toHaveBeenCalledWith(
+        mockPlayerStateWithShuffleRepeat,
+      );
+
+      // Verify the result includes shuffle and repeat fields
+      expect(result).toEqual(mockPlayerStateWithShuffleRepeat);
+      expect(result?.is_shuffle).toBe(true);
+      expect(result?.is_repeat).toBe(true);
     });
   });
 });

@@ -3,7 +3,6 @@
   import TrackItem from "./TrackItem.svelte";
   import { trackStore } from "$lib/stores/trackStore";
   import { browser } from "$app/environment";
-  import { onMount, onDestroy } from "svelte";
 
   export let tracks: Track[] = [];
 

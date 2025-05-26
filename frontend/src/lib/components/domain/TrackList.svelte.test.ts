@@ -22,7 +22,7 @@ vi.mock("$lib/stores/trackStore", () => ({
   trackStore: {
     subscribe: vi.fn().mockImplementation((callback) => {
       callback({ currentTrackIndex: 0 });
-      return () => { };
+      return () => {};
     }),
   },
 }));
