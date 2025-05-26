@@ -40,7 +40,13 @@
     }
   }
 
+  function calculateProgress() {
+    if (!isCurrentlyPlaying || $playerStore.duration <= 0) return 0;
+    return ($playerStore.currentTime / $playerStore.duration) * 100;
+  }
+
   $: isCurrentlyPlaying = isSelected && $playerStore.isPlaying;
+  $: progressPercentage = isCurrentlyPlaying ? calculateProgress() : 0;
 </script>
 
 <div
@@ -52,6 +58,7 @@
   role="button"
   tabindex="0"
   data-testid="track-item"
+  id="track-item-{track.id}"
 >
   <div
     class="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-md"
@@ -72,6 +79,20 @@
   <div class="flex flex-1 flex-col overflow-hidden">
     <span class="truncate font-medium">{track.title}</span>
     <span class="text-muted-foreground truncate text-sm">{track.artist}</span>
+
+    {#if isSelected && $playerStore.isPlaying}
+      <div class="bg-muted/50 mt-1 h-1 w-full overflow-hidden rounded-full">
+        <div
+          class="bg-primary h-full"
+          style="width: {progressPercentage}%;"
+          role="progressbar"
+          aria-valuenow={progressPercentage}
+          aria-valuemin="0"
+          aria-valuemax="100"
+          data-testid="track-progress-bar"
+        ></div>
+      </div>
+    {/if}
   </div>
 
   <div class="text-muted-foreground flex flex-col items-end text-sm">

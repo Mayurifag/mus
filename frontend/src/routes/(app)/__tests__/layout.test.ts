@@ -16,7 +16,7 @@ vi.mock("$lib/stores/trackStore", () => ({
     setTracks: vi.fn(),
     setCurrentTrackIndex: vi.fn(),
     nextTrack: vi.fn(),
-    subscribe: vi.fn(() => () => { }),
+    subscribe: vi.fn(() => () => {}),
   },
 }));
 
@@ -26,7 +26,7 @@ vi.mock("$lib/stores/playerStore", () => ({
     setMuted: vi.fn(),
     setCurrentTime: vi.fn(),
     update: vi.fn(),
-    subscribe: vi.fn(() => () => { }),
+    subscribe: vi.fn(() => () => {}),
     pause: vi.fn(),
   },
 }));
@@ -162,7 +162,7 @@ describe("layout.svelte", () => {
     // Replace subscribe implementation to respond to reactive subscriptions
     playerStore.subscribe = vi.fn((callback) => {
       callback(mockPlayerState);
-      return () => { };
+      return () => {};
     });
 
     render(Layout, {

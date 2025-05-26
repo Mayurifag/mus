@@ -7,6 +7,21 @@ vi.mock("$lib/stores/trackStore", () => ({
   },
 }));
 
+// Mock the playerStore
+vi.mock("$lib/stores/playerStore", () => ({
+  playerStore: {
+    pause: vi.fn(),
+    subscribe: vi.fn().mockImplementation((callback) => {
+      callback({
+        isPlaying: true,
+        currentTime: 60, // 1 minute
+        duration: 180, // 3 minutes
+      });
+      return () => {};
+    }),
+  },
+}));
+
 // Mock date-fns formatDistanceToNow
 vi.mock("date-fns", () => ({
   formatDistanceToNow: vi.fn().mockReturnValue("about 1 hour ago"),
@@ -18,6 +33,7 @@ import type { Track } from "$lib/types";
 import "@testing-library/jest-dom/vitest";
 import TrackItem from "./TrackItem.svelte";
 import { trackStore } from "$lib/stores/trackStore";
+import { playerStore } from "$lib/stores/playerStore";
 
 describe("TrackItem component", () => {
   let mockTrack: Track;
@@ -35,8 +51,9 @@ describe("TrackItem component", () => {
       cover_original_url: "/api/v1/tracks/1/covers/original.webp",
     };
 
-    // Clear the mock
+    // Clear the mocks
     vi.mocked(trackStore.playTrack).mockClear();
+    vi.mocked(playerStore.pause).mockClear();
   });
 
   it("renders track details correctly", () => {
@@ -75,6 +92,40 @@ describe("TrackItem component", () => {
     expect(trackItemDiv?.classList.contains("bg-muted")).toBe(true);
   });
 
+  it("renders progress bar when track is selected and playing", () => {
+    render(TrackItem, { track: mockTrack, index: 0, isSelected: true });
+
+    const progressBar = screen.getByTestId("track-progress-bar");
+    expect(progressBar).toBeInTheDocument();
+
+    // Progress should be around 33% (60 seconds of 180 seconds)
+    const progressStyle = progressBar.getAttribute("style");
+    expect(progressStyle).toContain("width: 33.33");
+
+    // Check ARIA attributes
+    expect(progressBar.getAttribute("role")).toBe("progressbar");
+    expect(progressBar.getAttribute("aria-valuemin")).toBe("0");
+    expect(progressBar.getAttribute("aria-valuemax")).toBe("100");
+  });
+
+  it("does not render progress bar when track is not selected", () => {
+    render(TrackItem, { track: mockTrack, index: 0, isSelected: false });
+
+    const progressBar = screen.queryByTestId("track-progress-bar");
+    expect(progressBar).not.toBeInTheDocument();
+  });
+
+  it("includes track ID in the element ID for scroll targeting", () => {
+    const { container } = render(TrackItem, {
+      track: mockTrack,
+      index: 0,
+      isSelected: true,
+    });
+
+    const trackItemDiv = container.querySelector('[data-testid="track-item"]');
+    expect(trackItemDiv?.id).toBe(`track-item-${mockTrack.id}`);
+  });
+
   it("calls trackStore.playTrack when clicked", async () => {
     render(TrackItem, { track: mockTrack, index: 2, isSelected: false });
 
@@ -82,6 +133,15 @@ describe("TrackItem component", () => {
     await fireEvent.click(trackItemElement);
 
     expect(vi.mocked(trackStore.playTrack)).toHaveBeenCalledWith(2);
+  });
+
+  it("calls playerStore.pause when clicked if already playing", async () => {
+    render(TrackItem, { track: mockTrack, index: 2, isSelected: true });
+
+    const trackItemElement = screen.getByTestId("track-item");
+    await fireEvent.click(trackItemElement);
+
+    expect(vi.mocked(playerStore.pause)).toHaveBeenCalled();
   });
 
   it("calls playTrack when Enter key is pressed", async () => {
