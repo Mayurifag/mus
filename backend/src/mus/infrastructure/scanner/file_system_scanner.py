@@ -41,7 +41,8 @@ class FileSystemScanner:
                     if item.suffix.lower() in extensions:
                         if min_mtime is not None:
                             item_stat = await asyncio.to_thread(item.stat)
-                            if item_stat.st_mtime > min_mtime:
+                            file_mtime = int(item_stat.st_mtime)
+                            if file_mtime > min_mtime:
                                 yield item
                         else:
                             yield item

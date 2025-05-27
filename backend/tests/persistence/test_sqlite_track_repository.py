@@ -152,19 +152,23 @@ async def test_upsert_track_update_existing(session, sample_track):
         added_at=original_added_at + 100,  # Changed added_at
     )
 
-    await repository.upsert_track(updated_track_data)
+    updated_track = await repository.upsert_track(updated_track_data)
     await session.commit()
 
     # Retrieve the updated track using the repository method
     tracks = await repository.get_all()
     assert len(tracks) == 1
-    updated_track = tracks[0]
+    retrieved_track = tracks[0]
 
-    # Check that metadata was updated including added_at
+    # Check that metadata was updated but added_at was preserved
     assert updated_track.id == original_id  # Same ID
+    assert retrieved_track.id == original_id  # Same ID
     assert (
-        updated_track.added_at == original_added_at + 100
-    )  # Updated added_at timestamp
+        updated_track.added_at == original_added_at
+    )  # Preserved original added_at timestamp
+    assert (
+        retrieved_track.added_at == original_added_at
+    )  # Preserved original added_at timestamp
     assert updated_track.title == "Updated Title"  # Updated title
     assert updated_track.artist == "Updated Artist"  # Updated artist
     assert updated_track.duration == 200  # Updated duration

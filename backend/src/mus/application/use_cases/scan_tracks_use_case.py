@@ -70,6 +70,7 @@ class ScanTracksUseCase:
                 all_files.append(file_path)
 
             total_files_to_process = len(all_files)
+
             await broadcast_sse_event(
                 message_to_show=f"Scanning {total_files_to_process} files...",
                 message_level="info",
@@ -198,17 +199,17 @@ class ScanTracksUseCase:
                     if upserted_track.id is not None:
                         tracks_to_process_covers.append((upserted_track.id, file_path))
                         track_dto = TrackDTO.model_validate(upserted_track)
-                        await broadcast_sse_event(
-                            message_to_show=f"New track: {track_dto.artist} - {track_dto.title}",
-                            message_level="success",
-                            action_key="reload_tracks",
-                            action_payload=None,
+                        # Fire-and-forget event broadcasting
+                        asyncio.create_task(
+                            broadcast_sse_event(
+                                message_to_show=f"Track: {track_dto.artist} - {track_dto.title}",
+                                message_level="success",
+                                action_key="reload_tracks",
+                                action_payload=None,
+                            )
                         )
 
-                    if upserted_track.added_at == track.added_at:
-                        added_count += 1
-                    else:
-                        updated_count += 1
+                    added_count += 1
 
                 except Exception as e:
                     error_count += 1

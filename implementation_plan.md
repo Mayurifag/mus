@@ -6,6 +6,7 @@ When I open website - firstly I see no tracks, after that they have loaded, than
 
 I want on page open to see them
 
+https://www.chatprd.ai/resources/PRD-for-Cursor
 
 
 ## Phase 1: Core Setup

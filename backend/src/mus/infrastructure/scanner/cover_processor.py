@@ -26,13 +26,16 @@ class CoverProcessor:
     async def process_and_save_cover(
         self, track_id: int, cover_data: bytes, file_path: Optional[Path] = None
     ) -> bool:
-        """
-        Process and save cover art for a track.
-        Generates original WebP and small (80x80) WebP thumbnail.
-        Returns True if successful, False otherwise.
-        """
+        if not cover_data:
+            return False
+
+        # Strip leading null bytes and whitespace
+        cleaned_data = cover_data.lstrip(b"\x00 \t\n\r")
+        if not cleaned_data:
+            return False
+
         try:
-            image: Any = VipsImage.new_from_buffer(cover_data, "")
+            image: Any = VipsImage.new_from_buffer(cleaned_data, "")
             original_path = self.covers_dir / f"{track_id}_original.webp"
             small_path = self.covers_dir / f"{track_id}_small.webp"
 

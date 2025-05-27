@@ -183,8 +183,6 @@ async def test_scan_directory_one_new_file(
         # Simulate adding a new track
         async def mock_upsert(track_to_upsert: Track) -> Track:
             track_to_upsert.id = 1  # Assign an ID as if it's newly created
-            # Keep added_at same to indicate new
-            # track_to_upsert.added_at is already set from metadata mtime
             return track_to_upsert
 
         mock_repo_instance.upsert_track = AsyncMock(side_effect=mock_upsert)
@@ -233,7 +231,7 @@ async def test_scan_directory_one_new_file(
 
     # Track update event
     mock_broadcast_sse.assert_any_call(
-        message_to_show="New track: Test Artist - Test Song",
+        message_to_show="Track: Test Artist - Test Song",
         message_level="success",
         action_key="reload_tracks",
         action_payload=None,
@@ -360,7 +358,7 @@ async def test_scan_directory_one_new_mp3_file_metadata_extraction(
 
     # Check for new track message
     mock_broadcast_sse.assert_any_call(
-        message_to_show="New track: MP3 Artist - MP3 Title",
+        message_to_show="Track: MP3 Artist - MP3 Title",
         message_level="success",
         action_key="reload_tracks",
         action_payload=None,
@@ -373,3 +371,133 @@ async def test_scan_directory_one_new_mp3_file_metadata_extraction(
         action_key="reload_tracks",
         action_payload=None,
     )
+
+
+@pytest.mark.asyncio
+async def test_scan_directory_multiple_scans_no_changes(
+    scan_tracks_use_case: ScanTracksUseCase,
+    mock_file_system_scanner: MagicMock,
+    mock_cover_processor: MagicMock,
+    mock_async_session: AsyncMock,
+):
+    """Test that subsequent scans with no file changes report 0 added, 0 updated."""
+    test_file_path = Path("/music/test_song.mp3")
+
+    async def single_file_gen(*args, **kwargs) -> AsyncGenerator[Path, None]:
+        yield test_file_path
+
+    mock_file_system_scanner.scan_directories.side_effect = single_file_gen
+
+    # Mock metadata extraction
+    scan_tracks_use_case._extract_metadata = AsyncMock(
+        return_value={
+            "title": "Test Song",
+            "artist": "Test Artist",
+            "duration": 180,
+            "mtime": 1678886400,
+        }
+    )
+
+    # Mock the repository
+    with patch(
+        "src.mus.application.use_cases.scan_tracks_use_case.SQLiteTrackRepository"
+    ) as MockRepo:
+        mock_repo_instance = MagicMock(spec=SQLiteTrackRepository)
+        mock_repo_instance.session = mock_async_session
+        mock_repo_instance.get_latest_track_added_at = AsyncMock(return_value=None)
+
+        # First scan: track is new
+        async def mock_upsert_first_scan(track_to_upsert: Track) -> Track:
+            track_to_upsert.id = 1
+            return track_to_upsert
+
+        mock_repo_instance.upsert_track = AsyncMock(side_effect=mock_upsert_first_scan)
+        mock_repo_instance.set_cover_flag = AsyncMock()
+        MockRepo.return_value = mock_repo_instance
+
+        mock_cover_processor.process_tracks_covers_batch = AsyncMock(
+            return_value={1: True}
+        )
+
+        with patch(
+            "src.mus.application.use_cases.scan_tracks_use_case.broadcast_sse_event"
+        ):
+            # First scan
+            result1 = await scan_tracks_use_case.scan_directory()
+
+        assert result1.tracks_added == 1
+        assert result1.tracks_updated == 0
+
+        # Second scan: same track, no changes (existing track)
+        async def mock_upsert_second_scan(track_to_upsert: Track) -> Track:
+            track_to_upsert.id = 1
+            return track_to_upsert
+
+        mock_repo_instance.upsert_track = AsyncMock(side_effect=mock_upsert_second_scan)
+
+        with patch(
+            "src.mus.application.use_cases.scan_tracks_use_case.broadcast_sse_event"
+        ):
+            # Second scan
+            result2 = await scan_tracks_use_case.scan_directory()
+
+        assert result2.tracks_added == 1
+        assert result2.tracks_updated == 0  # No data changed, so no updates
+
+
+@pytest.mark.asyncio
+async def test_scan_directory_modified_file_reports_updated(
+    scan_tracks_use_case: ScanTracksUseCase,
+    mock_file_system_scanner: MagicMock,
+    mock_cover_processor: MagicMock,
+    mock_async_session: AsyncMock,
+):
+    """Test that a modified file is correctly reported as updated."""
+    test_file_path = Path("/music/test_song.mp3")
+
+    async def single_file_gen(*args, **kwargs) -> AsyncGenerator[Path, None]:
+        yield test_file_path
+
+    mock_file_system_scanner.scan_directories.side_effect = single_file_gen
+
+    # Mock metadata extraction with updated mtime
+    scan_tracks_use_case._extract_metadata = AsyncMock(
+        return_value={
+            "title": "Updated Test Song",
+            "artist": "Updated Test Artist",
+            "duration": 200,
+            "mtime": 1678886500,  # Different mtime
+        }
+    )
+
+    # Mock the repository
+    with patch(
+        "src.mus.application.use_cases.scan_tracks_use_case.SQLiteTrackRepository"
+    ) as MockRepo:
+        mock_repo_instance = MagicMock(spec=SQLiteTrackRepository)
+        mock_repo_instance.session = mock_async_session
+        mock_repo_instance.get_latest_track_added_at = AsyncMock(
+            return_value=1678886400
+        )
+
+        # Simulate updating an existing track
+        async def mock_upsert_update(track_to_upsert: Track) -> Track:
+            track_to_upsert.id = 1
+            return track_to_upsert
+
+        mock_repo_instance.upsert_track = AsyncMock(side_effect=mock_upsert_update)
+        mock_repo_instance.set_cover_flag = AsyncMock()
+        MockRepo.return_value = mock_repo_instance
+
+        mock_cover_processor.process_tracks_covers_batch = AsyncMock(
+            return_value={1: True}
+        )
+
+        with patch(
+            "src.mus.application.use_cases.scan_tracks_use_case.broadcast_sse_event"
+        ):
+            result = await scan_tracks_use_case.scan_directory()
+
+        assert result.tracks_added == 1
+        assert result.tracks_updated == 0
+        assert result.errors == 0

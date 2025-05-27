@@ -40,20 +40,14 @@ class SQLiteTrackRepository:
             track.has_cover = has_cover
 
     async def upsert_track(self, track_data: Track) -> Track:
-        track_dict = {
-            "title": track_data.title,
-            "artist": track_data.artist,
-            "duration": track_data.duration,
-            "file_path": track_data.file_path,
-            "has_cover": track_data.has_cover,
-            "added_at": track_data.added_at,
-        }
-
-        if track_data.id is not None:
-            track_dict["id"] = track_data.id
-
-        stmt = sqlite_upsert(Track).values(**track_dict)
-
+        stmt = sqlite_upsert(Track).values(
+            title=track_data.title,
+            artist=track_data.artist,
+            duration=track_data.duration,
+            file_path=track_data.file_path,
+            has_cover=track_data.has_cover,
+            added_at=track_data.added_at,
+        )
         stmt = stmt.on_conflict_do_update(
             index_elements=["file_path"],
             set_={
@@ -61,10 +55,8 @@ class SQLiteTrackRepository:
                 "artist": stmt.excluded.artist,
                 "duration": stmt.excluded.duration,
                 "has_cover": stmt.excluded.has_cover,
-                "added_at": stmt.excluded.added_at,
             },
         )
-
         await self.session.execute(stmt)
 
         result = await self.session.exec(

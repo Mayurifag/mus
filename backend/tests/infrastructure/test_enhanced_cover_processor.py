@@ -255,3 +255,73 @@ async def test_process_single_track_cover_extraction_failure(cover_processor):
         small_path = cover_processor.covers_dir / "42_small.webp"
         assert not original_path.exists()
         assert not small_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_process_and_save_cover_with_invalid_buffer(cover_processor):
+    """Test process_and_save_cover with various invalid buffer scenarios."""
+    track_id = 999
+
+    # Test with None
+    result = await cover_processor.process_and_save_cover(track_id, None)
+    assert result is False
+
+    # Test with empty bytes
+    result = await cover_processor.process_and_save_cover(track_id, b"")
+    assert result is False
+
+    # Test with invalid image data
+    result = await cover_processor.process_and_save_cover(
+        track_id, b"invalid_image_data"
+    )
+    assert result is False
+
+    # Verify no files were created for any of these
+    original_path = cover_processor.covers_dir / f"{track_id}_original.webp"
+    small_path = cover_processor.covers_dir / f"{track_id}_small.webp"
+    assert not original_path.exists()
+    assert not small_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_extract_cover_with_corrupted_mp3_tags(cover_processor):
+    """Test extraction from MP3 with corrupted tag data."""
+    with patch("src.mus.infrastructure.scanner.cover_processor.MP3") as mock_mp3:
+        # Mock MP3 that has tags but with corrupted APIC data
+        mock_audio = MagicMock()
+        mock_apic = MagicMock()
+        mock_apic.data = b"corrupted_image_data_not_valid"
+        mock_audio.tags = {"APIC:": mock_apic}
+        mock_mp3.return_value = mock_audio
+
+        # Extract cover data
+        result = await cover_processor.extract_cover_from_file(Path("corrupted.mp3"))
+
+        # Should return the corrupted data (extraction doesn't validate)
+        assert result == b"corrupted_image_data_not_valid"
+
+        # But processing should fail gracefully
+        process_result = await cover_processor.process_and_save_cover(100, result)
+        assert process_result is False
+
+
+@pytest.mark.asyncio
+async def test_extract_cover_with_corrupted_flac_tags(cover_processor):
+    """Test extraction from FLAC with corrupted picture data."""
+    with patch("src.mus.infrastructure.scanner.cover_processor.FLAC") as mock_flac:
+        # Mock FLAC that has pictures but with corrupted data
+        mock_audio = MagicMock()
+        mock_picture = MagicMock()
+        mock_picture.data = b"corrupted_flac_image_data"
+        mock_audio.pictures = [mock_picture]
+        mock_flac.return_value = mock_audio
+
+        # Extract cover data
+        result = await cover_processor.extract_cover_from_file(Path("corrupted.flac"))
+
+        # Should return the corrupted data
+        assert result == b"corrupted_flac_image_data"
+
+        # But processing should fail gracefully
+        process_result = await cover_processor.process_and_save_cover(101, result)
+        assert process_result is False
