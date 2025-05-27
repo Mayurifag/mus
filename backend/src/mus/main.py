@@ -16,8 +16,6 @@ from src.mus.infrastructure.api.routers import (
 )
 from src.mus.infrastructure.api.sse_handler import router as sse_router
 from src.mus.infrastructure.database import (
-    engine,
-    SQLModel,
     create_db_and_tables,
     async_session_factory,
 )
@@ -36,14 +34,6 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Application lifespan startup...")
-    # Drop and create tables only if in development/testing, or based on a setting
-    if settings.APP_ENV != "production":  # Example condition
-        logger.warning(f"DROPPING AND RECREATING TABLES in {settings.APP_ENV} mode.")
-        async with engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.drop_all)
-            await conn.run_sync(SQLModel.metadata.create_all)
-    # Always ensure tables and cover dir exist
     await create_db_and_tables()
     settings.COVERS_DIR_PATH.mkdir(parents=True, exist_ok=True)
 
@@ -64,7 +54,6 @@ async def lifespan(app: FastAPI):
     )
     app.state.periodic_scanner = scanner
     asyncio.create_task(scanner.start())
-    logger.info("Periodic scanner scheduled to start.")
     yield
     logger.info("Application lifespan shutdown...")
     if hasattr(app.state, "periodic_scanner") and app.state.periodic_scanner:

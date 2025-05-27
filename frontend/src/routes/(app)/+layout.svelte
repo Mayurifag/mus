@@ -28,6 +28,7 @@
   let eventSource: EventSource | null = null;
   let sheetOpen = false;
   let shouldAutoPlay = false; // Track intent to auto-play when track loads
+  let isInitializing = true; // Flag to prevent saves during initial setup
 
   function handleToggleMenu() {
     sheetOpen = !sheetOpen;
@@ -94,6 +95,11 @@
       window.addEventListener("beforeunload", handleBeforeUnload);
       document.addEventListener("visibilitychange", handleVisibilityChange);
     }
+
+    // Mark initialization as complete after a short delay to allow all reactive statements to settle
+    setTimeout(() => {
+      isInitializing = false;
+    }, 100);
   });
 
   // Clean up event source on component destroy
@@ -291,7 +297,7 @@
   }
 
   // Trigger debounced save on any relevant player state changes
-  $: if ($playerStore.currentTrack) {
+  $: if ($playerStore.currentTrack && !isInitializing) {
     // This reactive statement will trigger whenever any of these values change
     // We use void to explicitly indicate these are intentional side-effect expressions
     void $playerStore.currentTime;
