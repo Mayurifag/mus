@@ -7,18 +7,18 @@ import type { Track } from "$lib/types";
 // Mock playerStore
 vi.mock("./playerStore", () => {
   const mockStore = {
-    subscribe: vi.fn(),
+    subscribe: vi.fn((callback) => {
+      callback({ is_shuffle: false, is_repeat: false });
+      return () => {};
+    }),
     setTrack: vi.fn(),
     play: vi.fn(),
     pause: vi.fn(),
     update: vi.fn(),
-    is_shuffle: false,
-    is_repeat: false,
   };
 
   return {
     playerStore: mockStore,
-    get: () => ({ is_shuffle: false, is_repeat: false }),
   };
 });
 
@@ -133,7 +133,7 @@ describe("trackStore", () => {
     expect(get(trackStore).playHistory).toEqual([mockTracks[0], mockTracks[1]]);
   });
 
-  it.skip("should handle nextTrack in regular (non-shuffle) mode", () => {
+  it("should handle nextTrack in regular (non-shuffle) mode", () => {
     trackStore.setTracks(mockTracks);
     trackStore.setCurrentTrackIndex(0);
     vi.clearAllMocks();
@@ -153,7 +153,7 @@ describe("trackStore", () => {
     expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[0]);
   });
 
-  it.skip("should handle previousTrack in regular (non-shuffle) mode", () => {
+  it("should handle previousTrack in regular (non-shuffle) mode", () => {
     trackStore.setTracks(mockTracks);
     trackStore.setCurrentTrackIndex(1);
     vi.clearAllMocks();
