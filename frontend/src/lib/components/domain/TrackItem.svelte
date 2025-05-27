@@ -83,7 +83,7 @@
     {#if isSelected && $playerStore.isPlaying}
       <div class="bg-muted/50 mt-1 h-1 w-full overflow-hidden rounded-full">
         <div
-          class="bg-primary h-full"
+          class="bg-accent h-full"
           style="width: {progressPercentage}%;"
           role="progressbar"
           aria-valuenow={progressPercentage}

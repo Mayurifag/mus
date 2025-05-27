@@ -25,23 +25,40 @@
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   }
 
-  function handleSeek(value: number[]) {
-    if (value.length > 0) {
-      playerStore.setCurrentTime(value[0]);
-    }
-  }
-
   // Volume feedback variables
-  let showVolumeFeedback = false;
-  let volumeFeedbackValue = 0;
+  let showVolumeFeedback = $state(false);
+  let volumeFeedbackValue = $state(0);
   let volumeFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
 
-  function handleVolumeChange(value: number[]) {
-    if (value.length > 0) {
-      playerStore.setVolume(value[0]);
+  // Reactive variables for slider values
+  // eslint-disable-next-line svelte/prefer-writable-derived
+  let progressValue = $state([$playerStore.currentTime]);
+  // eslint-disable-next-line svelte/prefer-writable-derived
+  let volumeValue = $state([$playerStore.volume]);
+
+  // Update slider values when store changes
+  $effect(() => {
+    progressValue = [$playerStore.currentTime];
+  });
+
+  $effect(() => {
+    volumeValue = [$playerStore.volume];
+  });
+
+  // Handle progress slider changes
+  $effect(() => {
+    if (progressValue[0] !== $playerStore.currentTime) {
+      playerStore.setCurrentTime(progressValue[0]);
+    }
+  });
+
+  // Handle volume slider changes
+  $effect(() => {
+    if (volumeValue[0] !== $playerStore.volume) {
+      playerStore.setVolume(volumeValue[0]);
 
       // Show volume feedback
-      volumeFeedbackValue = Math.round(value[0] * 100);
+      volumeFeedbackValue = Math.round(volumeValue[0] * 100);
       showVolumeFeedback = true;
 
       // Clear existing timer if any
@@ -52,9 +69,9 @@
       // Hide feedback after 1.5 seconds
       volumeFeedbackTimer = setTimeout(() => {
         showVolumeFeedback = false;
-      }, 200);
+      }, 1500);
     }
-  }
+  });
 
   // Create a function to dispatch a custom event to toggle the sidebar
   function toggleMenu() {
@@ -65,11 +82,13 @@
   }
 
   // Update volume feedback when mute is toggled
-  $: if ($playerStore.isMuted) {
-    volumeFeedbackValue = 0;
-  } else {
-    volumeFeedbackValue = Math.round($playerStore.volume * 100);
-  }
+  $effect(() => {
+    if ($playerStore.isMuted) {
+      volumeFeedbackValue = 0;
+    } else {
+      volumeFeedbackValue = Math.round($playerStore.volume * 100);
+    }
+  });
 
   // Clean up timer when component is destroyed
   onMount(() => {
@@ -165,8 +184,7 @@
             {formatTime($playerStore.currentTime)}
           </span>
           <Slider
-            value={[$playerStore.currentTime]}
-            onValueChange={handleSeek}
+            bind:value={progressValue}
             max={$playerStore.duration || 100}
             step={1}
             class="flex-1"
@@ -228,8 +246,7 @@
           </Button>
           <div class="relative w-32">
             <Slider
-              value={[$playerStore.volume]}
-              onValueChange={handleVolumeChange}
+              bind:value={volumeValue}
               max={1}
               step={0.01}
               class="w-full"
