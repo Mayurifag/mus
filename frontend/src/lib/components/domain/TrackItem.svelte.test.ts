@@ -11,6 +11,8 @@ vi.mock("$lib/stores/trackStore", () => ({
 vi.mock("$lib/stores/playerStore", () => ({
   playerStore: {
     pause: vi.fn(),
+    play: vi.fn(),
+    setCurrentTime: vi.fn(),
     subscribe: vi.fn().mockImplementation((callback) => {
       callback({
         isPlaying: true,
@@ -54,6 +56,8 @@ describe("TrackItem component", () => {
     // Clear the mocks
     vi.mocked(trackStore.playTrack).mockClear();
     vi.mocked(playerStore.pause).mockClear();
+    vi.mocked(playerStore.play).mockClear();
+    vi.mocked(playerStore.setCurrentTime).mockClear();
   });
 
   it("renders track details correctly", () => {
@@ -156,5 +160,29 @@ describe("TrackItem component", () => {
     await fireEvent.keyDown(trackItemElement, { key: " " });
 
     expect(vi.mocked(trackStore.playTrack)).toHaveBeenCalledWith(4);
+  });
+
+  it("calls playerStore.play when selected track is paused and clicked", async () => {
+    // Mock playerStore to return paused state
+    vi.mocked(playerStore.subscribe).mockImplementation((callback) => {
+      callback({
+        currentTrack: mockTrack,
+        isPlaying: false,
+        currentTime: 60,
+        duration: 180,
+        volume: 1.0,
+        isMuted: false,
+        is_shuffle: false,
+        is_repeat: false,
+      });
+      return () => {};
+    });
+
+    render(TrackItem, { track: mockTrack, index: 2, isSelected: true });
+
+    const trackItemElement = screen.getByTestId("track-item");
+    await fireEvent.click(trackItemElement);
+
+    expect(vi.mocked(playerStore.play)).toHaveBeenCalled();
   });
 });

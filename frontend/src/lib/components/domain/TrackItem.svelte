@@ -47,26 +47,13 @@
     }
   }
 
-  // Local state for progress slider - ensure it's always initialized with a valid value
   let progressValue = $state([0]);
   let isUserDragging = $state(false);
 
-  // Initialize progress value when component mounts or selection changes
-  $effect(() => {
-    if (isSelected) {
-      // Ensure we always have a valid initial value
-      const currentTime = $playerStore.currentTime || 0;
-      if (!isUserDragging) {
-        progressValue = [currentTime];
-      }
-    }
-  });
-
-  // Sync local state with store when store changes (but not during user interaction)
   $effect(() => {
     if (
-      !isUserDragging &&
       isSelected &&
+      !isUserDragging &&
       $playerStore.currentTime !== undefined
     ) {
       progressValue = [$playerStore.currentTime];

@@ -18,7 +18,7 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Frontend: Refactor TrackItem.svelte Progress Display Logic",
       "details": "Review and refactor the progress display logic in `frontend/src/lib/components/domain/TrackItem.svelte`. Currently, it uses a local `calculateProgress` function and `progressPercentage` state. Evaluate if this can be simplified by directly deriving the progress percentage from `$playerStore.currentTime` and `$playerStore.duration` when the track item is the currently playing track. The goal is to reduce local state if possible and make the component more directly reactive to the global player state. If the current approach is deemed optimal for its isolated use after evaluation, document this finding. Update or create unit tests in `TrackItem.svelte.test.ts`.",
       "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc,.cursor/rules/css.mdc`",
