@@ -13,9 +13,6 @@ from src.mus.infrastructure.api.dependencies import get_current_user
 from src.mus.infrastructure.api.routers import (
     player_router,
     track_router,
-    album_router,
-    artist_router,
-    playlist_router,
 )
 from src.mus.infrastructure.api.sse_handler import router as sse_router
 from src.mus.infrastructure.database import (
@@ -98,9 +95,6 @@ if os.getenv("APP_ENV") != "production":
 app.include_router(auth_router)
 app.include_router(player_router.router)
 app.include_router(track_router.router)
-app.include_router(album_router.router)
-app.include_router(artist_router.router)
-app.include_router(playlist_router.router)
 app.include_router(sse_router)
 
 logger.info(

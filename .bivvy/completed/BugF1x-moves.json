@@ -42,7 +42,7 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Backend: Code Cleanup - Remove Placeholder Routers and Schemas Module",
       "details": "Remove unused placeholder API components from the backend. 1. Delete file `backend/src/mus/infrastructure/api/routers/album_router.py`. 2. Delete file `backend/src/mus/infrastructure/api/routers/artist_router.py`. 3. Delete file `backend/src/mus/infrastructure/api/routers/playlist_router.py`. 4. Delete file `backend/src/mus/infrastructure/api/schemas.py`. 5. In `backend/src/mus/main.py`: remove imports for `album_router`, `artist_router`, `playlist_router`. Remove the corresponding `app.include_router(...)` calls for these three routers. 6. In `backend/src/mus/infrastructure/api/routers/__init__.py`: remove imports and `__all__` entries for `album_router`, `artist_router`, `playlist_router`. 7. Globally search for any remaining imports of `src.mus.infrastructure.api.schemas` and update them to import directly from `src.mus.application.dtos` if necessary (though this is unlikely as `schemas.py` was primarily for re-exporting). 8. Run `make back-test` and `make ci` to ensure no breakages. Update or remove any tests that might have specifically targeted these deleted routers or schema re-exports (e.g., if there were tests in `backend/tests/api/` for these empty routers).",
       "rules_filepaths_to_follow": "`.cursor/rules/python.mdc,.cursor/rules/makefile.mdc`",
