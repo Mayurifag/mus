@@ -101,6 +101,7 @@
         src={track.cover_small_url}
         alt="Album art for {track.title}"
         class="h-full w-full object-cover"
+        loading="lazy"
       />
     {:else}
       <div class="bg-muted flex h-full w-full items-center justify-center">

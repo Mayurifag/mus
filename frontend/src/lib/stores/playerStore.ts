@@ -54,8 +54,12 @@ function createPlayerStore() {
     setMuted: (isMuted: boolean) => update((state) => ({ ...state, isMuted })),
     toggleShuffle: () =>
       update((state) => ({ ...state, is_shuffle: !state.is_shuffle })),
+    setShuffle: (is_shuffle: boolean) =>
+      update((state) => ({ ...state, is_shuffle })),
     toggleRepeat: () =>
       update((state) => ({ ...state, is_repeat: !state.is_repeat })),
+    setRepeat: (is_repeat: boolean) =>
+      update((state) => ({ ...state, is_repeat })),
     reset: () => set(initialState),
   };
 }

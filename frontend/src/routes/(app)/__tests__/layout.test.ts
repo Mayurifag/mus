@@ -1,6 +1,6 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { get } from "svelte/store";
-import type { Track } from "$lib/types";
+import type { Track, PlayerState } from "$lib/types";
 
 // Test the nextTrack auto-play functionality
 describe("Layout audio auto-play functionality", () => {
@@ -75,5 +75,247 @@ describe("Layout audio auto-play functionality", () => {
     // The handleEnded function should call trackStore.nextTrack() when is_repeat is false
     // This is verified by the logic in the component and our previous test
     expect(mockPlayerState.is_repeat).toBe(false);
+  });
+});
+
+describe("Track loading and initialization", () => {
+  const mockTracks: Track[] = [
+    {
+      id: 1,
+      title: "Track 1",
+      artist: "Artist 1",
+      duration: 180,
+      file_path: "/path/to/track1.mp3",
+      added_at: 1615478400,
+      has_cover: true,
+      cover_small_url: "/api/v1/tracks/1/covers/small.webp",
+      cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+    },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should initialize tracks immediately and set loading to false", async () => {
+    const { trackStore } = await import("$lib/stores/trackStore");
+
+    // Reset store to initial state
+    trackStore.setTracks([]);
+
+    // Verify initial loading state
+    let state = get(trackStore);
+    expect(state.isLoading).toBe(false); // Should be false after setTracks([])
+    expect(state.tracks).toEqual([]);
+
+    // Simulate immediate track initialization (like in layout.svelte)
+    trackStore.setTracks(mockTracks);
+
+    // Verify tracks are set and loading is false
+    state = get(trackStore);
+    expect(state.isLoading).toBe(false);
+    expect(state.tracks).toEqual(mockTracks);
+  });
+});
+
+describe("Player state persistence and restoration", () => {
+  const mockTracks: Track[] = [
+    {
+      id: 1,
+      title: "Track 1",
+      artist: "Artist 1",
+      duration: 180,
+      file_path: "/path/to/track1.mp3",
+      added_at: 1615478400,
+      has_cover: true,
+      cover_small_url: "/api/v1/tracks/1/covers/small.webp",
+      cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+    },
+    {
+      id: 2,
+      title: "Track 2",
+      artist: "Artist 2",
+      duration: 200,
+      file_path: "/path/to/track2.mp3",
+      added_at: 1615478500,
+      has_cover: false,
+      cover_small_url: null,
+      cover_original_url: null,
+    },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should restore player state with shuffle and repeat flags", async () => {
+    const { playerStore } = await import("$lib/stores/playerStore");
+    const { trackStore } = await import("$lib/stores/trackStore");
+
+    // Reset stores to initial state
+    playerStore.reset();
+    trackStore.setTracks([]);
+
+    // Mock data with player state including shuffle and repeat
+    const mockData = {
+      tracks: mockTracks,
+      playerState: {
+        current_track_id: 2,
+        progress_seconds: 45.5,
+        volume_level: 0.8,
+        is_muted: true,
+        is_shuffle: true,
+        is_repeat: false,
+      } as PlayerState,
+    };
+
+    // Simulate the state restoration logic from layout.svelte
+    trackStore.setTracks(mockData.tracks);
+
+    if (mockData.playerState) {
+      const {
+        current_track_id,
+        progress_seconds,
+        volume_level,
+        is_muted,
+        is_shuffle,
+        is_repeat,
+      } = mockData.playerState;
+
+      // Set volume and mute state
+      playerStore.setVolume(volume_level);
+      if (is_muted) {
+        playerStore.setMuted(true);
+      }
+
+      // Set shuffle and repeat state
+      playerStore.setShuffle(is_shuffle);
+      playerStore.setRepeat(is_repeat);
+
+      // Set current track if exists
+      if (current_track_id !== null) {
+        const trackIndex = mockData.tracks.findIndex(
+          (track: Track) => track.id === current_track_id,
+        );
+        if (trackIndex >= 0) {
+          trackStore.setCurrentTrackIndex(trackIndex);
+          // Set progress
+          playerStore.setCurrentTime(progress_seconds);
+        }
+      }
+    }
+
+    // Verify the state was restored correctly
+    const playerState = get(playerStore);
+    expect(playerState.currentTrack?.id).toBe(2);
+    expect(playerState.currentTime).toBe(45.5);
+    expect(playerState.volume).toBe(0.8);
+    expect(playerState.isMuted).toBe(true);
+    expect(playerState.is_shuffle).toBe(true);
+    expect(playerState.is_repeat).toBe(false);
+  });
+
+  it("should handle player state restoration with false boolean values", async () => {
+    const { playerStore } = await import("$lib/stores/playerStore");
+    const { trackStore } = await import("$lib/stores/trackStore");
+
+    // Reset stores to initial state
+    playerStore.reset();
+    trackStore.setTracks([]);
+
+    // Mock data with player state where shuffle and repeat are explicitly false
+    const mockData = {
+      tracks: mockTracks,
+      playerState: {
+        current_track_id: 1,
+        progress_seconds: 30.0,
+        volume_level: 0.6,
+        is_muted: false,
+        is_shuffle: false,
+        is_repeat: false,
+      } as PlayerState,
+    };
+
+    // Simulate the state restoration logic from layout.svelte
+    trackStore.setTracks(mockData.tracks);
+
+    if (mockData.playerState) {
+      const {
+        current_track_id,
+        progress_seconds,
+        volume_level,
+        is_muted,
+        is_shuffle,
+        is_repeat,
+      } = mockData.playerState;
+
+      // Set volume and mute state
+      playerStore.setVolume(volume_level);
+      if (is_muted) {
+        playerStore.setMuted(true);
+      }
+
+      // Set shuffle and repeat state
+      playerStore.setShuffle(is_shuffle);
+      playerStore.setRepeat(is_repeat);
+
+      // Set current track if exists
+      if (current_track_id !== null) {
+        const trackIndex = mockData.tracks.findIndex(
+          (track: Track) => track.id === current_track_id,
+        );
+        if (trackIndex >= 0) {
+          trackStore.setCurrentTrackIndex(trackIndex);
+          // Set progress
+          playerStore.setCurrentTime(progress_seconds);
+        }
+      }
+    }
+
+    // Verify the state was restored correctly with false values
+    const playerState = get(playerStore);
+    expect(playerState.currentTrack?.id).toBe(1);
+    expect(playerState.currentTime).toBe(30.0);
+    expect(playerState.volume).toBe(0.6);
+    expect(playerState.isMuted).toBe(false);
+    expect(playerState.is_shuffle).toBe(false);
+    expect(playerState.is_repeat).toBe(false);
+  });
+
+  it("should handle null player state gracefully", async () => {
+    const { playerStore } = await import("$lib/stores/playerStore");
+    const { trackStore } = await import("$lib/stores/trackStore");
+
+    // Reset stores to initial state
+    playerStore.reset();
+    trackStore.setTracks([]);
+
+    // Mock data with null player state
+    const mockData = {
+      tracks: mockTracks,
+      playerState: null,
+    };
+
+    // Simulate the state restoration logic from layout.svelte
+    trackStore.setTracks(mockData.tracks);
+
+    // No player state to restore, should select first track
+    if (
+      !mockData.playerState &&
+      mockData.tracks &&
+      mockData.tracks.length > 0
+    ) {
+      trackStore.setCurrentTrackIndex(0);
+      playerStore.pause();
+    }
+
+    // Verify default state
+    const playerState = get(playerStore);
+    expect(playerState.currentTrack?.id).toBe(1);
+    expect(playerState.isPlaying).toBe(false);
+    expect(playerState.volume).toBe(1.0);
+    expect(playerState.isMuted).toBe(false);
+    expect(playerState.is_shuffle).toBe(false);
+    expect(playerState.is_repeat).toBe(false);
   });
 });

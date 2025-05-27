@@ -1,8 +1,9 @@
 from enum import Enum
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from typing import List, Final
 import os
+import hashlib
 from src.mus.application.dtos.track import TrackDTO
 from src.mus.infrastructure.api.dependencies import get_track_repository
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
@@ -77,12 +78,20 @@ async def stream_track(
     )
 
 
-@router.get("/{track_id}/covers/{size}.webp", name="get_track_cover")
+def _generate_etag(file_path: str, file_size: int, mtime: float) -> str:
+    etag_data = f"{file_path}:{file_size}:{mtime}"
+    return hashlib.md5(etag_data.encode()).hexdigest()
+
+
+@router.get(
+    "/{track_id}/covers/{size}.webp", name="get_track_cover", response_model=None
+)
 async def get_track_cover(
+    request: Request,
     track_id: int = Path(..., gt=0),
     size: CoverSize = Path(...),
     track_repository: SQLiteTrackRepository = Depends(get_track_repository),
-) -> FileResponse:
+):
     track = await track_repository.get_by_id(track_id)
     if not track:
         raise HTTPException(
@@ -105,6 +114,22 @@ async def get_track_cover(
             detail=f"Cover image for track {track_id} with size {size} not found",
         )
 
+    file_stat = await asyncio.to_thread(os.stat, cover_path)
+    file_size = file_stat.st_size
+    file_mtime = file_stat.st_mtime
+
+    etag = _generate_etag(str(cover_path), file_size, file_mtime)
+
+    if_none_match = request.headers.get("if-none-match")
+    if if_none_match and if_none_match.strip('"') == etag:
+        return Response(status_code=304)
+
     return FileResponse(
-        path=cover_path, media_type="image/webp", filename=f"cover_{size.value}.webp"
+        path=cover_path,
+        media_type="image/webp",
+        filename=f"cover_{size.value}.webp",
+        headers={
+            "ETag": f'"{etag}"',
+            "Cache-Control": "public, max-age=31536000, immutable",
+        },
     )

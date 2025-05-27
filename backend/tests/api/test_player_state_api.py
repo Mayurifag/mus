@@ -188,3 +188,73 @@ async def test_save_player_state_volume_range(client):
 
     assert response.status_code == 422  # Validation error
     assert "less_than_equal" in response.json()["detail"][0]["type"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.filterwarnings(warning_filter)
+async def test_save_player_state_shuffle_repeat_false(client, reset_player_state):
+    state_with_false_flags = {
+        "current_track_id": 15,
+        "progress_seconds": 120.0,
+        "volume_level": 0.9,
+        "is_muted": False,
+        "is_shuffle": False,
+        "is_repeat": False,
+    }
+
+    response = client.post("/api/v1/player/state", json=state_with_false_flags)
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["current_track_id"] == state_with_false_flags["current_track_id"]
+    assert data["progress_seconds"] == state_with_false_flags["progress_seconds"]
+    assert data["volume_level"] == state_with_false_flags["volume_level"]
+    assert data["is_muted"] == state_with_false_flags["is_muted"]
+    assert data["is_shuffle"] == state_with_false_flags["is_shuffle"]
+    assert data["is_repeat"] == state_with_false_flags["is_repeat"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.filterwarnings(warning_filter)
+async def test_save_player_state_toggle_shuffle_repeat(client, reset_player_state):
+    # First save with shuffle=True, repeat=False
+    initial_state = {
+        "current_track_id": 20,
+        "progress_seconds": 90.0,
+        "volume_level": 0.6,
+        "is_muted": False,
+        "is_shuffle": True,
+        "is_repeat": False,
+    }
+
+    response = client.post("/api/v1/player/state", json=initial_state)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["is_shuffle"] is True
+    assert data["is_repeat"] is False
+
+    # Then update to shuffle=False, repeat=True
+    updated_state = {
+        "current_track_id": 20,
+        "progress_seconds": 95.0,
+        "volume_level": 0.6,
+        "is_muted": False,
+        "is_shuffle": False,
+        "is_repeat": True,
+    }
+
+    response = client.post("/api/v1/player/state", json=updated_state)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["is_shuffle"] is False
+    assert data["is_repeat"] is True
+
+    # Verify the state persisted correctly
+    response = client.get("/api/v1/player/state")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["current_track_id"] == 20
+    assert data["progress_seconds"] == 95.0
+    assert data["is_shuffle"] is False
+    assert data["is_repeat"] is True

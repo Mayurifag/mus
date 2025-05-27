@@ -21,7 +21,7 @@ document.getElementById = vi.fn().mockImplementation((id) => {
 vi.mock("$lib/stores/trackStore", () => ({
   trackStore: {
     subscribe: vi.fn().mockImplementation((callback) => {
-      callback({ currentTrackIndex: 0 });
+      callback({ currentTrackIndex: 0, isLoading: false });
       return () => {};
     }),
   },
@@ -37,6 +37,7 @@ vi.mock("./TrackItem.svelte", () => ({
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/svelte";
 import type { Track } from "$lib/types";
+import type { TrackStoreState } from "$lib/stores/trackStore";
 import "@testing-library/jest-dom/vitest";
 import TrackList from "./TrackList.svelte";
 import TrackItem from "./TrackItem.svelte";
@@ -118,5 +119,26 @@ describe("TrackList component", () => {
       behavior: "smooth",
       block: "nearest",
     });
+  });
+
+  it("renders loading state when isLoading is true", async () => {
+    // Re-mock the trackStore for this specific test
+    const { trackStore } = await import("$lib/stores/trackStore");
+    vi.mocked(trackStore.subscribe).mockImplementation(
+      (callback: (value: TrackStoreState) => void) => {
+        callback({
+          currentTrackIndex: null,
+          isLoading: true,
+          tracks: [],
+          playHistory: [],
+        });
+        return () => {};
+      },
+    );
+
+    render(TrackList, { tracks: [] });
+
+    expect(screen.getByText("Loading tracks...")).toBeInTheDocument();
+    expect(screen.queryByText("No tracks available")).not.toBeInTheDocument();
   });
 });

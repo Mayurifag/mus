@@ -6,12 +6,14 @@ export interface TrackStoreState {
   tracks: Track[];
   currentTrackIndex: number | null;
   playHistory: Track[];
+  isLoading: boolean;
 }
 
 const initialState: TrackStoreState = {
   tracks: [],
   currentTrackIndex: null,
   playHistory: [],
+  isLoading: true,
 };
 
 function createTrackStore() {
@@ -32,10 +34,11 @@ function createTrackStore() {
               ...state,
               tracks,
               currentTrackIndex: newIndex,
+              isLoading: false,
             };
           }
         }
-        return { ...state, tracks };
+        return { ...state, tracks, isLoading: false };
       }),
     setCurrentTrackIndex: (index: number | null) => {
       update((state) => {

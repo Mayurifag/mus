@@ -33,13 +33,13 @@
     sheetOpen = !sheetOpen;
   }
 
+  // Initialize tracks immediately to prevent UI blink
+  if (data.tracks) {
+    trackStore.setTracks(data.tracks);
+  }
+
   // Initialize stores with server-loaded data
   onMount(() => {
-    // Initialize tracks
-    if (data.tracks && data.tracks.length > 0) {
-      trackStore.setTracks(data.tracks);
-    }
-
     let trackSelected = false;
 
     // Initialize player state if available
@@ -60,13 +60,8 @@
       }
 
       // Set shuffle and repeat state
-      if (is_shuffle) {
-        playerStore.update((state) => ({ ...state, is_shuffle: true }));
-      }
-
-      if (is_repeat) {
-        playerStore.update((state) => ({ ...state, is_repeat: true }));
-      }
+      playerStore.setShuffle(is_shuffle);
+      playerStore.setRepeat(is_repeat);
 
       // Set current track if exists
       if (current_track_id !== null) {
@@ -296,14 +291,14 @@
   }
 
   // Trigger debounced save on any relevant player state changes
-  $: if (
-    $playerStore.currentTrack &&
-    ($playerStore.currentTime ||
-      $playerStore.volume ||
-      $playerStore.isMuted ||
-      $playerStore.is_shuffle ||
-      $playerStore.is_repeat)
-  ) {
+  $: if ($playerStore.currentTrack) {
+    // This reactive statement will trigger whenever any of these values change
+    // We use void to explicitly indicate these are intentional side-effect expressions
+    void $playerStore.currentTime;
+    void $playerStore.volume;
+    void $playerStore.isMuted;
+    void $playerStore.is_shuffle;
+    void $playerStore.is_repeat;
     debouncedSavePlayerState();
   }
 
