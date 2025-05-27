@@ -27,51 +27,70 @@
 
   // Volume feedback variables
   let showVolumeFeedback = $state(false);
-  let volumeFeedbackValue = $state(0);
   let volumeFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // Reactive variables for slider values
-  // eslint-disable-next-line svelte/prefer-writable-derived
+  // Local slider state for two-way binding
   let progressValue = $state([$playerStore.currentTime]);
-  // eslint-disable-next-line svelte/prefer-writable-derived
   let volumeValue = $state([$playerStore.volume]);
 
-  // Update slider values when store changes
-  $effect(() => {
-    progressValue = [$playerStore.currentTime];
-  });
+  // Track if user is currently interacting with sliders
+  let isUserDraggingProgress = $state(false);
+  let isUserDraggingVolume = $state(false);
 
-  $effect(() => {
-    volumeValue = [$playerStore.volume];
-  });
+  // Reactive volume feedback value
+  let volumeFeedbackValue = $derived(
+    $playerStore.isMuted ? 0 : Math.round($playerStore.volume * 100),
+  );
 
-  // Handle progress slider changes
+  // Sync local state with store when store changes (but not during user interaction)
   $effect(() => {
-    if (progressValue[0] !== $playerStore.currentTime) {
-      playerStore.setCurrentTime(progressValue[0]);
+    if (!isUserDraggingProgress) {
+      progressValue = [$playerStore.currentTime];
     }
   });
 
-  // Handle volume slider changes
   $effect(() => {
-    if (volumeValue[0] !== $playerStore.volume) {
-      playerStore.setVolume(volumeValue[0]);
-
-      // Show volume feedback
-      volumeFeedbackValue = Math.round(volumeValue[0] * 100);
-      showVolumeFeedback = true;
-
-      // Clear existing timer if any
-      if (volumeFeedbackTimer) {
-        clearTimeout(volumeFeedbackTimer);
-      }
-
-      // Hide feedback after 1.5 seconds
-      volumeFeedbackTimer = setTimeout(() => {
-        showVolumeFeedback = false;
-      }, 1500);
+    if (!isUserDraggingVolume) {
+      volumeValue = [$playerStore.volume];
     }
   });
+
+  function handleProgressChange(value: number[]): void {
+    playerStore.setCurrentTime(value[0]);
+  }
+
+  function handleProgressCommit(): void {
+    isUserDraggingProgress = false;
+  }
+
+  function handleProgressInput(): void {
+    isUserDraggingProgress = true;
+  }
+
+  function handleVolumeChange(value: number[]): void {
+    playerStore.setVolume(value[0]);
+
+    // Show volume feedback
+    showVolumeFeedback = true;
+
+    // Clear existing timer if any
+    if (volumeFeedbackTimer) {
+      clearTimeout(volumeFeedbackTimer);
+    }
+
+    // Hide feedback after 1.5 seconds
+    volumeFeedbackTimer = setTimeout(() => {
+      showVolumeFeedback = false;
+    }, 1500);
+  }
+
+  function handleVolumeCommit(): void {
+    isUserDraggingVolume = false;
+  }
+
+  function handleVolumeInput(): void {
+    isUserDraggingVolume = true;
+  }
 
   // Create a function to dispatch a custom event to toggle the sidebar
   function toggleMenu() {
@@ -80,15 +99,6 @@
       document.body.dispatchEvent(event);
     }
   }
-
-  // Update volume feedback when mute is toggled
-  $effect(() => {
-    if ($playerStore.isMuted) {
-      volumeFeedbackValue = 0;
-    } else {
-      volumeFeedbackValue = Math.round($playerStore.volume * 100);
-    }
-  });
 
   // Clean up timer when component is destroyed
   onMount(() => {
@@ -185,9 +195,12 @@
           </span>
           <Slider
             bind:value={progressValue}
+            onValueChange={handleProgressChange}
+            on:valuecommit={handleProgressCommit}
+            on:input={handleProgressInput}
             max={$playerStore.duration || 100}
             step={1}
-            class="flex-1"
+            class="flex-1 cursor-pointer"
             disabled={!$playerStore.currentTrack}
           />
           <span class="text-muted-foreground w-10 text-xs">
@@ -247,6 +260,9 @@
           <div class="relative w-32">
             <Slider
               bind:value={volumeValue}
+              onValueChange={handleVolumeChange}
+              on:valuecommit={handleVolumeCommit}
+              on:input={handleVolumeInput}
               max={1}
               step={0.01}
               class="w-full"

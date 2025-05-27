@@ -5,10 +5,13 @@
   import { formatDistanceToNow } from "date-fns";
   import { Play, Pause } from "lucide-svelte";
   import { Button } from "$lib/components/ui/button";
+  import { Slider } from "$lib/components/ui/slider";
 
-  export let track: Track;
-  export let isSelected = false;
-  export let index: number;
+  let {
+    track,
+    isSelected = false,
+    index,
+  }: { track: Track; isSelected?: boolean; index: number } = $props();
 
   function formatDuration(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
@@ -23,7 +26,11 @@
   function playTrack() {
     if (isSelected && $playerStore.isPlaying) {
       playerStore.pause();
+    } else if (isSelected && !$playerStore.isPlaying) {
+      // Resume the current track without resetting position
+      playerStore.play();
     } else {
+      // Play a different track
       trackStore.playTrack(index);
     }
   }
@@ -40,21 +47,60 @@
     }
   }
 
-  function calculateProgress() {
-    if (!isCurrentlyPlaying || $playerStore.duration <= 0) return 0;
-    return ($playerStore.currentTime / $playerStore.duration) * 100;
+  // Local state for progress slider - ensure it's always initialized with a valid value
+  let progressValue = $state([0]);
+  let isUserDragging = $state(false);
+
+  // Initialize progress value when component mounts or selection changes
+  $effect(() => {
+    if (isSelected) {
+      // Ensure we always have a valid initial value
+      const currentTime = $playerStore.currentTime || 0;
+      if (!isUserDragging) {
+        progressValue = [currentTime];
+      }
+    }
+  });
+
+  // Sync local state with store when store changes (but not during user interaction)
+  $effect(() => {
+    if (
+      !isUserDragging &&
+      isSelected &&
+      $playerStore.currentTime !== undefined
+    ) {
+      progressValue = [$playerStore.currentTime];
+    }
+  });
+
+  function handleProgressChange(value: number[]): void {
+    playerStore.setCurrentTime(value[0]);
   }
 
-  $: isCurrentlyPlaying = isSelected && $playerStore.isPlaying;
-  $: progressPercentage = isCurrentlyPlaying ? calculateProgress() : 0;
+  function handleProgressCommit(): void {
+    isUserDragging = false;
+  }
+
+  function handleProgressInput(event: Event): void {
+    event.stopPropagation(); // Prevent track selection when dragging slider
+    isUserDragging = true;
+  }
+
+  function handleSliderContainerClick(event: Event): void {
+    // Only prevent propagation, don't prevent default
+    // This allows the slider to work while preventing track selection
+    event.stopPropagation();
+  }
+
+  let isCurrentlyPlaying = $derived(isSelected && $playerStore.isPlaying);
 </script>
 
 <div
   class="hover:bg-muted/50 flex cursor-pointer items-center gap-4 rounded-md p-2 transition-colors {isSelected
     ? 'bg-muted'
     : ''}"
-  on:click={playTrack}
-  on:keydown={handleKeyDown}
+  onclick={playTrack}
+  onkeydown={handleKeyDown}
   role="button"
   tabindex="0"
   data-testid="track-item"
@@ -80,17 +126,23 @@
     <span class="truncate font-medium">{track.title}</span>
     <span class="text-muted-foreground truncate text-sm">{track.artist}</span>
 
-    {#if isSelected && $playerStore.isPlaying}
-      <div class="bg-muted/50 mt-1 h-1 w-full overflow-hidden rounded-full">
-        <div
-          class="bg-accent h-full"
-          style="width: {progressPercentage}%;"
-          role="progressbar"
-          aria-valuenow={progressPercentage}
-          aria-valuemin="0"
-          aria-valuemax="100"
-          data-testid="track-progress-bar"
-        ></div>
+    {#if isSelected}
+      <div
+        class="group/slider mt-1 w-full"
+        onclick={handleSliderContainerClick}
+        onkeydown={handleSliderContainerClick}
+        role="presentation"
+      >
+        <Slider
+          bind:value={progressValue}
+          onValueChange={handleProgressChange}
+          on:valuecommit={handleProgressCommit}
+          on:input={handleProgressInput}
+          max={$playerStore.duration || 100}
+          step={1}
+          class="track-progress-slider relative h-1 w-full cursor-pointer"
+          data-testid="track-progress-slider"
+        />
       </div>
     {/if}
   </div>
@@ -104,7 +156,7 @@
     variant="ghost"
     size="icon"
     class="h-8 w-8"
-    on:click={handlePlayButtonClick}
+    onclick={handlePlayButtonClick}
     aria-label={isCurrentlyPlaying ? "Pause track" : "Play track"}
   >
     {#if isCurrentlyPlaying}
@@ -114,3 +166,54 @@
     {/if}
   </Button>
 </div>
+
+<style>
+  /* Ensure the slider track is visible with high specificity */
+  :global(.track-progress-slider) {
+    height: 4px !important;
+    min-height: 4px !important;
+  }
+
+  /* Target the actual slider track span element */
+  :global(.track-progress-slider span) {
+    height: 4px !important;
+    min-height: 4px !important;
+    background-color: hsl(var(--muted)) !important;
+  }
+
+  /* Target the slider range element */
+  :global(.track-progress-slider span > *) {
+    height: 4px !important;
+    min-height: 4px !important;
+    background-color: hsl(var(--accent)) !important;
+  }
+
+  /* More specific targeting for bits-ui slider elements */
+  :global(.track-progress-slider [data-melt-slider-root]) {
+    height: 4px !important;
+  }
+
+  :global(.track-progress-slider [data-melt-slider-range]) {
+    height: 4px !important;
+    background-color: hsl(var(--accent)) !important;
+  }
+
+  /* Hide thumb by default, show on hover */
+  :global(.track-progress-slider [data-melt-slider-thumb]) {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  :global(.group\/slider:hover .track-progress-slider [data-melt-slider-thumb]),
+  :global(.track-progress-slider:focus-within [data-melt-slider-thumb]) {
+    opacity: 1;
+  }
+
+  /* Ensure the slider container is visible */
+  :global(.group\/slider) {
+    min-height: 8px;
+    display: block;
+  }
+</style>

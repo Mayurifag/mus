@@ -92,27 +92,23 @@ describe("TrackItem component", () => {
     expect(trackItemDiv?.classList.contains("bg-muted")).toBe(true);
   });
 
-  it("renders progress bar when track is selected and playing", () => {
+  it("renders progress slider when track is selected", () => {
     render(TrackItem, { track: mockTrack, index: 0, isSelected: true });
 
-    const progressBar = screen.getByTestId("track-progress-bar");
-    expect(progressBar).toBeInTheDocument();
+    const progressSlider = screen.getByTestId("track-progress-slider");
+    expect(progressSlider).toBeInTheDocument();
 
-    // Progress should be around 33% (60 seconds of 180 seconds)
-    const progressStyle = progressBar.getAttribute("style");
-    expect(progressStyle).toContain("width: 33.33");
-
-    // Check ARIA attributes
-    expect(progressBar.getAttribute("role")).toBe("progressbar");
-    expect(progressBar.getAttribute("aria-valuemin")).toBe("0");
-    expect(progressBar.getAttribute("aria-valuemax")).toBe("100");
+    // Check that it has the correct class for styling
+    expect(progressSlider.classList.contains("track-progress-slider")).toBe(
+      true,
+    );
   });
 
-  it("does not render progress bar when track is not selected", () => {
+  it("does not render progress slider when track is not selected", () => {
     render(TrackItem, { track: mockTrack, index: 0, isSelected: false });
 
-    const progressBar = screen.queryByTestId("track-progress-bar");
-    expect(progressBar).not.toBeInTheDocument();
+    const progressSlider = screen.queryByTestId("track-progress-slider");
+    expect(progressSlider).not.toBeInTheDocument();
   });
 
   it("includes track ID in the element ID for scroll targeting", () => {

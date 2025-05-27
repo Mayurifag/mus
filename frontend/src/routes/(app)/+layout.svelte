@@ -267,6 +267,16 @@
     audio.volume = $playerStore.isMuted ? 0 : $playerStore.volume;
   }
 
+  // Sync store currentTime changes to audio (for seeking)
+  $: if (audio && trackLoaded && $playerStore.currentTime !== undefined) {
+    // Only seek if there's a significant difference (more than 1 second)
+    // This prevents infinite loops from natural timeupdate events
+    const timeDiff = Math.abs(audio.currentTime - $playerStore.currentTime);
+    if (timeDiff > 1) {
+      audio.currentTime = $playerStore.currentTime;
+    }
+  }
+
   // Trigger debounced save on any relevant player state changes
   $: if (
     $playerStore.currentTrack &&
