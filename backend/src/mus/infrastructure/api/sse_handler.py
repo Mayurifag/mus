@@ -35,7 +35,7 @@ async def broadcast_sse_event(
     }
 
     for q in active_sse_clients:
-        await q.put(event_data)
+        asyncio.create_task(q.put(event_data))
 
 
 @router.get("/track-updates")

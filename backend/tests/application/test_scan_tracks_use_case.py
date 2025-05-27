@@ -118,8 +118,7 @@ async def test_scan_directory_no_files_found(
         result = await scan_tracks_use_case.scan_directory()
 
     assert result.success is True
-    assert result.tracks_added == 0
-    assert result.tracks_updated == 0
+    assert result.tracks_changes == 0
     assert result.errors == 0
     assert "No new or modified files found" in result.message
     mock_file_system_scanner.scan_directories.assert_called_once_with(
@@ -127,22 +126,8 @@ async def test_scan_directory_no_files_found(
     )
     mock_repo_instance.get_latest_track_added_at.assert_awaited_once()
 
-    # Verify SSE events for empty scan
-    # Initial progress
-    mock_broadcast_sse.assert_any_call(
-        message_to_show="Scanning 0 files...",
-        message_level="info",
-        action_key="scan_progress",
-        action_payload={"processed": 0, "total": 0},
-    )
-
-    # Final summary
-    mock_broadcast_sse.assert_any_call(
-        message_to_show="Music library scan completed. No changes detected.",
-        message_level="info",
-        action_key=None,
-        action_payload=None,
-    )
+    # Verify no SSE events for empty scan
+    mock_broadcast_sse.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -201,8 +186,7 @@ async def test_scan_directory_one_new_file(
             result = await scan_tracks_use_case.scan_directory()
 
     assert result.success is True
-    assert result.tracks_added == 1
-    assert result.tracks_updated == 0
+    assert result.tracks_changes == 1
     assert result.errors == 0
 
     scan_tracks_use_case._extract_metadata.assert_awaited_once_with(test_file_path)
@@ -220,34 +204,9 @@ async def test_scan_directory_one_new_file(
     )
     mock_repo_instance.set_cover_flag.assert_awaited_once_with(1, True)
 
-    # Check SSE events
-    # Initial progress
-    mock_broadcast_sse.assert_any_call(
-        message_to_show="Scanning 1 files...",
-        message_level="info",
-        action_key="scan_progress",
-        action_payload={"processed": 0, "total": 1},
-    )
-
-    # Track update event
-    mock_broadcast_sse.assert_any_call(
-        message_to_show="Track: Test Artist - Test Song",
-        message_level="success",
-        action_key="reload_tracks",
-        action_payload=None,
-    )
-
-    # Progress update
-    mock_broadcast_sse.assert_any_call(
-        message_to_show="Scanning progress: 1/1 files",
-        message_level="info",
-        action_key="scan_progress",
-        action_payload={"processed": 1, "total": 1},
-    )
-
-    # Final summary
-    mock_broadcast_sse.assert_any_call(
-        message_to_show="1 new tracks added.",
+    # Check SSE events - only final summary
+    mock_broadcast_sse.assert_called_once_with(
+        message_to_show="Music library scan completed. 1 items processed.",
         message_level="success",
         action_key="reload_tracks",
         action_payload=None,
@@ -317,8 +276,7 @@ async def test_scan_directory_one_new_mp3_file_metadata_extraction(
         result = await scan_tracks_use_case.scan_directory()
 
     assert result.success is True
-    assert result.tracks_added == 1
-    assert result.tracks_updated == 0
+    assert result.tracks_changes == 1
     assert result.errors == 0
 
     mock_mutagen_mp3.assert_called_once_with(test_mp3_path)
@@ -339,34 +297,9 @@ async def test_scan_directory_one_new_mp3_file_metadata_extraction(
         [(saved_track.id, test_mp3_path)]
     )
 
-    # Verify SSE calls
-    # Check for initial progress message
-    mock_broadcast_sse.assert_any_call(
-        message_to_show="Scanning 1 files...",
-        message_level="info",
-        action_key="scan_progress",
-        action_payload={"processed": 0, "total": 1},
-    )
-
-    # Check for progress update
-    mock_broadcast_sse.assert_any_call(
-        message_to_show="Scanning progress: 1/1 files",
-        message_level="info",
-        action_key="scan_progress",
-        action_payload={"processed": 1, "total": 1},
-    )
-
-    # Check for new track message
-    mock_broadcast_sse.assert_any_call(
-        message_to_show="Track: MP3 Artist - MP3 Title",
-        message_level="success",
-        action_key="reload_tracks",
-        action_payload=None,
-    )
-
-    # Check for summary message
-    mock_broadcast_sse.assert_any_call(
-        message_to_show="1 new tracks added.",
+    # Verify SSE calls - only final summary
+    mock_broadcast_sse.assert_called_once_with(
+        message_to_show="Music library scan completed. 1 items processed.",
         message_level="success",
         action_key="reload_tracks",
         action_payload=None,
@@ -425,8 +358,7 @@ async def test_scan_directory_multiple_scans_no_changes(
             # First scan
             result1 = await scan_tracks_use_case.scan_directory()
 
-        assert result1.tracks_added == 1
-        assert result1.tracks_updated == 0
+        assert result1.tracks_changes == 1
 
         # Second scan: same track, no changes (existing track)
         async def mock_upsert_second_scan(track_to_upsert: Track) -> Track:
@@ -441,8 +373,7 @@ async def test_scan_directory_multiple_scans_no_changes(
             # Second scan
             result2 = await scan_tracks_use_case.scan_directory()
 
-        assert result2.tracks_added == 1
-        assert result2.tracks_updated == 0  # No data changed, so no updates
+        assert result2.tracks_changes == 1
 
 
 @pytest.mark.asyncio
@@ -498,6 +429,5 @@ async def test_scan_directory_modified_file_reports_updated(
         ):
             result = await scan_tracks_use_case.scan_directory()
 
-        assert result.tracks_added == 1
-        assert result.tracks_updated == 0
+        assert result.tracks_changes == 1
         assert result.errors == 0

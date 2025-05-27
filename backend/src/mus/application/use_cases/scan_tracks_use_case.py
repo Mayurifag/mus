@@ -24,7 +24,6 @@ from src.mus.infrastructure.persistence.sqlite_track_repository import (
 from src.mus.infrastructure.scanner.file_system_scanner import FileSystemScanner
 from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
 from src.mus.application.dtos.scan import ScanResponseDTO
-from src.mus.application.dtos.track import TrackDTO
 from src.mus.infrastructure.api.sse_handler import broadcast_sse_event
 
 logger = logging.getLogger(__name__)
@@ -45,8 +44,7 @@ class ScanTracksUseCase:
     async def scan_directory(
         self, directory_paths: Optional[List[str]] = None
     ) -> ScanResponseDTO:
-        tracks_added_total = 0
-        tracks_updated_total = 0
+        tracks_changes = 0
         errors_total = 0
 
         scan_directories: Optional[List[Path]] = None
@@ -71,89 +69,45 @@ class ScanTracksUseCase:
 
             total_files_to_process = len(all_files)
 
-            await broadcast_sse_event(
-                message_to_show=f"Scanning {total_files_to_process} files...",
-                message_level="info",
-                action_key="scan_progress",
-                action_payload={
-                    "processed": 0,
-                    "total": total_files_to_process,
-                },
-            )
-
             if not all_files:
-                # Send a message for empty scan
-                await broadcast_sse_event(
-                    message_to_show="Music library scan completed. No changes detected.",
-                    message_level="info",
-                    action_key=None,
-                    action_payload=None,
-                )
-
                 return ScanResponseDTO(
                     success=True,
                     message="Scan completed: No new or modified files found.",
-                    tracks_added=0,
-                    tracks_updated=0,
+                    tracks_changes=0,
                     errors=0,
                 )
 
-            processed_files_count = 0
             for i in range(0, total_files_to_process, self.batch_size):
                 batch = all_files[i : i + self.batch_size]
-                (
-                    added_in_batch,
-                    updated_in_batch,
-                    errors_in_batch,
-                ) = await self._process_batch(batch, track_repo)
+                async with self.session_factory() as batch_session:
+                    batch_track_repo = SQLiteTrackRepository(batch_session)
+                    (
+                        added_in_batch,
+                        errors_in_batch,
+                    ) = await self._process_batch(batch, batch_track_repo)
 
-                tracks_added_total += added_in_batch
-                tracks_updated_total += updated_in_batch
-                errors_total += errors_in_batch
+                    tracks_changes += added_in_batch
+                    errors_total += errors_in_batch
 
-                processed_files_count += len(batch)
-                await broadcast_sse_event(
-                    message_to_show=f"Scanning progress: {processed_files_count}/{total_files_to_process} files",
-                    message_level="info",
-                    action_key="scan_progress",
-                    action_payload={
-                        "processed": processed_files_count,
-                        "total": total_files_to_process,
-                    },
-                )
-
-        # Send a final summary event
-        summary_message = None
-        if tracks_added_total > 0 and tracks_updated_total > 0:
-            summary_message = f"{tracks_added_total} new tracks added, {tracks_updated_total} tracks updated."
-        elif tracks_added_total > 0:
-            summary_message = f"{tracks_added_total} new tracks added."
-        elif tracks_updated_total > 0:
-            summary_message = f"{tracks_updated_total} tracks updated."
-        else:
-            summary_message = "Music library scan completed. No changes detected."
-
-        message_level = (
-            "success" if tracks_added_total > 0 or tracks_updated_total > 0 else "info"
+        summary_message = (
+            f"Music library scan completed. {tracks_changes} items processed."
         )
-        action_key = (
-            "reload_tracks"
-            if tracks_added_total > 0 or tracks_updated_total > 0
-            else None
-        )
+        message_level = "success" if tracks_changes > 0 else "info"
+        action_key = "reload_tracks" if tracks_changes > 0 else None
 
-        await broadcast_sse_event(
-            message_to_show=summary_message,
-            message_level=message_level,
-            action_key=action_key,
-            action_payload=None,
+        asyncio.create_task(
+            broadcast_sse_event(
+                message_to_show=summary_message,
+                message_level=message_level,
+                action_key=action_key,
+                action_payload=None,
+            )
         )
 
         return ScanResponseDTO(
             success=True,
-            message=f"Scan completed: {tracks_added_total} added, {tracks_updated_total} updated, {errors_total} errors",
-            tracks_added=tracks_added_total,
-            tracks_updated=tracks_updated_total,
+            message=f"Scan completed: {tracks_changes} changes, {errors_total} errors",
+            tracks_changes=tracks_changes,
             errors=errors_total,
         )
 
@@ -161,9 +115,8 @@ class ScanTracksUseCase:
         self,
         files: List[Path],
         track_repo: SQLiteTrackRepository,
-    ) -> Tuple[int, int, int]:
+    ) -> Tuple[int, int]:
         added_count = 0
-        updated_count = 0
         error_count = 0
 
         async with track_repo.session.begin():
@@ -198,16 +151,6 @@ class ScanTracksUseCase:
 
                     if upserted_track.id is not None:
                         tracks_to_process_covers.append((upserted_track.id, file_path))
-                        track_dto = TrackDTO.model_validate(upserted_track)
-                        # Fire-and-forget event broadcasting
-                        asyncio.create_task(
-                            broadcast_sse_event(
-                                message_to_show=f"Track: {track_dto.artist} - {track_dto.title}",
-                                message_level="success",
-                                action_key="reload_tracks",
-                                action_payload=None,
-                            )
-                        )
 
                     added_count += 1
 
@@ -224,7 +167,7 @@ class ScanTracksUseCase:
                     if success:
                         await track_repo.set_cover_flag(track_id, True)
 
-        return added_count, updated_count, error_count
+        return added_count, error_count
 
     async def _extract_metadata(self, file_path: Path) -> Optional[Dict[str, Any]]:
         try:

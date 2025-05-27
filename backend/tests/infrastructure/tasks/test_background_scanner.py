@@ -17,8 +17,7 @@ def mock_scan_use_case() -> MagicMock:
         return_value=ScanResponseDTO(
             success=True,
             message="Scan complete",
-            tracks_added=1,
-            tracks_updated=0,
+            tracks_changes=1,
             errors=0,
         )
     )

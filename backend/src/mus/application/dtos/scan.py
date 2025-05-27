@@ -31,6 +31,5 @@ class ScanResponseDTO(BaseModel):
 
     success: bool
     message: str
-    tracks_added: int = 0
-    tracks_updated: int = 0
+    tracks_changes: int = 0
     errors: int = 0

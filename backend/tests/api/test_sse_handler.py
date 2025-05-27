@@ -35,6 +35,9 @@ async def test_broadcast_sse_event():
             action_payload={"test": "data"},
         )
 
+        # Wait for tasks to complete
+        await asyncio.sleep(0.01)
+
         # Verify both queues received the event
         expected_data = {
             "message_to_show": "Test message",
@@ -51,6 +54,9 @@ async def test_broadcast_sse_event():
         mock_queue2.reset_mock()
 
         await broadcast_sse_event(message_to_show="Minimal message")
+
+        # Wait for tasks to complete
+        await asyncio.sleep(0.01)
 
         expected_minimal_data = {
             "message_to_show": "Minimal message",
