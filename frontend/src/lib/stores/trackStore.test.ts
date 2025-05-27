@@ -172,4 +172,18 @@ describe("trackStore", () => {
     expect(get(trackStore).currentTrackIndex).toBe(2);
     expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[2]);
   });
+
+  it("should auto-play next track when current track ends", () => {
+    trackStore.setTracks(mockTracks);
+    trackStore.setCurrentTrackIndex(0);
+    vi.clearAllMocks();
+
+    // Simulate track ending and going to next track
+    trackStore.nextTrack();
+
+    // Should set the next track and start playing
+    expect(get(trackStore).currentTrackIndex).toBe(1);
+    expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[1]);
+    expect(playerStore.play).toHaveBeenCalled();
+  });
 });

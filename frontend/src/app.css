@@ -75,4 +75,28 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) hsl(var(--muted));
+  }
+
+  html::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  html::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: calc(var(--radius) * 0.5);
+  }
+
+  html::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: calc(var(--radius) * 0.5);
+    border: 1px solid hsl(var(--muted));
+  }
+
+  html::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
 }

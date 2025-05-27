@@ -81,7 +81,7 @@
     // Hide feedback after 1.5 seconds
     volumeFeedbackTimer = setTimeout(() => {
       showVolumeFeedback = false;
-    }, 1500);
+    }, 150);
   }
 
   function handleVolumeCommit(): void {
@@ -154,6 +154,37 @@
       <!-- Controls -->
       <div class="flex w-1/3 flex-col items-center justify-center">
         <div class="flex items-center space-x-2">
+          <!-- Shuffle Button -->
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
+            on:click={() => playerStore.toggleShuffle()}
+            aria-label="Toggle Shuffle"
+            aria-pressed={$playerStore.is_shuffle}
+          >
+            <Shuffle
+              class="h-5 w-5"
+              color={$playerStore.is_shuffle ? "var(--accent)" : "currentColor"}
+            />
+          </Button>
+
+          <!-- Repeat Button -->
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
+            on:click={() => playerStore.toggleRepeat()}
+            aria-label="Toggle Repeat"
+            aria-pressed={$playerStore.is_repeat}
+          >
+            {#if $playerStore.is_repeat}
+              <Repeat1 class="h-5 w-5" color="var(--accent)" />
+            {:else}
+              <Repeat class="h-5 w-5" />
+            {/if}
+          </Button>
+
           <Button
             variant="ghost"
             size="icon"
@@ -211,37 +242,6 @@
 
       <!-- Volume Controls and Additional Controls -->
       <div class="flex w-1/3 items-center justify-end space-x-2 pr-4">
-        <!-- Shuffle Button -->
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-8 w-8"
-          on:click={() => playerStore.toggleShuffle()}
-          aria-label="Toggle Shuffle"
-          aria-pressed={$playerStore.is_shuffle}
-        >
-          <Shuffle
-            class="h-5 w-5"
-            color={$playerStore.is_shuffle ? "var(--accent)" : "currentColor"}
-          />
-        </Button>
-
-        <!-- Repeat Button -->
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-8 w-8"
-          on:click={() => playerStore.toggleRepeat()}
-          aria-label="Toggle Repeat"
-          aria-pressed={$playerStore.is_repeat}
-        >
-          {#if $playerStore.is_repeat}
-            <Repeat1 class="h-5 w-5" color="var(--accent)" />
-          {:else}
-            <Repeat class="h-5 w-5" />
-          {/if}
-        </Button>
-
         <!-- Volume Controls with Visual Feedback -->
         <div class="relative flex items-center space-x-1">
           <Button

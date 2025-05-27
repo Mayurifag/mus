@@ -4,7 +4,7 @@
   import { playerStore } from "$lib/stores/playerStore";
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
   import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
-  import { savePlayerState, getStreamUrl } from "$lib/services/apiClient";
+  import { savePlayerStateAsync, getStreamUrl } from "$lib/services/apiClient";
   import { initEventHandlerService } from "$lib/services/eventHandlerService";
   import * as Sheet from "$lib/components/ui/sheet";
   import type { Track } from "$lib/types";
@@ -27,6 +27,7 @@
   let saveStateDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   let eventSource: EventSource | null = null;
   let sheetOpen = false;
+  let shouldAutoPlay = false; // Track intent to auto-play when track loads
 
   function handleToggleMenu() {
     sheetOpen = !sheetOpen;
@@ -134,6 +135,18 @@
       if ($playerStore.currentTime > 0) {
         audio.currentTime = $playerStore.currentTime;
       }
+
+      // If we should auto-play (either from store state or saved intent), start playback
+      if ($playerStore.isPlaying || shouldAutoPlay) {
+        shouldAutoPlay = false; // Clear the flag
+        audio.play().catch((error) => {
+          console.error("Error playing audio after metadata loaded:", error);
+          // Don't pause on AbortError - it's expected when changing tracks
+          if (error.name !== "AbortError") {
+            playerStore.pause();
+          }
+        });
+      }
     }
   }
 
@@ -192,7 +205,7 @@
           playerStateDto.volume_level = 1;
         }
 
-        savePlayerState(playerStateDto);
+        savePlayerStateAsync(playerStateDto);
       }
     }, 1000); // Save after 1 second of no changes
   }
@@ -248,6 +261,8 @@
   $: if (audio && $playerStore.currentTrack) {
     const streamUrl = getStreamUrl($playerStore.currentTrack.id);
     if (audio.src !== streamUrl) {
+      // Set auto-play intent if we should be playing
+      shouldAutoPlay = $playerStore.isPlaying;
       audio.src = streamUrl;
       audio.load();
       trackLoaded = false;
@@ -257,7 +272,10 @@
   $: if (audio && $playerStore.isPlaying && trackLoaded) {
     audio.play().catch((error) => {
       console.error("Error playing audio:", error);
-      playerStore.pause();
+      // Don't pause on AbortError - it's expected when changing tracks
+      if (error.name !== "AbortError") {
+        playerStore.pause();
+      }
     });
   } else if (audio && !$playerStore.isPlaying) {
     audio.pause();
@@ -297,36 +315,36 @@
 </script>
 
 <Sheet.Root bind:open={sheetOpen}>
-  <div class="flex h-screen flex-col">
-    <main class="flex flex-1 overflow-hidden">
-      <div class="flex-1 overflow-y-auto p-4">
-        <slot />
-      </div>
+  <!-- Main content area that uses full viewport scrolling -->
+  <main class="min-h-screen pr-0 pb-20 md:pr-64">
+    <div class="p-4">
+      <slot />
+    </div>
+  </main>
 
-      <!-- Desktop Sidebar - visible on md screens and up -->
-      <div class="hidden shrink-0 md:block">
-        <RightSidebar />
-      </div>
+  <!-- Desktop Sidebar - positioned fixed on the right -->
+  <aside class="fixed top-0 right-0 bottom-20 hidden w-64 md:block">
+    <RightSidebar />
+  </aside>
 
-      <!-- Mobile Sidebar Sheet -->
-      <Sheet.Content side="right" class="w-64">
-        <Sheet.Header>
-          <Sheet.Title>Menu</Sheet.Title>
-          <Sheet.Description>Navigation and library controls</Sheet.Description>
-        </Sheet.Header>
-        <RightSidebar />
-      </Sheet.Content>
-    </main>
+  <!-- Mobile Sidebar Sheet -->
+  <Sheet.Content side="right" class="w-64">
+    <Sheet.Header>
+      <Sheet.Title>Menu</Sheet.Title>
+      <Sheet.Description>Navigation and library controls</Sheet.Description>
+    </Sheet.Header>
+    <RightSidebar />
+  </Sheet.Content>
 
-    <PlayerFooter />
+  <!-- Fixed Player Footer -->
+  <PlayerFooter />
 
-    <audio
-      bind:this={audio}
-      on:timeupdate={handleTimeUpdate}
-      on:loadedmetadata={handleLoadedMetadata}
-      on:ended={handleEnded}
-      on:error={handleError}
-      preload="auto"
-    ></audio>
-  </div>
+  <audio
+    bind:this={audio}
+    on:timeupdate={handleTimeUpdate}
+    on:loadedmetadata={handleLoadedMetadata}
+    on:ended={handleEnded}
+    on:error={handleError}
+    preload="auto"
+  ></audio>
 </Sheet.Root>

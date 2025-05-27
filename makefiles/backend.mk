@@ -18,7 +18,7 @@ back-test:
 .PHONY: back-dev
 back-dev:
 	@echo "Starting backend development server on http://0.0.0.0:8000 ..."
-	cd $(BACKEND_DIR) && uv run uvicorn src.mus.main:app --host 0.0.0.0 --port 8000 --reload
+	cd $(BACKEND_DIR) && uv run uvicorn src.mus.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir src
 
 .PHONY: back-uv-init
 back-uv-init:

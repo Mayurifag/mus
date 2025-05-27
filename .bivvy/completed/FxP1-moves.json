@@ -26,15 +26,16 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Frontend: Fix Bug - Next Track Selected But Not Auto-Playing",
       "details": "Investigate and resolve the issue where the next track is selected but does not automatically start playing. This involves reviewing the `trackStore.nextTrack()` method in `frontend/src/lib/stores/trackStore.ts` and the `on:ended` event handler for the `<audio>` element in `frontend/src/routes/(app)/+layout.svelte`. Ensure that after a track naturally ends (and `is_repeat` is false in `$playerStore`), or when `trackStore.nextTrack()` is manually invoked, the `playerStore.play()` action is correctly called for the newly selected track, and the audio element begins playback. Add/update tests in `trackStore.test.ts` and `layout.test.ts` to cover auto-play scenarios for next track.",
       "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc`",
       "filepaths_to_modify": "`frontend/src/lib/stores/trackStore.ts,frontend/src/routes/(app)/+layout.svelte,frontend/src/lib/stores/trackStore.test.ts,frontend/src/routes/(app)/__tests__/layout.test.ts`",
-      "rest": "true"
+      "rest": "true",
+      "additional_fixes": "Fixed player state saving timeout issues by implementing fire-and-forget async saves with shorter timeout and silent error handling. Fixed backend auto-restart issue by restricting uvicorn --reload to only watch backend/src directory. Added make dev command for convenient development server startup."
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Frontend: Fix Bug - Footer Progress Slider Not Updating Track Time on Drag",
       "details": "Rectify the issue in `frontend/src/lib/components/layout/PlayerFooter.svelte` where dragging the progress slider (the one bound to `progressValue`) does not update the audio track's current playback time. Ensure that user interaction with the slider (e.g., `on:input`, `on:change`, or through `bind:value` if it correctly reflects immediate user intent) robustly calls `playerStore.setCurrentTime()` with the slider's new value. This action should then lead to `audio.currentTime` being updated in `+layout.svelte`, causing the playback to seek. This fix may overlap with the refactoring in move 2, ensure this specific functionality is working post-refactor. Update tests in `PlayerFooter.svelte.test.ts`.",
       "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc`",
@@ -42,7 +43,7 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Frontend: Implement Interactive Progress Slider on TrackItem.svelte",
       "details": "Enhance `frontend/src/lib/components/domain/TrackItem.svelte`. For the currently playing and selected track, replace the existing visual-only progress bar (`<div class=\"bg-accent h-full\" style=\"width: {progressPercentage}%;\">`) with an interactive `Slider` component (from `$lib/components/ui/slider/index.js`). This new slider should: 1. Visually represent the current track's progress (`$playerStore.currentTime / $playerStore.duration`). 2. Allow the user to seek within the track by dragging it. Interaction should call `playerStore.setCurrentTime()` with the new value. 3. Only appear and be interactive when `isSelected` is true AND `$playerStore.isPlaying` is true. Update tests in `TrackItem.svelte.test.ts` to cover the new slider's interactivity and visibility.",
       "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc,.cursor/rules/css.mdc`",
@@ -50,7 +51,7 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Frontend: Reduce Volume Feedback Latency",
       "details": "In `frontend/src/lib/components/layout/PlayerFooter.svelte`, modify the visual feedback for volume changes. Reduce the `setTimeout` duration that controls how long the volume percentage is displayed from `1500` milliseconds to `150` milliseconds. Locate the line `volumeFeedbackTimer = setTimeout(() => { showVolumeFeedback = false; }, 1500);` and change `1500` to `150`. Verify this change with manual UI testing and update any relevant timing-dependent tests in `PlayerFooter.svelte.test.ts`.",
       "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc`",
@@ -58,15 +59,15 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Frontend: UI Cleanup - Remove Specified Text Elements",
       "details": "Perform UI cleanup by removing specified text elements: 1. In `frontend/src/routes/(app)/+page.svelte`: Remove the `<h1>Music Library</h1>` heading and the conditional paragraph displaying track count (e.g., `Found {trackCount} tracks...` or `No tracks found...`). 2. In `frontend/src/lib/components/layout/RightSidebar.svelte`: Remove the placeholder text `<p>Library Actions</p>`. Update associated tests in `page.svelte.test.ts` and `RightSidebar.test.ts` to reflect these removals.",
       "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc`",
-      "filepaths_to_modify": "`frontend/src/routes/(app)/+page.svelte,frontend/src/lib/components/layout/RightSidebar.svelte,frontend/src/routes/(app)/__tests__/page.svelte.test.ts,frontend/src/lib/components/layout/RightSidebar.test.ts`",
+      "filepaths_to_modify": "`frontend/src/routes/(app)/+page.svelte,frontend/src/lib/components/layout/RightSidebar.svelte,frontend/src/routes/(app)/__tests__/page.svelte.test.ts,frontend/src/lib/components/layout/RightSidebar.svelte.test.ts`",
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Frontend: UI Layout - Reposition Shuffle and Repeat Buttons",
       "details": "Modify the layout in `frontend/src/lib/components/layout/PlayerFooter.svelte`. Move the Shuffle button (`<Shuffle ... />`) and the Repeat button (`<Repeat ... />` or `<Repeat1 ... />`) so that they appear to the left of the 'Previous Track' button (`<SkipBack ... />`). This will involve reordering the HTML elements within the footer's control group. Ensure ARIA labels and functionality remain intact. Update `PlayerFooter.svelte.test.ts` if visual order or DOM structure changes affect tests.",
       "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/css.mdc`",
@@ -74,7 +75,7 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Frontend: Styling - Eliminate Multiple Scrollbars & Style Single Page Scrollbar",
       "details": "Investigate and fix issues causing multiple scrollbars to appear. This typically involves checking `overflow` properties and flexbox/grid sizing in `frontend/src/routes/(app)/+layout.svelte`, `frontend/src/routes/(app)/+page.svelte`, and `frontend/src/lib/components/domain/TrackList.svelte`. Ensure that only the main content area scrolls. Once a single scrollbar is achieved for the main content (likely the track list area), apply a generic, dark-theme-compatible style to it using CSS in `frontend/src/app.css`. This style should be minimally intrusive (e.g., dark track, slightly lighter thumb, respecting `--radius` variable for thumb/track if feasible with cross-browser scrollbar styling). Test across target browsers if possible (primarily modern Chrome/Firefox/Safari).",
       "rules_filepaths_to_follow": "`.cursor/rules/css.mdc,.cursor/rules/svelte.mdc`",

@@ -36,7 +36,7 @@
       </p>
     </div>
   {:else}
-    <div class="max-h-[calc(100vh-12rem)] overflow-y-auto pr-2">
+    <div class="space-y-1">
       {#each tracks as track, i (track.id)}
         <TrackItem {track} index={i} isSelected={currentTrackIndex === i} />
       {/each}

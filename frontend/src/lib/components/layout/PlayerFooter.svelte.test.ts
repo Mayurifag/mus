@@ -164,4 +164,32 @@ describe("PlayerFooter component", () => {
     expect(container.textContent).toContain("Test Track");
     expect(container.textContent).toContain("Test Artist");
   });
+
+  it("should have shuffle and repeat buttons positioned before previous track button", () => {
+    const { container } = render(PlayerFooter);
+    const buttons = container.querySelectorAll("button[aria-label]");
+
+    const shuffleButton = Array.from(buttons).find(
+      (btn) => btn.getAttribute("aria-label") === "Toggle Shuffle",
+    );
+    const repeatButton = Array.from(buttons).find(
+      (btn) => btn.getAttribute("aria-label") === "Toggle Repeat",
+    );
+    const previousButton = Array.from(buttons).find(
+      (btn) => btn.getAttribute("aria-label") === "Previous Track",
+    );
+
+    expect(shuffleButton).toBeTruthy();
+    expect(repeatButton).toBeTruthy();
+    expect(previousButton).toBeTruthy();
+
+    const allButtons = Array.from(buttons);
+    const shuffleIndex = allButtons.indexOf(shuffleButton as Element);
+    const repeatIndex = allButtons.indexOf(repeatButton as Element);
+    const previousIndex = allButtons.indexOf(previousButton as Element);
+
+    expect(shuffleIndex).toBeLessThan(previousIndex);
+    expect(repeatIndex).toBeLessThan(previousIndex);
+    expect(shuffleIndex).toBeLessThan(repeatIndex);
+  });
 });

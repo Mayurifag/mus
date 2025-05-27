@@ -95,10 +95,10 @@ describe("TrackList component", () => {
   it("renders the right number of TrackItems when tracks are provided", () => {
     render(TrackList, { tracks: mockTracks });
 
-    // Check the overflow container exists
+    // Check the track container exists
     const trackList = screen.getByTestId("track-list");
-    const overflowContainer = trackList.querySelector(".overflow-y-auto");
-    expect(overflowContainer).not.toBeNull();
+    const trackContainer = trackList.querySelector(".space-y-1");
+    expect(trackContainer).not.toBeNull();
 
     // Verify the mock component was called the expected number of times
     expect(vi.mocked(TrackItem)).toHaveBeenCalledTimes(mockTracks.length);

@@ -43,7 +43,7 @@ describe("apiClient", () => {
     // Mock the functions directly
     vi.spyOn(apiClient, "fetchTracks");
     vi.spyOn(apiClient, "fetchPlayerState");
-    vi.spyOn(apiClient, "savePlayerState");
+    vi.spyOn(apiClient, "savePlayerStateAsync");
   });
 
   afterEach(() => {
@@ -155,67 +155,58 @@ describe("apiClient", () => {
     });
   });
 
-  describe("savePlayerState", () => {
-    it("saves player state and returns the response when successful", async () => {
+  describe("savePlayerStateAsync", () => {
+    it("calls the function with correct arguments (fire-and-forget)", () => {
       // Mock the function implementation
-      vi.mocked(apiClient.savePlayerState).mockResolvedValue(mockPlayerState);
+      vi.mocked(apiClient.savePlayerStateAsync).mockImplementation(() => {});
 
       // Call the function
-      const result = await apiClient.savePlayerState(mockPlayerState);
+      apiClient.savePlayerStateAsync(mockPlayerState);
 
       // Verify the function was called with the correct arguments
-      expect(apiClient.savePlayerState).toHaveBeenCalledWith(mockPlayerState);
-
-      // Verify the result
-      expect(result).toEqual(mockPlayerState);
+      expect(apiClient.savePlayerStateAsync).toHaveBeenCalledWith(
+        mockPlayerState,
+      );
     });
 
-    it("returns null when api call fails", async () => {
-      // Mock console.error to prevent actual logging during test
-      console.error = vi.fn();
+    it("handles errors silently (fire-and-forget)", () => {
+      // Mock console.warn to prevent actual logging during test
+      console.warn = vi.fn();
 
       // Mock the function implementation to simulate error handling
-      vi.mocked(apiClient.savePlayerState).mockImplementation(async () => {
-        console.error("Error saving player state:", new Error("Network error"));
-        return null;
+      vi.mocked(apiClient.savePlayerStateAsync).mockImplementation(() => {
+        console.warn(
+          "Player state save failed (non-critical):",
+          "Network error",
+        );
       });
 
       // Call the function
-      const result = await apiClient.savePlayerState(mockPlayerState);
+      apiClient.savePlayerStateAsync(mockPlayerState);
 
       // Verify the function was called with the correct arguments
-      expect(apiClient.savePlayerState).toHaveBeenCalledWith(mockPlayerState);
-
-      // Verify console.error was called
-      expect(console.error).toHaveBeenCalledWith(
-        "Error saving player state:",
-        expect.any(Error),
+      expect(apiClient.savePlayerStateAsync).toHaveBeenCalledWith(
+        mockPlayerState,
       );
 
-      // Verify the result is null
-      expect(result).toBeNull();
+      // Verify console.warn was called (simulating internal error handling)
+      expect(console.warn).toHaveBeenCalledWith(
+        "Player state save failed (non-critical):",
+        "Network error",
+      );
     });
 
-    it("saves player state with shuffle and repeat enabled", async () => {
+    it("saves player state with shuffle and repeat enabled", () => {
       // Mock the function implementation
-      vi.mocked(apiClient.savePlayerState).mockResolvedValue(
-        mockPlayerStateWithShuffleRepeat,
-      );
+      vi.mocked(apiClient.savePlayerStateAsync).mockImplementation(() => {});
 
       // Call the function
-      const result = await apiClient.savePlayerState(
-        mockPlayerStateWithShuffleRepeat,
-      );
+      apiClient.savePlayerStateAsync(mockPlayerStateWithShuffleRepeat);
 
       // Verify the function was called with the correct arguments
-      expect(apiClient.savePlayerState).toHaveBeenCalledWith(
+      expect(apiClient.savePlayerStateAsync).toHaveBeenCalledWith(
         mockPlayerStateWithShuffleRepeat,
       );
-
-      // Verify the result includes shuffle and repeat fields
-      expect(result).toEqual(mockPlayerStateWithShuffleRepeat);
-      expect(result?.is_shuffle).toBe(true);
-      expect(result?.is_repeat).toBe(true);
     });
   });
 });
