@@ -2,7 +2,6 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from typing import Dict, Any
-import os
 from contextlib import asynccontextmanager
 import asyncio
 import logging
@@ -38,10 +37,7 @@ async def lifespan(app: FastAPI):
     settings.COVERS_DIR_PATH.mkdir(parents=True, exist_ok=True)
 
     file_system_scanner = FileSystemScanner()
-    cover_processor = CoverProcessor(
-        covers_dir_path=settings.COVERS_DIR_PATH
-    )  # Explicitly named arg
-
+    cover_processor = CoverProcessor(covers_dir_path=settings.COVERS_DIR_PATH)
     scan_use_case = ScanTracksUseCase(
         session_factory=async_session_factory,
         file_system_scanner=file_system_scanner,
@@ -71,7 +67,7 @@ app = FastAPI(
 )
 
 # Configure CORS only if not in production
-if os.getenv("APP_ENV") != "production":
+if settings.APP_ENV != "production":
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ALLOWED_ORIGINS,
@@ -85,10 +81,6 @@ app.include_router(auth_router)
 app.include_router(player_router.router)
 app.include_router(track_router.router)
 app.include_router(sse_router)
-
-logger.info(
-    f"Application configured with CORS origins: {settings.CORS_ALLOWED_ORIGINS}"
-)
 
 # This mounts what's in settings.STATIC_DIR_PATH at /static URL path
 if settings.STATIC_DIR_PATH.exists() and settings.STATIC_DIR_PATH.is_dir():

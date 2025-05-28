@@ -72,3 +72,32 @@ async def track_updates_sse(request: Request):
             "Connection": "keep-alive",
         },
     )
+
+
+@router.get("/test_toast")
+async def test_toast():
+    """
+    Test endpoint to send various SSE toast notification events.
+    Purely for testing the frontend toast notification system.
+    """
+    test_events = [
+        {
+            "message_to_show": "Track scan completed successfully!",
+            "message_level": "success",
+            # "action_key": "reload_tracks",
+            "action_key": None,
+            "action_payload": {"tracks_added": 5},
+        }
+    ]
+
+    for event in test_events:
+        asyncio.create_task(
+            broadcast_sse_event(
+                message_to_show=event["message_to_show"],
+                message_level=event["message_level"],
+                action_key=event["action_key"],
+                action_payload=event["action_payload"],
+            )
+        )
+
+    return {"message": "Test toast events sent", "events_count": len(test_events)}

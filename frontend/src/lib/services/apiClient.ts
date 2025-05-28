@@ -66,6 +66,14 @@ export function savePlayerStateAsync(state: PlayerState): void {
   api.post("/player/state", state);
 }
 
+export async function triggerTestToasts(): Promise<{
+  message: string;
+  events_count: number;
+}> {
+  const response = await api.get("/events/test_toast");
+  return response.data;
+}
+
 /**
  * Connects to the SSE endpoint for track updates
  * @param onMessageCallback Callback function to handle incoming SSE events
