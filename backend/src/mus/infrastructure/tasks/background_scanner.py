@@ -3,6 +3,7 @@ import logging
 from typing import Optional
 
 from src.mus.application.use_cases.scan_tracks_use_case import ScanTracksUseCase
+from src.mus.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,8 @@ class PeriodicScanner:
                 self._task = None
 
     async def _run_periodic_scan(self) -> None:
+        if settings.APP_ENV != "test":
+            await asyncio.sleep(0.5)
         while not self._stop_event.is_set():
             try:
                 await self.scan_use_case.scan_directory()

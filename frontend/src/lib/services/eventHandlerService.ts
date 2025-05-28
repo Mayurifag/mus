@@ -33,13 +33,6 @@ export function handleMusEvent(payload: MusEvent): void {
       .catch((error) => {
         console.error("Failed to reload tracks:", error);
       });
-  } else if (payload.action_key === "scan_progress") {
-    // Handle scan progress updates if needed
-    // This could update a progress indicator in the UI
-    // We silently process this without logging
-  } else if (payload.action_key) {
-    // Handle unknown action keys silently
-    // In production, we would want to log these to a proper logging service
   }
 }
 

@@ -5,6 +5,7 @@ from pathlib import Path
 import pyvips
 from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
 import shutil  # Added for cleanup
+from unittest.mock import patch, AsyncMock
 
 
 @pytest.fixture
@@ -179,5 +180,98 @@ async def test_process_and_save_cover_only_padding(cover_processor):
     original_path = cover_processor.covers_dir / f"{track_id}_original.webp"
     small_path = cover_processor.covers_dir / f"{track_id}_small.webp"
 
+    assert not original_path.exists()
+    assert not small_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_process_and_save_cover_uses_asyncio_to_thread(
+    cover_processor, sample_image_data
+):
+    """Test that process_and_save_cover uses asyncio.to_thread to call _save_cover_sync."""
+    track_id = 100
+
+    with patch("asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
+        mock_to_thread.return_value = True
+
+        result = await cover_processor.process_and_save_cover(
+            track_id, sample_image_data
+        )
+
+        assert result is True
+        mock_to_thread.assert_awaited_once()
+
+        # Verify the correct arguments were passed to asyncio.to_thread
+        call_args = mock_to_thread.call_args
+        args = call_args[0]
+        assert args[0] == cover_processor._save_cover_sync
+        assert args[1] == track_id  # track_id
+        assert args[2] == sample_image_data  # cleaned_data (no padding in this case)
+        assert str(args[3]).endswith(f"{track_id}_original.webp")  # original_path
+        assert str(args[4]).endswith(f"{track_id}_small.webp")  # small_path
+        assert args[5] is None  # file_path
+
+
+@pytest.mark.asyncio
+async def test_process_and_save_cover_handles_sync_method_failure(
+    cover_processor, sample_image_data
+):
+    """Test that process_and_save_cover handles _save_cover_sync returning False."""
+    track_id = 101
+
+    with patch("asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
+        mock_to_thread.return_value = False
+
+        result = await cover_processor.process_and_save_cover(
+            track_id, sample_image_data
+        )
+
+        assert result is False
+        mock_to_thread.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_process_and_save_cover_handles_sync_method_exception(
+    cover_processor, sample_image_data
+):
+    """Test that process_and_save_cover handles _save_cover_sync raising an exception."""
+    track_id = 102
+
+    with patch("asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
+        mock_to_thread.side_effect = Exception("Thread execution failed")
+
+        with pytest.raises(Exception, match="Thread execution failed"):
+            await cover_processor.process_and_save_cover(track_id, sample_image_data)
+
+        mock_to_thread.assert_awaited_once()
+
+
+def test_save_cover_sync_success(cover_processor, sample_image_data):
+    """Test the synchronous _save_cover_sync method directly."""
+    track_id = 103
+    original_path = cover_processor.covers_dir / f"{track_id}_original.webp"
+    small_path = cover_processor.covers_dir / f"{track_id}_small.webp"
+
+    result = cover_processor._save_cover_sync(
+        track_id, sample_image_data, original_path, small_path
+    )
+
+    assert result is True
+    assert original_path.exists()
+    assert small_path.exists()
+
+
+def test_save_cover_sync_failure(cover_processor):
+    """Test the synchronous _save_cover_sync method with invalid data."""
+    track_id = 104
+    invalid_data = b"invalid image data"
+    original_path = cover_processor.covers_dir / f"{track_id}_original.webp"
+    small_path = cover_processor.covers_dir / f"{track_id}_small.webp"
+
+    result = cover_processor._save_cover_sync(
+        track_id, invalid_data, original_path, small_path
+    )
+
+    assert result is False
     assert not original_path.exists()
     assert not small_path.exists()

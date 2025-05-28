@@ -13,8 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class CoverProcessor:
-    # Removed comment: # COVERS_DIR: str = "./data/covers" ...
-
     def __init__(self, covers_dir_path: Path) -> None:
         self.covers_dir = covers_dir_path
         os.makedirs(self.covers_dir, exist_ok=True)
@@ -34,11 +32,28 @@ class CoverProcessor:
         if not cleaned_data:
             return False
 
-        try:
-            image: Any = VipsImage.new_from_buffer(cleaned_data, "")
-            original_path = self.covers_dir / f"{track_id}_original.webp"
-            small_path = self.covers_dir / f"{track_id}_small.webp"
+        original_path = self.covers_dir / f"{track_id}_original.webp"
+        small_path = self.covers_dir / f"{track_id}_small.webp"
 
+        return await asyncio.to_thread(
+            self._save_cover_sync,
+            track_id,
+            cleaned_data,
+            original_path,
+            small_path,
+            file_path,
+        )
+
+    def _save_cover_sync(
+        self,
+        track_id: int,
+        cover_data_cleaned: bytes,
+        original_path: Path,
+        small_path: Path,
+        file_path: Optional[Path] = None,
+    ) -> bool:
+        try:
+            image: Any = VipsImage.new_from_buffer(cover_data_cleaned, "")
             image.webpsave(str(original_path), Q=100)
             # Using fixed 80x80 size for the small thumbnail
             thumbnail: Any = image.thumbnail_image(
@@ -103,6 +118,7 @@ class CoverProcessor:
             logger.warning(f"Failed to extract FLAC cover from {file_path}: {e}")
             return None
 
+    # TODO: make this optimal
     async def process_tracks_covers_batch(
         self, tracks_data: List[Tuple[int, Path]]
     ) -> Dict[int, bool]:

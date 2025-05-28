@@ -1,12 +1,12 @@
 ---
 description: Creating, working on, or closing a pitch(feature, bug, task, or exploration).
-globs: 
+globs:
 alwaysApply: false
 ---
 ## Description
 When a user requests to start a new Climb(feature, bug, task, or exploration), you will start a 2-phase process: Step 1 is to define a Product Requirements Document (PRD) via conversation with the user; Step 2 is to build a task list (a.k.a. "Moves") from that PRD.
 
-Once alerted, you will then begin working on the Climb, move-by-move, soliciting user feedback and approval.  Moves can have "rest: true" on it, at which point you WILL ALWAYS stop after completion to check with the user on status.  They can also have the status "skip" on them, in which case you will skip  it and ASK the user at the end if they want to return to it.  Once you reach the end of the Moves list and they've opted out of skipping, you will mark the Climb as complete in both the PRD and the Moves list, and move both files to the .bivvy/complete/ directory.
+Once alerted, you will then begin working on the Climb, move-by-move, soliciting user feedback and approval.  Moves can have "rest: true" on it, at which point you WILL ALWAYS stop after completion to check with the user on status.  They can also have the status "false" on them, in which case you will skip it and ASK the user at the end if they want to return to it.  Once you reach the end of the Moves list and they've opted out of skipping, you will mark the Climb as complete in both the PRD and the Moves list, and move both files to the .bivvy/complete/ directory.
 
 IMPORTANT RULES:
 1. YOU MUST STOP AND GET USER APPROVAL after:
@@ -128,17 +128,22 @@ Here is a sample moves file:
       "status": "complete",
       "description": "install the dependencies",
       "details": "install the deps listed as New Dependencies"
+      "rest": "true"
     }, {
       "status": "skip",
-      "description": "Write tests"
+      "description": "Write tests",
+      "rest": "false"
     }, {
       "status": "climbing",
       "description": "Build the first part of the feature",
+      "files_to_modify": "`backend/src/mus/infrastructure/tasks/background_scanner.py`",
+      "rules_filepaths_to_follow": "`.cursor/rules/python.mdc`",
       "rest": "true"
     }, {
       "status": "todo",
       "description": "Build the last part of the feature",
-      "details": "After this, you'd ask the user if they want to return to write tests"
+      "details": "After this, you'd ask the user if they want to return to write tests",
+      "rest": "false"
     }
   ]
 }
