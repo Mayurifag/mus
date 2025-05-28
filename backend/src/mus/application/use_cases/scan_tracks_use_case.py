@@ -179,7 +179,12 @@ class ScanTracksUseCase:
     def _extract_metadata_sync(self, file_path: Path) -> Dict[str, Any]:
         try:
             file_ext = file_path.suffix.lower()
-            mtime = int(os.path.getmtime(file_path))
+
+            try:
+                mtime = int(os.path.getmtime(file_path))
+            except OSError as e:
+                logger.warning(f"Failed to get mtime for {file_path}: {e}")
+                mtime = 0
 
             metadata = {
                 "title": file_path.stem,

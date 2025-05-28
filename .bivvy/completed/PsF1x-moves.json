@@ -1,0 +1,29 @@
+{
+  "Climb": "PsF1x",
+  "moves": [
+    {
+      "status": "complete",
+      "description": "Refactor API Client for Player State Saving and Add Frontend Logging",
+      "details": "Modify `frontend/src/lib/services/apiClient.ts` to remove the `quickApi` instance. The `savePlayerStateAsync` function must now use the main `api` instance for its `POST` request. Consider if the default timeout for the main `api` instance is appropriate for this potentially fire-and-forget save, or if a specific, shorter timeout should be configured for this call within the main `api` instance's request config. In `frontend/src/routes/(app)/+layout.svelte`, add comprehensive `console.log` statements: 1. Log the fully constructed `PlayerStateDTO` immediately before `navigator.sendBeacon` is called in `handleBeforeUnload` and `handleVisibilityChange`. 2. Log the URL and, if possible, the synchronous return value of `navigator.sendBeacon`. 3. Log the fully constructed `PlayerStateDTO` before `savePlayerStateAsync` is called within `debouncedSavePlayerState`. 4. Log when `debouncedSavePlayerState` is initially triggered and when its `setTimeout` callback executes to perform the actual save. Ensure logs clearly identify which saving mechanism is being traced.",
+      "rules_filepaths_to_follow": "`.cursor/rules/typescript.mdc,.cursor/rules/svelte.mdc`",
+      "filepaths_to_modify": "`frontend/src/lib/services/apiClient.ts,frontend/src/routes/(app)/+layout.svelte`",
+      "rest": "true"
+    },
+    {
+      "status": "complete",
+      "description": "Debug and Fix Player State Saving and Restoration Logic",
+      "details": "Analyze the logs from the previous move to identify and rectify issues in `frontend/src/routes/(app)/+layout.svelte` related to player state DTO creation or its transmission via `navigator.sendBeacon` or `debouncedSavePlayerState`. Ensure `constructPlayerStateDTO` correctly populates all fields: `current_track_id`, `progress_seconds`, `volume_level`, `is_muted`, `is_shuffle`, and `is_repeat` from the `$playerStore`. If `navigator.sendBeacon` calls are missing or failing, investigate the `beforeunload` and `visibilitychange` event listener setup and the conditions under which beacons are sent. If debounced saves via `savePlayerStateAsync` are not occurring, review the reactive dependencies of `debouncedSavePlayerState` and its internal `setTimeout` logic. Concurrently, verify and adjust the state restoration logic in the `onMount` function of `+layout.svelte`. Ensure `data.playerState` (loaded via `+layout.server.ts`) is used to accurately initialize all relevant `$playerStore` properties. Specifically, `playerStore.setTrack`, `playerStore.setCurrentTime`, `playerStore.setVolume`, `playerStore.setMuted`, `playerStore.setShuffle`, and `playerStore.setRepeat` must be correctly invoked. To meet the requirement that the track is loaded and paused at its last position upon refresh, ensure that `playerStore.pause()` is called after `playerStore.setTrack` and `playerStore.setCurrentTime` if the persisted state indicated the track was playing. Update frontend unit tests in `frontend/src/routes/(app)/__tests__/layout.test.ts` to reflect these fixes, specifically testing the correct DTO construction for saving and the accurate restoration of all player state fields, including the 'loaded and paused' behavior.",
+      "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc`",
+      "filepaths_to_modify": "`frontend/src/routes/(app)/+layout.svelte,frontend/src/lib/stores/playerStore.ts,frontend/src/routes/(app)/__tests__/layout.test.ts`",
+      "rest": "true"
+    },
+    {
+      "status": "complete",
+      "description": "Perform Final Verification, Cleanup, and CI Check",
+      "details": "Conduct thorough manual testing of player state persistence across various page refresh scenarios: refreshing while playing, while paused, with shuffle/repeat modes enabled/disabled, and with different volume/mute settings. Verify that all aspects of the player state are correctly restored. After confirming functionality, remove all temporary diagnostic `console.log` statements introduced in previous moves from `frontend/src/lib/services/apiClient.ts` and `frontend/src/routes/(app)/+layout.svelte`. Finally, execute `make ci` and ensure it completes successfully without any linting errors, formatting issues, or test failures.",
+      "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc,.cursor/rules/makefile.mdc`",
+      "filepaths_to_modify": "`frontend/src/lib/services/apiClient.ts,frontend/src/routes/(app)/+layout.svelte`",
+      "rest": "skip"
+    }
+  ]
+}

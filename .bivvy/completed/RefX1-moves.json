@@ -18,7 +18,7 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Adjust `mtime` Fallback in `_extract_metadata_sync`",
       "details": "Modify the `_extract_metadata_sync` method in `ScanTracksUseCase`. If `os.path.getmtime(file_path)` fails and raises an `OSError`, the method should log this specific error and use `0` as the `mtime` (modification time) value for the track. This prevents files with inaccessible mtime from repeatedly being processed or causing errors with timestamp comparisons in future scans. Specific changes: 1. In `backend/src/mus/application/use_cases/scan_tracks_use_case.py` (within `_extract_metadata_sync`): Locate the `except OSError:` block that currently handles `os.path.getmtime()` failure. Ensure it logs a clear warning message about the mtime retrieval failure. Set `fallback_mtime = 0` within this specific `OSError` handler for `getmtime`. If other exceptions occur during metadata extraction, the existing broader fallback to `file_path.stem` and `Unknown Artist` with `mtime` (potentially from `datetime.now()` if `os.path.getmtime` succeeded earlier or `0` if it failed) should be maintained or clarified as per this change.",
       "rules_filepaths_to_follow": "`.cursor/rules/python.mdc`",
@@ -26,7 +26,7 @@
       "rest": "skip"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Verify and Finalize with `make ci`",
       "details": "Run the `make ci` command from the project root. Ensure all linting, formatting, and tests pass without any errors or warnings. Address any reported issues to confirm the stability and correctness of the applied changes.",
       "rules_filepaths_to_follow": "`.cursor/rules/makefile.mdc,.cursor/rules/python.mdc`",

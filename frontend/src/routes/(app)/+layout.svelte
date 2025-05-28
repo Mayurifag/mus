@@ -28,7 +28,6 @@
   let eventSource: EventSource | null = null;
   let sheetOpen = false;
   let shouldAutoPlay = false; // Track intent to auto-play when track loads
-  let isInitializing = true; // Flag to prevent saves during initial setup
 
   function handleToggleMenu() {
     sheetOpen = !sheetOpen;
@@ -73,6 +72,7 @@
           trackStore.setCurrentTrackIndex(trackIndex);
           // Set progress
           playerStore.setCurrentTime(progress_seconds);
+          playerStore.pause();
           trackSelected = true;
         }
       }
@@ -95,11 +95,6 @@
       window.addEventListener("beforeunload", handleBeforeUnload);
       document.addEventListener("visibilitychange", handleVisibilityChange);
     }
-
-    // Mark initialization as complete after a short delay to allow all reactive statements to settle
-    setTimeout(() => {
-      isInitializing = false;
-    }, 100);
   });
 
   // Clean up event source on component destroy
@@ -297,7 +292,7 @@
   }
 
   // Trigger debounced save on any relevant player state changes
-  $: if ($playerStore.currentTrack && !isInitializing) {
+  $: if ($playerStore.currentTrack && $playerStore.isPlaying) {
     // This reactive statement will trigger whenever any of these values change
     // We use void to explicitly indicate these are intentional side-effect expressions
     void $playerStore.currentTime;
@@ -317,14 +312,14 @@
 
 <Sheet.Root bind:open={sheetOpen}>
   <!-- Main content area that uses full viewport scrolling -->
-  <main class="min-h-screen pr-0 pb-20 md:pr-64">
+  <main class="min-h-screen pb-20 pr-0 md:pr-64">
     <div class="p-4">
       <slot />
     </div>
   </main>
 
   <!-- Desktop Sidebar - positioned fixed on the right -->
-  <aside class="fixed top-0 right-0 bottom-20 hidden w-64 md:block">
+  <aside class="fixed bottom-20 right-0 top-0 hidden w-64 md:block">
     <RightSidebar />
   </aside>
 

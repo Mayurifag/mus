@@ -431,3 +431,32 @@ async def test_scan_directory_modified_file_reports_updated(
 
         assert result.tracks_changes == 1
         assert result.errors == 0
+
+
+@pytest.mark.asyncio
+async def test_extract_metadata_sync_mtime_oserror_fallback(
+    scan_tracks_use_case: ScanTracksUseCase,
+):
+    """Test that OSError from os.path.getmtime is handled with mtime=0 fallback."""
+    test_file_path = Path("/music/test_song.mp3")
+
+    with patch(
+        "src.mus.application.use_cases.scan_tracks_use_case.os.path.getmtime",
+        side_effect=OSError("Permission denied"),
+    ), patch(
+        "src.mus.application.use_cases.scan_tracks_use_case.MP3"
+    ) as mock_mutagen_mp3:
+        mock_mp3_audio = MagicMock()
+        mock_mp3_audio.tags = {
+            "TIT2": MagicMock(text=["Test Title"]),
+            "TPE1": MagicMock(text=["Test Artist"]),
+        }
+        mock_mp3_audio.info = MagicMock(length=180.0)
+        mock_mutagen_mp3.return_value = mock_mp3_audio
+
+        result = scan_tracks_use_case._extract_metadata_sync(test_file_path)
+
+    assert result["title"] == "Test Title"
+    assert result["artist"] == "Test Artist"
+    assert result["duration"] == 180
+    assert result["mtime"] == 0

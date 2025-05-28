@@ -27,12 +27,6 @@ const api = xior.create({
   timeout: 10000,
 });
 
-// Create a separate instance with shorter timeout for fire-and-forget saves
-const quickApi = xior.create({
-  baseURL: API_BASE_URL, // Shorter timeout
-  timeout: 3000,
-});
-
 export function getStreamUrl(trackId: number): string {
   return `${API_BASE_URL}/tracks/${trackId}/stream`;
 }
@@ -68,15 +62,8 @@ export async function fetchPlayerState(): Promise<PlayerState | null> {
   }
 }
 
-// Fire-and-forget version for non-blocking saves
 export function savePlayerStateAsync(state: PlayerState): void {
-  quickApi.post("/player/state", state).catch((error) => {
-    // Silent failure - just log to console without affecting UI
-    if (error.name !== "XiorTimeoutError") {
-      console.warn("Player state save failed (non-critical):", error.message);
-    }
-    // Timeout errors are completely ignored to prevent console spam
-  });
+  api.post("/player/state", state);
 }
 
 /**

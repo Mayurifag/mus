@@ -198,9 +198,12 @@ describe("Player state persistence and restoration", () => {
           (track: Track) => track.id === current_track_id,
         );
         if (trackIndex >= 0) {
+          // Set the track index first (this will call playerStore.setTrack internally)
           trackStore.setCurrentTrackIndex(trackIndex);
-          // Set progress
+          // Then set the progress time (this will override the reset time from setTrack)
           playerStore.setCurrentTime(progress_seconds);
+          // Ensure player is paused (requirement: loaded and paused at last position)
+          playerStore.pause();
         }
       }
     }
@@ -213,6 +216,11 @@ describe("Player state persistence and restoration", () => {
     expect(playerState.isMuted).toBe(true);
     expect(playerState.is_shuffle).toBe(true);
     expect(playerState.is_repeat).toBe(false);
+    // Verify player is paused (requirement: loaded and paused at last position)
+    expect(playerState.isPlaying).toBe(false);
+
+    const trackState = get(trackStore);
+    expect(trackState.currentTrackIndex).toBe(1);
   });
 
   it("should handle player state restoration with false boolean values", async () => {
@@ -265,9 +273,12 @@ describe("Player state persistence and restoration", () => {
           (track: Track) => track.id === current_track_id,
         );
         if (trackIndex >= 0) {
+          // Set the track index first (this will call playerStore.setTrack internally)
           trackStore.setCurrentTrackIndex(trackIndex);
-          // Set progress
+          // Then set the progress time (this will override the reset time from setTrack)
           playerStore.setCurrentTime(progress_seconds);
+          // Ensure player is paused (requirement: loaded and paused at last position)
+          playerStore.pause();
         }
       }
     }
@@ -280,6 +291,11 @@ describe("Player state persistence and restoration", () => {
     expect(playerState.isMuted).toBe(false);
     expect(playerState.is_shuffle).toBe(false);
     expect(playerState.is_repeat).toBe(false);
+    // Verify player is paused (requirement: loaded and paused at last position)
+    expect(playerState.isPlaying).toBe(false);
+
+    const trackState = get(trackStore);
+    expect(trackState.currentTrackIndex).toBe(0);
   });
 
   it("should handle null player state gracefully", async () => {

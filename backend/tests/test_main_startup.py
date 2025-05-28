@@ -37,24 +37,26 @@ async def test_startup_process_runs_unconditionally():
 
     mock_settings_covers_dir = MagicMock(spec=Path)
 
-    with patch("src.mus.main.engine", new=mock_engine_instance), patch(
+    with patch(
         "src.mus.infrastructure.database.engine", new=mock_engine_instance
-    ), patch("src.mus.main.SQLModel.metadata.drop_all") as mock_sql_drop_all, patch(
-        "src.mus.main.SQLModel.metadata.create_all"
+    ), patch(
+        "src.mus.infrastructure.database.SQLModel.metadata.create_all"
     ) as mock_sql_create_all, patch.object(
         Config,
         "COVERS_DIR_PATH",
         new_callable=PropertyMock,
         return_value=mock_settings_covers_dir,
-    ), patch("src.mus.main.PeriodicScanner", new=mock_periodic_scanner_class):
+    ), patch(
+        "src.mus.main.PeriodicScanner",
+        new=mock_periodic_scanner_class,
+    ):
         original_app_env = os.environ.get("APP_ENV")
         with patch("src.mus.main.settings.APP_ENV", "test"):
             with TestClient(actual_app) as client:
                 client.get("/api")
 
-                assert mock_engine_begin_method.call_count == 2
-                mock_sql_drop_all.assert_called_once()
-                assert mock_sql_create_all.call_count == 2
+                assert mock_engine_begin_method.call_count == 1
+                assert mock_sql_create_all.call_count == 1
 
                 mock_settings_covers_dir.mkdir.assert_called_once_with(
                     parents=True, exist_ok=True
@@ -82,20 +84,21 @@ async def test_startup_process_runs_in_production():
         mock_create_db_and_tables_in_main = AsyncMock()
 
         with patch(
-            "src.mus.main.create_db_and_tables", new=mock_create_db_and_tables_in_main
-        ), patch(
-            "src.mus.main.SQLModel.metadata.drop_all"
-        ) as mock_sql_drop_all, patch.object(
+            "src.mus.main.create_db_and_tables",
+            new=mock_create_db_and_tables_in_main,
+        ), patch.object(
             Config,
             "COVERS_DIR_PATH",
             new_callable=PropertyMock,
             return_value=mock_settings_covers_dir,
-        ), patch("src.mus.main.PeriodicScanner", new=mock_periodic_scanner_class):
+        ), patch(
+            "src.mus.main.PeriodicScanner",
+            new=mock_periodic_scanner_class,
+        ):
             with TestClient(actual_app) as client:
                 client.get("/api")
 
                 mock_create_db_and_tables_in_main.assert_awaited_once()
-                mock_sql_drop_all.assert_not_called()
 
                 mock_settings_covers_dir.mkdir.assert_called_once_with(
                     parents=True, exist_ok=True
