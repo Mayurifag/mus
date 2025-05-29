@@ -1,7 +1,5 @@
 import type { Track, PlayerState } from "$lib/types";
-import xior from "xior";
 
-// Define the structure of SSE events
 export interface MusEvent {
   message_to_show: string | null;
   message_level: "success" | "error" | "info" | "warning" | null;
@@ -21,20 +19,17 @@ function getApiBaseUrl(): string {
 
 const API_BASE_URL = getApiBaseUrl();
 
-// Create a global xior instance with the base URL
-const api = xior.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-});
-
 export function getStreamUrl(trackId: number): string {
   return `${API_BASE_URL}/tracks/${trackId}/stream`;
 }
 
 export async function fetchTracks(): Promise<Track[]> {
   try {
-    const response = await api.get("/tracks");
-    return response.data;
+    const response = await fetch(`${API_BASE_URL}/tracks`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
   } catch (error) {
     console.error("Error fetching tracks:", error);
     return [];
@@ -43,20 +38,15 @@ export async function fetchTracks(): Promise<Track[]> {
 
 export async function fetchPlayerState(): Promise<PlayerState | null> {
   try {
-    const response = await api.get("/player/state");
-    return response.data;
-  } catch (error) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "response" in error &&
-      error.response &&
-      typeof error.response === "object" &&
-      "status" in error.response &&
-      error.response.status === 404
-    ) {
+    const response = await fetch(`${API_BASE_URL}/player/state`);
+    if (response.status === 404) {
       return null;
     }
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
     console.error("Error fetching player state:", error);
     return null;
   }
@@ -76,8 +66,11 @@ export async function triggerTestToasts(): Promise<{
   message: string;
   events_count: number;
 }> {
-  const response = await api.get("/events/test_toast");
-  return response.data;
+  const response = await fetch(`${API_BASE_URL}/events/test_toast`);
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return await response.json();
 }
 
 /**

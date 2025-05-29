@@ -1,7 +1,6 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as apiClient from "./apiClient";
 
-// Sample data for tests
 const mockTrack = {
   id: 1,
   title: "Test Track",
@@ -23,177 +22,224 @@ const mockPlayerState = {
   is_repeat: false,
 };
 
-const mockPlayerStateWithShuffleRepeat = {
-  current_track_id: 2,
-  progress_seconds: 45,
-  volume_level: 0.8,
-  is_muted: true,
-  is_shuffle: true,
-  is_repeat: true,
-};
-
 describe("apiClient", () => {
-  // Save original console.error
   const originalConsoleError = console.error;
+  const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
-    // Reset all mocks
     vi.resetAllMocks();
-
-    // Mock the functions directly
-    vi.spyOn(apiClient, "fetchTracks");
-    vi.spyOn(apiClient, "fetchPlayerState");
-    vi.spyOn(apiClient, "sendPlayerStateBeacon");
+    globalThis.fetch = vi.fn();
   });
 
   afterEach(() => {
-    // Restore original console.error
     console.error = originalConsoleError;
-
-    // Clear all mocks
+    globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
   });
 
   describe("fetchTracks", () => {
-    it("returns tracks when api call is successful", async () => {
-      // Mock the function implementation
-      vi.mocked(apiClient.fetchTracks).mockResolvedValue([mockTrack]);
+    it("returns tracks when fetch is successful", async () => {
+      const mockResponse = {
+        ok: true,
+        json: vi.fn().mockResolvedValue([mockTrack]),
+      };
+      vi.mocked(globalThis.fetch).mockResolvedValue(
+        mockResponse as unknown as Response,
+      );
 
-      // Call the function
       const result = await apiClient.fetchTracks();
 
-      // Verify the function was called
-      expect(apiClient.fetchTracks).toHaveBeenCalled();
-
-      // Verify the result
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/tracks",
+      );
       expect(result).toEqual([mockTrack]);
     });
 
-    it("handles errors gracefully", async () => {
-      // Mock console.error to prevent actual logging during test
+    it("returns empty array when fetch fails", async () => {
       console.error = vi.fn();
+      const mockResponse = {
+        ok: false,
+        status: 500,
+      };
+      vi.mocked(globalThis.fetch).mockResolvedValue(
+        mockResponse as unknown as Response,
+      );
 
-      // Mock the function implementation to simulate error handling
-      vi.mocked(apiClient.fetchTracks).mockImplementation(async () => {
-        console.error("Error fetching tracks:", new Error("Network error"));
-        return [];
-      });
-
-      // Call the function
       const result = await apiClient.fetchTracks();
 
-      // Verify the function was called
-      expect(apiClient.fetchTracks).toHaveBeenCalled();
-
-      // Verify console.error was called
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/tracks",
+      );
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching tracks:",
         expect.any(Error),
       );
+      expect(result).toEqual([]);
+    });
 
-      // Verify the result is an empty array
+    it("returns empty array when network error occurs", async () => {
+      console.error = vi.fn();
+      vi.mocked(globalThis.fetch).mockRejectedValue(new Error("Network error"));
+
+      const result = await apiClient.fetchTracks();
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/tracks",
+      );
+      expect(console.error).toHaveBeenCalledWith(
+        "Error fetching tracks:",
+        expect.any(Error),
+      );
       expect(result).toEqual([]);
     });
   });
 
   describe("fetchPlayerState", () => {
-    it("returns player state when api call is successful", async () => {
-      // Mock the function implementation
-      vi.mocked(apiClient.fetchPlayerState).mockResolvedValue(mockPlayerState);
+    it("returns player state when fetch is successful", async () => {
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue(mockPlayerState),
+      };
+      vi.mocked(globalThis.fetch).mockResolvedValue(
+        mockResponse as unknown as Response,
+      );
 
-      // Call the function
       const result = await apiClient.fetchPlayerState();
 
-      // Verify the function was called
-      expect(apiClient.fetchPlayerState).toHaveBeenCalled();
-
-      // Verify the result
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/player/state",
+      );
       expect(result).toEqual(mockPlayerState);
     });
 
     it("returns null when receiving 404", async () => {
-      // Mock the function implementation to return null (404 handling)
-      vi.mocked(apiClient.fetchPlayerState).mockResolvedValue(null);
+      const mockResponse = {
+        ok: false,
+        status: 404,
+      };
+      vi.mocked(globalThis.fetch).mockResolvedValue(
+        mockResponse as unknown as Response,
+      );
 
-      // Call the function
       const result = await apiClient.fetchPlayerState();
 
-      // Verify the function was called
-      expect(apiClient.fetchPlayerState).toHaveBeenCalled();
-
-      // Verify the result is null
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/player/state",
+      );
       expect(result).toBeNull();
     });
 
-    it("returns null when api call fails with other error", async () => {
-      // Mock console.error to prevent actual logging during test
+    it("returns null when fetch fails with other error", async () => {
       console.error = vi.fn();
+      const mockResponse = {
+        ok: false,
+        status: 500,
+      };
+      vi.mocked(globalThis.fetch).mockResolvedValue(
+        mockResponse as unknown as Response,
+      );
 
-      // Mock the function implementation to simulate error handling
-      vi.mocked(apiClient.fetchPlayerState).mockImplementation(async () => {
-        console.error(
-          "Error fetching player state:",
-          new Error("Server error"),
-        );
-        return null;
-      });
-
-      // Call the function
       const result = await apiClient.fetchPlayerState();
 
-      // Verify the function was called
-      expect(apiClient.fetchPlayerState).toHaveBeenCalled();
-
-      // Verify console.error was called
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/player/state",
+      );
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching player state:",
         expect.any(Error),
       );
+      expect(result).toBeNull();
+    });
 
-      // Verify the result is null
+    it("returns null when network error occurs", async () => {
+      console.error = vi.fn();
+      vi.mocked(globalThis.fetch).mockRejectedValue(new Error("Network error"));
+
+      const result = await apiClient.fetchPlayerState();
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/player/state",
+      );
+      expect(console.error).toHaveBeenCalledWith(
+        "Error fetching player state:",
+        expect.any(Error),
+      );
       expect(result).toBeNull();
     });
   });
 
   describe("sendPlayerStateBeacon", () => {
-    it("calls the function with correct arguments (fire-and-forget)", () => {
-      // Mock the function implementation
-      vi.mocked(apiClient.sendPlayerStateBeacon).mockImplementation(() => {});
-
-      // Call the function
-      apiClient.sendPlayerStateBeacon(mockPlayerState);
-
-      // Verify the function was called with the correct arguments
-      expect(apiClient.sendPlayerStateBeacon).toHaveBeenCalledWith(
-        mockPlayerState,
-      );
-    });
-
-    it("handles navigator.sendBeacon availability gracefully", () => {
-      // Mock the function implementation to simulate no sendBeacon support
-      vi.mocked(apiClient.sendPlayerStateBeacon).mockImplementation(() => {
-        // Function should handle cases where navigator.sendBeacon is not available
+    it("calls navigator.sendBeacon when available", () => {
+      const mockSendBeacon = vi.fn().mockReturnValue(true);
+      Object.defineProperty(navigator, "sendBeacon", {
+        value: mockSendBeacon,
+        writable: true,
       });
 
-      // Call the function
       apiClient.sendPlayerStateBeacon(mockPlayerState);
 
-      // Verify the function was called with the correct arguments
-      expect(apiClient.sendPlayerStateBeacon).toHaveBeenCalledWith(
-        mockPlayerState,
+      expect(mockSendBeacon).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/player/state",
+        expect.any(Blob),
       );
     });
 
-    it("sends player state with shuffle and repeat enabled", () => {
-      // Mock the function implementation
-      vi.mocked(apiClient.sendPlayerStateBeacon).mockImplementation(() => {});
+    it("handles navigator.sendBeacon not being available", () => {
+      vi.stubGlobal("navigator", {});
 
-      // Call the function
-      apiClient.sendPlayerStateBeacon(mockPlayerStateWithShuffleRepeat);
+      expect(() => {
+        apiClient.sendPlayerStateBeacon(mockPlayerState);
+      }).not.toThrow();
 
-      // Verify the function was called with the correct arguments
-      expect(apiClient.sendPlayerStateBeacon).toHaveBeenCalledWith(
-        mockPlayerStateWithShuffleRepeat,
+      vi.unstubAllGlobals();
+    });
+  });
+
+  describe("triggerTestToasts", () => {
+    it("returns data when fetch is successful", async () => {
+      const mockResponseData = { message: "Test message", events_count: 5 };
+      const mockResponse = {
+        ok: true,
+        json: vi.fn().mockResolvedValue(mockResponseData),
+      };
+      vi.mocked(globalThis.fetch).mockResolvedValue(
+        mockResponse as unknown as Response,
+      );
+
+      const result = await apiClient.triggerTestToasts();
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/events/test_toast",
+      );
+      expect(result).toEqual(mockResponseData);
+    });
+
+    it("throws error when fetch fails", async () => {
+      const mockResponse = {
+        ok: false,
+        status: 500,
+      };
+      vi.mocked(globalThis.fetch).mockResolvedValue(
+        mockResponse as unknown as Response,
+      );
+
+      await expect(apiClient.triggerTestToasts()).rejects.toThrow(
+        "HTTP error! status: 500",
+      );
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/events/test_toast",
+      );
+    });
+
+    it("throws error when network error occurs", async () => {
+      vi.mocked(globalThis.fetch).mockRejectedValue(new Error("Network error"));
+
+      await expect(apiClient.triggerTestToasts()).rejects.toThrow(
+        "Network error",
+      );
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/events/test_toast",
       );
     });
   });

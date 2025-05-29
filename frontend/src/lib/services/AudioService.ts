@@ -109,7 +109,9 @@ export class AudioService {
       this.shouldAutoPlay = isPlaying;
       this.audio.src = streamUrl;
       this.audio.load();
-      document.title = `${track.artist} - ${track.title}`;
+      if (typeof document !== "undefined") {
+        document.title = `${track.artist} - ${track.title}`;
+      }
       this._currentTime.set(0);
     }
   }

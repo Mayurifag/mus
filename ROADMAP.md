@@ -8,9 +8,9 @@
 - [x] Eliminate player.currentTime and only use audio.currentTime. Also, check other things duplicated and only use audio. That will prevent a lot of effects.
 - [x] Rename playerStore to playlistStore. Move is_repeat logic to audioService.
 - [x] Fix frontend
-- [ ] move next track out of audioService, think how. Maybe thats good case for effect. This effect has to change web title!
-- [ ] Try to go with https://github.com/unplugin/unplugin-icons - use lucide there
+- [x] move next track out of audioService, think how. Maybe thats good case for effect. This effect has to change web title!
 - [ ] Move all dependencies to devDependencies. Eliminate usage of xior and use fetch
+- [ ] Try to go with https://github.com/unplugin/unplugin-icons - use lucide there
 - [ ] Why we have +page.svelte and +layout.svelte? Should not that be only one?
 - [ ] Analyze all css methods which update several states in once. Make them with different methods. Remove all $: and refactor to svelte 5.
 - [ ] Recolor all frontend. Switched on repeat/reshuffle buttons should be blue (check)
