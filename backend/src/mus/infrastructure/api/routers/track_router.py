@@ -52,9 +52,10 @@ async def get_tracks(
 
 @router.get("/{track_id}/stream")
 async def stream_track(
+    request: Request,
     track_id: int = Path(..., gt=0),
     track_repository: SQLiteTrackRepository = Depends(get_track_repository),
-) -> FileResponse:
+):
     track = await track_repository.get_by_id(track_id)
     if not track:
         raise HTTPException(
@@ -71,10 +72,24 @@ async def stream_track(
     file_ext = os.path.splitext(track.file_path)[1].lower()
     content_type = AUDIO_CONTENT_TYPES.get(file_ext, "audio/mpeg")
 
+    # Generate ETag for caching
+    file_stat = await asyncio.to_thread(os.stat, track.file_path)
+    etag = _generate_etag(track.file_path, file_stat.st_size, file_stat.st_mtime)
+
+    # Check if client has cached version
+    if_none_match = request.headers.get("if-none-match")
+    if if_none_match and if_none_match.strip('"') == etag:
+        return Response(status_code=304)
+
     return FileResponse(
         path=track.file_path,
         media_type=content_type,
         filename=os.path.basename(track.file_path),
+        headers={
+            "ETag": f'"{etag}"',
+            "Cache-Control": "public, max-age=86400, immutable",
+            "Accept-Ranges": "bytes",
+        },
     )
 
 

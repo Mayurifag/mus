@@ -9,7 +9,7 @@ vi.mock("./playerStore", () => {
   const mockStore = {
     subscribe: vi.fn((callback) => {
       callback({ is_shuffle: false, is_repeat: false });
-      return () => {};
+      return () => { };
     }),
     setTrack: vi.fn(),
     play: vi.fn(),

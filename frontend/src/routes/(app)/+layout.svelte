@@ -9,6 +9,7 @@
   import * as Sheet from "$lib/components/ui/sheet";
   import type { Track } from "$lib/types";
   import { browser } from "$app/environment";
+  import { Toaster } from "$lib/components/ui/sonner";
 
   export let data: {
     tracks: Track[];
@@ -29,69 +30,58 @@
   let sheetOpen = false;
   let shouldAutoPlay = false; // Track intent to auto-play when track loads
 
-  function handleToggleMenu() {
-    sheetOpen = !sheetOpen;
-  }
+  trackStore.setTracks(data.tracks);
+  console.log("player state", data.playerState);
 
-  // Initialize tracks immediately to prevent UI blink
-  if (data.tracks) {
-    trackStore.setTracks(data.tracks);
-  }
+  // Initialize player state if available
+  if (data.playerState) {
+    const {
+      current_track_id,
+      progress_seconds,
+      volume_level,
+      is_muted,
+      is_shuffle,
+      is_repeat,
+    } = data.playerState;
 
-  // Initialize stores with server-loaded data
-  onMount(() => {
-    let trackSelected = false;
+    // Set volume and mute state
+    playerStore.setVolume(volume_level);
+    if (is_muted) {
+      playerStore.setMuted(true);
+    }
 
-    // Initialize player state if available
-    if (data.playerState) {
-      const {
-        current_track_id,
-        progress_seconds,
-        volume_level,
-        is_muted,
-        is_shuffle,
-        is_repeat,
-      } = data.playerState;
+    // Set shuffle and repeat state
+    playerStore.setShuffle(is_shuffle);
+    playerStore.setRepeat(is_repeat);
 
-      // Set volume and mute state
-      playerStore.setVolume(volume_level);
-      if (is_muted) {
-        playerStore.setMuted(true);
-      }
-
-      // Set shuffle and repeat state
-      playerStore.setShuffle(is_shuffle);
-      playerStore.setRepeat(is_repeat);
-
-      // Set current track if exists
-      if (current_track_id !== null) {
-        const trackIndex = data.tracks.findIndex(
-          (track: Track) => track.id === current_track_id,
+    // Set current track if exists
+    if (current_track_id !== null) {
+      const trackIndex = data.tracks.findIndex(
+        (track: Track) => track.id === current_track_id,
+      );
+      if (trackIndex >= 0) {
+        console.log(
+          "setting current track index",
+          trackIndex,
+          progress_seconds,
         );
-        if (trackIndex >= 0) {
-          trackStore.setCurrentTrackIndex(trackIndex);
-          // Set progress
-          playerStore.setCurrentTime(progress_seconds);
-          playerStore.pause();
-          trackSelected = true;
-        }
+        trackStore.setCurrentTrackIndex(trackIndex);
+        playerStore.setCurrentTime(progress_seconds);
+        playerStore.pause();
       }
     }
+  } else {
+    trackStore.setCurrentTrackIndex(0);
+    playerStore.pause();
+  }
 
-    // If no track was selected and we have tracks, select the first one
-    if (!trackSelected && data.tracks && data.tracks.length > 0) {
-      trackStore.setCurrentTrackIndex(0);
-      playerStore.pause();
-    }
-
+  onMount(() => {
     // Initialize SSE connection for track updates
     eventSource = initEventHandlerService();
 
     // Add event listener for menu toggle - only in browser
     if (browser) {
       document.body.addEventListener("toggle-sheet", handleToggleMenu);
-
-      // Add event listeners for player state persistence on page unload
       window.addEventListener("beforeunload", handleBeforeUnload);
       document.addEventListener("visibilitychange", handleVisibilityChange);
     }
@@ -125,11 +115,13 @@
   function handleLoadedMetadata() {
     if (audio && !isNaN(audio.duration)) {
       playerStore.update((state) => ({ ...state, duration: audio.duration }));
-      trackLoaded = true;
 
-      // If we had a stored time position, seek to it
+      // If we had a stored time position, seek to it and wait for seeked event
       if ($playerStore.currentTime > 0) {
+        // Don't set trackLoaded yet - wait for seeked event
         audio.currentTime = $playerStore.currentTime;
+      } else {
+        trackLoaded = true;
       }
 
       // If we should auto-play (either from store state or saved intent), start playback
@@ -144,6 +136,11 @@
         });
       }
     }
+  }
+
+  function handleSeeked() {
+    // Now that seeking is complete, we can safely set trackLoaded
+    trackLoaded = true;
   }
 
   function handleEnded() {
@@ -303,32 +300,32 @@
     debouncedSavePlayerState();
   }
 
-  $: if (browser) {
-    document.title = $playerStore.currentTrack
-      ? `${$playerStore.currentTrack.artist} - ${$playerStore.currentTrack.title}`
-      : "Mus";
+  $: if ($playerStore.currentTrack?.title && browser) {
+    document.title = `${$playerStore.currentTrack.artist} - ${$playerStore.currentTrack.title}`;
+  }
+
+  function handleToggleMenu() {
+    sheetOpen = !sheetOpen;
   }
 </script>
 
 <Sheet.Root bind:open={sheetOpen}>
   <!-- Main content area that uses full viewport scrolling -->
-  <main class="min-h-screen pr-0 pb-20 md:pr-64">
+  <main class="min-h-screen pb-20 pr-0 md:pr-64">
     <div class="p-4">
       <slot />
     </div>
   </main>
 
+  <Toaster position="top-left" />
+
   <!-- Desktop Sidebar - positioned fixed on the right -->
-  <aside class="fixed top-0 right-0 bottom-20 hidden w-64 md:block">
+  <aside class="fixed bottom-20 right-0 top-0 hidden w-64 md:block">
     <RightSidebar />
   </aside>
 
   <!-- Mobile Sidebar Sheet -->
   <Sheet.Content side="right" class="w-64">
-    <Sheet.Header>
-      <Sheet.Title>Menu</Sheet.Title>
-      <Sheet.Description>Navigation and library controls</Sheet.Description>
-    </Sheet.Header>
     <RightSidebar />
   </Sheet.Content>
 
@@ -341,6 +338,7 @@
     on:loadedmetadata={handleLoadedMetadata}
     on:ended={handleEnded}
     on:error={handleError}
+    on:seeked={handleSeeked}
     preload="auto"
   ></audio>
 </Sheet.Root>

@@ -25,7 +25,7 @@ The core architecture consists of:
     *   Initial page/layout data fetching uses SvelteKit's `load` functions (`+page.server.js`, `+layout.server.js`).
     *   Client-side data fetching and mutations (e.g., saving player state, triggering scans) use the native `fetch` API, potentially wrapped in utility functions in `src/lib/services/apiClient.ts`.
 *   **Date/Time:** `date-fns` for date/time formatting and manipulation.
-*   **PWA:** Basic Progressive Web App features (manifest, service worker for app shell caching) implemented for web deployment.
+*   **PWA:** Basic Progressive Web App features (manifest) implemented for web deployment.
 *   **Directory Structure (`frontend/`):**
     *   `src/`: Main application code.
         *   `lib/`: Reusable code (components, stores, services, types, utils).
@@ -37,8 +37,7 @@ The core architecture consists of:
         *   `routes/`: Application pages and API routes (file-based routing). Contains `.svelte` files for pages/layouts and `+page.server.ts`/`+layout.server.ts` for `load` functions.
         *   `app.html`: Main HTML template.
         *   `hooks.server.ts`: Server-side hooks.
-        *   `hooks.client.ts`: Client-side hooks (e.g., service worker registration).
-        *   `service-worker.ts`: Service worker logic.
+        *   `hooks.client.ts`: Client-side hooks.
     *   `static/`: Static assets (images, fonts, `manifest.json`).
     *   `tests/`: Vitest unit tests.
     *   `src-tauri/`: Tauri specific configuration and Rust code (if any).

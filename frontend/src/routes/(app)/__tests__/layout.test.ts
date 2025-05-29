@@ -198,11 +198,7 @@ describe("Player state persistence and restoration", () => {
           (track: Track) => track.id === current_track_id,
         );
         if (trackIndex >= 0) {
-          // Set the track index first (this will call playerStore.setTrack internally)
-          trackStore.setCurrentTrackIndex(trackIndex);
-          // Then set the progress time (this will override the reset time from setTrack)
-          playerStore.setCurrentTime(progress_seconds);
-          // Ensure player is paused (requirement: loaded and paused at last position)
+          trackStore.setCurrentTrackIndex(trackIndex, progress_seconds);
           playerStore.pause();
         }
       }
@@ -273,11 +269,7 @@ describe("Player state persistence and restoration", () => {
           (track: Track) => track.id === current_track_id,
         );
         if (trackIndex >= 0) {
-          // Set the track index first (this will call playerStore.setTrack internally)
-          trackStore.setCurrentTrackIndex(trackIndex);
-          // Then set the progress time (this will override the reset time from setTrack)
-          playerStore.setCurrentTime(progress_seconds);
-          // Ensure player is paused (requirement: loaded and paused at last position)
+          trackStore.setCurrentTrackIndex(trackIndex, progress_seconds);
           playerStore.pause();
         }
       }
@@ -333,5 +325,45 @@ describe("Player state persistence and restoration", () => {
     expect(playerState.isMuted).toBe(false);
     expect(playerState.is_shuffle).toBe(false);
     expect(playerState.is_repeat).toBe(false);
+  });
+
+  it("should restore currentTime from progress_seconds and ensure player is paused", async () => {
+    const { playerStore } = await import("$lib/stores/playerStore");
+    const { trackStore } = await import("$lib/stores/trackStore");
+
+    playerStore.reset();
+    trackStore.setTracks([]);
+
+    const mockData = {
+      tracks: mockTracks,
+      playerState: {
+        current_track_id: 1,
+        progress_seconds: 75.25,
+        volume_level: 1.0,
+        is_muted: false,
+        is_shuffle: false,
+        is_repeat: false,
+      } as PlayerState,
+    };
+
+    trackStore.setTracks(mockData.tracks);
+
+    if (mockData.playerState) {
+      const { current_track_id, progress_seconds } = mockData.playerState;
+
+      if (current_track_id !== null) {
+        const trackIndex = mockData.tracks.findIndex(
+          (track: Track) => track.id === current_track_id,
+        );
+        if (trackIndex >= 0) {
+          trackStore.setCurrentTrackIndex(trackIndex, progress_seconds);
+          playerStore.pause();
+        }
+      }
+    }
+
+    const playerState = get(playerStore);
+    expect(playerState.currentTime).toBe(75.25);
+    expect(playerState.isPlaying).toBe(false);
   });
 });

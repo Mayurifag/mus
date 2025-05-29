@@ -40,13 +40,11 @@ function createTrackStore() {
         }
         return { ...state, tracks, isLoading: false };
       }),
-    setCurrentTrackIndex: (index: number | null) => {
+    setCurrentTrackIndex: (index: number) => {
       update((state) => {
-        if (index !== null && state.tracks[index]) {
-          playerStore.setTrack(state.tracks[index]);
-          return { ...state, currentTrackIndex: index };
-        }
-        return { ...state, currentTrackIndex: null };
+        index = state.tracks[index] ? index : 0;
+        playerStore.setTrack(state.tracks[index]);
+        return { ...state, currentTrackIndex: index };
       });
     },
     playTrack: (index: number) => {

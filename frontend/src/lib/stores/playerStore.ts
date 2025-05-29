@@ -29,11 +29,11 @@ function createPlayerStore() {
   return {
     subscribe,
     update,
-    setTrack: (track: Track, preserveTime = false) =>
+    setTrack: (track: Track, initialTime?: number) =>
       update((state) => ({
         ...state,
         currentTrack: track,
-        currentTime: preserveTime ? state.currentTime : 0,
+        currentTime: initialTime ?? 0,
         duration: track.duration,
       })),
     play: () => update((state) => ({ ...state, isPlaying: true })),

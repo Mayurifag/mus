@@ -6,6 +6,15 @@ vi.mock("$app/environment", () => ({
   browser: true,
 }));
 
+// Mock tick function
+vi.mock("svelte", async () => {
+  const actual = await vi.importActual("svelte");
+  return {
+    ...actual,
+    tick: vi.fn().mockResolvedValue(undefined),
+  };
+});
+
 // Create a mock document.getElementById
 const originalGetElementById = document.getElementById.bind(document);
 document.getElementById = vi.fn().mockImplementation((id) => {
@@ -106,18 +115,22 @@ describe("TrackList component", () => {
   });
 
   it("attempts to scroll the current track into view", async () => {
+    const { tick } = await import("svelte");
     render(TrackList, { tracks: mockTracks });
 
-    // Wait for the setTimeout in the component
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    // Wait for the async tick() call in the component
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Verify tick was called
+    expect(tick).toHaveBeenCalled();
 
     // Verify getElementById was called with correct ID
     expect(document.getElementById).toHaveBeenCalledWith("track-item-1");
 
     // Verify scrollIntoView was called with correct parameters
     expect(mockScrollIntoView).toHaveBeenCalledWith({
-      behavior: "smooth",
-      block: "nearest",
+      behavior: "auto",
+      block: "center",
     });
   });
 

@@ -3,6 +3,7 @@
   import TrackItem from "./TrackItem.svelte";
   import { trackStore } from "$lib/stores/trackStore";
   import { browser } from "$app/environment";
+  import { tick } from "svelte";
 
   export let tracks: Track[] = [];
 
@@ -13,17 +14,18 @@
   $: if (browser && currentTrackIndex !== null && tracks.length > 0) {
     const currentTrack = tracks[currentTrackIndex];
     if (currentTrack) {
-      setTimeout(() => {
+      (async () => {
+        await tick();
         const trackElement = document.getElementById(
           `track-item-${currentTrack.id}`,
         );
         if (trackElement) {
           trackElement.scrollIntoView({
-            behavior: "smooth",
+            behavior: "auto",
             block: "nearest",
           });
         }
-      }, 100); // Small delay to ensure DOM is updated
+      })();
     }
   }
 </script>

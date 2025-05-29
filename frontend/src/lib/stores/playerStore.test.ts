@@ -64,6 +64,21 @@ describe("playerStore", () => {
     expect(get(playerStore).currentTime).toBe(0);
   });
 
+  it("should set track with initialTime parameter", () => {
+    const initialTime = 45;
+    playerStore.setTrack(mockTrack, initialTime);
+    const state = get(playerStore);
+    expect(state.currentTrack).toEqual(mockTrack);
+    expect(state.duration).toBe(mockTrack.duration);
+    expect(state.currentTime).toBe(initialTime);
+  });
+
+  it("should set track with initialTime as 0 when undefined", () => {
+    playerStore.setTrack(mockTrack, undefined);
+    const state = get(playerStore);
+    expect(state.currentTime).toBe(0);
+  });
+
   it("should set and control volume correctly", () => {
     // Test volume limits
     playerStore.setVolume(1.5); // Greater than max
