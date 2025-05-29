@@ -10,14 +10,10 @@ vi.mock("$lib/services/apiClient", () => ({
   ),
 }));
 
-interface MockTrackStore {
-  nextTrack: ReturnType<typeof vi.fn>;
-}
-
 describe("AudioService", () => {
   let audioService: AudioService;
   let mockAudio: HTMLAudioElement;
-  let mockTrackStore: MockTrackStore;
+  let mockOnPlaybackFinished: ReturnType<typeof vi.fn>;
 
   const mockTrack: Track = {
     id: 1,
@@ -45,12 +41,10 @@ describe("AudioService", () => {
       volume: 1,
     } as unknown as HTMLAudioElement;
 
-    // Create mock stores
-    mockTrackStore = {
-      nextTrack: vi.fn(),
-    };
+    // Create mock callback
+    mockOnPlaybackFinished = vi.fn();
 
-    audioService = new AudioService(mockAudio, mockTrackStore);
+    audioService = new AudioService(mockAudio, mockOnPlaybackFinished);
   });
 
   it("should set up event listeners on construction", () => {
@@ -165,5 +159,70 @@ describe("AudioService", () => {
       "canplay",
       expect.any(Function),
     );
+  });
+
+  it("should call onPlaybackFinishedCallback when track ends without repeat", () => {
+    audioService.setRepeat(false);
+
+    const addEventListenerMock =
+      mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
+    const endedHandler = addEventListenerMock.mock.calls.find(
+      (call: unknown[]) => call[0] === "ended",
+    )?.[1] as () => void;
+
+    endedHandler();
+
+    expect(mockOnPlaybackFinished).toHaveBeenCalled();
+  });
+
+  it("should not call onPlaybackFinishedCallback when track ends with repeat", () => {
+    audioService.setRepeat(true);
+
+    const addEventListenerMock =
+      mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
+    const endedHandler = addEventListenerMock.mock.calls.find(
+      (call: unknown[]) => call[0] === "ended",
+    )?.[1] as () => void;
+
+    endedHandler();
+
+    expect(mockOnPlaybackFinished).not.toHaveBeenCalled();
+    expect(mockAudio.play).toHaveBeenCalled();
+  });
+
+  it("should set document.title when updateAudioSource is called with new track", () => {
+    const mockDocument = {
+      title: "",
+    };
+    (globalThis as unknown as { document: typeof mockDocument }).document =
+      mockDocument;
+
+    audioService.updateAudioSource(mockTrack, true);
+
+    expect(mockDocument.title).toBe("Test Artist - Test Track");
+  });
+
+  it("should not set document.title for same track ID", () => {
+    const mockDocument = {
+      title: "Initial Title",
+    };
+    (globalThis as unknown as { document: typeof mockDocument }).document =
+      mockDocument;
+
+    audioService.updateAudioSource(mockTrack, true);
+    expect(mockDocument.title).toBe("Test Artist - Test Track");
+
+    mockDocument.title = "Changed Title";
+    audioService.updateAudioSource(mockTrack, false);
+
+    expect(mockDocument.title).toBe("Changed Title");
+  });
+
+  it("should handle updateAudioSource when document is undefined", () => {
+    (globalThis as unknown as { document: undefined }).document = undefined;
+
+    expect(() => {
+      audioService.updateAudioSource(mockTrack, true);
+    }).not.toThrow();
   });
 });

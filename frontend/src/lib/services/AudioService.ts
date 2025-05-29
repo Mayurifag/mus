@@ -2,13 +2,9 @@ import type { Track } from "$lib/types";
 import { getStreamUrl } from "$lib/services/apiClient";
 import { writable } from "svelte/store";
 
-interface TrackStoreType {
-  nextTrack: () => void;
-}
-
 export class AudioService {
   private audio: HTMLAudioElement;
-  private trackStore: TrackStoreType;
+  private onPlaybackFinishedCallback: () => void;
   private shouldAutoPlay = false;
   private lastAudioProgressSyncTime = 0;
 
@@ -28,9 +24,12 @@ export class AudioService {
   private _currentDuration = 0;
   private _currentIsRepeat = false;
 
-  constructor(audio: HTMLAudioElement, trackStore: TrackStoreType) {
+  constructor(
+    audio: HTMLAudioElement,
+    onPlaybackFinishedWithoutRepeat: () => void,
+  ) {
     this.audio = audio;
-    this.trackStore = trackStore;
+    this.onPlaybackFinishedCallback = onPlaybackFinishedWithoutRepeat;
 
     // Subscribe to our own stores to keep current values in sync
     this._volume.subscribe((value) => (this._currentVolume = value));
@@ -83,7 +82,7 @@ export class AudioService {
         });
       }
     } else {
-      this.trackStore.nextTrack();
+      this.onPlaybackFinishedCallback();
     }
   };
 
@@ -110,7 +109,7 @@ export class AudioService {
       this.shouldAutoPlay = isPlaying;
       this.audio.src = streamUrl;
       this.audio.load();
-      // Reset currentTime to 0 when loading a new track
+      document.title = `${track.artist} - ${track.title}`;
       this._currentTime.set(0);
     }
   }

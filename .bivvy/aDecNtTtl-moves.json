@@ -1,0 +1,21 @@
+{
+  "Climb": "aDecNtTtl",
+  "moves": [
+    {
+      "status": "complete",
+      "description": "Modify AudioService for handleEnded decoupling and document.title management.",
+      "details": "In `frontend/src/lib/services/AudioService.ts`:\n1. Change the constructor signature: remove the `trackStore: { nextTrack: () => void }` parameter and add `onPlaybackFinishedWithoutRepeat: () => void`. Store this callback as a private member (e.g., `this.onPlaybackFinishedCallback`).\n2. In the `handleEnded` method, replace the `this.trackStore.nextTrack()` call with `this.onPlaybackFinishedCallback()` when `!this._currentIsRepeat`.\n3. Add a new private member: `private lastSetTitleTrackId: number | null = null;`.\n4. In the `updateAudioSource(track: Track | null, isPlaying: boolean)` method:\n   - Add logic to set `document.title`. If `track` is not null, `typeof document !== 'undefined'`, and `track.id !== this.lastSetTitleTrackId`, then set `document.title = `${track.artist} - ${track.title}`;` and update `this.lastSetTitleTrackId = track.id;`.\n   - No specific action is needed for `document.title` if `track` becomes null; the last set title will persist.\n5. Update `AudioService.test.ts`:\n   - Adapt tests for the new constructor signature.\n   - Verify that `handleEnded` calls the `onPlaybackFinishedWithoutRepeat` callback correctly when the track is not repeating.\n   - Add tests for `updateAudioSource` to ensure `document.title` is set as expected, including preventing redundant updates for the same track ID. Mock the `document` object for these tests.",
+      "rules_filepaths_to_follow": "`.cursor/rules/typescript.mdc,.augment-guidelines`",
+      "filepaths_to_modify": "`frontend/src/lib/services/AudioService.ts,frontend/src/lib/services/AudioService.test.ts`",
+      "rest": "true"
+    },
+    {
+      "status": "complete",
+      "description": "Integrate AudioService changes into +layout.svelte.",
+      "details": "In `frontend/src/routes/(app)/+layout.svelte`:\n1. Update the instantiation of `AudioService` (likely in `onMount`):\n   - Instead of passing the `trackStore` object for `nextTrack` functionality, pass a new callback function `() => trackStore.nextTrack()` as the `onPlaybackFinishedWithoutRepeat` argument to the `AudioService` constructor.\n2. Remove the reactive Svelte block responsible for setting `document.title` (e.g., `$: if ($trackStore.currentTrack && browser && $trackStore.currentTrack.id !== currentTrackIdForWebpageTitle) { ... }`).\n3. Remove the associated state variable used for tracking the last title update (e.g., `currentTrackIdForWebpageTitle` or `lastCurrentTrackId` if it was named that, previously `lastTitleTrackId` from `optimLout` climb if that was its final name for title logic).\n4. Review and update tests in `frontend/src/routes/(app)/__tests__/layout.test.ts` if any test relied on the old title-setting mechanism or the previous way `nextTrack` was triggered from `AudioService`'s `handleEnded`.",
+      "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc,.augment-guidelines`",
+      "filepaths_to_modify": "`frontend/src/routes/(app)/+layout.svelte,frontend/src/routes/(app)/__tests__/layout.test.ts`",
+      "rest": "true"
+    }
+  ]
+}

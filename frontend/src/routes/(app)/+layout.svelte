@@ -20,7 +20,6 @@
   let eventSource: EventSource | null = null;
   let sheetOpen = false;
   let lastPlayerStateSaveTime = 0;
-  let currentTrackIdForWebpageTitle: number | null = null;
   let lastCurrentTrackId: number | null = null;
   let isInitialLoad = true;
 
@@ -29,7 +28,7 @@
 
     // Initialize audio service first
     if (audio) {
-      audioService = new AudioService(audio, trackStore);
+      audioService = new AudioService(audio, () => trackStore.nextTrack());
       audioServiceStore.set(audioService);
     }
 
@@ -164,15 +163,6 @@
       savePlayerState();
       lastPlayerStateSaveTime = now;
     }
-  }
-
-  $: if (
-    $trackStore.currentTrack &&
-    browser &&
-    $trackStore.currentTrack.id !== currentTrackIdForWebpageTitle
-  ) {
-    document.title = `${$trackStore.currentTrack.artist} - ${$trackStore.currentTrack.title}`;
-    currentTrackIdForWebpageTitle = $trackStore.currentTrack.id;
   }
 
   function handleToggleMenu() {
