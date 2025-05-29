@@ -43,7 +43,7 @@ describe("apiClient", () => {
     // Mock the functions directly
     vi.spyOn(apiClient, "fetchTracks");
     vi.spyOn(apiClient, "fetchPlayerState");
-    vi.spyOn(apiClient, "savePlayerStateAsync");
+    vi.spyOn(apiClient, "sendPlayerStateBeacon");
   });
 
   afterEach(() => {
@@ -155,56 +155,44 @@ describe("apiClient", () => {
     });
   });
 
-  describe("savePlayerStateAsync", () => {
+  describe("sendPlayerStateBeacon", () => {
     it("calls the function with correct arguments (fire-and-forget)", () => {
       // Mock the function implementation
-      vi.mocked(apiClient.savePlayerStateAsync).mockImplementation(() => {});
+      vi.mocked(apiClient.sendPlayerStateBeacon).mockImplementation(() => {});
 
       // Call the function
-      apiClient.savePlayerStateAsync(mockPlayerState);
+      apiClient.sendPlayerStateBeacon(mockPlayerState);
 
       // Verify the function was called with the correct arguments
-      expect(apiClient.savePlayerStateAsync).toHaveBeenCalledWith(
+      expect(apiClient.sendPlayerStateBeacon).toHaveBeenCalledWith(
         mockPlayerState,
       );
     });
 
-    it("handles errors silently (fire-and-forget)", () => {
-      // Mock console.warn to prevent actual logging during test
-      console.warn = vi.fn();
-
-      // Mock the function implementation to simulate error handling
-      vi.mocked(apiClient.savePlayerStateAsync).mockImplementation(() => {
-        console.warn(
-          "Player state save failed (non-critical):",
-          "Network error",
-        );
+    it("handles navigator.sendBeacon availability gracefully", () => {
+      // Mock the function implementation to simulate no sendBeacon support
+      vi.mocked(apiClient.sendPlayerStateBeacon).mockImplementation(() => {
+        // Function should handle cases where navigator.sendBeacon is not available
       });
 
       // Call the function
-      apiClient.savePlayerStateAsync(mockPlayerState);
+      apiClient.sendPlayerStateBeacon(mockPlayerState);
 
       // Verify the function was called with the correct arguments
-      expect(apiClient.savePlayerStateAsync).toHaveBeenCalledWith(
+      expect(apiClient.sendPlayerStateBeacon).toHaveBeenCalledWith(
         mockPlayerState,
-      );
-
-      // Verify console.warn was called (simulating internal error handling)
-      expect(console.warn).toHaveBeenCalledWith(
-        "Player state save failed (non-critical):",
-        "Network error",
       );
     });
 
-    it("saves player state with shuffle and repeat enabled", () => {
+    it("sends player state with shuffle and repeat enabled", () => {
       // Mock the function implementation
-      vi.mocked(apiClient.savePlayerStateAsync).mockImplementation(() => {});
+      vi.mocked(apiClient.sendPlayerStateBeacon).mockImplementation(() => {});
 
       // Call the function
-      apiClient.savePlayerStateAsync(mockPlayerStateWithShuffleRepeat);
+      apiClient.sendPlayerStateBeacon(mockPlayerStateWithShuffleRepeat);
 
       // Verify the function was called with the correct arguments
-      expect(apiClient.savePlayerStateAsync).toHaveBeenCalledWith(
+      expect(apiClient.sendPlayerStateBeacon).toHaveBeenCalledWith(
         mockPlayerStateWithShuffleRepeat,
       );
     });

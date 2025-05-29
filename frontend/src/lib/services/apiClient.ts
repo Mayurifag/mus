@@ -62,8 +62,14 @@ export async function fetchPlayerState(): Promise<PlayerState | null> {
   }
 }
 
-export function savePlayerStateAsync(state: PlayerState): void {
-  api.post("/player/state", state);
+export function sendPlayerStateBeacon(state: PlayerState): void {
+  if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+    const url = `${API_BASE_URL}/player/state`;
+    const blob = new Blob([JSON.stringify(state)], {
+      type: "application/json",
+    });
+    navigator.sendBeacon(url, blob);
+  }
 }
 
 export async function triggerTestToasts(): Promise<{

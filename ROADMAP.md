@@ -26,11 +26,11 @@ why we need to clear shouldAutoPlay? and this code?
 
 ## Phase 1
 
-- [ ] debouncedSavePlayerState fixes to use saved progress. Check what backend gets when we save state on closed tab.
+- [ ] load PlayerState fixes to use saved progress. Check what backend gets when we save state on closed tab.
 - [ ] Analyze all css methods which update several states in once. Make them with different methods. Remove all $: and refactor to svelte 5.
 - [ ] Recolor all frontend
-- [ ] Larger player footer. Move volume to the right side of next button. Style progress bar so it would be equal like tracklist' one
-- [ ] Progress bars have to show how much data cached already.
+- [ ] Larger player footer. Move volume to the right side of next button.
+- [ ] Style progress bar so it would be equal like tracklist' one. Remove styling from TrackItem.svelte. Progress bars have to show how much data cached already.
 - [ ] Fix mobile footer css
 - [ ] Move to vscode, update workflow, aliases. Adapt this workflow. Remove cursorrules. Update all snippets. https://www.chatprd.ai/resources/PRD-for-Cursor
 - [ ] Mobile API for Safari - PWA + service worker
