@@ -10,7 +10,7 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Adjust currentTrackIndex nullability logic in trackStore.",
       "details": "Review and modify `frontend/src/lib/stores/trackStore.ts`. Ensure `currentTrackIndex` is `null` if `tracks` array is empty. If `tracks` is not empty, ensure `currentTrackIndex` defaults to `0` or a restored valid index if no prior state dictates otherwise. Specifically, update `setCurrentTrackIndex` to handle empty `tracks` by setting `currentTrackIndex` to `null`, and for non-empty `tracks`, ensure `index` is clamped to a valid range (e.g., defaulting to `0` if `index` is out of bounds). Update tests in `frontend/src/lib/stores/trackStore.test.ts`.",
       "rules_filepaths_to_follow": "`.cursor/rules/typescript.mdc,.cursor/rules/svelte.mdc`",

@@ -21,6 +21,11 @@ function createTrackStore() {
     subscribe,
     setTracks: (tracks: Track[]) =>
       update((state) => {
+        // If tracks array is empty, set currentTrackIndex to null
+        if (tracks.length === 0) {
+          return { ...state, tracks, currentTrackIndex: null };
+        }
+
         // Try to find the same track ID in the new list if there's a current track
         if (state.currentTrackIndex !== null && state.tracks.length > 0) {
           const currentTrack = state.tracks[state.currentTrackIndex];
@@ -35,7 +40,9 @@ function createTrackStore() {
             };
           }
         }
-        return { ...state, tracks };
+
+        // If no prior state or current track not found, default to first track (index 0)
+        return { ...state, tracks, currentTrackIndex: 0 };
       }),
     setCurrentTrackIndex: (index: number | null, initialTime?: number) => {
       update((state) => {
