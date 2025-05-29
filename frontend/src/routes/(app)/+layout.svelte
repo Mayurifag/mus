@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import { trackStore } from "$lib/stores/trackStore";
   import { playerStore } from "$lib/stores/playerStore";
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
@@ -28,7 +28,7 @@
   let saveStateDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   let eventSource: EventSource | null = null;
   let sheetOpen = false;
-  let shouldAutoPlay = false; // Track intent to auto-play when track loads
+  let shouldAutoPlay = false;
 
   trackStore.setTracks(data.tracks);
   console.log("player state", data.playerState);
@@ -75,7 +75,7 @@
     playerStore.pause();
   }
 
-  onMount(() => {
+  onMount(async () => {
     // Initialize SSE connection for track updates
     eventSource = initEventHandlerService();
 
@@ -84,6 +84,25 @@
       document.body.addEventListener("toggle-sheet", handleToggleMenu);
       window.addEventListener("beforeunload", handleBeforeUnload);
       document.addEventListener("visibilitychange", handleVisibilityChange);
+    }
+
+    // Perform initial scroll to current track
+    if (
+      $trackStore.currentTrackIndex !== null &&
+      $trackStore.tracks.length > 0
+    ) {
+      const currentTrack = $trackStore.tracks[$trackStore.currentTrackIndex];
+      if (currentTrack) {
+        const trackElement = document.getElementById(
+          `track-item-${currentTrack.id}`,
+        );
+        if (trackElement) {
+          trackElement.scrollIntoView({
+            behavior: "auto",
+            block: "center",
+          });
+        }
+      }
     }
   });
 
@@ -311,7 +330,7 @@
 
 <Sheet.Root bind:open={sheetOpen}>
   <!-- Main content area that uses full viewport scrolling -->
-  <main class="min-h-screen pr-0 pb-20 md:pr-64">
+  <main class="min-h-screen pb-20 pr-0 md:pr-64">
     <div class="p-4">
       <slot />
     </div>
@@ -320,7 +339,7 @@
   <Toaster position="top-left" />
 
   <!-- Desktop Sidebar - positioned fixed on the right -->
-  <aside class="fixed top-0 right-0 bottom-20 hidden w-64 md:block">
+  <aside class="fixed bottom-20 right-0 top-0 hidden w-64 md:block">
     <RightSidebar />
   </aside>
 

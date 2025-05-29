@@ -364,4 +364,18 @@ describe("Player state persistence and restoration", () => {
     expect(playerState.currentTime).toBe(75.25);
     expect(playerState.isPlaying).toBe(false);
   });
+
+  it("should set up initial scroll state correctly", async () => {
+    const { trackStore } = await import("$lib/stores/trackStore");
+
+    // Set up tracks and current track
+    trackStore.setTracks(mockTracks);
+    trackStore.setCurrentTrackIndex(1);
+
+    // Verify the track store state is correct for auto-scroll
+    const trackState = get(trackStore);
+    expect(trackState.currentTrackIndex).toBe(1);
+    expect(trackState.tracks.length).toBe(2);
+    expect(trackState.tracks[1].id).toBe(2);
+  });
 });

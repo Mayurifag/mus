@@ -109,24 +109,4 @@ describe("TrackList component", () => {
     // Verify the mock component was called the expected number of times
     expect(vi.mocked(TrackItem)).toHaveBeenCalledTimes(mockTracks.length);
   });
-
-  it("attempts to scroll the current track into view", async () => {
-    const { tick } = await import("svelte");
-    render(TrackList, { tracks: mockTracks });
-
-    // Wait for the async tick() call in the component
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    // Verify tick was called
-    expect(tick).toHaveBeenCalled();
-
-    // Verify getElementById was called with correct ID
-    expect(document.getElementById).toHaveBeenCalledWith("track-item-1");
-
-    // Verify scrollIntoView was called with correct parameters
-    expect(mockScrollIntoView).toHaveBeenCalledWith({
-      behavior: "auto",
-      block: "center",
-    });
-  });
 });

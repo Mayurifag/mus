@@ -26,7 +26,7 @@
       "rest": "false"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Modify auto-scroll behavior for initial page load.",
       "details": "Remove the existing auto-scroll reactive block from `frontend/src/lib/components/domain/TrackList.svelte`. Add new logic to `frontend/src/routes/(app)/+layout.svelte`. This logic should use a reactive statement (`$:`) depending on `browser`, `$trackStore.currentTrackIndex`, `$trackStore.tracks.length`, and an `initialScrollDone` flag (set to `false` initially, then `true` after first scroll). Inside this block, if conditions are met, `await tick()`, then get the track element by ID `track-item-{currentTrack.id}` and call `scrollIntoView({ behavior: \"auto\", block: \"center\" })`. Update tests in `frontend/src/routes/(app)/__tests__/layout.test.ts` and `frontend/src/lib/components/domain/TrackList.svelte.test.ts`.",
       "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc`",

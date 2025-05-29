@@ -2,32 +2,8 @@
   import type { Track } from "$lib/types";
   import TrackItem from "./TrackItem.svelte";
   import { trackStore } from "$lib/stores/trackStore";
-  import { browser } from "$app/environment";
-  import { tick } from "svelte";
 
   export let tracks: Track[] = [];
-
-  $: if (
-    browser &&
-    $trackStore.currentTrackIndex !== null &&
-    tracks.length > 0
-  ) {
-    const currentTrack = tracks[$trackStore.currentTrackIndex];
-    if (currentTrack) {
-      (async () => {
-        await tick();
-        const trackElement = document.getElementById(
-          `track-item-${currentTrack.id}`,
-        );
-        if (trackElement) {
-          trackElement.scrollIntoView({
-            behavior: "auto",
-            block: "center",
-          });
-        }
-      })();
-    }
-  }
 </script>
 
 <div class="flex flex-col space-y-1" data-testid="track-list">
