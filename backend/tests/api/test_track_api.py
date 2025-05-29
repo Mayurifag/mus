@@ -126,10 +126,22 @@ async def test_stream_track_success(client, sample_tracks):
 
     file_response_mock = MagicMock(status_code=200)
 
+    # Mock request object
+    mock_request = MagicMock()
+    mock_request.headers = {}
+
     with patch("os.path.isfile", return_value=True), patch(
         "fastapi.responses.FileResponse", return_value=file_response_mock
-    ):
-        result = await stream_track(track_id=1, track_repository=repo_mock)
+    ), patch("asyncio.to_thread") as mock_to_thread:
+        # Mock os.stat result
+        mock_stat = MagicMock()
+        mock_stat.st_size = 1024
+        mock_stat.st_mtime = 1609459200.0
+        mock_to_thread.return_value = mock_stat
+
+        result = await stream_track(
+            request=mock_request, track_id=1, track_repository=repo_mock
+        )
 
         assert result.status_code == 200
         repo_mock.get_by_id.assert_called_once_with(1)

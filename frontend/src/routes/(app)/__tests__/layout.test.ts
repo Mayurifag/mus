@@ -97,23 +97,21 @@ describe("Track loading and initialization", () => {
     vi.clearAllMocks();
   });
 
-  it("should initialize tracks immediately and set loading to false", async () => {
+  it("should initialize tracks immediately", async () => {
     const { trackStore } = await import("$lib/stores/trackStore");
 
     // Reset store to initial state
     trackStore.setTracks([]);
 
-    // Verify initial loading state
+    // Verify initial state
     let state = get(trackStore);
-    expect(state.isLoading).toBe(false); // Should be false after setTracks([])
     expect(state.tracks).toEqual([]);
 
     // Simulate immediate track initialization (like in layout.svelte)
     trackStore.setTracks(mockTracks);
 
-    // Verify tracks are set and loading is false
+    // Verify tracks are set
     state = get(trackStore);
-    expect(state.isLoading).toBe(false);
     expect(state.tracks).toEqual(mockTracks);
   });
 });

@@ -1,6 +1,6 @@
-# Implementation Plan
+# Roadmap
 
-## TODO right now
+## Notes on the paper side
 
 why we need to set trackLoaded = true in handleSeeked? remove that
 
@@ -32,7 +32,7 @@ why we need to clear shouldAutoPlay? and this code?
 - [ ] Larger player footer. Move volume to the right side of next button. Style progress bar so it would be equal like tracklist' one
 - [ ] Progress bars have to show how much data cached already.
 - [ ] Fix mobile footer css
-- [ ] Adapt this workflow https://www.chatprd.ai/resources/PRD-for-Cursor
+- [ ] Move to vscode, update workflow, aliases. Adapt this workflow. Remove cursorrules. Update all snippets. https://www.chatprd.ai/resources/PRD-for-Cursor
 - [ ] Mobile API for Safari - PWA + service worker
 - [ ] show history of tracks in right panel to check functionality of shuffle/repeat tracks - check it
 - [ ] Run through prompt about enhancing project, get TODOs done

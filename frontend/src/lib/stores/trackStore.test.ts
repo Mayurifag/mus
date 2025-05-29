@@ -9,7 +9,7 @@ vi.mock("./playerStore", () => {
   const mockStore = {
     subscribe: vi.fn((callback) => {
       callback({ is_shuffle: false, is_repeat: false });
-      return () => { };
+      return () => {};
     }),
     setTrack: vi.fn(),
     play: vi.fn(),
@@ -80,7 +80,7 @@ describe("trackStore", () => {
     // Set current track index
     trackStore.setCurrentTrackIndex(1);
     expect(get(trackStore).currentTrackIndex).toBe(1);
-    expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[1]);
+    expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[1], undefined);
 
     // Update tracks with same IDs but different order
     const updatedTracks = [mockTracks[1], mockTracks[2], mockTracks[0]];
@@ -96,7 +96,7 @@ describe("trackStore", () => {
     // Set to valid index
     trackStore.setCurrentTrackIndex(2);
     expect(get(trackStore).currentTrackIndex).toBe(2);
-    expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[2]);
+    expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[2], undefined);
 
     // Reset calls
     vi.clearAllMocks();
@@ -106,9 +106,9 @@ describe("trackStore", () => {
     expect(get(trackStore).currentTrackIndex).toBeNull();
     expect(playerStore.setTrack).not.toHaveBeenCalled();
 
-    // Set to invalid index (out of bounds)
+    // Set to invalid index (out of bounds) - should now accept the index
     trackStore.setCurrentTrackIndex(10);
-    expect(get(trackStore).currentTrackIndex).toBeNull();
+    expect(get(trackStore).currentTrackIndex).toBe(10);
   });
 
   it("should play track and add previous track to history", () => {

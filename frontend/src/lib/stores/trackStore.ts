@@ -6,14 +6,12 @@ export interface TrackStoreState {
   tracks: Track[];
   currentTrackIndex: number | null;
   playHistory: Track[];
-  isLoading: boolean;
 }
 
 const initialState: TrackStoreState = {
   tracks: [],
   currentTrackIndex: null,
   playHistory: [],
-  isLoading: true,
 };
 
 function createTrackStore() {
@@ -34,16 +32,17 @@ function createTrackStore() {
               ...state,
               tracks,
               currentTrackIndex: newIndex,
-              isLoading: false,
             };
           }
         }
-        return { ...state, tracks, isLoading: false };
+        return { ...state, tracks };
       }),
-    setCurrentTrackIndex: (index: number) => {
+    setCurrentTrackIndex: (index: number | null, initialTime?: number) => {
       update((state) => {
-        index = state.tracks[index] ? index : 0;
-        playerStore.setTrack(state.tracks[index]);
+        if (index === null || state.tracks.length === 0) {
+          return { ...state, currentTrackIndex: null };
+        }
+        playerStore.setTrack(state.tracks[index], initialTime);
         return { ...state, currentTrackIndex: index };
       });
     },
