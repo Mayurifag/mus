@@ -9,7 +9,7 @@ vi.mock("./playerStore", () => {
   const mockStore = {
     subscribe: vi.fn((callback) => {
       callback({ is_shuffle: false, is_repeat: false });
-      return () => { };
+      return () => {};
     }),
     setTrack: vi.fn(),
     play: vi.fn(),
@@ -87,11 +87,9 @@ describe("trackStore", () => {
   });
 
   it("should set currentTrackIndex to null when tracks array is empty", () => {
-    // First set some tracks
     trackStore.setTracks(mockTracks);
     expect(get(trackStore).currentTrackIndex).toBe(0);
 
-    // Then set empty tracks array
     trackStore.setTracks([]);
     expect(get(trackStore).tracks).toEqual([]);
     expect(get(trackStore).currentTrackIndex).toBeNull();
@@ -100,20 +98,16 @@ describe("trackStore", () => {
   it("should update current track index correctly", () => {
     trackStore.setTracks(mockTracks);
 
-    // Set to valid index
     trackStore.setCurrentTrackIndex(2);
     expect(get(trackStore).currentTrackIndex).toBe(2);
     expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[2], undefined);
 
-    // Reset calls
     vi.clearAllMocks();
 
-    // Set to null
     trackStore.setCurrentTrackIndex(null);
     expect(get(trackStore).currentTrackIndex).toBeNull();
     expect(playerStore.setTrack).not.toHaveBeenCalled();
 
-    // Set to invalid index (out of bounds) - should now accept the index
     trackStore.setCurrentTrackIndex(10);
     expect(get(trackStore).currentTrackIndex).toBe(10);
   });
@@ -121,21 +115,17 @@ describe("trackStore", () => {
   it("should play track and add previous track to history", () => {
     trackStore.setTracks(mockTracks);
 
-    // Play first track (which is already current due to default behavior)
     trackStore.playTrack(0);
     expect(get(trackStore).currentTrackIndex).toBe(0);
     expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[0]);
     expect(playerStore.play).toHaveBeenCalled();
-    // Since currentTrackIndex was already 0, playing track 0 adds it to history
     expect(get(trackStore).playHistory).toEqual([mockTracks[0]]);
 
-    // Play another track - should add previous to history
     trackStore.playTrack(1);
     expect(get(trackStore).currentTrackIndex).toBe(1);
     expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[1]);
     expect(get(trackStore).playHistory).toEqual([mockTracks[0], mockTracks[0]]);
 
-    // Play third track - should add second to history
     trackStore.playTrack(2);
     expect(get(trackStore).currentTrackIndex).toBe(2);
     expect(get(trackStore).playHistory).toEqual([
@@ -155,11 +145,9 @@ describe("trackStore", () => {
     expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[1]);
     expect(playerStore.play).toHaveBeenCalled();
 
-    // Go to last track
     trackStore.setCurrentTrackIndex(2);
     vi.clearAllMocks();
 
-    // Should loop back to first track
     trackStore.nextTrack();
     expect(get(trackStore).currentTrackIndex).toBe(0);
     expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[0]);
@@ -175,11 +163,9 @@ describe("trackStore", () => {
     expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[0]);
     expect(playerStore.play).toHaveBeenCalled();
 
-    // Go to first track
     trackStore.setCurrentTrackIndex(0);
     vi.clearAllMocks();
 
-    // Should loop back to last track
     trackStore.previousTrack();
     expect(get(trackStore).currentTrackIndex).toBe(2);
     expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[2]);
@@ -190,10 +176,8 @@ describe("trackStore", () => {
     trackStore.setCurrentTrackIndex(0);
     vi.clearAllMocks();
 
-    // Simulate track ending and going to next track
     trackStore.nextTrack();
 
-    // Should set the next track and start playing
     expect(get(trackStore).currentTrackIndex).toBe(1);
     expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[1]);
     expect(playerStore.play).toHaveBeenCalled();

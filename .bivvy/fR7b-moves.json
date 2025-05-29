@@ -18,7 +18,7 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Refactor reactive assignment in TrackList.svelte.",
       "details": "Modify `frontend/src/lib/components/domain/TrackList.svelte`: delete the line `$: currentTrackIndex = $trackStore.currentTrackIndex;`. Update all reactive dependencies and logic that used the local `currentTrackIndex` to directly use `$trackStore.currentTrackIndex`. Update tests in `frontend/src/lib/components/domain/TrackList.svelte.test.ts` if impacted.",
       "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc`",

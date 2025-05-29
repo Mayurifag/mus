@@ -7,11 +7,12 @@
 
   export let tracks: Track[] = [];
 
-  $: currentTrackIndex = $trackStore.currentTrackIndex;
-
-  // Auto-scroll current track into view
-  $: if (browser && currentTrackIndex !== null && tracks.length > 0) {
-    const currentTrack = tracks[currentTrackIndex];
+  $: if (
+    browser &&
+    $trackStore.currentTrackIndex !== null &&
+    tracks.length > 0
+  ) {
+    const currentTrack = tracks[$trackStore.currentTrackIndex];
     if (currentTrack) {
       (async () => {
         await tick();
@@ -37,7 +38,11 @@
   {:else}
     <div class="space-y-1">
       {#each tracks as track, i (track.id)}
-        <TrackItem {track} index={i} isSelected={currentTrackIndex === i} />
+        <TrackItem
+          {track}
+          index={i}
+          isSelected={$trackStore.currentTrackIndex === i}
+        />
       {/each}
     </div>
   {/if}
