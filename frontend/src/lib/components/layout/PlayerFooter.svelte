@@ -15,7 +15,7 @@
     Shuffle,
     Repeat,
     Repeat1,
-  } from "lucide-svelte";
+  } from "@lucide/svelte";
   import { browser } from "$app/environment";
   import { onMount } from "svelte";
 

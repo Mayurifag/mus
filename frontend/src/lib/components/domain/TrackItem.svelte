@@ -3,7 +3,7 @@
   import type { AudioService } from "$lib/services/AudioService";
   import { trackStore } from "$lib/stores/trackStore";
   import { formatDistanceToNow } from "date-fns";
-  import { Play, Pause } from "lucide-svelte";
+  import { Play, Pause } from "@lucide/svelte";
   import { Button } from "$lib/components/ui/button";
   import { Slider } from "$lib/components/ui/slider";
 

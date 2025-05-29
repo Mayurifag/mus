@@ -20,7 +20,7 @@ The core architecture consists of:
 *   **State Management:** Primarily uses Svelte's built-in Stores (`writable`, `readable`, `derived`) located in `src/lib/stores`.
 *   **Styling:** Tailwind CSS utility-first framework, configured via `tailwind.config.js`. `clsx` and `tailwind-merge` for utility class composition.
 *   **UI Components:** `shadcn-svelte` component library, built on top of unstyled primitives and Tailwind CSS. Custom components are organized within `src/lib/components`.
-*   **Icons:** `lucide-svelte` for icons.
+*   **Icons:** `@lucide/svelte` for icons.
 *   **Data Fetching:**
     *   Initial page/layout data fetching uses SvelteKit's `load` functions (`+page.server.js`, `+layout.server.js`).
     *   Client-side data fetching and mutations (e.g., saving player state, triggering scans) use the native `fetch` API, potentially wrapped in utility functions in `src/lib/services/apiClient.ts`.

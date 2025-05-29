@@ -57,12 +57,18 @@
           trackStore.setCurrentTrackIndex(trackIndex);
           if (audioService) {
             audioService.setCurrentTime(progress_seconds);
+            audioService.updateAudioSource(data.tracks[trackIndex], false);
           }
+          lastCurrentTrackId = current_track_id;
         }
       }
     } else {
       if (data.tracks.length > 0) {
         trackStore.setCurrentTrackIndex(0);
+        if (audioService) {
+          audioService.updateAudioSource(data.tracks[0], false);
+        }
+        lastCurrentTrackId = data.tracks[0]?.id || null;
       }
     }
 
@@ -158,6 +164,9 @@
   }
 
   $: if ($trackStore.currentTrack && audioService && audioService.isPlaying) {
+    console.log(
+      "Saving player state - $: if ($trackStore.currentTrack && audioService && audioService.isPlaying)",
+    );
     const now = Date.now();
     if (now - lastPlayerStateSaveTime > 5000) {
       savePlayerState();
@@ -172,7 +181,7 @@
 
 <Sheet.Root bind:open={sheetOpen}>
   <!-- Main content area that uses full viewport scrolling -->
-  <main class="min-h-screen pr-0 pb-20 md:pr-64">
+  <main class="min-h-screen pb-20 pr-0 md:pr-64">
     <div class="p-4">
       <slot />
     </div>
@@ -181,7 +190,7 @@
   <Toaster position="top-left" />
 
   <!-- Desktop Sidebar - positioned fixed on the right -->
-  <aside class="fixed top-0 right-0 bottom-20 hidden w-64 md:block">
+  <aside class="fixed bottom-20 right-0 top-0 hidden w-64 md:block">
     <RightSidebar />
   </aside>
 
