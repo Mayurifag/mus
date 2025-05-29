@@ -1,26 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { get } from "svelte/store";
 import { trackStore } from "./trackStore";
-import { playerStore } from "./playerStore";
 import type { Track } from "$lib/types";
-
-// Mock playerStore
-vi.mock("./playerStore", () => {
-  const mockStore = {
-    subscribe: vi.fn((callback) => {
-      callback({ is_shuffle: false, is_repeat: false });
-      return () => {};
-    }),
-    setTrack: vi.fn(),
-    play: vi.fn(),
-    pause: vi.fn(),
-    update: vi.fn(),
-  };
-
-  return {
-    playerStore: mockStore,
-  };
-});
 
 describe("trackStore", () => {
   const mockTracks: Track[] = [
@@ -69,21 +50,25 @@ describe("trackStore", () => {
     expect(state.tracks).toEqual([]);
     expect(state.currentTrackIndex).toBeNull();
     expect(state.playHistory).toEqual([]);
+    expect(state.currentTrack).toBeNull();
+    expect(state.is_shuffle).toBe(false);
   });
 
   it("should set tracks and maintain current track index if possible", () => {
     trackStore.setTracks(mockTracks);
     expect(get(trackStore).tracks).toEqual(mockTracks);
     expect(get(trackStore).currentTrackIndex).toBe(0);
+    expect(get(trackStore).currentTrack).toEqual(mockTracks[0]);
 
     trackStore.setCurrentTrackIndex(1);
     expect(get(trackStore).currentTrackIndex).toBe(1);
-    expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[1], undefined);
+    expect(get(trackStore).currentTrack).toEqual(mockTracks[1]);
 
     const updatedTracks = [mockTracks[1], mockTracks[2], mockTracks[0]];
     trackStore.setTracks(updatedTracks);
 
     expect(get(trackStore).currentTrackIndex).toBe(0);
+    expect(get(trackStore).currentTrack).toEqual(mockTracks[1]);
   });
 
   it("should set currentTrackIndex to null when tracks array is empty", () => {
@@ -100,13 +85,11 @@ describe("trackStore", () => {
 
     trackStore.setCurrentTrackIndex(2);
     expect(get(trackStore).currentTrackIndex).toBe(2);
-    expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[2], undefined);
-
-    vi.clearAllMocks();
+    expect(get(trackStore).currentTrack).toEqual(mockTracks[2]);
 
     trackStore.setCurrentTrackIndex(null);
     expect(get(trackStore).currentTrackIndex).toBeNull();
-    expect(playerStore.setTrack).not.toHaveBeenCalled();
+    expect(get(trackStore).currentTrack).toBeNull();
 
     trackStore.setCurrentTrackIndex(10);
     expect(get(trackStore).currentTrackIndex).toBe(10);
@@ -117,17 +100,17 @@ describe("trackStore", () => {
 
     trackStore.playTrack(0);
     expect(get(trackStore).currentTrackIndex).toBe(0);
-    expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[0]);
-    expect(playerStore.play).toHaveBeenCalled();
+    expect(get(trackStore).currentTrack).toEqual(mockTracks[0]);
     expect(get(trackStore).playHistory).toEqual([mockTracks[0]]);
 
     trackStore.playTrack(1);
     expect(get(trackStore).currentTrackIndex).toBe(1);
-    expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[1]);
+    expect(get(trackStore).currentTrack).toEqual(mockTracks[1]);
     expect(get(trackStore).playHistory).toEqual([mockTracks[0], mockTracks[0]]);
 
     trackStore.playTrack(2);
     expect(get(trackStore).currentTrackIndex).toBe(2);
+    expect(get(trackStore).currentTrack).toEqual(mockTracks[2]);
     expect(get(trackStore).playHistory).toEqual([
       mockTracks[0],
       mockTracks[0],
@@ -138,48 +121,45 @@ describe("trackStore", () => {
   it("should handle nextTrack in regular (non-shuffle) mode", () => {
     trackStore.setTracks(mockTracks);
     trackStore.setCurrentTrackIndex(0);
-    vi.clearAllMocks();
 
     trackStore.nextTrack();
     expect(get(trackStore).currentTrackIndex).toBe(1);
-    expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[1]);
-    expect(playerStore.play).toHaveBeenCalled();
+    expect(get(trackStore).currentTrack).toEqual(mockTracks[1]);
 
     trackStore.setCurrentTrackIndex(2);
-    vi.clearAllMocks();
 
     trackStore.nextTrack();
     expect(get(trackStore).currentTrackIndex).toBe(0);
-    expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[0]);
+    expect(get(trackStore).currentTrack).toEqual(mockTracks[0]);
   });
 
   it("should handle previousTrack in regular (non-shuffle) mode", () => {
     trackStore.setTracks(mockTracks);
     trackStore.setCurrentTrackIndex(1);
-    vi.clearAllMocks();
 
     trackStore.previousTrack();
     expect(get(trackStore).currentTrackIndex).toBe(0);
-    expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[0]);
-    expect(playerStore.play).toHaveBeenCalled();
+    expect(get(trackStore).currentTrack).toEqual(mockTracks[0]);
 
     trackStore.setCurrentTrackIndex(0);
-    vi.clearAllMocks();
 
     trackStore.previousTrack();
     expect(get(trackStore).currentTrackIndex).toBe(2);
-    expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[2]);
+    expect(get(trackStore).currentTrack).toEqual(mockTracks[2]);
   });
 
-  it("should auto-play next track when current track ends", () => {
-    trackStore.setTracks(mockTracks);
-    trackStore.setCurrentTrackIndex(0);
-    vi.clearAllMocks();
+  it("should toggle shuffle state", () => {
+    expect(get(trackStore).is_shuffle).toBe(false);
+    trackStore.toggleShuffle();
+    expect(get(trackStore).is_shuffle).toBe(true);
+    trackStore.toggleShuffle();
+    expect(get(trackStore).is_shuffle).toBe(false);
+  });
 
-    trackStore.nextTrack();
-
-    expect(get(trackStore).currentTrackIndex).toBe(1);
-    expect(playerStore.setTrack).toHaveBeenCalledWith(mockTracks[1]);
-    expect(playerStore.play).toHaveBeenCalled();
+  it("should set shuffle state", () => {
+    trackStore.setShuffle(true);
+    expect(get(trackStore).is_shuffle).toBe(true);
+    trackStore.setShuffle(false);
+    expect(get(trackStore).is_shuffle).toBe(false);
   });
 });

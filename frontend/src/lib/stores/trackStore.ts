@@ -1,17 +1,20 @@
-import { writable, get } from "svelte/store";
+import { writable } from "svelte/store";
 import type { Track } from "$lib/types";
-import { playerStore } from "./playerStore";
 
 export interface TrackStoreState {
   tracks: Track[];
   currentTrackIndex: number | null;
   playHistory: Track[];
+  currentTrack: Track | null;
+  is_shuffle: boolean;
 }
 
 const initialState: TrackStoreState = {
   tracks: [],
   currentTrackIndex: null,
   playHistory: [],
+  currentTrack: null,
+  is_shuffle: false,
 };
 
 function createTrackStore() {
@@ -23,7 +26,12 @@ function createTrackStore() {
       update((state) => {
         // If tracks array is empty, set currentTrackIndex to null
         if (tracks.length === 0) {
-          return { ...state, tracks, currentTrackIndex: null };
+          return {
+            ...state,
+            tracks,
+            currentTrackIndex: null,
+            currentTrack: null,
+          };
         }
 
         // Try to find the same track ID in the new list if there's a current track
@@ -37,20 +45,26 @@ function createTrackStore() {
               ...state,
               tracks,
               currentTrackIndex: newIndex,
+              currentTrack: tracks[newIndex],
             };
           }
         }
 
         // If no prior state or current track not found, default to first track (index 0)
-        return { ...state, tracks, currentTrackIndex: 0 };
+        return {
+          ...state,
+          tracks,
+          currentTrackIndex: 0,
+          currentTrack: tracks[0],
+        };
       }),
-    setCurrentTrackIndex: (index: number | null, initialTime?: number) => {
+    setCurrentTrackIndex: (index: number | null) => {
       update((state) => {
         if (index === null || state.tracks.length === 0) {
-          return { ...state, currentTrackIndex: null };
+          return { ...state, currentTrackIndex: null, currentTrack: null };
         }
-        playerStore.setTrack(state.tracks[index], initialTime);
-        return { ...state, currentTrackIndex: index };
+        const track = state.tracks[index];
+        return { ...state, currentTrackIndex: index, currentTrack: track };
       });
     },
     playTrack: (index: number) => {
@@ -65,11 +79,11 @@ function createTrackStore() {
             newHistory.push(state.tracks[state.currentTrackIndex]);
           }
 
-          playerStore.setTrack(state.tracks[index]);
-          playerStore.play();
+          const track = state.tracks[index];
           return {
             ...state,
             currentTrackIndex: index,
+            currentTrack: track,
             playHistory: newHistory,
           };
         }
@@ -83,7 +97,7 @@ function createTrackStore() {
         }
 
         // Handle shuffle mode
-        if (get(playerStore).is_shuffle) {
+        if (state.is_shuffle) {
           // Get a random track that's not the current one
           const availableTracks = state.tracks.filter(
             (_, i) => i !== state.currentTrackIndex,
@@ -106,19 +120,22 @@ function createTrackStore() {
             newHistory.push(state.tracks[state.currentTrackIndex]);
           }
 
-          playerStore.setTrack(state.tracks[newIndex]);
-          playerStore.play();
+          const track = state.tracks[newIndex];
           return {
             ...state,
             currentTrackIndex: newIndex,
+            currentTrack: track,
             playHistory: newHistory,
           };
         } else {
           // Standard sequential play
           const nextIndex = (state.currentTrackIndex + 1) % state.tracks.length;
-          playerStore.setTrack(state.tracks[nextIndex]);
-          playerStore.play();
-          return { ...state, currentTrackIndex: nextIndex };
+          const track = state.tracks[nextIndex];
+          return {
+            ...state,
+            currentTrackIndex: nextIndex,
+            currentTrack: track,
+          };
         }
       });
     },
@@ -129,7 +146,7 @@ function createTrackStore() {
         }
 
         // Handle shuffle mode with history
-        if (get(playerStore).is_shuffle && state.playHistory.length > 0) {
+        if (state.is_shuffle && state.playHistory.length > 0) {
           // Pop the last track from history
           const newHistory = [...state.playHistory];
           const previousTrack = newHistory.pop();
@@ -140,11 +157,11 @@ function createTrackStore() {
             );
 
             if (previousIndex !== -1) {
-              playerStore.setTrack(state.tracks[previousIndex]);
-              playerStore.play();
+              const track = state.tracks[previousIndex];
               return {
                 ...state,
                 currentTrackIndex: previousIndex,
+                currentTrack: track,
                 playHistory: newHistory,
               };
             }
@@ -157,11 +174,18 @@ function createTrackStore() {
             ? state.tracks.length - 1
             : state.currentTrackIndex - 1;
 
-        playerStore.setTrack(state.tracks[previousIndex]);
-        playerStore.play();
-        return { ...state, currentTrackIndex: previousIndex };
+        const track = state.tracks[previousIndex];
+        return {
+          ...state,
+          currentTrackIndex: previousIndex,
+          currentTrack: track,
+        };
       });
     },
+    toggleShuffle: () =>
+      update((state) => ({ ...state, is_shuffle: !state.is_shuffle })),
+    setShuffle: (is_shuffle: boolean) =>
+      update((state) => ({ ...state, is_shuffle })),
     reset: () => set(initialState),
   };
 }

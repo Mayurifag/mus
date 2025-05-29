@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import { trackStore } from "$lib/stores/trackStore";
-  import { playerStore } from "$lib/stores/playerStore";
+  import { audioServiceStore } from "$lib/stores/audioServiceStore";
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
   import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
   import { sendPlayerStateBeacon as apiSendPlayerStateBeacon } from "$lib/services/apiClient";
@@ -11,31 +11,28 @@
   import type { Track } from "$lib/types";
   import { browser } from "$app/environment";
   import { Toaster } from "$lib/components/ui/sonner";
+  import type { LayoutData } from "./$types";
 
-  export let data: {
-    tracks: Track[];
-    playerState: null | {
-      current_track_id: number | null;
-      progress_seconds: number;
-      volume_level: number;
-      is_muted: boolean;
-      is_shuffle: boolean;
-      is_repeat: boolean;
-    };
-  };
+  export let data: LayoutData;
 
   let audio: HTMLAudioElement;
-  let audioService: AudioService;
+  let audioService: AudioService | undefined = undefined;
   let eventSource: EventSource | null = null;
   let sheetOpen = false;
   let lastPlayerStateSaveTime = 0;
   let currentTrackIdForWebpageTitle: number | null = null;
+  let lastCurrentTrackId: number | null = null;
+  let isInitialLoad = true;
 
   onMount(async () => {
-    // Initialize stores from data prop
     trackStore.setTracks(data.tracks);
 
-    // Initialize player state if available
+    // Initialize audio service first
+    if (audio) {
+      audioService = new AudioService(audio, trackStore);
+      audioServiceStore.set(audioService);
+    }
+
     if (data.playerState) {
       const {
         current_track_id,
@@ -46,49 +43,45 @@
         is_repeat,
       } = data.playerState;
 
-      // Set volume and mute state
-      playerStore.setVolume(volume_level);
-      if (is_muted) {
-        playerStore.setMuted(true);
+      // Initialize AudioService state
+      if (audioService) {
+        audioService.initializeState(volume_level, is_muted, is_repeat);
       }
 
-      // Set shuffle and repeat state
-      playerStore.setShuffle(is_shuffle);
-      playerStore.setRepeat(is_repeat);
+      trackStore.setShuffle(is_shuffle);
 
-      // Set current track if exists
       if (current_track_id !== null) {
         const trackIndex = data.tracks.findIndex(
           (track: Track) => track.id === current_track_id,
         );
         if (trackIndex >= 0) {
           trackStore.setCurrentTrackIndex(trackIndex);
-          playerStore.setCurrentTime(progress_seconds);
-          playerStore.pause();
+          if (audioService) {
+            audioService.setCurrentTime(progress_seconds);
+          }
         }
       }
     } else {
-      trackStore.setCurrentTrackIndex(0);
-      playerStore.pause();
+      if (data.tracks.length > 0) {
+        trackStore.setCurrentTrackIndex(0);
+      }
     }
 
-    // Initialize SSE connection for track updates
     eventSource = initEventHandlerService();
 
-    // Add event listener for menu toggle - only in browser
     if (browser) {
       document.body.addEventListener("toggle-sheet", handleToggleMenu);
       window.addEventListener("beforeunload", handleBeforeUnload);
       document.addEventListener("visibilitychange", handleVisibilityChange);
     }
 
-    // Perform initial scroll to current track
     if (
       $trackStore.currentTrackIndex !== null &&
       $trackStore.tracks.length > 0
     ) {
       const currentTrack = $trackStore.tracks[$trackStore.currentTrackIndex];
       if (currentTrack) {
+        await tick();
         const trackElement = document.getElementById(
           `track-item-${currentTrack.id}`,
         );
@@ -101,10 +94,8 @@
       }
     }
 
-    // Initialize AudioService when audio element is available
-    if (audio) {
-      audioService = new AudioService(audio, playerStore, trackStore);
-    }
+    // Mark initial load as complete
+    isInitialLoad = false;
   });
 
   // Clean up event source on component destroy
@@ -126,37 +117,18 @@
     }
   });
 
-  // Construct PlayerStateDTO from current store state
-  function constructPlayerStateDTO() {
-    if (!$playerStore.currentTrack) return null;
-
-    return {
-      current_track_id: $playerStore.currentTrack.id,
-      progress_seconds: $playerStore.currentTime,
-      volume_level: $playerStore.volume,
-      is_muted: $playerStore.isMuted,
-      is_shuffle: $playerStore.is_shuffle,
-      is_repeat: $playerStore.is_repeat,
-    };
-  }
-
-  // Save player state to the backend
   function savePlayerState() {
-    const playerStateDto = constructPlayerStateDTO();
-    if (playerStateDto && browser) {
-      // Validate the data before sending
-      if (playerStateDto.progress_seconds < 0) {
-        playerStateDto.progress_seconds = 0;
-      }
-      if (playerStateDto.volume_level < 0) {
-        playerStateDto.volume_level = 0;
-      }
-      if (playerStateDto.volume_level > 1) {
-        playerStateDto.volume_level = 1;
-      }
+    if (!$trackStore.currentTrack || !audioService) return null;
+    const playerStateDto = {
+      current_track_id: $trackStore.currentTrack.id,
+      progress_seconds: audioService.currentTime,
+      volume_level: audioService.volume,
+      is_muted: audioService.isMuted,
+      is_shuffle: $trackStore.is_shuffle,
+      is_repeat: audioService.isRepeat,
+    };
 
-      apiSendPlayerStateBeacon(playerStateDto);
-    }
+    apiSendPlayerStateBeacon(playerStateDto);
   }
 
   // Handle page unload events
@@ -171,38 +143,22 @@
     }
   }
 
-  // React to store changes using AudioService
-  $: if (audioService && $playerStore.currentTrack) {
-    console.log("$: if (audioService && $playerStore.currentTrack)");
-    audioService.updateAudioSource(
-      $playerStore.currentTrack,
-      $playerStore.isPlaying,
-    );
-  }
-
-  $: if (audioService && $playerStore.isPlaying) {
-    console.log("$: if (audioService && $playerStore.isPlaying)");
-    audioService.play();
-  } else if (audioService && !$playerStore.isPlaying) {
-    audioService.pause();
-  }
-
-  $: if (audioService) {
-    console.log("$: if (audioService)");
-    audioService.setVolume($playerStore.volume, $playerStore.isMuted);
-  }
-
-  // Sync store currentTime changes to audio (for seeking)
-  $: if (audioService && $playerStore.currentTime !== undefined) {
+  $: if (
+    audioService &&
+    $trackStore.currentTrack &&
+    $trackStore.currentTrack.id !== lastCurrentTrackId
+  ) {
     console.log(
-      "$: if (audioService && $playerStore.currentTime !== undefined)",
+      "$: Track changed - updating audio source",
+      $trackStore.currentTrack.id,
     );
-    audioService.setCurrentTime($playerStore.currentTime);
+    // Only auto-play if this is not the initial page load
+    const shouldAutoPlay = !isInitialLoad;
+    audioService.updateAudioSource($trackStore.currentTrack, shouldAutoPlay);
+    lastCurrentTrackId = $trackStore.currentTrack.id;
   }
 
-  // Save player state on any relevant changes
-  $: if ($playerStore.currentTrack && $playerStore.isPlaying) {
-    console.log("$: if ($playerStore.currentTrack && $playerStore.isPlaying)");
+  $: if ($trackStore.currentTrack && audioService && audioService.isPlaying) {
     const now = Date.now();
     if (now - lastPlayerStateSaveTime > 5000) {
       savePlayerState();
@@ -211,15 +167,12 @@
   }
 
   $: if (
-    $playerStore.currentTrack &&
+    $trackStore.currentTrack &&
     browser &&
-    $playerStore.currentTrack.id !== currentTrackIdForWebpageTitle
+    $trackStore.currentTrack.id !== currentTrackIdForWebpageTitle
   ) {
-    console.log(
-      "$: if ($playerStore.currentTrack && browser && $playerStore.currentTrack.id !== currentTrackIdForWebpageTitle)",
-    );
-    document.title = `${$playerStore.currentTrack.artist} - ${$playerStore.currentTrack.title}`;
-    currentTrackIdForWebpageTitle = $playerStore.currentTrack.id;
+    document.title = `${$trackStore.currentTrack.artist} - ${$trackStore.currentTrack.title}`;
+    currentTrackIdForWebpageTitle = $trackStore.currentTrack.id;
   }
 
   function handleToggleMenu() {
@@ -229,7 +182,7 @@
 
 <Sheet.Root bind:open={sheetOpen}>
   <!-- Main content area that uses full viewport scrolling -->
-  <main class="min-h-screen pb-20 pr-0 md:pr-64">
+  <main class="min-h-screen pr-0 pb-20 md:pr-64">
     <div class="p-4">
       <slot />
     </div>
@@ -238,7 +191,7 @@
   <Toaster position="top-left" />
 
   <!-- Desktop Sidebar - positioned fixed on the right -->
-  <aside class="fixed bottom-20 right-0 top-0 hidden w-64 md:block">
+  <aside class="fixed top-0 right-0 bottom-20 hidden w-64 md:block">
     <RightSidebar />
   </aside>
 
@@ -248,7 +201,7 @@
   </Sheet.Content>
 
   <!-- Fixed Player Footer -->
-  <PlayerFooter />
+  <PlayerFooter audioService={$audioServiceStore} />
 
-  <audio bind:this={audio} preload="auto"></audio>
+  <audio bind:this={audio} preload="auto" id="mus-audio-element"></audio>
 </Sheet.Root>

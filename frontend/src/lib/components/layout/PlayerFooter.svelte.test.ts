@@ -4,11 +4,14 @@
  */
 import { vi } from "vitest";
 
-// Mock playerStore
-vi.mock("$lib/stores/playerStore", () => {
+// Mock trackStore
+vi.mock("$lib/stores/trackStore", () => {
   const mockStore = {
     subscribe: vi.fn((callback) => {
       callback({
+        tracks: [],
+        currentTrackIndex: 0,
+        playHistory: [],
         currentTrack: {
           id: 1,
           title: "Test Track",
@@ -20,42 +23,13 @@ vi.mock("$lib/stores/playerStore", () => {
           cover_small_url: "/api/v1/tracks/1/covers/small.webp",
           cover_original_url: "/api/v1/tracks/1/covers/original.webp",
         },
-        isPlaying: false,
-        currentTime: 30,
-        duration: 180,
-        volume: 0.5,
-        isMuted: false,
         is_shuffle: false,
-        is_repeat: false,
-      });
-      return () => {};
-    }),
-    togglePlayPause: vi.fn(),
-    setCurrentTime: vi.fn(),
-    setVolume: vi.fn(),
-    toggleMute: vi.fn(),
-    toggleShuffle: vi.fn(),
-    toggleRepeat: vi.fn(),
-  };
-
-  return {
-    playerStore: mockStore,
-  };
-});
-
-// Mock trackStore
-vi.mock("$lib/stores/trackStore", () => {
-  const mockStore = {
-    subscribe: vi.fn((callback) => {
-      callback({
-        tracks: [],
-        currentTrackIndex: null,
-        playHistory: [],
       });
       return () => {};
     }),
     nextTrack: vi.fn(),
     previousTrack: vi.fn(),
+    toggleShuffle: vi.fn(),
   };
 
   return {
@@ -65,7 +39,6 @@ vi.mock("$lib/stores/trackStore", () => {
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { render } from "@testing-library/svelte";
-import { playerStore } from "$lib/stores/playerStore";
 import { trackStore } from "$lib/stores/trackStore";
 import PlayerFooter from "./PlayerFooter.svelte";
 
@@ -87,12 +60,6 @@ describe("PlayerFooter component", () => {
     expect(container).toBeTruthy();
   });
 
-  it("should call playerStore.togglePlayPause when mocked", () => {
-    expect(playerStore.togglePlayPause).toBeDefined();
-    playerStore.togglePlayPause();
-    expect(playerStore.togglePlayPause).toHaveBeenCalled();
-  });
-
   it("should call trackStore.nextTrack when mocked", () => {
     expect(trackStore.nextTrack).toBeDefined();
     trackStore.nextTrack();
@@ -105,50 +72,19 @@ describe("PlayerFooter component", () => {
     expect(trackStore.previousTrack).toHaveBeenCalled();
   });
 
-  it("should call playerStore.toggleMute when mocked", () => {
-    expect(playerStore.toggleMute).toBeDefined();
-    playerStore.toggleMute();
-    expect(playerStore.toggleMute).toHaveBeenCalled();
-  });
-
-  it("should call playerStore.setCurrentTime when mocked", () => {
-    expect(playerStore.setCurrentTime).toBeDefined();
-    playerStore.setCurrentTime(30);
-    expect(playerStore.setCurrentTime).toHaveBeenCalledWith(30);
-  });
-
-  it("should call playerStore.setVolume when mocked", () => {
-    expect(playerStore.setVolume).toBeDefined();
-    playerStore.setVolume(0.5);
-    expect(playerStore.setVolume).toHaveBeenCalledWith(0.5);
-  });
-
-  it("should call playerStore.toggleShuffle when mocked", () => {
-    expect(playerStore.toggleShuffle).toBeDefined();
-    playerStore.toggleShuffle();
-    expect(playerStore.toggleShuffle).toHaveBeenCalled();
-  });
-
-  it("should call playerStore.toggleRepeat when mocked", () => {
-    expect(playerStore.toggleRepeat).toBeDefined();
-    playerStore.toggleRepeat();
-    expect(playerStore.toggleRepeat).toHaveBeenCalled();
+  it("should call trackStore.toggleShuffle when mocked", () => {
+    expect(trackStore.toggleShuffle).toBeDefined();
+    trackStore.toggleShuffle();
+    expect(trackStore.toggleShuffle).toHaveBeenCalled();
   });
 
   it("should have working store subscriptions", () => {
-    expect(playerStore.subscribe).toBeDefined();
     expect(trackStore.subscribe).toBeDefined();
-    expect(typeof playerStore.subscribe).toBe("function");
     expect(typeof trackStore.subscribe).toBe("function");
   });
 
   it("should have all required store methods", () => {
-    expect(playerStore.togglePlayPause).toBeDefined();
-    expect(playerStore.setCurrentTime).toBeDefined();
-    expect(playerStore.setVolume).toBeDefined();
-    expect(playerStore.toggleMute).toBeDefined();
-    expect(playerStore.toggleShuffle).toBeDefined();
-    expect(playerStore.toggleRepeat).toBeDefined();
+    expect(trackStore.toggleShuffle).toBeDefined();
     expect(trackStore.nextTrack).toBeDefined();
     expect(trackStore.previousTrack).toBeDefined();
   });

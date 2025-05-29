@@ -27,10 +27,14 @@ document.getElementById = vi.fn().mockImplementation((id) => {
 });
 
 // Mock the trackStore
+const mockTrackStoreData: { currentTrackIndex: number; tracks: Track[] } = {
+  currentTrackIndex: 0,
+  tracks: [],
+};
 vi.mock("$lib/stores/trackStore", () => ({
   trackStore: {
     subscribe: vi.fn().mockImplementation((callback) => {
-      callback({ currentTrackIndex: 0 });
+      callback(mockTrackStoreData);
       return () => {};
     }),
   },
@@ -86,20 +90,23 @@ describe("TrackList component", () => {
   });
 
   it("renders the track list element when tracks are provided", () => {
-    render(TrackList, { tracks: mockTracks });
+    mockTrackStoreData.tracks = mockTracks;
+    render(TrackList);
 
     const trackListElement = screen.getByTestId("track-list");
     expect(trackListElement).toBeInTheDocument();
   });
 
   it("renders empty state messages when no tracks are available", () => {
-    render(TrackList, { tracks: [] });
+    mockTrackStoreData.tracks = [];
+    render(TrackList);
 
     expect(screen.getByText("No tracks available")).toBeInTheDocument();
   });
 
   it("renders the right number of TrackItems when tracks are provided", () => {
-    render(TrackList, { tracks: mockTracks });
+    mockTrackStoreData.tracks = mockTracks;
+    render(TrackList);
 
     // Check the track container exists
     const trackList = screen.getByTestId("track-list");

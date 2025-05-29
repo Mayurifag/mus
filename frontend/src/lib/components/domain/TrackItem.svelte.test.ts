@@ -7,17 +7,13 @@ vi.mock("$lib/stores/trackStore", () => ({
   },
 }));
 
-// Mock the playerStore
+// Mock the playerStore (now only UI state)
 vi.mock("$lib/stores/playerStore", () => ({
   playerStore: {
-    pause: vi.fn(),
-    play: vi.fn(),
-    setCurrentTime: vi.fn(),
     subscribe: vi.fn().mockImplementation((callback) => {
       callback({
-        isPlaying: true,
-        currentTime: 60, // 1 minute
-        duration: 180, // 3 minutes
+        currentTrack: null,
+        is_shuffle: false,
       });
       return () => {};
     }),
@@ -35,7 +31,6 @@ import type { Track } from "$lib/types";
 import "@testing-library/jest-dom/vitest";
 import TrackItem from "./TrackItem.svelte";
 import { trackStore } from "$lib/stores/trackStore";
-import { playerStore } from "$lib/stores/playerStore";
 
 describe("TrackItem component", () => {
   let mockTrack: Track;
@@ -55,13 +50,14 @@ describe("TrackItem component", () => {
 
     // Clear the mocks
     vi.mocked(trackStore.playTrack).mockClear();
-    vi.mocked(playerStore.pause).mockClear();
-    vi.mocked(playerStore.play).mockClear();
-    vi.mocked(playerStore.setCurrentTime).mockClear();
   });
 
   it("renders track details correctly", () => {
-    render(TrackItem, { track: mockTrack, index: 0, isSelected: false });
+    render(TrackItem, {
+      track: mockTrack,
+      index: 0,
+      isSelected: false,
+    });
 
     expect(screen.getByText("Test Song")).toBeInTheDocument();
     expect(screen.getByText("Test Artist")).toBeInTheDocument();
@@ -135,15 +131,6 @@ describe("TrackItem component", () => {
     expect(vi.mocked(trackStore.playTrack)).toHaveBeenCalledWith(2);
   });
 
-  it("calls playerStore.pause when clicked if already playing", async () => {
-    render(TrackItem, { track: mockTrack, index: 2, isSelected: true });
-
-    const trackItemElement = screen.getByTestId("track-item");
-    await fireEvent.click(trackItemElement);
-
-    expect(vi.mocked(playerStore.pause)).toHaveBeenCalled();
-  });
-
   it("calls playTrack when Enter key is pressed", async () => {
     render(TrackItem, { track: mockTrack, index: 3, isSelected: false });
 
@@ -160,29 +147,5 @@ describe("TrackItem component", () => {
     await fireEvent.keyDown(trackItemElement, { key: " " });
 
     expect(vi.mocked(trackStore.playTrack)).toHaveBeenCalledWith(4);
-  });
-
-  it("calls playerStore.play when selected track is paused and clicked", async () => {
-    // Mock playerStore to return paused state
-    vi.mocked(playerStore.subscribe).mockImplementation((callback) => {
-      callback({
-        currentTrack: mockTrack,
-        isPlaying: false,
-        currentTime: 60,
-        duration: 180,
-        volume: 1.0,
-        isMuted: false,
-        is_shuffle: false,
-        is_repeat: false,
-      });
-      return () => {};
-    });
-
-    render(TrackItem, { track: mockTrack, index: 2, isSelected: true });
-
-    const trackItemElement = screen.getByTestId("track-item");
-    await fireEvent.click(trackItemElement);
-
-    expect(vi.mocked(playerStore.play)).toHaveBeenCalled();
   });
 });

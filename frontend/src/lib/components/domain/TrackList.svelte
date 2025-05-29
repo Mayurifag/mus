@@ -1,9 +1,11 @@
 <script lang="ts">
-  import type { Track } from "$lib/types";
+  import type { AudioService } from "$lib/services/AudioService";
   import TrackItem from "./TrackItem.svelte";
   import { trackStore } from "$lib/stores/trackStore";
 
-  export let tracks: Track[] = [];
+  let { audioService }: { audioService?: AudioService } = $props();
+
+  const tracks = $derived($trackStore.tracks);
 </script>
 
 <div class="flex flex-col space-y-1" data-testid="track-list">
@@ -18,6 +20,7 @@
           {track}
           index={i}
           isSelected={$trackStore.currentTrackIndex === i}
+          {audioService}
         />
       {/each}
     </div>

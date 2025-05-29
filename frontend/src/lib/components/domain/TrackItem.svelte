@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Track } from "$lib/types";
+  import type { AudioService } from "$lib/services/AudioService";
   import { trackStore } from "$lib/stores/trackStore";
-  import { playerStore } from "$lib/stores/playerStore";
   import { formatDistanceToNow } from "date-fns";
   import { Play, Pause } from "lucide-svelte";
   import { Button } from "$lib/components/ui/button";
@@ -11,7 +11,13 @@
     track,
     isSelected = false,
     index,
-  }: { track: Track; isSelected?: boolean; index: number } = $props();
+    audioService,
+  }: {
+    track: Track;
+    isSelected?: boolean;
+    index: number;
+    audioService?: AudioService;
+  } = $props();
 
   function formatDuration(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
@@ -24,13 +30,21 @@
   }
 
   function playTrack() {
-    if (isSelected && $playerStore.isPlaying) {
-      playerStore.pause();
-    } else if (isSelected && !$playerStore.isPlaying) {
-      // Resume the current track without resetting position
-      playerStore.play();
+    if (!audioService) {
+      // If no audioService, just select the track
+      trackStore.playTrack(index);
+      return;
+    }
+
+    if (isSelected) {
+      // If this track is already selected, toggle play/pause
+      if (isPlaying) {
+        audioService.pause();
+      } else {
+        audioService.play();
+      }
     } else {
-      // Play a different track
+      // Play a different track - this will trigger auto-play in layout
       trackStore.playTrack(index);
     }
   }
@@ -49,19 +63,43 @@
 
   let progressValue = $state([0]);
   let isUserDragging = $state(false);
+  let isPlaying = $state(false);
+  let duration = $state(0);
+
+  // Subscribe to AudioService stores
+  $effect(() => {
+    if (audioService?.isPlayingStore) {
+      const unsubscribe = audioService.isPlayingStore.subscribe((playing) => {
+        isPlaying = playing;
+      });
+      return unsubscribe;
+    }
+  });
 
   $effect(() => {
-    if (
-      isSelected &&
-      !isUserDragging &&
-      $playerStore.currentTime !== undefined
-    ) {
-      progressValue = [$playerStore.currentTime];
+    if (audioService?.currentTimeStore) {
+      const unsubscribe = audioService.currentTimeStore.subscribe((time) => {
+        if (isSelected && !isUserDragging) {
+          progressValue = [time];
+        }
+      });
+      return unsubscribe;
+    }
+  });
+
+  $effect(() => {
+    if (audioService?.durationStore) {
+      const unsubscribe = audioService.durationStore.subscribe((dur) => {
+        duration = dur;
+      });
+      return unsubscribe;
     }
   });
 
   function handleProgressChange(value: number[]): void {
-    playerStore.setCurrentTime(value[0]);
+    if (audioService) {
+      audioService.setCurrentTime(value[0]);
+    }
   }
 
   function handleProgressCommit(): void {
@@ -79,7 +117,7 @@
     event.stopPropagation();
   }
 
-  let isCurrentlyPlaying = $derived(isSelected && $playerStore.isPlaying);
+  let isCurrentlyPlaying = $derived(isSelected && isPlaying);
 </script>
 
 <div
@@ -126,7 +164,7 @@
           onValueChange={handleProgressChange}
           on:valuecommit={handleProgressCommit}
           on:input={handleProgressInput}
-          max={$playerStore.duration || 100}
+          max={duration || 100}
           step={1}
           class="track-progress-slider relative h-1 w-full cursor-pointer"
           data-testid="track-progress-slider"

@@ -2,37 +2,23 @@
 
 ## Notes on the paper side
 
-why we need to set trackLoaded = true in handleSeeked? remove that
-
-
-  function handleSeeked() {
-    // Now that seeking is complete, we can safely set trackLoaded
-    trackLoaded = true;
-  }
-
-why we need to clear shouldAutoPlay? and this code?
-
-  // If we should auto-play (either from store state or saved intent), start playback
-  if ($playerStore.isPlaying || shouldAutoPlay) {
-    shouldAutoPlay = false; // Clear the flag
-    audio.play().catch((error) => {
-      console.error("Error playing audio after metadata loaded:", error);
-      // Don't pause on AbortError - it's expected when changing tracks
-      if (error.name !== "AbortError") {
-        playerStore.pause();
-      }
-    });
-  }
-
 ## Phase 1
 
-- [ ] load PlayerState fixes to use saved progress. Check what backend gets when we save state on closed tab.
+- [x] load PlayerState fixes to use saved progress. Check what backend gets when we save state on closed tab.
+- [x] Eliminate player.currentTime and only use audio.currentTime. Also, check other things duplicated and only use audio. That will prevent a lot of effects.
+- [x] Rename playerStore to playlistStore. Move is_repeat logic to audioService.
+- [ ] Fix frontend
+- [ ] move next track out of audioService, think how. Maybe thats good case for effect. This effect has to change web title!
+- [ ] Try to go with https://github.com/unplugin/unplugin-icons - use lucide there
+- [ ] Move all dependencies to devDependencies. Eliminate usage of xior and use fetch
+- [ ] Why we have +page.svelte and +layout.svelte? Should not that be only one?
 - [ ] Analyze all css methods which update several states in once. Make them with different methods. Remove all $: and refactor to svelte 5.
 - [ ] Recolor all frontend
+- [ ] Divide frontend into components: footer / sidebar / tracklist, etc.
 - [ ] Larger player footer. Move volume to the right side of next button.
 - [ ] Style progress bar so it would be equal like tracklist' one. Remove styling from TrackItem.svelte. Progress bars have to show how much data cached already.
 - [ ] Fix mobile footer css
-- [ ] Move to vscode, update workflow, aliases. Adapt this workflow. Remove cursorrules. Update all snippets. https://www.chatprd.ai/resources/PRD-for-Cursor
+- [ ] Move to vscode, update workflow, aliases. Adapt this workflow. Remove cursorrules. Update all snippets. https://www.chatprd.ai/resources/PRD-for-Cursor - browsermcp.io
 - [ ] Mobile API for Safari - PWA + service worker
 - [ ] show history of tracks in right panel to check functionality of shuffle/repeat tracks - check it
 - [ ] Run through prompt about enhancing project, get TODOs done

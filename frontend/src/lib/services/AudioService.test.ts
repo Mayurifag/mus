@@ -10,13 +10,6 @@ vi.mock("$lib/services/apiClient", () => ({
   ),
 }));
 
-interface MockPlayerStore {
-  subscribe: ReturnType<typeof vi.fn>;
-  setCurrentTime: ReturnType<typeof vi.fn>;
-  setDuration: ReturnType<typeof vi.fn>;
-  pause: ReturnType<typeof vi.fn>;
-}
-
 interface MockTrackStore {
   nextTrack: ReturnType<typeof vi.fn>;
 }
@@ -24,7 +17,6 @@ interface MockTrackStore {
 describe("AudioService", () => {
   let audioService: AudioService;
   let mockAudio: HTMLAudioElement;
-  let mockPlayerStore: MockPlayerStore;
   let mockTrackStore: MockTrackStore;
 
   const mockTrack: Track = {
@@ -54,25 +46,11 @@ describe("AudioService", () => {
     } as unknown as HTMLAudioElement;
 
     // Create mock stores
-    mockPlayerStore = {
-      subscribe: vi.fn(),
-      setCurrentTime: vi.fn(),
-      setDuration: vi.fn(),
-      pause: vi.fn(),
-    };
-
     mockTrackStore = {
       nextTrack: vi.fn(),
     };
 
-    // Mock get function for store state
-    vi.doMock("svelte/store", () => ({
-      get: vi.fn(() => ({
-        is_repeat: false,
-      })),
-    }));
-
-    audioService = new AudioService(mockAudio, mockPlayerStore, mockTrackStore);
+    audioService = new AudioService(mockAudio, mockTrackStore);
   });
 
   it("should set up event listeners on construction", () => {
@@ -123,11 +101,11 @@ describe("AudioService", () => {
   });
 
   it("should set volume", () => {
-    audioService.setVolume(0.5, false);
+    audioService.setVolume(0.5);
     expect(mockAudio.volume).toBe(0.5);
 
-    audioService.setVolume(0.8, true);
-    expect(mockAudio.volume).toBe(0);
+    audioService.setVolume(0.8);
+    expect(mockAudio.volume).toBe(0.8);
   });
 
   it("should set current time with debouncing", () => {
@@ -140,6 +118,28 @@ describe("AudioService", () => {
     // Immediate second call should be debounced
     audioService.setCurrentTime(20);
     expect(mockAudio.currentTime).toBe(10); // Should not change due to debouncing
+  });
+
+  it("should toggle repeat state", () => {
+    expect(audioService.isRepeat).toBe(false);
+    audioService.toggleRepeat();
+    expect(audioService.isRepeat).toBe(true);
+    audioService.toggleRepeat();
+    expect(audioService.isRepeat).toBe(false);
+  });
+
+  it("should set repeat state", () => {
+    audioService.setRepeat(true);
+    expect(audioService.isRepeat).toBe(true);
+    audioService.setRepeat(false);
+    expect(audioService.isRepeat).toBe(false);
+  });
+
+  it("should initialize state with repeat", () => {
+    audioService.initializeState(0.8, true, true);
+    expect(audioService.volume).toBe(0.8);
+    expect(audioService.isMuted).toBe(true);
+    expect(audioService.isRepeat).toBe(true);
   });
 
   it("should clean up event listeners on destroy", () => {
