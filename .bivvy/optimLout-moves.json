@@ -10,7 +10,7 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Optimize Volume Control Reactivity in frontend/src/routes/(app)/+layout.svelte",
       "details": "Move the initial volume setup logic (currently part of a reactive statement on lines 251-254, specifically `audio.volume = $playerStore.isMuted ? 0 : $playerStore.volume;`) into the `onMount` function. This should set the initial volume when the component mounts. The existing reactive block (lines 251-254) should be replaced with one that *only* responds to changes in `$playerStore.volume` or `$playerStore.isMuted` to update `audio.volume`. The new reactive block should be: `$: if (audio) { audio.volume = $playerStore.isMuted ? 0 : $playerStore.volume; }`. This separates initialization from ongoing updates. Ensure all volume and mute functionality remains intact. Update or add tests as necessary and ensure `make ci` passes.",
       "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc,.augment-guidelines`",
@@ -18,7 +18,7 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Add Debouncing to CurrentTime Sync in frontend/src/routes/(app)/+layout.svelte",
       "details": "Implement debouncing for the `currentTime` reactive block (lines 257-267). Initialize a variable `let lastSyncTime = 0;` in the script block. Modify the reactive statement to: `$: if (audio && $playerStore.currentTime !== undefined) { const now = Date.now(); const timeDiff = Math.abs(audio.currentTime - $playerStore.currentTime); if (timeDiff > 1 && (now - lastSyncTime > 100)) { audio.currentTime = $playerStore.currentTime; lastSyncTime = now; } }`. This will prevent excessive seeking operations. Ensure playback seeking functionality remains correct. Update or add tests as necessary and ensure `make ci` passes.",
       "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc,.augment-guidelines`",
@@ -26,7 +26,7 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Throttle Player State Saving in frontend/src/routes/(app)/+layout.svelte",
       "details": "Optimize the player state saving reactive block (lines 270-282) by adding throttling. Initialize a variable `let lastSaveTime = 0;` in the script block. Replace the existing reactive block and its `void` expressions with a more direct conditional check. The new logic should be structured as: `$: { if ($playerStore.currentTrack && $playerStore.isPlaying) { const now = Date.now(); if (now - lastSaveTime > 2000) { savePlayerState(); lastSaveTime = now; } } }`. The `savePlayerState()` function is assumed to exist and function correctly. This will reduce backend API calls. Ensure player state persistence is maintained. Update or add tests as necessary and ensure `make ci` passes.",
       "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc,.augment-guidelines`",
@@ -34,7 +34,7 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Prevent Redundant Title Updates in frontend/src/routes/(app)/+layout.svelte",
       "details": "Add tracking to document title updates (lines 284-289) to prevent redundant DOM operations. Initialize a variable `let lastTitleTrackId: number | string | null = null;` (use a type appropriate for track IDs, e.g., number if IDs are numbers) in the script block. Modify the reactive statement to only update `document.title` if `$playerStore.currentTrack` exists, `browser` is true, AND `$playerStore.currentTrack.id !== lastTitleTrackId`. After successfully updating the document title, set `lastTitleTrackId = $playerStore.currentTrack.id;`. Ensure document title updates correctly when tracks change. Update or add tests as necessary and ensure `make ci` passes.",
       "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc,.augment-guidelines`",
@@ -42,7 +42,7 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Batch Store Initialization in frontend/src/routes/(app)/+layout.svelte",
       "details": "Move the Svelte store initialization logic (currently on lines 35-77, which involves processing the `data` prop from `LayoutServerLoad` and using its contents to call methods like `trackStore.setTracks()`, `playerStore.setVolume()`, `playerStore.setMuted()`, `playerStore.setShuffle()`, `playerStore.setRepeat()`, and setting the initial track via `trackStore.setCurrentTrackIndex()` and `playerStore.setCurrentTime()`) into the `onMount` lifecycle function. The `export let data;` declaration will remain. This change aims to prevent cascading reactive triggers during initial component setup. Ensure all initial state is correctly applied from the `data` prop. Update or add tests as necessary and ensure `make ci` passes.",
       "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc,.augment-guidelines`",
@@ -50,7 +50,7 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Refactor: Create AudioService for frontend/src/routes/(app)/+layout.svelte",
       "details": "Create a new TypeScript file `frontend/src/lib/services/AudioService.ts`. This service will encapsulate direct HTMLAudioElement interactions and related logic. \n\n**AudioService.ts Responsibilities:**\n1. Constructor: Accepts the `HTMLAudioElement` instance and references to `playerStore` and `trackStore` (or callbacks for updating them).\n2. Methods:\n   - `updateAudioSource(track: Track | null, streamUrl: string | null, isPlaying: boolean)`: Manages `audio.src`, `audio.load()`. Handles logic for `shouldAutoPlay` internally if `isPlaying` is true when the source changes.\n   - `play()`: Calls `audio.play()` and updates `playerStore.isPlaying`.\n   - `pause()`: Calls `audio.pause()` and updates `playerStore.isPlaying`.\n   - `setVolume(volume: number, isMuted: boolean)`: Sets `audio.volume`.\n   - `setCurrentTime(time: number)`: Sets `audio.currentTime`.\n   - `destroy()`: Cleans up event listeners.\n3. Event Handling: Internally sets up event listeners on the `HTMLAudioElement` for `loadedmetadata`, `timeupdate`, `ended`, `error`, `canplay`. These handlers will then call appropriate methods on `playerStore` (e.g., `setCurrentTime`, `setDuration`, `pause`) and `trackStore` (e.g., `nextTrack`). The `canplay` handler should manage the `shouldAutoPlay` logic initiated by `updateAudioSource`.\n\n**Nuances:**\n- The service should be responsible for the direct manipulation of the `audio` element state.\n- It will need to interact with `playerStore` and `trackStore` to reflect changes and react to commands.\n- Ensure proper type definitions for the service class, its methods, and constructor parameters.\n- Consider how `getStreamUrl` is accessed (could be passed or imported).\n- This move primarily focuses on creating the service and defining its interface and core logic. The full integration into `+layout.svelte` will be in the next move.\n- Ensure tests are written for the new `AudioService.ts` file to cover its functionality in isolation. Ensure `make ci` passes.",
       "rules_filepaths_to_follow": "`.cursor/rules/typescript.mdc,.cursor/rules/svelte.mdc,.augment-guidelines`",
@@ -58,7 +58,7 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Refactor: Integrate AudioService into frontend/src/routes/(app)/+layout.svelte",
       "details": "Modify `frontend/src/routes/(app)/+layout.svelte` to use the newly created `AudioService`.\n\n**Integration Steps:**\n1. Import `AudioService` from `frontend/src/lib/services/AudioService.ts`.\n2. In the `onMount` function, after the `audio` element is available, instantiate `AudioService`. Pass the `audio` element reference, and the `playerStore` and `trackStore` instances (or necessary parts/callbacks) to its constructor.\n3. Store the `AudioService` instance in a component-level variable (e.g., `let audioService: AudioService;`).\n4. Remove or refactor the existing reactive statements and direct `audio` element manipulations that are now handled by `AudioService`. Specifically:\n    - The `updateAudioSource()` function and its reactive trigger will be replaced by calls to `audioService.updateAudioSource()`. The logic to call this will be `$: audioService?.updateAudioSource($playerStore.currentTrack, $playerStore.currentTrack ? getStreamUrl($playerStore.currentTrack.id) : null, $playerStore.isPlaying);` or similar, reacting to changes in current track and play state.\n    - The reactive block for play/pause (`$: if (audio && $playerStore.isPlaying) ... else ...`) will be replaced. Play/pause actions will primarily be initiated via `playerStore.togglePlayPause()`, which the `AudioService` might react to or be called by.\n    - The reactive block for volume (`$: if (audio) { audio.volume = ... }`) will be replaced by `$: audioService?.setVolume($playerStore.volume, $playerStore.isMuted);`.\n    - The reactive block for `currentTime` seeking (`$: if (audio && $playerStore.currentTime !== undefined) ...`) will be replaced. The `AudioService` will handle `timeupdate` from the audio element to update the store. Seeking commands from UI (e.g. slider) will call `playerStore.setCurrentTime()`, and the `AudioService` should react to this store change by calling `audioService.setCurrentTime($playerStore.currentTime)`. Ensure debouncing logic for seeking is effectively maintained, possibly within the service or by how it's called.\n5. The audio event handlers in `+layout.svelte` (`handleTimeUpdate`, `handleEnded`, `handleError`, `handleLoadedMetadata`, `handleCanPlay`) will be removed as their logic is now encapsulated within `AudioService`.\n6. Ensure the `audio` element in the template only has `bind:this={audio}` and no other event handlers directly attached, as the service manages them.\n7. Call `audioService.destroy()` in the `onDestroy` lifecycle hook to clean up.\n\n**Verification:**\n- All audio playback functionalities (play, pause, seek, volume, mute, track changes, track end behavior, shuffle/repeat interactions) must work as before.\n- The component should be noticeably cleaner, with less direct audio manipulation logic.\n- Update or add tests for `+layout.svelte` to reflect its new interaction pattern with `AudioService`. Ensure `make ci` passes.",
       "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc,.augment-guidelines`",

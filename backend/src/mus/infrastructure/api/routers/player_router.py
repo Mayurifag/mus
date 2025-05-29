@@ -1,4 +1,3 @@
-import logging
 from fastapi import APIRouter, Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
 from src.mus.application.dtos.player_state import PlayerStateDTO
@@ -11,7 +10,6 @@ from src.mus.infrastructure.persistence.sqlite_player_state_repository import (
 )
 
 router = APIRouter(prefix="/api/v1/player", tags=["player"])
-logger = logging.getLogger(__name__)
 
 
 async def get_player_state_use_case(
@@ -33,5 +31,4 @@ async def save_player_state(
     player_state: PlayerStateDTO,
     use_case: ManagePlayerStateUseCase = Depends(get_player_state_use_case),
 ) -> PlayerStateDTO:
-    logger.info(f"Received player state: {player_state.model_dump_json(indent=2)}")
     return await use_case.save_state(player_state)

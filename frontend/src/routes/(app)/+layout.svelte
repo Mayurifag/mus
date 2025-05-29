@@ -4,11 +4,9 @@
   import { playerStore } from "$lib/stores/playerStore";
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
   import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
-  import {
-    getStreamUrl,
-    sendPlayerStateBeacon as apiSendPlayerStateBeacon,
-  } from "$lib/services/apiClient";
+  import { sendPlayerStateBeacon as apiSendPlayerStateBeacon } from "$lib/services/apiClient";
   import { initEventHandlerService } from "$lib/services/eventHandlerService";
+  import { AudioService } from "$lib/services/AudioService";
   import * as Sheet from "$lib/components/ui/sheet";
   import type { Track } from "$lib/types";
   import { browser } from "$app/environment";
@@ -27,56 +25,53 @@
   };
 
   let audio: HTMLAudioElement;
-  // let trackLoaded = false;
+  let audioService: AudioService;
   let eventSource: EventSource | null = null;
   let sheetOpen = false;
-  let shouldAutoPlay = false;
-
-  trackStore.setTracks(data.tracks);
-
-  // Initialize player state if available
-  if (data.playerState) {
-    const {
-      current_track_id,
-      progress_seconds,
-      volume_level,
-      is_muted,
-      is_shuffle,
-      is_repeat,
-    } = data.playerState;
-
-    // Set volume and mute state
-    playerStore.setVolume(volume_level);
-    if (is_muted) {
-      playerStore.setMuted(true);
-    }
-
-    // Set shuffle and repeat state
-    playerStore.setShuffle(is_shuffle);
-    playerStore.setRepeat(is_repeat);
-
-    // Set current track if exists
-    if (current_track_id !== null) {
-      const trackIndex = data.tracks.findIndex(
-        (track: Track) => track.id === current_track_id,
-      );
-      if (trackIndex >= 0) {
-        console.log(
-          "setting current track index",
-          trackIndex,
-          progress_seconds,
-        );
-        trackStore.setCurrentTrackIndex(trackIndex);
-        playerStore.setCurrentTime(progress_seconds);
-        playerStore.pause();
-      }
-    }
-  } else {
-    trackStore.setCurrentTrackIndex(0);
-    playerStore.pause();
-  }
+  let lastPlayerStateSaveTime = 0;
+  let currentTrackIdForWebpageTitle: number | null = null;
 
   onMount(async () => {
+    // Initialize stores from data prop
+    trackStore.setTracks(data.tracks);
+
+    // Initialize player state if available
+    if (data.playerState) {
+      const {
+        current_track_id,
+        progress_seconds,
+        volume_level,
+        is_muted,
+        is_shuffle,
+        is_repeat,
+      } = data.playerState;
+
+      // Set volume and mute state
+      playerStore.setVolume(volume_level);
+      if (is_muted) {
+        playerStore.setMuted(true);
+      }
+
+      // Set shuffle and repeat state
+      playerStore.setShuffle(is_shuffle);
+      playerStore.setRepeat(is_repeat);
+
+      // Set current track if exists
+      if (current_track_id !== null) {
+        const trackIndex = data.tracks.findIndex(
+          (track: Track) => track.id === current_track_id,
+        );
+        if (trackIndex >= 0) {
+          trackStore.setCurrentTrackIndex(trackIndex);
+          playerStore.setCurrentTime(progress_seconds);
+          playerStore.pause();
+        }
+      }
+    } else {
+      trackStore.setCurrentTrackIndex(0);
+      playerStore.pause();
+    }
+
     // Initialize SSE connection for track updates
     eventSource = initEventHandlerService();
 
@@ -106,9 +101,9 @@
       }
     }
 
-    // Set initial volume when audio element is available
+    // Initialize AudioService when audio element is available
     if (audio) {
-      audio.volume = $playerStore.isMuted ? 0 : $playerStore.volume;
+      audioService = new AudioService(audio, playerStore, trackStore);
     }
   });
 
@@ -118,6 +113,11 @@
       eventSource.close();
     }
 
+    // Clean up AudioService
+    if (audioService) {
+      audioService.destroy();
+    }
+
     // Remove event listeners - only in browser
     if (browser && document) {
       document.body.removeEventListener("toggle-sheet", handleToggleMenu);
@@ -125,33 +125,6 @@
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     }
   });
-
-  function handleTimeUpdate() {
-    if (audio && !isNaN(audio.currentTime)) {
-      playerStore.setCurrentTime(audio.currentTime);
-    }
-  }
-
-  function handleEnded() {
-    // If repeat is enabled, restart the current track
-    if ($playerStore.is_repeat) {
-      if (audio) {
-        audio.currentTime = 0;
-        audio.play().catch((error) => {
-          console.error("Error replaying audio:", error);
-          playerStore.pause();
-        });
-      }
-    } else {
-      // Otherwise go to next track with shuffle support
-      trackStore.nextTrack();
-    }
-  }
-
-  function handleError() {
-    console.error("Audio playback error occurred");
-    playerStore.pause();
-  }
 
   // Construct PlayerStateDTO from current store state
   function constructPlayerStateDTO() {
@@ -198,82 +171,55 @@
     }
   }
 
-  function updateAudioSource() {
-    if (!audio || !$playerStore.currentTrack) return;
-
-    const streamUrl = getStreamUrl($playerStore.currentTrack.id);
-    if (audio.src !== streamUrl) {
-      shouldAutoPlay = $playerStore.isPlaying;
-      audio.src = streamUrl;
-      audio.load();
-    }
+  // React to store changes using AudioService
+  $: if (audioService && $playerStore.currentTrack) {
+    console.log("$: if (audioService && $playerStore.currentTrack)");
+    audioService.updateAudioSource(
+      $playerStore.currentTrack,
+      $playerStore.isPlaying,
+    );
   }
 
-  function handleCanPlay() {
-    if (shouldAutoPlay) {
-      audio.play().catch((error) => {
-        console.error("Error auto-playing audio:", error);
-        playerStore.pause();
-      });
-      shouldAutoPlay = false;
-    }
+  $: if (audioService && $playerStore.isPlaying) {
+    console.log("$: if (audioService && $playerStore.isPlaying)");
+    audioService.play();
+  } else if (audioService && !$playerStore.isPlaying) {
+    audioService.pause();
   }
 
-  // React to store changes
-  $: if ($playerStore.currentTrack) {
-    updateAudioSource();
-  }
-
-  $: if (audio && $playerStore.isPlaying) {
-    console.log("Triggered reactive block: audio && $playerStore.isPlaying");
-    audio.play().catch((error) => {
-      console.error("Error playing audio:", error);
-      // Don't pause on AbortError - it's expected when changing tracks
-      if (error.name !== "AbortError") {
-        playerStore.pause();
-      }
-    });
-  } else if (audio && !$playerStore.isPlaying) {
-    audio.pause();
-  }
-
-  $: if (audio) {
-    audio.volume = $playerStore.isMuted ? 0 : $playerStore.volume;
+  $: if (audioService) {
+    console.log("$: if (audioService)");
+    audioService.setVolume($playerStore.volume, $playerStore.isMuted);
   }
 
   // Sync store currentTime changes to audio (for seeking)
-  $: if (audio && $playerStore.currentTime !== undefined) {
+  $: if (audioService && $playerStore.currentTime !== undefined) {
     console.log(
-      "Triggered reactive block: audio && $playerStore.currentTime != undefined",
+      "$: if (audioService && $playerStore.currentTime !== undefined)",
     );
-    // Only seek if there's a significant difference (more than 1 second)
-    // This prevents infinite loops from natural timeupdate events
-    const timeDiff = Math.abs(audio.currentTime - $playerStore.currentTime);
-    if (timeDiff > 1) {
-      audio.currentTime = $playerStore.currentTime;
-    }
+    audioService.setCurrentTime($playerStore.currentTime);
   }
 
   // Save player state on any relevant changes
   $: if ($playerStore.currentTrack && $playerStore.isPlaying) {
-    console.log(
-      "Triggered reactive block: $playerStore.currentTrack && $playerStore.isPlaying",
-    );
-    // This reactive statement will trigger whenever any of these values change
-    // We use void to explicitly indicate these are intentional side-effect expressions
-    void $playerStore.currentTime;
-    void $playerStore.volume;
-    void $playerStore.isMuted;
-    void $playerStore.is_shuffle;
-    void $playerStore.is_repeat;
-    savePlayerState();
+    console.log("$: if ($playerStore.currentTrack && $playerStore.isPlaying)");
+    const now = Date.now();
+    if (now - lastPlayerStateSaveTime > 5000) {
+      savePlayerState();
+      lastPlayerStateSaveTime = now;
+    }
   }
 
-  $: if ($playerStore.currentTrack?.title && browser) {
+  $: if (
+    $playerStore.currentTrack &&
+    browser &&
+    $playerStore.currentTrack.id !== currentTrackIdForWebpageTitle
+  ) {
     console.log(
-      "Triggered reactive block: $playerStore.currentTrack?.title && browser",
+      "$: if ($playerStore.currentTrack && browser && $playerStore.currentTrack.id !== currentTrackIdForWebpageTitle)",
     );
     document.title = `${$playerStore.currentTrack.artist} - ${$playerStore.currentTrack.title}`;
+    currentTrackIdForWebpageTitle = $playerStore.currentTrack.id;
   }
 
   function handleToggleMenu() {
@@ -283,7 +229,7 @@
 
 <Sheet.Root bind:open={sheetOpen}>
   <!-- Main content area that uses full viewport scrolling -->
-  <main class="min-h-screen pr-0 pb-20 md:pr-64">
+  <main class="min-h-screen pb-20 pr-0 md:pr-64">
     <div class="p-4">
       <slot />
     </div>
@@ -292,7 +238,7 @@
   <Toaster position="top-left" />
 
   <!-- Desktop Sidebar - positioned fixed on the right -->
-  <aside class="fixed top-0 right-0 bottom-20 hidden w-64 md:block">
+  <aside class="fixed bottom-20 right-0 top-0 hidden w-64 md:block">
     <RightSidebar />
   </aside>
 
@@ -304,12 +250,5 @@
   <!-- Fixed Player Footer -->
   <PlayerFooter />
 
-  <audio
-    bind:this={audio}
-    on:timeupdate={handleTimeUpdate}
-    on:ended={handleEnded}
-    on:error={handleError}
-    on:canplay={handleCanPlay}
-    preload="auto"
-  ></audio>
+  <audio bind:this={audio} preload="auto"></audio>
 </Sheet.Root>
