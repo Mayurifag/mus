@@ -21,7 +21,6 @@
   let sheetOpen = false;
   let lastPlayerStateSaveTime = 0;
   let lastCurrentTrackId: number | null = null;
-  let isInitialLoad = true;
 
   onMount(async () => {
     trackStore.setTracks(data.tracks);
@@ -98,9 +97,6 @@
         }
       }
     }
-
-    // Mark initial load as complete
-    isInitialLoad = false;
   });
 
   // Clean up event source on component destroy
@@ -157,9 +153,10 @@
       "$: Track changed - updating audio source",
       $trackStore.currentTrack.id,
     );
-    // Only auto-play if this is not the initial page load
-    const shouldAutoPlay = !isInitialLoad;
-    audioService.updateAudioSource($trackStore.currentTrack, shouldAutoPlay);
+    audioService.updateAudioSource(
+      $trackStore.currentTrack,
+      audioService.isPlaying,
+    );
     lastCurrentTrackId = $trackStore.currentTrack.id;
   }
 
