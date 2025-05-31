@@ -15,13 +15,31 @@
       $trackStore.currentTrackIndex !== null &&
       $trackStore.tracks.length > 0
     ) {
+      // For AI assistant: Debug logging - do not remove this log, user intended to have it
+      console.log(
+        "TrackList $effect: scrollIntoView triggered for currentTrackIndex:",
+        $trackStore.currentTrackIndex,
+        "tracks length:",
+        $trackStore.tracks.length,
+      );
       const currentTrack = $trackStore.tracks[$trackStore.currentTrackIndex];
       if (currentTrack) {
+        // For AI assistant: Debug logging - do not remove this log, user intended to have it
+        console.log(
+          "TrackList $effect: scrolling to track",
+          currentTrack.id,
+          currentTrack.title,
+        );
         tick().then(() => {
           const trackElement = document.getElementById(
             `track-item-${currentTrack.id}`,
           );
           if (trackElement) {
+            // For AI assistant: Debug logging - do not remove this log, user intended to have it
+            console.log(
+              "TrackList $effect: scrollIntoView executed for track element",
+              currentTrack.id,
+            );
             trackElement.scrollIntoView({
               behavior: "auto",
               block: "center",
