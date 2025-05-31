@@ -113,7 +113,8 @@ describe("apiClient", () => {
       expect(result).toEqual(mockPlayerState);
     });
 
-    it("returns null when receiving 404", async () => {
+    it("returns default state when receiving 404", async () => {
+      console.error = vi.fn();
       const mockResponse = {
         ok: false,
         status: 404,
@@ -127,10 +128,17 @@ describe("apiClient", () => {
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/player/state",
       );
-      expect(result).toBeNull();
+      expect(result).toEqual({
+        current_track_id: null,
+        progress_seconds: 0.0,
+        volume_level: 1.0,
+        is_muted: false,
+        is_shuffle: false,
+        is_repeat: false,
+      });
     });
 
-    it("returns null when fetch fails with other error", async () => {
+    it("returns default state when fetch fails with other error", async () => {
       console.error = vi.fn();
       const mockResponse = {
         ok: false,
@@ -149,10 +157,17 @@ describe("apiClient", () => {
         "Error fetching player state:",
         expect.any(Error),
       );
-      expect(result).toBeNull();
+      expect(result).toEqual({
+        current_track_id: null,
+        progress_seconds: 0.0,
+        volume_level: 1.0,
+        is_muted: false,
+        is_shuffle: false,
+        is_repeat: false,
+      });
     });
 
-    it("returns null when network error occurs", async () => {
+    it("returns default state when network error occurs", async () => {
       console.error = vi.fn();
       vi.mocked(globalThis.fetch).mockRejectedValue(new Error("Network error"));
 
@@ -165,7 +180,14 @@ describe("apiClient", () => {
         "Error fetching player state:",
         expect.any(Error),
       );
-      expect(result).toBeNull();
+      expect(result).toEqual({
+        current_track_id: null,
+        progress_seconds: 0.0,
+        volume_level: 1.0,
+        is_muted: false,
+        is_shuffle: false,
+        is_repeat: false,
+      });
     });
   });
 

@@ -103,5 +103,6 @@ async def test_load_state_not_exists(use_case, mock_repository):
     assert result.volume_level == 1.0
     assert result.is_muted is False
 
-    # Verify the repository was called
+    # Verify the repository was called to load but NOT save
     mock_repository.load_state.assert_called_once()
+    mock_repository.save_state.assert_not_called()

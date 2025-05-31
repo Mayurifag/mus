@@ -36,11 +36,19 @@ export async function fetchTracks(): Promise<Track[]> {
   }
 }
 
-export async function fetchPlayerState(): Promise<PlayerState | null> {
+export async function fetchPlayerState(): Promise<PlayerState> {
   try {
     const response = await fetch(`${API_BASE_URL}/player/state`);
     if (response.status === 404) {
-      return null;
+      // Return default player state if none exists
+      return {
+        current_track_id: null,
+        progress_seconds: 0.0,
+        volume_level: 1.0,
+        is_muted: false,
+        is_shuffle: false,
+        is_repeat: false,
+      };
     }
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -48,7 +56,15 @@ export async function fetchPlayerState(): Promise<PlayerState | null> {
     return await response.json();
   } catch (error) {
     console.error("Error fetching player state:", error);
-    return null;
+    // Return default player state on any error
+    return {
+      current_track_id: null,
+      progress_seconds: 0.0,
+      volume_level: 1.0,
+      is_muted: false,
+      is_shuffle: false,
+      is_repeat: false,
+    };
   }
 }
 

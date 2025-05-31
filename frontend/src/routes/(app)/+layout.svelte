@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import type { Snippet } from "svelte";
   import { trackStore } from "$lib/stores/trackStore";
   import { audioServiceStore } from "$lib/stores/audioServiceStore";
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
@@ -13,73 +14,70 @@
   import { Toaster } from "$lib/components/ui/sonner";
   import type { LayoutData } from "./$types";
 
-  export let data: LayoutData;
+  let { data, children }: { data: LayoutData; children: Snippet } = $props();
 
   let audio: HTMLAudioElement;
-  let audioService: AudioService | undefined = undefined;
-  let eventSource: EventSource | null = null;
-  let sheetOpen = false;
-  let lastPlayerStateSaveTime = 0;
-  let lastCurrentTrackId: number | null = null;
-  let isInitializing = true;
+  let audioService = $state<AudioService | undefined>(undefined);
+  let eventSource = $state<EventSource | null>(null);
+  let sheetOpen = $state(false);
+  let lastPlayerStateSaveTime = $state(0);
+  let lastCurrentTrackId = $state<number | null>(null);
+  let isInitializing = $state(true);
 
-  onMount(async () => {
-    trackStore.setTracks(data.tracks);
-
-    // Initialize audio service first
+  function initializeAudioService() {
     if (audio) {
       audioService = new AudioService(audio, () => trackStore.nextTrack());
       audioServiceStore.set(audioService);
     }
+  }
 
-    if (data.playerState) {
-      const {
-        current_track_id,
-        progress_seconds,
-        volume_level,
-        is_muted,
-        is_shuffle,
-        is_repeat,
-      } = data.playerState;
+  function restorePlayerState() {
+    if (!audioService) return;
 
-      // Initialize AudioService state
-      if (audioService) {
-        audioService.initializeState(volume_level, is_muted, is_repeat);
+    const {
+      current_track_id,
+      progress_seconds,
+      volume_level,
+      is_muted,
+      is_shuffle,
+      is_repeat,
+    } = data.playerState;
+
+    audioService.initializeState(volume_level, is_muted, is_repeat);
+    trackStore.setShuffle(is_shuffle);
+
+    if (current_track_id !== null) {
+      const trackIndex = data.tracks.findIndex(
+        (track: Track) => track.id === current_track_id,
+      );
+      if (trackIndex >= 0) {
+        trackStore.setCurrentTrackIndex(trackIndex);
+        audioService.setCurrentTime(progress_seconds);
+        audioService.updateAudioSource(data.tracks[trackIndex], false);
+        lastCurrentTrackId = current_track_id;
       }
-
-      trackStore.setShuffle(is_shuffle);
-
-      if (current_track_id !== null) {
-        const trackIndex = data.tracks.findIndex(
-          (track: Track) => track.id === current_track_id,
-        );
-        if (trackIndex >= 0) {
-          trackStore.setCurrentTrackIndex(trackIndex);
-          if (audioService) {
-            audioService.setCurrentTime(progress_seconds);
-            audioService.updateAudioSource(data.tracks[trackIndex], false);
-          }
-          lastCurrentTrackId = current_track_id;
-        }
-      }
-    } else {
-      if (data.tracks.length > 0) {
-        trackStore.setCurrentTrackIndex(0);
-        if (audioService) {
-          audioService.updateAudioSource(data.tracks[0], false);
-        }
-        lastCurrentTrackId = data.tracks[0]?.id || null;
-      }
+    } else if (data.tracks.length > 0) {
+      // If no current track is set but tracks exist, set the first track as current
+      trackStore.setCurrentTrackIndex(0);
+      audioService.updateAudioSource(data.tracks[0], false);
+      lastCurrentTrackId = data.tracks[0].id;
     }
+  }
 
+  function setupEventListeners() {
     eventSource = initEventHandlerService();
 
     if (browser) {
       document.body.addEventListener("toggle-sheet", handleToggleMenu);
       document.addEventListener("visibilitychange", handleVisibilityChange);
     }
+  }
 
-    // Mark initialization as complete
+  onMount(async () => {
+    trackStore.setTracks(data.tracks);
+    initializeAudioService();
+    restorePlayerState();
+    setupEventListeners();
     isInitializing = false;
   });
 
@@ -122,30 +120,45 @@
     }
   }
 
-  $: if (
-    audioService &&
-    $trackStore.currentTrack &&
-    $trackStore.currentTrack.id !== lastCurrentTrackId
-  ) {
-    console.log(
-      "$: Track changed - updating audio source",
-      $trackStore.currentTrack.id,
-    );
-    const shouldAutoPlay = audioService.isPlaying || !isInitializing;
-    audioService.updateAudioSource($trackStore.currentTrack, shouldAutoPlay);
-    lastCurrentTrackId = $trackStore.currentTrack.id;
-  }
-
-  $: if ($trackStore.currentTrack && audioService && audioService.isPlaying) {
-    console.log(
-      "Saving player state - $: if ($trackStore.currentTrack && audioService && audioService.isPlaying)",
-    );
-    const now = Date.now();
-    if (now - lastPlayerStateSaveTime > 5000) {
-      savePlayerState();
-      lastPlayerStateSaveTime = now;
+  $effect(() => {
+    if (
+      audioService &&
+      $trackStore.currentTrack &&
+      $trackStore.currentTrack.id !== lastCurrentTrackId
+    ) {
+      // For AI assistant: Debug logging - do not remove this log, user intended to have it
+      console.log(
+        "Layout $effect: Track changed - updating audio source. Track ID:",
+        $trackStore.currentTrack.id,
+        "Previous ID:",
+        lastCurrentTrackId,
+        "Is initializing:",
+        isInitializing,
+      );
+      const shouldAutoPlay = audioService.isPlaying || !isInitializing;
+      audioService.updateAudioSource($trackStore.currentTrack, shouldAutoPlay);
+      lastCurrentTrackId = $trackStore.currentTrack.id;
     }
-  }
+  });
+
+  $effect(() => {
+    if ($trackStore.currentTrack && audioService && audioService.isPlaying) {
+      // For AI assistant: Debug logging - do not remove this log, user intended to have it
+      console.log(
+        "Layout $effect: Saving player state. Track ID:",
+        $trackStore.currentTrack.id,
+        "Is playing:",
+        audioService.isPlaying,
+        "Last save time:",
+        lastPlayerStateSaveTime,
+      );
+      const now = Date.now();
+      if (now - lastPlayerStateSaveTime > 5000) {
+        savePlayerState();
+        lastPlayerStateSaveTime = now;
+      }
+    }
+  });
 
   function handleToggleMenu() {
     sheetOpen = !sheetOpen;
@@ -154,16 +167,16 @@
 
 <Sheet.Root bind:open={sheetOpen}>
   <!-- Main content area that uses full viewport scrolling -->
-  <main class="min-h-screen pb-20 pr-0 md:pr-64">
+  <main class="min-h-screen pr-0 pb-20 md:pr-64">
     <div class="p-4">
-      <slot />
+      {@render children()}
     </div>
   </main>
 
   <Toaster position="top-left" />
 
   <!-- Desktop Sidebar - positioned fixed on the right -->
-  <aside class="fixed bottom-20 right-0 top-0 hidden w-64 md:block">
+  <aside class="fixed top-0 right-0 bottom-20 hidden w-64 md:block">
     <RightSidebar />
   </aside>
 

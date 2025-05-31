@@ -21,6 +21,7 @@
 - [ ] Larger player footer. Move volume to the right side of next button.
 - [ ] Style progress bar so it would be equal like tracklist' one. Remove styling from TrackItem.svelte. Progress bars have to show how much data cached already.
 - [ ] Fix mobile footer css
+- [ ] Scroll to track only if it is not visible on screen.
 - [ ] Move to vscode, update workflow, aliases. Adapt this workflow. Remove cursorrules. Update all snippets. https://www.chatprd.ai/resources/PRD-for-Cursor - browsermcp.io
 - [ ] Mobile API for Safari - PWA + service worker
 - [ ] show history of tracks in right panel to check functionality of shuffle/repeat tracks - check it

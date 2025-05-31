@@ -2,7 +2,6 @@ import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
 from sqlmodel import select, text
-from unittest.mock import patch, AsyncMock
 
 from src.mus.domain.entities.player_state import PlayerState
 
@@ -88,26 +87,19 @@ async def test_get_player_state_exists(client, saved_state):
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings(warning_filter)
 async def test_get_player_state_not_exists(client, reset_player_state):
-    # Patch the load_state method to ensure it returns None for this test
-    with patch(
-        "src.mus.infrastructure.persistence.sqlite_player_state_repository.SQLitePlayerStateRepository.load_state",
-        new_callable=AsyncMock,
-    ) as mock_load_state:
-        mock_load_state.return_value = None
+    # Ensure we don't have a state initially, then request it
+    response = client.get("/api/v1/player/state")
 
-        # ensure we don't have a state
-        response = client.get("/api/v1/player/state")
+    assert response.status_code == 200
+    data = response.json()
 
-        assert response.status_code == 200
-        data = response.json()
-
-        # Should return default state
-        assert data["current_track_id"] is None
-        assert data["progress_seconds"] == 0.0
-        assert data["volume_level"] == 1.0
-        assert data["is_muted"] is False
-        assert data["is_shuffle"] is False
-        assert data["is_repeat"] is False
+    # Should return default state without persisting
+    assert data["current_track_id"] is None
+    assert data["progress_seconds"] == 0.0
+    assert data["volume_level"] == 1.0
+    assert data["is_muted"] is False
+    assert data["is_shuffle"] is False
+    assert data["is_repeat"] is False
 
 
 @pytest.mark.asyncio

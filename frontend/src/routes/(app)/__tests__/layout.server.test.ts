@@ -62,9 +62,18 @@ describe("+layout.server.ts", () => {
     });
   });
 
-  it("handles null player state", async () => {
+  it("handles default player state when none exists", async () => {
+    const defaultPlayerState = {
+      current_track_id: null,
+      progress_seconds: 0.0,
+      volume_level: 1.0,
+      is_muted: false,
+      is_shuffle: false,
+      is_repeat: false,
+    };
+
     vi.mocked(fetchTracks).mockResolvedValue(mockTracks);
-    vi.mocked(fetchPlayerState).mockResolvedValue(null);
+    vi.mocked(fetchPlayerState).mockResolvedValue(defaultPlayerState);
 
     const result = await load(mockEvent);
 
@@ -72,7 +81,7 @@ describe("+layout.server.ts", () => {
     expect(fetchPlayerState).toHaveBeenCalled();
     expect(result).toEqual({
       tracks: mockTracks,
-      playerState: null,
+      playerState: defaultPlayerState,
     });
   });
 

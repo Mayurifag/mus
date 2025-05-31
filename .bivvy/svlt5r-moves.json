@@ -1,0 +1,61 @@
+{
+  "Climb": "svlt5r",
+  "moves": [
+    {
+      "status": "complete",
+      "description": "Update Svelte guidelines for Svelte 5 runes and best practices.",
+      "details": "Modify '.cursor/rules/svelte.mdc' to enforce Svelte 5 runes ($state, $derived, $effect, $effect.pre, $props, $bindable) and explicitly disallow '$:' syntax for new code. Update descriptions and examples. Ensure guidelines mandate Svelte 5 runes, discouraging '$:' syntax, and referencing Svelte 5 prop/binding patterns.",
+      "rules_filepaths_to_follow": "`.cursor/rules/mdc.mdc`",
+      "filepaths_to_modify": "`.cursor/rules/svelte.mdc`",
+      "rest": "true"
+    },
+    {
+      "status": "complete",
+      "description": "Refactor 'frontend/src/routes/(app)/+layout.svelte' to Svelte 5 runes.",
+      "details": "Identify all '$:' reactive declarations and replace them with appropriate Svelte 5 runes ($effect, $derived). The effect for currentTrack changes ($: if (audioService && $trackStore.currentTrack && $trackStore.currentTrack.id !== lastCurrentTrackId)) should become an $effect. The effect for saving player state ($: if ($trackStore.currentTrack && audioService && audioService.isPlaying)) should become an $effect. Add debug logging to all new/modified $effect and $effect.pre blocks: include '// For AI assistant: Debug logging - do not remove this log, user intended to have it' and log the effect's purpose and relevant state changes. Refactor any functions that update multiple distinct $state variables into focused functions. Enhance code for readability. Update associated tests in 'frontend/src/routes/(app)/__tests__/layout.test.ts'.",
+      "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc`",
+      "filepaths_to_modify": "`frontend/src/routes/(app)/+layout.svelte,frontend/src/routes/(app)/__tests__/layout.test.ts`",
+      "rest": "true"
+    },
+    {
+      "status": "complete",
+      "description": "Refactor 'frontend/src/lib/components/layout/PlayerFooter.svelte' to Svelte 5 runes.",
+      "details": "This component uses $props, $state, $derived, and $effect. Ensure all reactivity is handled via runes. Replace any remaining '$:' if found. The 'volumeFeedbackValue = $derived(...)' is good. The existing $effect blocks for store subscriptions should have debug logging added: include '// For AI assistant: Debug logging - do not remove this log, user intended to have it' and log the effect's purpose and relevant state changes. Convert the 'onMount' and 'onDestroy' for 'volumeFeedbackTimer' to an $effect that returns a cleanup function. Review event handlers like 'handleVolumeChange' to ensure they align with single state update principles for local $state variables if applicable, though they seem fine as they primarily manage UI feedback related to a single logical action. Enhance code for readability. Update associated tests in 'frontend/src/lib/components/layout/PlayerFooter.svelte.test.ts'.",
+      "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc`",
+      "filepaths_to_modify": "`frontend/src/lib/components/layout/PlayerFooter.svelte,frontend/src/lib/components/layout/PlayerFooter.svelte.test.ts`",
+      "rest": "true"
+    },
+    {
+      "status": "todo",
+      "description": "Review and Refactor 'frontend/src/lib/components/domain/TrackItem.svelte'.",
+      "details": "This component already uses Svelte 5 runes ($props, $state, $derived, $effect). Confirm no '$:' syntax remains. Add specified debug logging to existing $effect blocks (e.g., for audioService store subscriptions). Review derived state 'isCurrentlyPlaying = $derived(...)' (this is correct). Evaluate functions like 'playTrack', 'handlePlayButtonClick', etc., for opportunities to enhance them using Svelte 5 patterns or simplify logic if they directly update multiple *distinct* local $state variables in a non-cohesive way (unlikely for these event handlers). Consider if any logic can be further simplified or made more declarative with runes. Update tests in 'frontend/src/lib/components/domain/TrackItem.svelte.test.ts'.",
+      "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc`",
+      "filepaths_to_modify": "`frontend/src/lib/components/domain/TrackItem.svelte,frontend/src/lib/components/domain/TrackItem.svelte.test.ts`",
+      "rest": "true"
+    },
+    {
+      "status": "todo",
+      "description": "Review and Refactor 'frontend/src/lib/components/domain/TrackList.svelte'.",
+      "details": "This component uses $derived and $effect. Confirm no '$:' syntax remains. Add specified debug logging to the existing $effect block for 'scrollIntoView' logic. The derived state 'const tracks = $derived($trackStore.tracks);' is correct. Review the component for any Svelte 5 enhancement opportunities, though it is relatively simple. Update tests in 'frontend/src/lib/components/domain/TrackList.svelte.test.ts'.",
+      "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc`",
+      "filepaths_to_modify": "`frontend/src/lib/components/domain/TrackList.svelte,frontend/src/lib/components/domain/TrackList.svelte.test.ts`",
+      "rest": "true"
+    },
+    {
+      "status": "todo",
+      "description": "Scan other Svelte components, refactor, add logging, and update tests.",
+      "details": "Perform a thorough scan of all other '.svelte' files within 'frontend/src/' (e.g., in 'components/ui', other 'routes'). Identify and replace any remaining '$:' declarations with appropriate Svelte 5 runes. Refactor functions that update multiple distinct $state variables. Add debug logging to any $effect blocks created or modified. Update any affected component tests. Files like 'RightSidebar.svelte', 'button.svelte', 'card*.svelte', 'sheet*.svelte', 'slider.svelte', 'sonner.svelte', '(app)/+page.svelte', 'routes/+layout.svelte' should be checked.",
+      "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc`",
+      "filepaths_to_modify": "`frontend/src/`",
+      "rest": "true"
+    },
+    {
+      "status": "todo",
+      "description": "Run 'make ci' and ensure all checks pass.",
+      "details": "Execute 'make ci' from the project root. Address any errors, warnings, or linter issues reported by the CI pipeline until it passes cleanly. This step validates the entire refactoring process.",
+      "rules_filepaths_to_follow": "`.cursor/rules/makefile.mdc,.cursor/rules/python.mdc,.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc`",
+      "filepaths_to_modify": "Any files identified by 'make ci'.",
+      "rest": "true"
+    }
+  ]
+}

@@ -17,7 +17,6 @@
     Repeat1,
   } from "@lucide/svelte";
   import { browser } from "$app/environment";
-  import { onMount } from "svelte";
 
   // Accept AudioService as a prop using Svelte 5 syntax
   let { audioService }: { audioService?: AudioService } = $props();
@@ -54,7 +53,11 @@
   // Sync local state with AudioService stores when they change
   $effect(() => {
     if (audioService?.isPlayingStore) {
+      // For AI assistant: Debug logging - do not remove this log, user intended to have it
+      console.log("PlayerFooter $effect: Subscribing to isPlayingStore");
       const unsubscribe = audioService.isPlayingStore.subscribe((playing) => {
+        // For AI assistant: Debug logging - do not remove this log, user intended to have it
+        console.log("PlayerFooter $effect: isPlaying state changed:", playing);
         isPlaying = playing;
       });
       return unsubscribe;
@@ -63,7 +66,11 @@
 
   $effect(() => {
     if (audioService?.isMutedStore) {
+      // For AI assistant: Debug logging - do not remove this log, user intended to have it
+      console.log("PlayerFooter $effect: Subscribing to isMutedStore");
       const unsubscribe = audioService.isMutedStore.subscribe((muted) => {
+        // For AI assistant: Debug logging - do not remove this log, user intended to have it
+        console.log("PlayerFooter $effect: isMuted state changed:", muted);
         isMuted = muted;
       });
       return unsubscribe;
@@ -72,7 +79,16 @@
 
   $effect(() => {
     if (audioService?.currentTimeStore) {
+      // For AI assistant: Debug logging - do not remove this log, user intended to have it
+      console.log("PlayerFooter $effect: Subscribing to currentTimeStore");
       const unsubscribe = audioService.currentTimeStore.subscribe((time) => {
+        // For AI assistant: Debug logging - do not remove this log, user intended to have it
+        console.log(
+          "PlayerFooter $effect: currentTime changed:",
+          time,
+          "User dragging progress:",
+          isUserDraggingProgress,
+        );
         currentTime = time;
         if (!isUserDraggingProgress) {
           progressValue = [time];
@@ -84,7 +100,11 @@
 
   $effect(() => {
     if (audioService?.durationStore) {
+      // For AI assistant: Debug logging - do not remove this log, user intended to have it
+      console.log("PlayerFooter $effect: Subscribing to durationStore");
       const unsubscribe = audioService.durationStore.subscribe((dur) => {
+        // For AI assistant: Debug logging - do not remove this log, user intended to have it
+        console.log("PlayerFooter $effect: duration changed:", dur);
         duration = dur;
       });
       return unsubscribe;
@@ -93,7 +113,16 @@
 
   $effect(() => {
     if (audioService?.volumeStore) {
+      // For AI assistant: Debug logging - do not remove this log, user intended to have it
+      console.log("PlayerFooter $effect: Subscribing to volumeStore");
       const unsubscribe = audioService.volumeStore.subscribe((volume) => {
+        // For AI assistant: Debug logging - do not remove this log, user intended to have it
+        console.log(
+          "PlayerFooter $effect: volume changed:",
+          volume,
+          "User dragging volume:",
+          isUserDraggingVolume,
+        );
         if (!isUserDraggingVolume) {
           volumeValue = [volume];
         }
@@ -151,9 +180,16 @@
     }
   }
 
-  // Clean up timer when component is destroyed
-  onMount(() => {
+  // Clean up timer when component is destroyed using $effect
+  $effect(() => {
+    // For AI assistant: Debug logging - do not remove this log, user intended to have it
+    console.log(
+      "PlayerFooter $effect: Setting up volume feedback timer cleanup",
+    );
+
     return () => {
+      // For AI assistant: Debug logging - do not remove this log, user intended to have it
+      console.log("PlayerFooter $effect: Cleaning up volume feedback timer");
       if (volumeFeedbackTimer) {
         clearTimeout(volumeFeedbackTimer);
       }
