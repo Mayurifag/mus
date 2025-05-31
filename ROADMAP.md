@@ -15,7 +15,7 @@
 - [x] Remove time since added from trackitem and also remove date-fns
 - [x] Why we have +page.svelte and +layout.svelte? Should not that be only one?
 - [x] once again fix saving state, log on backend, check close tab and other cases
-- [ ] Analyze all css methods which update several states in once. Make them with different methods. Remove all $: and refactor to svelte 5.
+- [x] Analyze all css methods which update several states in once. Make them with different methods. Remove all $: and refactor to svelte 5.
 - [ ] Recolor all frontend. Switched on repeat/reshuffle buttons should be blue (check)
 - [ ] Divide frontend into components: footer / sidebar / tracklist, etc.
 - [ ] Larger player footer. Move volume to the right side of next button.
@@ -32,6 +32,7 @@
 - [ ] Publish
 - [ ] Little bug - if we drag volume slider overflow left, it will show 100%. Maybe remove this at all.
 - [ ] Clicking on album image on player footer should scroll to this track in tracklist.
+- [ ] Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?
 
 ## Phase 2
 

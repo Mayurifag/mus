@@ -170,7 +170,7 @@
 
 <div
   class="hover:bg-muted/50 flex cursor-pointer items-center gap-4 rounded-md p-2 transition-colors {isSelected
-    ? 'bg-muted'
+    ? 'bg-secondary'
     : ''}"
   onclick={playTrack}
   onkeydown={handleKeyDown}
@@ -271,17 +271,12 @@
     background-color: hsl(var(--accent)) !important;
   }
 
-  /* Hide thumb by default, show on hover */
+  /* Show thumb always for selected tracks */
   :global(.track-progress-slider [data-melt-slider-thumb]) {
-    opacity: 0;
+    opacity: 1;
     transition: opacity 0.2s ease;
     width: 12px !important;
     height: 12px !important;
-  }
-
-  :global(.group\/slider:hover .track-progress-slider [data-melt-slider-thumb]),
-  :global(.track-progress-slider:focus-within [data-melt-slider-thumb]) {
-    opacity: 1;
   }
 
   /* Ensure the slider container is visible */

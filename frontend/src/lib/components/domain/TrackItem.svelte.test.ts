@@ -83,7 +83,7 @@ describe("TrackItem component", () => {
     });
     const trackItemDiv = container.querySelector('[data-testid="track-item"]');
 
-    expect(trackItemDiv?.classList.contains("bg-muted")).toBe(true);
+    expect(trackItemDiv?.classList.contains("bg-secondary")).toBe(true);
   });
 
   it("renders progress slider when track is selected", () => {
