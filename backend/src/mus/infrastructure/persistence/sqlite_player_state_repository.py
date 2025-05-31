@@ -1,8 +1,11 @@
+import logging
 from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.mus.domain.entities.player_state import PlayerState
+
+logger = logging.getLogger(__name__)
 
 
 class SQLitePlayerStateRepository:
@@ -10,6 +13,16 @@ class SQLitePlayerStateRepository:
         self._session = session
 
     async def save_state(self, state: PlayerState) -> PlayerState:
+        logger.info(
+            f"Repository persisting player state to database - "
+            f"Track ID: {state.current_track_id}, "
+            f"Progress: {state.progress_seconds:.2f}s, "
+            f"Volume: {state.volume_level:.2f}, "
+            f"Muted: {state.is_muted}, "
+            f"Shuffle: {state.is_shuffle}, "
+            f"Repeat: {state.is_repeat}"
+        )
+
         state_data = {
             "id": 1,
             "current_track_id": state.current_track_id,
@@ -40,6 +53,13 @@ class SQLitePlayerStateRepository:
             raise RuntimeError(
                 "Failed to retrieve player state from database after upsert."
             )
+
+        logger.info(
+            f"Repository successfully persisted player state to database - "
+            f"Final state: Track ID: {persisted_state.current_track_id}, "
+            f"Progress: {persisted_state.progress_seconds:.2f}s"
+        )
+
         return persisted_state
 
     async def load_state(self) -> PlayerState | None:

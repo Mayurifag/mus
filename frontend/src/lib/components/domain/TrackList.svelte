@@ -2,10 +2,35 @@
   import type { AudioService } from "$lib/services/AudioService";
   import TrackItem from "./TrackItem.svelte";
   import { trackStore } from "$lib/stores/trackStore";
+  import { browser } from "$app/environment";
+  import { tick } from "svelte";
 
   let { audioService }: { audioService?: AudioService } = $props();
 
   const tracks = $derived($trackStore.tracks);
+
+  $effect(() => {
+    if (
+      browser &&
+      $trackStore.currentTrackIndex !== null &&
+      $trackStore.tracks.length > 0
+    ) {
+      const currentTrack = $trackStore.tracks[$trackStore.currentTrackIndex];
+      if (currentTrack) {
+        tick().then(() => {
+          const trackElement = document.getElementById(
+            `track-item-${currentTrack.id}`,
+          );
+          if (trackElement) {
+            trackElement.scrollIntoView({
+              behavior: "auto",
+              block: "center",
+            });
+          }
+        });
+      }
+    }
+  });
 </script>
 
 <div class="flex flex-col space-y-1" data-testid="track-list">

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy, tick } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { trackStore } from "$lib/stores/trackStore";
   import { audioServiceStore } from "$lib/stores/audioServiceStore";
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
@@ -77,25 +77,6 @@
       document.body.addEventListener("toggle-sheet", handleToggleMenu);
       window.addEventListener("beforeunload", handleBeforeUnload);
       document.addEventListener("visibilitychange", handleVisibilityChange);
-    }
-
-    if (
-      $trackStore.currentTrackIndex !== null &&
-      $trackStore.tracks.length > 0
-    ) {
-      const currentTrack = $trackStore.tracks[$trackStore.currentTrackIndex];
-      if (currentTrack) {
-        await tick();
-        const trackElement = document.getElementById(
-          `track-item-${currentTrack.id}`,
-        );
-        if (trackElement) {
-          trackElement.scrollIntoView({
-            behavior: "auto",
-            block: "center",
-          });
-        }
-      }
     }
   });
 

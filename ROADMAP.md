@@ -13,7 +13,7 @@
 - [x] Try to go with https://github.com/unplugin/unplugin-icons - use lucide there
 - [x] Bug - after loading page, if we select another track, it will not play. Check it.
 - [x] Remove time since added from trackitem and also remove date-fns
-- [ ] Why we have +page.svelte and +layout.svelte? Should not that be only one?
+- [x] Why we have +page.svelte and +layout.svelte? Should not that be only one?
 - [ ] once again fix saving state, log on backend, check close tab and other cases
 - [ ] Analyze all css methods which update several states in once. Make them with different methods. Remove all $: and refactor to svelte 5.
 - [ ] Recolor all frontend. Switched on repeat/reshuffle buttons should be blue (check)
