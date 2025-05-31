@@ -33,7 +33,7 @@
 
     if (isSelected) {
       // If this track is already selected, toggle play/pause
-      if (isPlaying) {
+      if (localIsPlaying) {
         audioService.pause();
       } else {
         audioService.play();
@@ -58,12 +58,13 @@
 
   let progressValue = $state([0]);
   let isUserDragging = $state(false);
-  let isPlaying = $state(false);
+  let localIsPlaying = $state(false);
   let duration = $state(0);
 
-  // Subscribe to AudioService stores
+  // Subscribe to AudioService stores conditionally when selected
   $effect(() => {
-    if (audioService?.isPlayingStore) {
+    // Only subscribe if this track is selected and audioService is available
+    if (isSelected && audioService?.isPlayingStore) {
       // For AI assistant: Debug logging - do not remove this log, user intended to have it
       console.log(
         "TrackItem $effect: isPlayingStore subscription for track",
@@ -78,14 +79,18 @@
           "Playing:",
           playing,
         );
-        isPlaying = playing;
+        localIsPlaying = playing;
       });
       return unsubscribe;
+    } else {
+      // Reset state when not selected
+      localIsPlaying = false;
     }
   });
 
   $effect(() => {
-    if (audioService?.currentTimeStore) {
+    // Only subscribe if this track is selected and audioService is available
+    if (isSelected && audioService?.currentTimeStore) {
       // For AI assistant: Debug logging - do not remove this log, user intended to have it
       console.log(
         "TrackItem $effect: currentTimeStore subscription for track",
@@ -94,7 +99,7 @@
         isSelected,
       );
       const unsubscribe = audioService.currentTimeStore.subscribe((time) => {
-        if (isSelected && !isUserDragging) {
+        if (!isUserDragging) {
           // For AI assistant: Debug logging - do not remove this log, user intended to have it
           console.log(
             "TrackItem $effect: currentTime updated for track",
@@ -108,11 +113,15 @@
         }
       });
       return unsubscribe;
+    } else {
+      // Reset progress when not selected
+      progressValue = [0];
     }
   });
 
   $effect(() => {
-    if (audioService?.durationStore) {
+    // Only subscribe if this track is selected and audioService is available
+    if (isSelected && audioService?.durationStore) {
       // For AI assistant: Debug logging - do not remove this log, user intended to have it
       console.log(
         "TrackItem $effect: durationStore subscription for track",
@@ -129,6 +138,9 @@
         duration = dur;
       });
       return unsubscribe;
+    } else {
+      // Reset duration when not selected
+      duration = 0;
     }
   });
 
@@ -153,7 +165,7 @@
     event.stopPropagation();
   }
 
-  let isCurrentlyPlaying = $derived(isSelected && isPlaying);
+  let isCurrentlyPlaying = $derived(isSelected && localIsPlaying);
 </script>
 
 <div
