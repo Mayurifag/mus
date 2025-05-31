@@ -16,10 +16,10 @@
 - [x] Why we have +page.svelte and +layout.svelte? Should not that be only one?
 - [x] once again fix saving state, log on backend, check close tab and other cases
 - [x] Analyze all css methods which update several states in once. Make them with different methods. Remove all $: and refactor to svelte 5.
-- [ ] Recolor all frontend. Switched on repeat/reshuffle buttons should be blue (check)
-- [ ] Divide frontend into components: footer / sidebar / tracklist, etc.
-- [ ] Larger player footer. Move volume to the right side of next button.
+- [x] Recolor all frontend. Switched on repeat/reshuffle buttons should be blue (check)
+- [ ] ~~Divide frontend into components: footer / sidebar / tracklist, etc.~~
 - [ ] Style progress bar so it would be equal like tracklist' one. Remove styling from TrackItem.svelte. Progress bars have to show how much data cached already.
+- [ ] Larger player footer. Move volume to the right side of next button.
 - [ ] Fix mobile footer css
 - [ ] Scroll to track only if it is not visible on screen.
 - [ ] Move to vscode, update workflow, aliases. Adapt this workflow. Remove cursorrules. Update all snippets. https://www.chatprd.ai/resources/PRD-for-Cursor - browsermcp.io
@@ -27,6 +27,7 @@
 - [ ] show history of tracks in right panel to check functionality of shuffle/repeat tracks - check it
 - [ ] Run through prompt about enhancing project, get TODOs done
 - [ ] Remove test toasts notifications from frontend and backend
+- [ ] Shuffle - playlist doesnt work correctly.
 - [ ] Make docker compose working and also dockerize production dockerfile + start some e2e
 - [ ] Rewrite all markdown files with AI
 - [ ] Publish

@@ -38,8 +38,9 @@ vi.mock("$lib/stores/trackStore", () => {
 });
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { render } from "@testing-library/svelte";
+import { render, fireEvent } from "@testing-library/svelte";
 import { trackStore } from "$lib/stores/trackStore";
+import type { AudioService } from "$lib/services/AudioService";
 import PlayerFooter from "./PlayerFooter.svelte";
 
 describe("PlayerFooter component", () => {
@@ -127,5 +128,105 @@ describe("PlayerFooter component", () => {
     expect(shuffleIndex).toBeLessThan(previousIndex);
     expect(repeatIndex).toBeLessThan(previousIndex);
     expect(shuffleIndex).toBeLessThan(repeatIndex);
+  });
+
+  it("should apply active styling to shuffle button when shuffle is enabled", () => {
+    // Mock shuffle enabled state
+    const mockStoreWithShuffle = {
+      ...vi.mocked(trackStore),
+      subscribe: vi.fn((callback) => {
+        callback({
+          tracks: [],
+          currentTrackIndex: 0,
+          playHistory: [],
+          currentTrack: {
+            id: 1,
+            title: "Test Track",
+            artist: "Test Artist",
+            duration: 180,
+            file_path: "/path/to/file.mp3",
+            added_at: 1615478400,
+            has_cover: true,
+            cover_small_url: "/api/v1/tracks/1/covers/small.webp",
+            cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+          },
+          is_shuffle: true,
+        });
+        return () => {};
+      }),
+    };
+
+    vi.mocked(trackStore).subscribe = mockStoreWithShuffle.subscribe;
+
+    const { container } = render(PlayerFooter);
+    const shuffleButton = container.querySelector(
+      'button[aria-label="Toggle Shuffle"]',
+    );
+
+    expect(shuffleButton).toBeTruthy();
+    expect(shuffleButton?.classList.contains("bg-accent/10")).toBe(true);
+  });
+
+  it("should apply active styling to repeat button when repeat is enabled", () => {
+    const mockIsRepeatStore = {
+      subscribe: vi.fn((callback) => {
+        callback(true); // Simulate repeat enabled
+        return () => {};
+      }),
+      set: vi.fn(),
+      update: vi.fn(),
+    };
+
+    const mockAudioService = {
+      isRepeat: true,
+      isRepeatStore: mockIsRepeatStore,
+      toggleRepeat: vi.fn(),
+    } as unknown as AudioService;
+
+    const { container } = render(PlayerFooter, {
+      audioService: mockAudioService,
+    });
+
+    const repeatButton = container.querySelector(
+      'button[aria-label="Toggle Repeat"]',
+    );
+
+    expect(repeatButton).toBeTruthy();
+    expect(repeatButton?.classList.contains("bg-accent/10")).toBe(true);
+  });
+
+  it("should toggle repeat state when repeat button is clicked", async () => {
+    const mockIsRepeatStore = {
+      subscribe: vi.fn((callback) => {
+        callback(false); // Start with repeat disabled
+        return () => {};
+      }),
+      set: vi.fn(),
+      update: vi.fn(),
+    };
+
+    const mockAudioService = {
+      isRepeat: false,
+      isRepeatStore: mockIsRepeatStore,
+      toggleRepeat: vi.fn(),
+    } as unknown as AudioService;
+
+    const { container } = render(PlayerFooter, {
+      audioService: mockAudioService,
+    });
+
+    const repeatButton = container.querySelector(
+      'button[aria-label="Toggle Repeat"]',
+    );
+    expect(repeatButton).toBeTruthy();
+
+    // Initially should not have active styling
+    expect(repeatButton?.classList.contains("bg-accent/10")).toBe(false);
+
+    // Click the button
+    await fireEvent.click(repeatButton as Element);
+
+    // Verify toggleRepeat was called
+    expect(mockAudioService.toggleRepeat).toHaveBeenCalledOnce();
   });
 });
