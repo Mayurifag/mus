@@ -21,6 +21,7 @@
   let sheetOpen = false;
   let lastPlayerStateSaveTime = 0;
   let lastCurrentTrackId: number | null = null;
+  let isInitializing = true;
 
   onMount(async () => {
     trackStore.setTracks(data.tracks);
@@ -75,9 +76,11 @@
 
     if (browser) {
       document.body.addEventListener("toggle-sheet", handleToggleMenu);
-      window.addEventListener("beforeunload", handleBeforeUnload);
       document.addEventListener("visibilitychange", handleVisibilityChange);
     }
+
+    // Mark initialization as complete
+    isInitializing = false;
   });
 
   // Clean up event source on component destroy
@@ -94,7 +97,6 @@
     // Remove event listeners - only in browser
     if (browser && document) {
       document.body.removeEventListener("toggle-sheet", handleToggleMenu);
-      window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     }
   });
@@ -113,11 +115,6 @@
     apiSendPlayerStateBeacon(playerStateDto);
   }
 
-  // Handle page unload events
-  function handleBeforeUnload() {
-    savePlayerState();
-  }
-
   // Handle visibility change events
   function handleVisibilityChange() {
     if (document.visibilityState === "hidden") {
@@ -134,7 +131,8 @@
       "$: Track changed - updating audio source",
       $trackStore.currentTrack.id,
     );
-    audioService.updateAudioSource($trackStore.currentTrack, true);
+    const shouldAutoPlay = audioService.isPlaying || !isInitializing;
+    audioService.updateAudioSource($trackStore.currentTrack, shouldAutoPlay);
     lastCurrentTrackId = $trackStore.currentTrack.id;
   }
 
@@ -156,7 +154,7 @@
 
 <Sheet.Root bind:open={sheetOpen}>
   <!-- Main content area that uses full viewport scrolling -->
-  <main class="min-h-screen pr-0 pb-20 md:pr-64">
+  <main class="min-h-screen pb-20 pr-0 md:pr-64">
     <div class="p-4">
       <slot />
     </div>
@@ -165,7 +163,7 @@
   <Toaster position="top-left" />
 
   <!-- Desktop Sidebar - positioned fixed on the right -->
-  <aside class="fixed top-0 right-0 bottom-20 hidden w-64 md:block">
+  <aside class="fixed bottom-20 right-0 top-0 hidden w-64 md:block">
     <RightSidebar />
   </aside>
 

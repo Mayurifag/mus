@@ -14,7 +14,7 @@
 - [x] Bug - after loading page, if we select another track, it will not play. Check it.
 - [x] Remove time since added from trackitem and also remove date-fns
 - [x] Why we have +page.svelte and +layout.svelte? Should not that be only one?
-- [ ] once again fix saving state, log on backend, check close tab and other cases
+- [x] once again fix saving state, log on backend, check close tab and other cases
 - [ ] Analyze all css methods which update several states in once. Make them with different methods. Remove all $: and refactor to svelte 5.
 - [ ] Recolor all frontend. Switched on repeat/reshuffle buttons should be blue (check)
 - [ ] Divide frontend into components: footer / sidebar / tracklist, etc.
@@ -30,6 +30,7 @@
 - [ ] Rewrite all markdown files with AI
 - [ ] Publish
 - [ ] Little bug - if we drag volume slider overflow left, it will show 100%. Maybe remove this at all.
+- [ ] Clicking on album image on player footer should scroll to this track in tracklist.
 
 ## Phase 2
 

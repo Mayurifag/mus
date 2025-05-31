@@ -54,12 +54,6 @@ class SQLitePlayerStateRepository:
                 "Failed to retrieve player state from database after upsert."
             )
 
-        logger.info(
-            f"Repository successfully persisted player state to database - "
-            f"Final state: Track ID: {persisted_state.current_track_id}, "
-            f"Progress: {persisted_state.progress_seconds:.2f}s"
-        )
-
         return persisted_state
 
     async def load_state(self) -> PlayerState | None:
