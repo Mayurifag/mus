@@ -64,7 +64,20 @@
   // Subscribe to AudioService stores
   $effect(() => {
     if (audioService?.isPlayingStore) {
+      // For AI assistant: Debug logging - do not remove this log, user intended to have it
+      console.log(
+        "TrackItem $effect: isPlayingStore subscription for track",
+        track.id,
+        track.title,
+      );
       const unsubscribe = audioService.isPlayingStore.subscribe((playing) => {
+        // For AI assistant: Debug logging - do not remove this log, user intended to have it
+        console.log(
+          "TrackItem $effect: isPlaying changed for track",
+          track.id,
+          "Playing:",
+          playing,
+        );
         isPlaying = playing;
       });
       return unsubscribe;
@@ -73,8 +86,24 @@
 
   $effect(() => {
     if (audioService?.currentTimeStore) {
+      // For AI assistant: Debug logging - do not remove this log, user intended to have it
+      console.log(
+        "TrackItem $effect: currentTimeStore subscription for track",
+        track.id,
+        "isSelected:",
+        isSelected,
+      );
       const unsubscribe = audioService.currentTimeStore.subscribe((time) => {
         if (isSelected && !isUserDragging) {
+          // For AI assistant: Debug logging - do not remove this log, user intended to have it
+          console.log(
+            "TrackItem $effect: currentTime updated for track",
+            track.id,
+            "time:",
+            time,
+            "isUserDragging:",
+            isUserDragging,
+          );
           progressValue = [time];
         }
       });
@@ -84,7 +113,19 @@
 
   $effect(() => {
     if (audioService?.durationStore) {
+      // For AI assistant: Debug logging - do not remove this log, user intended to have it
+      console.log(
+        "TrackItem $effect: durationStore subscription for track",
+        track.id,
+      );
       const unsubscribe = audioService.durationStore.subscribe((dur) => {
+        // For AI assistant: Debug logging - do not remove this log, user intended to have it
+        console.log(
+          "TrackItem $effect: duration updated for track",
+          track.id,
+          "duration:",
+          dur,
+        );
         duration = dur;
       });
       return unsubscribe;

@@ -26,7 +26,7 @@
       "rest": "true"
     },
     {
-      "status": "todo",
+      "status": "complete",
       "description": "Review and Refactor 'frontend/src/lib/components/domain/TrackItem.svelte'.",
       "details": "This component already uses Svelte 5 runes ($props, $state, $derived, $effect). Confirm no '$:' syntax remains. Add specified debug logging to existing $effect blocks (e.g., for audioService store subscriptions). Review derived state 'isCurrentlyPlaying = $derived(...)' (this is correct). Evaluate functions like 'playTrack', 'handlePlayButtonClick', etc., for opportunities to enhance them using Svelte 5 patterns or simplify logic if they directly update multiple *distinct* local $state variables in a non-cohesive way (unlikely for these event handlers). Consider if any logic can be further simplified or made more declarative with runes. Update tests in 'frontend/src/lib/components/domain/TrackItem.svelte.test.ts'.",
       "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc,.cursor/rules/typescript.mdc`",
