@@ -61,7 +61,6 @@ actions:
           - Stores (`src/lib/stores/`): Define store state with TypeScript interfaces. Actions within stores should be typed.
 
       7.  **Utilities & Libraries:**
-          - `date-fns`: Use for all date and time manipulations and formatting.
           - `lucide-svelte`: Use for icons.
           - `clsx`, `tailwind-merge`: Use (often via `cn` from `shadcn-svelte`) for dynamic and clean class string generation.
 

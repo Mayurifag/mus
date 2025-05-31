@@ -84,8 +84,8 @@ describe("AudioService", () => {
     expect(mockAudio.load).not.toHaveBeenCalled();
   });
 
-  it("should play audio", async () => {
-    await audioService.play();
+  it("should play audio", () => {
+    audioService.play();
     expect(mockAudio.play).toHaveBeenCalled();
   });
 
@@ -224,5 +224,33 @@ describe("AudioService", () => {
     expect(() => {
       audioService.updateAudioSource(mockTrack, true);
     }).not.toThrow();
+  });
+
+  it("should auto-play when updateAudioSource is called with isPlaying=true", () => {
+    audioService.updateAudioSource(mockTrack, true);
+
+    const addEventListenerMock =
+      mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
+    const canPlayHandler = addEventListenerMock.mock.calls.find(
+      (call: unknown[]) => call[0] === "canplay",
+    )?.[1] as () => void;
+
+    canPlayHandler();
+
+    expect(mockAudio.play).toHaveBeenCalled();
+  });
+
+  it("should not auto-play when updateAudioSource is called with isPlaying=false", () => {
+    audioService.updateAudioSource(mockTrack, false);
+
+    const addEventListenerMock =
+      mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
+    const canPlayHandler = addEventListenerMock.mock.calls.find(
+      (call: unknown[]) => call[0] === "canplay",
+    )?.[1] as () => void;
+
+    canPlayHandler();
+
+    expect(mockAudio.play).not.toHaveBeenCalled();
   });
 });

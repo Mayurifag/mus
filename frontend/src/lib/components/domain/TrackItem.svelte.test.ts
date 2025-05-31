@@ -20,11 +20,6 @@ vi.mock("$lib/stores/playerStore", () => ({
   },
 }));
 
-// Mock date-fns formatDistanceToNow
-vi.mock("date-fns", () => ({
-  formatDistanceToNow: vi.fn().mockReturnValue("about 1 hour ago"),
-}));
-
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/svelte";
 import type { Track } from "$lib/types";
@@ -63,7 +58,6 @@ describe("TrackItem component", () => {
     expect(screen.getByText("Test Artist")).toBeInTheDocument();
     expect(screen.getByText("3:00")).toBeInTheDocument(); // 180 seconds formatted
     expect(screen.getByAltText("Album art for Test Song")).toBeInTheDocument();
-    expect(screen.getByText("about 1 hour ago")).toBeInTheDocument();
   });
 
   it("renders placeholder for missing cover art", () => {

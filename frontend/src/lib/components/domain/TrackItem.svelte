@@ -2,7 +2,6 @@
   import type { Track } from "$lib/types";
   import type { AudioService } from "$lib/services/AudioService";
   import { trackStore } from "$lib/stores/trackStore";
-  import { formatDistanceToNow } from "date-fns";
   import { Play, Pause } from "@lucide/svelte";
   import { Button } from "$lib/components/ui/button";
   import { Slider } from "$lib/components/ui/slider";
@@ -23,10 +22,6 @@
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-  }
-
-  function getTimeSinceAdded(timestamp: number): string {
-    return formatDistanceToNow(new Date(timestamp * 1000), { addSuffix: true });
   }
 
   function playTrack() {
@@ -175,7 +170,6 @@
 
   <div class="text-muted-foreground flex flex-col items-end text-sm">
     <span>{formatDuration(track.duration)}</span>
-    <span class="text-xs">{getTimeSinceAdded(track.added_at)}</span>
   </div>
 
   <Button

@@ -24,7 +24,7 @@ The core architecture consists of:
 *   **Data Fetching:**
     *   Initial page/layout data fetching uses SvelteKit's `load` functions (`+page.server.js`, `+layout.server.js`).
     *   Client-side data fetching and mutations (e.g., saving player state, triggering scans) use the native `fetch` API, potentially wrapped in utility functions in `src/lib/services/apiClient.ts`.
-*   **Date/Time:** `date-fns` for date/time formatting and manipulation.
+
 *   **PWA:** Basic Progressive Web App features (manifest) implemented for web deployment.
 *   **Directory Structure (`frontend/`):**
     *   `src/`: Main application code.
@@ -33,7 +33,7 @@ The core architecture consists of:
             *   `stores/`: Svelte stores (e.g., `playerStore.ts`, `trackStore.ts`).
             *   `services/`: API client logic, utility functions interacting with the backend.
             *   `types/`: TypeScript type definitions.
-            *   `utils/`: General utility functions (e.g., date formatting).
+            *   `utils/`: General utility functions.
         *   `routes/`: Application pages and API routes (file-based routing). Contains `.svelte` files for pages/layouts and `+page.server.ts`/`+layout.server.ts` for `load` functions.
         *   `app.html`: Main HTML template.
         *   `hooks.server.ts`: Server-side hooks.

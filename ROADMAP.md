@@ -11,8 +11,8 @@
 - [x] move next track out of audioService, think how. Maybe thats good case for effect. This effect has to change web title!
 - [x] Move all dependencies to devDependencies. Eliminate usage of xior and use fetch
 - [x] Try to go with https://github.com/unplugin/unplugin-icons - use lucide there
-- [ ] Bug - after loading page, if we select another track, it will not play. Check it.
-- [ ] Remove time since added from trackitem and also remove date-fns
+- [x] Bug - after loading page, if we select another track, it will not play. Check it.
+- [x] Remove time since added from trackitem and also remove date-fns
 - [ ] Why we have +page.svelte and +layout.svelte? Should not that be only one?
 - [ ] once again fix saving state, log on backend, check close tab and other cases
 - [ ] Analyze all css methods which update several states in once. Make them with different methods. Remove all $: and refactor to svelte 5.
@@ -29,6 +29,7 @@
 - [ ] Make docker compose working and also dockerize production dockerfile + start some e2e
 - [ ] Rewrite all markdown files with AI
 - [ ] Publish
+- [ ] Little bug - if we drag volume slider overflow left, it will show 100%. Maybe remove this at all.
 
 ## Phase 2
 
