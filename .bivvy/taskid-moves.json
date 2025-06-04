@@ -1,0 +1,45 @@
+{
+  "Climb": "taskid",
+  "moves": [
+    {
+      "status": "complete",
+      "description": "Modify `Slider.svelte` for unified progress bar styling and buffer indicator.",
+      "details": "Update `frontend/src/lib/components/ui/slider/slider.svelte`. Increase track height to `h-2` (8px). Set track background to `bg-muted` and playback progress to `bg-accent`. Implement slider thumb to be hidden by default (`opacity-0`) and visible on hover of the slider component (`group-hover:opacity-100`). The slider root element will need the `group` class. Add a new prop `bufferedValue: number[] | undefined` (defaulting to `[0]`). Introduce a new `<span>` element for the buffer progress, styled with `bg-accent/30` (or similar light accent shade) and its width dynamically set based on `bufferedValue` and `max` props. Ensure the thumb uses `bg-accent` and `border-accent/50`.",
+      "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc`",
+      "filepaths_to_modify": "`frontend/src/lib/components/ui/slider/slider.svelte`",
+      "rest": "false"
+    },
+    {
+      "status": "complete",
+      "description": "Update `PlayerFooter.svelte` to use the redesigned `Slider` component.",
+      "details": "In `frontend/src/lib/components/layout/PlayerFooter.svelte`, ensure it uses the modified `Slider.svelte`. Remove any local CSS overrides for the progress slider if they exist. Pass a placeholder value for the new `bufferedValue` prop, e.g., `bufferedValue={[0]}` or a local state initialized to `[0]`. Verify layout and interactivity.",
+      "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc`",
+      "filepaths_to_modify": "`frontend/src/lib/components/layout/PlayerFooter.svelte`",
+      "rest": "false"
+    },
+    {
+      "status": "complete",
+      "description": "Update `TrackItem.svelte` to use the redesigned `Slider` component and remove old CSS.",
+      "details": "In `frontend/src/lib/components/domain/TrackItem.svelte`, remove the entire `<style>` block containing CSS for `.track-progress-slider` and related elements, including `:global(.group\\/slider)`. Remove the `group/slider` class from the `div` wrapping the slider. Remove the `track-progress-slider` class from the `Slider` component itself. Ensure it uses the modified `Slider.svelte` when `isSelected` is true. Pass a placeholder value for the new `bufferedValue` prop, e.g., `bufferedValue={[0]}` or a local state initialized to `[0]`. Verify styling and interactivity in both selected and non-selected states.",
+      "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc`",
+      "filepaths_to_modify": "`frontend/src/lib/components/domain/TrackItem.svelte`",
+      "rest": "false"
+    },
+    {
+      "status": "complete",
+      "description": "Update unit tests for `TrackItem.svelte` and `PlayerFooter.svelte`.",
+      "details": "Modify existing tests in `frontend/src/lib/components/domain/TrackItem.svelte.test.ts` and `frontend/src/lib/components/layout/PlayerFooter.svelte.test.ts` to reflect the CSS changes. Verify that the `Slider` component, when rendered, has the new height (e.g., `h-2` on its track span). Check for the presence of Tailwind classes for the thumb's hover behavior (`opacity-0`, `group-hover:opacity-100`). Verify the buffer indicator `<span>` is rendered and its style attribute for width is correctly applied based on a mocked `bufferedValue`. Ensure ARIA attributes are still present and correct.",
+      "rules_filepaths_to_follow": "`.cursor/rules/svelte.mdc`",
+      "filepaths_to_modify": "`frontend/src/lib/components/domain/TrackItem.svelte.test.ts,frontend/src/lib/components/layout/PlayerFooter.svelte.test.ts`",
+      "rest": "false"
+    },
+    {
+      "status": "complete",
+      "description": "Run `make ci` to ensure all checks pass.",
+      "details": "Execute `make ci` in the project root directory. Address any linting, formatting, or test failures until the command passes without any errors or warnings.",
+      "rules_filepaths_to_follow": "`.cursor/rules/makefile.mdc`",
+      "filepaths_to_modify": "",
+      "rest": "true"
+    }
+  ]
+}
