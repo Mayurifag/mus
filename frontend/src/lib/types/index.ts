@@ -10,6 +10,11 @@ export interface Track {
   cover_original_url: string | null;
 }
 
+export interface TimeRange {
+  start: number;
+  end: number;
+}
+
 export interface PlayerState {
   current_track_id: number | null;
   progress_seconds: number; // Current playback position in seconds

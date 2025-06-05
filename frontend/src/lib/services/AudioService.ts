@@ -1,4 +1,4 @@
-import type { Track } from "$lib/types";
+import type { Track, TimeRange } from "$lib/types";
 import { getStreamUrl } from "$lib/services/apiClient";
 import { writable } from "svelte/store";
 
@@ -15,6 +15,7 @@ export class AudioService {
   private _currentTime = writable(0);
   private _duration = writable(0);
   private _isRepeat = writable(false);
+  private _currentBufferedRanges = writable<TimeRange[]>([]);
 
   // Keep current values for efficient getter access
   private _currentVolume = 1.0;
@@ -23,6 +24,7 @@ export class AudioService {
   private _currentCurrentTime = 0;
   private _currentDuration = 0;
   private _currentIsRepeat = false;
+  private _currentCurrentBufferedRanges: TimeRange[] = [];
 
   constructor(
     audio: HTMLAudioElement,
@@ -38,6 +40,9 @@ export class AudioService {
     this._currentTime.subscribe((value) => (this._currentCurrentTime = value));
     this._duration.subscribe((value) => (this._currentDuration = value));
     this._isRepeat.subscribe((value) => (this._currentIsRepeat = value));
+    this._currentBufferedRanges.subscribe(
+      (value) => (this._currentCurrentBufferedRanges = value),
+    );
 
     this.setupEventListeners();
   }
@@ -50,6 +55,8 @@ export class AudioService {
     this.audio.addEventListener("canplay", this.handleCanPlay);
     this.audio.addEventListener("play", this.handlePlay);
     this.audio.addEventListener("pause", this.handlePause);
+    this.audio.addEventListener("progress", this.handleProgress);
+    this.audio.addEventListener("suspend", this.handleSuspend);
   }
 
   private handlePlay = (): void => {
@@ -101,6 +108,32 @@ export class AudioService {
     }
   };
 
+  private handleProgress = (): void => {
+    this.updateBufferedRanges();
+  };
+
+  private handleSuspend = (): void => {
+    this.updateBufferedRanges();
+  };
+
+  private convertTimeRangesToArray(timeRanges: TimeRanges): TimeRange[] {
+    const ranges: TimeRange[] = [];
+    for (let i = 0; i < timeRanges.length; i++) {
+      ranges.push({
+        start: timeRanges.start(i),
+        end: timeRanges.end(i),
+      });
+    }
+    return ranges;
+  }
+
+  private updateBufferedRanges(): void {
+    if (this.audio && this.audio.buffered) {
+      const ranges = this.convertTimeRangesToArray(this.audio.buffered);
+      this._currentBufferedRanges.set(ranges);
+    }
+  }
+
   updateAudioSource(track: Track | null, isPlaying: boolean): void {
     if (!track) return;
 
@@ -113,6 +146,7 @@ export class AudioService {
         document.title = `${track.artist} - ${track.title}`;
       }
       this._currentTime.set(0);
+      this._currentBufferedRanges.set([]);
     }
   }
 
@@ -177,6 +211,10 @@ export class AudioService {
     return this._currentIsRepeat;
   }
 
+  get currentBufferedRanges(): TimeRange[] {
+    return this._currentCurrentBufferedRanges;
+  }
+
   // Store getters for reactive subscriptions
   get volumeStore() {
     return this._volume;
@@ -200,6 +238,10 @@ export class AudioService {
 
   get isRepeatStore() {
     return this._isRepeat;
+  }
+
+  get currentBufferedRangesStore() {
+    return this._currentBufferedRanges;
   }
 
   setRepeat(isRepeat: boolean): void {
@@ -227,5 +269,7 @@ export class AudioService {
     this.audio.removeEventListener("canplay", this.handleCanPlay);
     this.audio.removeEventListener("play", this.handlePlay);
     this.audio.removeEventListener("pause", this.handlePause);
+    this.audio.removeEventListener("progress", this.handleProgress);
+    this.audio.removeEventListener("suspend", this.handleSuspend);
   }
 }

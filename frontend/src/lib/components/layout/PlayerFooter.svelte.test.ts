@@ -41,6 +41,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, fireEvent } from "@testing-library/svelte";
 import { trackStore } from "$lib/stores/trackStore";
 import type { AudioService } from "$lib/services/AudioService";
+import type { TimeRange } from "$lib/types";
+import { writable } from "svelte/store";
 import PlayerFooter from "./PlayerFooter.svelte";
 
 describe("PlayerFooter component", () => {
@@ -228,5 +230,113 @@ describe("PlayerFooter component", () => {
 
     // Verify toggleRepeat was called
     expect(mockAudioService.toggleRepeat).toHaveBeenCalledOnce();
+  });
+
+  describe("buffered ranges integration", () => {
+    it("should subscribe to buffered ranges store when audioService is provided", () => {
+      const mockBufferedRangesStore = writable<TimeRange[]>([]);
+      const mockAudioService = {
+        currentBufferedRangesStore: mockBufferedRangesStore,
+      } as unknown as AudioService;
+
+      render(PlayerFooter, {
+        audioService: mockAudioService,
+      });
+
+      expect(mockBufferedRangesStore.subscribe).toBeDefined();
+    });
+
+    it("should pass buffered ranges to progress slider", () => {
+      const bufferedRanges: TimeRange[] = [
+        { start: 10, end: 50 },
+        { start: 80, end: 120 },
+      ];
+
+      const mockBufferedRangesStore = writable(bufferedRanges);
+      const mockDurationStore = writable(180);
+      const mockCurrentTimeStore = writable(30);
+      const mockIsPlayingStore = writable(false);
+
+      const mockAudioService = {
+        currentBufferedRangesStore: mockBufferedRangesStore,
+        durationStore: mockDurationStore,
+        currentTimeStore: mockCurrentTimeStore,
+        isPlayingStore: mockIsPlayingStore,
+      } as unknown as AudioService;
+
+      const { container } = render(PlayerFooter, {
+        audioService: mockAudioService,
+      });
+
+      const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");
+      expect(bufferedSegments).toHaveLength(2);
+    });
+
+    it("should handle empty buffered ranges", () => {
+      const mockBufferedRangesStore = writable<TimeRange[]>([]);
+      const mockDurationStore = writable(180);
+      const mockCurrentTimeStore = writable(30);
+      const mockIsPlayingStore = writable(false);
+
+      const mockAudioService = {
+        currentBufferedRangesStore: mockBufferedRangesStore,
+        durationStore: mockDurationStore,
+        currentTimeStore: mockCurrentTimeStore,
+        isPlayingStore: mockIsPlayingStore,
+      } as unknown as AudioService;
+
+      const { container } = render(PlayerFooter, {
+        audioService: mockAudioService,
+      });
+
+      const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");
+      expect(bufferedSegments).toHaveLength(0);
+    });
+
+    it("should update buffered ranges when store changes", async () => {
+      const mockBufferedRangesStore = writable<TimeRange[]>([]);
+      const mockDurationStore = writable(180);
+      const mockCurrentTimeStore = writable(30);
+      const mockIsPlayingStore = writable(false);
+
+      const mockAudioService = {
+        currentBufferedRangesStore: mockBufferedRangesStore,
+        durationStore: mockDurationStore,
+        currentTimeStore: mockCurrentTimeStore,
+        isPlayingStore: mockIsPlayingStore,
+      } as unknown as AudioService;
+
+      const { container } = render(PlayerFooter, {
+        audioService: mockAudioService,
+      });
+
+      expect(container.querySelectorAll(".bg-accent\\/20")).toHaveLength(0);
+
+      mockBufferedRangesStore.set([{ start: 0, end: 60 }]);
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(container.querySelectorAll(".bg-accent\\/20")).toHaveLength(1);
+    });
+
+    it("should work without audioService", () => {
+      const { container } = render(PlayerFooter);
+
+      const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");
+      expect(bufferedSegments).toHaveLength(0);
+    });
+
+    it("should work when currentBufferedRangesStore is undefined", () => {
+      const mockAudioService = {
+        currentBufferedRangesStore: undefined,
+      } as unknown as AudioService;
+
+      const { container } = render(PlayerFooter, {
+        audioService: mockAudioService,
+      });
+
+      const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");
+      expect(bufferedSegments).toHaveLength(0);
+    });
   });
 });

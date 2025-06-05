@@ -1,11 +1,13 @@
 <script lang="ts">
   import { Slider as SliderPrimitive } from "bits-ui";
   import { cn } from "$lib/utils.js";
+  import type { TimeRange } from "$lib/types";
 
   let {
     class: className,
     value = $bindable([0]),
     max = 100,
+    bufferedRanges,
     onValueChange,
     onValueCommit,
     onInput,
@@ -14,6 +16,7 @@
     class?: string;
     value?: number[];
     max?: number;
+    bufferedRanges?: TimeRange[];
     onValueChange?: (value: number[]) => void;
     onValueCommit?: () => void;
     onInput?: (event: Event) => void;
@@ -54,6 +57,17 @@
   let:thumbs
 >
   <span class="bg-muted relative h-2 w-full grow overflow-hidden rounded-full">
+    {#if bufferedRanges}
+      {#each bufferedRanges as range (range.start + "-" + range.end)}
+        <div
+          class="bg-accent/20 absolute top-0 h-full"
+          style="left: {(range.start / max) * 100}%; width: {((range.end -
+            range.start) /
+            max) *
+            100}%;"
+        ></div>
+      {/each}
+    {/if}
     <SliderPrimitive.Range class="bg-accent absolute h-full" />
   </span>
   {#each thumbs as thumb (thumb)}

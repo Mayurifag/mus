@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Track } from "$lib/types";
+  import type { Track, TimeRange } from "$lib/types";
   import type { AudioService } from "$lib/services/AudioService";
   import { trackStore } from "$lib/stores/trackStore";
   import { Play, Pause } from "@lucide/svelte";
@@ -60,6 +60,7 @@
   let isUserDragging = $state(false);
   let localIsPlaying = $state(false);
   let duration = $state(0);
+  let bufferedRanges = $state<TimeRange[]>([]);
 
   $effect(() => {
     if (isSelected && audioService) {
@@ -135,11 +136,33 @@
         );
       }
 
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.currentBufferedRangesStore) {
+        // For AI assistant: Debug logging - do not remove this log, user intended to have it
+        console.log(
+          "TrackItem $effect: currentBufferedRangesStore subscription for track",
+          track.id,
+        );
+        unsubscribers.push(
+          audioService.currentBufferedRangesStore.subscribe((ranges) => {
+            // For AI assistant: Debug logging - do not remove this log, user intended to have it
+            console.log(
+              "TrackItem $effect: bufferedRanges updated for track",
+              track.id,
+              "ranges:",
+              ranges,
+            );
+            bufferedRanges = ranges;
+          }),
+        );
+      }
+
       return () => unsubscribers.forEach((unsub) => unsub());
     } else {
       localIsPlaying = false;
       progressValue = [0];
       duration = 0;
+      bufferedRanges = [];
     }
   });
 
@@ -206,6 +229,7 @@
         class="relative z-10 mt-1 w-full cursor-pointer"
         data-testid="track-progress-slider"
         onclick={handleSliderContainerClick}
+        {bufferedRanges}
       />
     {/if}
   </div>

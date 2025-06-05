@@ -4,6 +4,7 @@
   import { Slider } from "$lib/components/ui/slider";
   import { trackStore } from "$lib/stores/trackStore";
   import type { AudioService } from "$lib/services/AudioService";
+  import type { TimeRange } from "$lib/types";
   import {
     Play,
     Pause,
@@ -45,6 +46,7 @@
   let currentTime = $state(0);
   let duration = $state(0);
   let isRepeat = $state(false);
+  let bufferedRanges = $state<TimeRange[]>([]);
 
   // Reactive volume feedback value
   let volumeFeedbackValue = $derived(
@@ -107,6 +109,17 @@
       const unsubscribe = audioService.isRepeatStore.subscribe((repeat) => {
         isRepeat = repeat;
       });
+      return unsubscribe;
+    }
+  });
+
+  $effect(() => {
+    if (audioService?.currentBufferedRangesStore) {
+      const unsubscribe = audioService.currentBufferedRangesStore.subscribe(
+        (ranges) => {
+          bufferedRanges = ranges;
+        },
+      );
       return unsubscribe;
     }
   });
@@ -307,6 +320,7 @@
             step={1}
             class="flex-1 cursor-pointer"
             disabled={!$trackStore.currentTrack}
+            {bufferedRanges}
           />
           <span class="text-muted-foreground w-10 text-xs">
             {formatTime(duration)}

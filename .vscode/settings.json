@@ -9,9 +9,6 @@
     "source.fixAll.ruff": "always",
     "source.fixAll.eslint": "always"
   },
-  "[javascript]": {
-    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
-  },
   "[json]": {
     "editor.wordWrap": "on"
   },
@@ -46,7 +43,8 @@
     "**/.ruff_cache": true,
     "**/.venv": true,
     "**/node_modules": true,
-    "**/.svelte-kit": true
+    "**/.svelte-kit": true,
+    "**/.overmind.sock": true
   },
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false,

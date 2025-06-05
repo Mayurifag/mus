@@ -29,6 +29,12 @@ describe("AudioService", () => {
 
   beforeEach(() => {
     // Create a mock audio element
+    const mockBuffered = {
+      length: 0,
+      start: vi.fn(),
+      end: vi.fn(),
+    };
+
     mockAudio = {
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
@@ -39,6 +45,9 @@ describe("AudioService", () => {
       currentTime: 0,
       duration: 180,
       volume: 1,
+      get buffered() {
+        return mockBuffered;
+      },
     } as unknown as HTMLAudioElement;
 
     // Create mock callback
@@ -66,6 +75,14 @@ describe("AudioService", () => {
     );
     expect(mockAudio.addEventListener).toHaveBeenCalledWith(
       "canplay",
+      expect.any(Function),
+    );
+    expect(mockAudio.addEventListener).toHaveBeenCalledWith(
+      "progress",
+      expect.any(Function),
+    );
+    expect(mockAudio.addEventListener).toHaveBeenCalledWith(
+      "suspend",
       expect.any(Function),
     );
   });
@@ -157,6 +174,14 @@ describe("AudioService", () => {
     );
     expect(mockAudio.removeEventListener).toHaveBeenCalledWith(
       "canplay",
+      expect.any(Function),
+    );
+    expect(mockAudio.removeEventListener).toHaveBeenCalledWith(
+      "progress",
+      expect.any(Function),
+    );
+    expect(mockAudio.removeEventListener).toHaveBeenCalledWith(
+      "suspend",
       expect.any(Function),
     );
   });
@@ -252,5 +277,123 @@ describe("AudioService", () => {
     canPlayHandler();
 
     expect(mockAudio.play).not.toHaveBeenCalled();
+  });
+
+  describe("buffered ranges", () => {
+    function setMockBuffered(mockBufferedData: {
+      length: number;
+      start: (index: number) => number;
+      end: (index: number) => number;
+    }) {
+      Object.defineProperty(mockAudio, "buffered", {
+        value: mockBufferedData,
+        configurable: true,
+      });
+    }
+
+    it("should convert TimeRanges to TimeRange array", () => {
+      setMockBuffered({
+        length: 2,
+        start: (index: number) => (index === 0 ? 0 : 60),
+        end: (index: number) => (index === 0 ? 30 : 120),
+      });
+
+      const addEventListenerMock =
+        mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
+      const progressHandler = addEventListenerMock.mock.calls.find(
+        (call: unknown[]) => call[0] === "progress",
+      )?.[1] as () => void;
+
+      progressHandler();
+
+      const bufferedRanges = audioService.currentBufferedRanges;
+      expect(bufferedRanges).toHaveLength(2);
+      expect(bufferedRanges[0]).toEqual({ start: 0, end: 30 });
+      expect(bufferedRanges[1]).toEqual({ start: 60, end: 120 });
+    });
+
+    it("should update buffered ranges on progress event", () => {
+      setMockBuffered({
+        length: 1,
+        start: () => 10,
+        end: () => 50,
+      });
+
+      const addEventListenerMock =
+        mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
+      const progressHandler = addEventListenerMock.mock.calls.find(
+        (call: unknown[]) => call[0] === "progress",
+      )?.[1] as () => void;
+
+      progressHandler();
+
+      expect(audioService.currentBufferedRanges).toEqual([
+        { start: 10, end: 50 },
+      ]);
+    });
+
+    it("should update buffered ranges on suspend event", () => {
+      setMockBuffered({
+        length: 1,
+        start: () => 5,
+        end: () => 25,
+      });
+
+      const addEventListenerMock =
+        mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
+      const suspendHandler = addEventListenerMock.mock.calls.find(
+        (call: unknown[]) => call[0] === "suspend",
+      )?.[1] as () => void;
+
+      suspendHandler();
+
+      expect(audioService.currentBufferedRanges).toEqual([
+        { start: 5, end: 25 },
+      ]);
+    });
+
+    it("should reset buffered ranges when audio source changes", () => {
+      setMockBuffered({
+        length: 1,
+        start: () => 10,
+        end: () => 50,
+      });
+
+      const addEventListenerMock =
+        mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
+      const progressHandler = addEventListenerMock.mock.calls.find(
+        (call: unknown[]) => call[0] === "progress",
+      )?.[1] as () => void;
+
+      progressHandler();
+      expect(audioService.currentBufferedRanges).toHaveLength(1);
+
+      audioService.updateAudioSource(mockTrack, false);
+      expect(audioService.currentBufferedRanges).toEqual([]);
+    });
+
+    it("should provide access to buffered ranges store", () => {
+      const store = audioService.currentBufferedRangesStore;
+      expect(store).toBeDefined();
+      expect(typeof store.subscribe).toBe("function");
+    });
+
+    it("should handle empty buffered ranges", () => {
+      setMockBuffered({
+        length: 0,
+        start: () => 0,
+        end: () => 0,
+      });
+
+      const addEventListenerMock =
+        mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
+      const progressHandler = addEventListenerMock.mock.calls.find(
+        (call: unknown[]) => call[0] === "progress",
+      )?.[1] as () => void;
+
+      progressHandler();
+
+      expect(audioService.currentBufferedRanges).toEqual([]);
+    });
   });
 });
