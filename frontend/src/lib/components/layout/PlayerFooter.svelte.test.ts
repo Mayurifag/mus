@@ -232,6 +232,41 @@ describe("PlayerFooter component", () => {
     expect(mockAudioService.toggleRepeat).toHaveBeenCalledOnce();
   });
 
+  it("should have volume controls positioned in the central control section", () => {
+    const { container } = render(PlayerFooter);
+
+    const muteButton = container.querySelector('button[aria-label="Mute"]');
+    expect(muteButton).toBeTruthy();
+
+    // Check that volume controls are in the central controls section
+    // Look for the central section with flex-1 class
+    const centralControlsSection = container.querySelector("div.flex.flex-1");
+    expect(centralControlsSection).toBeTruthy();
+
+    const muteButtonInCentral = centralControlsSection?.querySelector(
+      'button[aria-label="Mute"]',
+    );
+    expect(muteButtonInCentral).toBeTruthy();
+  });
+
+  it("should have progress slider positioned below control buttons", () => {
+    const { container } = render(PlayerFooter);
+
+    // Look for the central section with flex-1 class
+    const centralControlsSection = container.querySelector("div.flex.flex-1");
+    expect(centralControlsSection).toBeTruthy();
+
+    // Check for the two rows structure - look for divs with specific spacing classes
+    const controlButtonsRow = centralControlsSection?.querySelector(
+      "div.flex.items-center.space-x-2",
+    );
+    const progressSliderRow =
+      centralControlsSection?.querySelector("div.mt-2.flex");
+
+    expect(controlButtonsRow).toBeTruthy();
+    expect(progressSliderRow).toBeTruthy();
+  });
+
   describe("buffered ranges integration", () => {
     it("should subscribe to buffered ranges store when audioService is provided", () => {
       const mockBufferedRangesStore = writable<TimeRange[]>([]);

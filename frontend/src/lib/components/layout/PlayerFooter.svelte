@@ -185,11 +185,11 @@
 
 <div class="bg-card fixed right-0 bottom-0 left-0 z-50 border-t">
   <Card class="rounded-none border-0 shadow-none">
-    <div class="flex h-20 items-center px-4">
+    <div class="flex h-28 items-center px-4">
       <!-- Track Info -->
-      <div class="flex w-1/3 items-center space-x-4">
+      <div class="flex w-auto flex-shrink-0 items-center space-x-4">
         {#if $trackStore.currentTrack}
-          <div class="h-14 w-14 overflow-hidden rounded-md">
+          <div class="h-18 w-18 overflow-hidden rounded-md">
             {#if $trackStore.currentTrack.has_cover && $trackStore.currentTrack.cover_original_url}
               <img
                 src={$trackStore.currentTrack.cover_original_url}
@@ -205,16 +205,16 @@
             {/if}
           </div>
           <div class="flex flex-col overflow-hidden">
-            <span class="truncate text-sm font-medium"
+            <span class="truncate text-base font-medium"
               >{$trackStore.currentTrack.title}</span
             >
-            <span class="text-muted-foreground truncate text-xs">
+            <span class="text-muted-foreground truncate text-sm">
               {$trackStore.currentTrack.artist}
             </span>
           </div>
         {:else}
           <div
-            class="bg-muted flex h-14 w-14 items-center justify-center rounded-md"
+            class="bg-muted flex h-18 w-18 items-center justify-center rounded-md"
           >
             <span class="text-muted-foreground text-xs">No Track</span>
           </div>
@@ -225,13 +225,14 @@
       </div>
 
       <!-- Controls -->
-      <div class="flex w-1/3 flex-col items-center justify-center">
+      <div class="flex flex-1 flex-col items-center justify-center">
+        <!-- Control Buttons Row -->
         <div class="flex items-center space-x-2">
           <!-- Shuffle Button -->
           <Button
             variant="ghost"
             size="icon"
-            class="h-8 w-8 {$trackStore.is_shuffle ? 'bg-accent/10' : ''}"
+            class="h-9 w-9 {$trackStore.is_shuffle ? 'bg-accent/10' : ''}"
             on:click={() => trackStore.toggleShuffle()}
             aria-label="Toggle Shuffle"
             aria-pressed={$trackStore.is_shuffle}
@@ -248,7 +249,7 @@
           <Button
             variant="ghost"
             size="icon"
-            class="h-8 w-8 {isRepeat ? 'bg-accent/10' : ''}"
+            class="h-9 w-9 {isRepeat ? 'bg-accent/10' : ''}"
             on:click={() => {
               if (audioService) {
                 audioService.toggleRepeat();
@@ -267,17 +268,17 @@
           <Button
             variant="ghost"
             size="icon"
-            class="h-9 w-9"
+            class="h-10 w-10"
             on:click={() => trackStore.previousTrack()}
             aria-label="Previous Track"
             disabled={!$trackStore.currentTrack}
           >
-            <SkipBack class="h-5 w-5" />
+            <SkipBack class="h-6 w-6" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            class="h-10 w-10"
+            class="h-12 w-12"
             on:click={() => {
               if (audioService) {
                 if (isPlaying) {
@@ -291,51 +292,27 @@
             disabled={!$trackStore.currentTrack}
           >
             {#if isPlaying}
-              <Pause class="h-6 w-6" />
+              <Pause class="h-7 w-7" />
             {:else}
-              <Play class="h-6 w-6" />
+              <Play class="h-7 w-7" />
             {/if}
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            class="h-9 w-9"
+            class="h-10 w-10"
             on:click={() => trackStore.nextTrack()}
             aria-label="Next Track"
             disabled={!$trackStore.currentTrack}
           >
-            <SkipForward class="h-5 w-5" />
+            <SkipForward class="h-6 w-6" />
           </Button>
-        </div>
-        <div class="mt-1 flex w-full max-w-md items-center space-x-2 px-4">
-          <span class="text-muted-foreground w-10 text-right text-xs">
-            {formatTime(currentTime)}
-          </span>
-          <Slider
-            bind:value={progressValue}
-            onValueChange={handleProgressChange}
-            onValueCommit={handleProgressCommit}
-            onInput={handleProgressInput}
-            max={duration || 100}
-            step={1}
-            class="flex-1 cursor-pointer"
-            disabled={!$trackStore.currentTrack}
-            {bufferedRanges}
-          />
-          <span class="text-muted-foreground w-10 text-xs">
-            {formatTime(duration)}
-          </span>
-        </div>
-      </div>
 
-      <!-- Volume Controls and Additional Controls -->
-      <div class="flex w-1/3 items-center justify-end space-x-2 pr-4">
-        <!-- Volume Controls with Visual Feedback -->
-        <div class="relative flex items-center space-x-1">
+          <!-- Volume Controls -->
           <Button
             variant="ghost"
             size="icon"
-            class="h-8 w-8"
+            class="h-9 w-9"
             on:click={() => {
               if (audioService) {
                 audioService.toggleMute();
@@ -370,6 +347,32 @@
           </div>
         </div>
 
+        <!-- Progress Slider Row -->
+        <div class="mt-2 flex w-full max-w-lg items-center space-x-2">
+          <span class="text-muted-foreground w-10 text-right text-xs">
+            {formatTime(currentTime)}
+          </span>
+          <Slider
+            bind:value={progressValue}
+            onValueChange={handleProgressChange}
+            onValueCommit={handleProgressCommit}
+            onInput={handleProgressInput}
+            max={duration || 100}
+            step={1}
+            class="flex-1 cursor-pointer"
+            disabled={!$trackStore.currentTrack}
+            {bufferedRanges}
+          />
+          <span class="text-muted-foreground w-10 text-xs">
+            {formatTime(duration)}
+          </span>
+        </div>
+      </div>
+
+      <!-- Additional Controls -->
+      <div
+        class="flex w-auto flex-shrink-0 items-center justify-end space-x-2 pr-4"
+      >
         <!-- Mobile Menu Button -->
         <Button
           variant="ghost"

@@ -25,6 +25,7 @@
 - [ ] Fix mobile footer css
 - [ ] ai workflow Tasks - use just task.md everywhere. Use single backticks. There has to be no step like "review" or "ci" or something. Make less subtasks 1-2.
 - [ ] Hover on play/next/prev/any buttons - I want to glow with blue, not like now
+- [ ] css to fix too large music files names
 - [ ] Scroll to track only if it is not visible on screen.
 - [ ] Mobile API for Safari - PWA + service worker
 - [ ] show history of tracks in right panel to check functionality of shuffle/repeat tracks - check it
