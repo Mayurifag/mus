@@ -61,85 +61,84 @@
   let localIsPlaying = $state(false);
   let duration = $state(0);
 
-  // Subscribe to AudioService stores conditionally when selected
   $effect(() => {
-    // Only subscribe if this track is selected and audioService is available
-    if (isSelected && audioService?.isPlayingStore) {
-      // For AI assistant: Debug logging - do not remove this log, user intended to have it
-      console.log(
-        "TrackItem $effect: isPlayingStore subscription for track",
-        track.id,
-        track.title,
-      );
-      const unsubscribe = audioService.isPlayingStore.subscribe((playing) => {
+    if (isSelected && audioService) {
+      const unsubscribers: (() => void)[] = [];
+
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.isPlayingStore) {
         // For AI assistant: Debug logging - do not remove this log, user intended to have it
         console.log(
-          "TrackItem $effect: isPlaying changed for track",
+          "TrackItem $effect: isPlayingStore subscription for track",
           track.id,
-          "Playing:",
-          playing,
+          track.title,
         );
-        localIsPlaying = playing;
-      });
-      return unsubscribe;
+        unsubscribers.push(
+          audioService.isPlayingStore.subscribe((playing) => {
+            // For AI assistant: Debug logging - do not remove this log, user intended to have it
+            console.log(
+              "TrackItem $effect: isPlaying changed for track",
+              track.id,
+              "Playing:",
+              playing,
+            );
+            localIsPlaying = playing;
+          }),
+        );
+      }
+
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.currentTimeStore) {
+        // For AI assistant: Debug logging - do not remove this log, user intended to have it
+        console.log(
+          "TrackItem $effect: currentTimeStore subscription for track",
+          track.id,
+          "isSelected:",
+          isSelected,
+        );
+        unsubscribers.push(
+          audioService.currentTimeStore.subscribe((time) => {
+            if (!isUserDragging) {
+              // For AI assistant: Debug logging - do not remove this log, user intended to have it
+              console.log(
+                "TrackItem $effect: currentTime updated for track",
+                track.id,
+                "time:",
+                time,
+                "isUserDragging:",
+                isUserDragging,
+              );
+              progressValue = [time];
+            }
+          }),
+        );
+      }
+
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.durationStore) {
+        // For AI assistant: Debug logging - do not remove this log, user intended to have it
+        console.log(
+          "TrackItem $effect: durationStore subscription for track",
+          track.id,
+        );
+        unsubscribers.push(
+          audioService.durationStore.subscribe((dur) => {
+            // For AI assistant: Debug logging - do not remove this log, user intended to have it
+            console.log(
+              "TrackItem $effect: duration updated for track",
+              track.id,
+              "duration:",
+              dur,
+            );
+            duration = dur;
+          }),
+        );
+      }
+
+      return () => unsubscribers.forEach((unsub) => unsub());
     } else {
-      // Reset state when not selected
       localIsPlaying = false;
-    }
-  });
-
-  $effect(() => {
-    // Only subscribe if this track is selected and audioService is available
-    if (isSelected && audioService?.currentTimeStore) {
-      // For AI assistant: Debug logging - do not remove this log, user intended to have it
-      console.log(
-        "TrackItem $effect: currentTimeStore subscription for track",
-        track.id,
-        "isSelected:",
-        isSelected,
-      );
-      const unsubscribe = audioService.currentTimeStore.subscribe((time) => {
-        if (!isUserDragging) {
-          // For AI assistant: Debug logging - do not remove this log, user intended to have it
-          console.log(
-            "TrackItem $effect: currentTime updated for track",
-            track.id,
-            "time:",
-            time,
-            "isUserDragging:",
-            isUserDragging,
-          );
-          progressValue = [time];
-        }
-      });
-      return unsubscribe;
-    } else {
-      // Reset progress when not selected
       progressValue = [0];
-    }
-  });
-
-  $effect(() => {
-    // Only subscribe if this track is selected and audioService is available
-    if (isSelected && audioService?.durationStore) {
-      // For AI assistant: Debug logging - do not remove this log, user intended to have it
-      console.log(
-        "TrackItem $effect: durationStore subscription for track",
-        track.id,
-      );
-      const unsubscribe = audioService.durationStore.subscribe((dur) => {
-        // For AI assistant: Debug logging - do not remove this log, user intended to have it
-        console.log(
-          "TrackItem $effect: duration updated for track",
-          track.id,
-          "duration:",
-          dur,
-        );
-        duration = dur;
-      });
-      return unsubscribe;
-    } else {
-      // Reset duration when not selected
       duration = 0;
     }
   });
@@ -160,12 +159,8 @@
   }
 
   function handleSliderContainerClick(event: Event): void {
-    // Only prevent propagation, don't prevent default
-    // This allows the slider to work while preventing track selection
     event.stopPropagation();
   }
-
-  let isCurrentlyPlaying = $derived(isSelected && localIsPlaying);
 </script>
 
 <div
@@ -196,28 +191,22 @@
     {/if}
   </div>
 
-  <div class="flex flex-1 flex-col overflow-hidden">
+  <div class="flex flex-1 flex-col">
     <span class="truncate font-medium">{track.title}</span>
     <span class="text-muted-foreground truncate text-sm">{track.artist}</span>
 
     {#if isSelected}
-      <div
-        class="group/slider mt-1 w-full"
+      <Slider
+        bind:value={progressValue}
+        onValueChange={handleProgressChange}
+        onValueCommit={handleProgressCommit}
+        onInput={handleProgressInput}
+        max={duration || 100}
+        step={1}
+        class="relative z-10 mt-1 w-full cursor-pointer"
+        data-testid="track-progress-slider"
         onclick={handleSliderContainerClick}
-        onkeydown={handleSliderContainerClick}
-        role="presentation"
-      >
-        <Slider
-          bind:value={progressValue}
-          onValueChange={handleProgressChange}
-          on:valuecommit={handleProgressCommit}
-          on:input={handleProgressInput}
-          max={duration || 100}
-          step={1}
-          class="track-progress-slider relative h-1 w-full cursor-pointer"
-          data-testid="track-progress-slider"
-        />
-      </div>
+      />
     {/if}
   </div>
 
@@ -230,58 +219,12 @@
     size="icon"
     class="h-8 w-8"
     onclick={handlePlayButtonClick}
-    aria-label={isCurrentlyPlaying ? "Pause track" : "Play track"}
+    aria-label={isSelected && localIsPlaying ? "Pause track" : "Play track"}
   >
-    {#if isCurrentlyPlaying}
+    {#if isSelected && localIsPlaying}
       <Pause class="h-4 w-4" />
     {:else}
       <Play class="h-4 w-4" />
     {/if}
   </Button>
 </div>
-
-<style>
-  /* Ensure the slider track is visible with high specificity */
-  :global(.track-progress-slider) {
-    height: 4px !important;
-    min-height: 4px !important;
-  }
-
-  /* Target the actual slider track span element */
-  :global(.track-progress-slider span) {
-    height: 4px !important;
-    min-height: 4px !important;
-    background-color: hsl(var(--muted)) !important;
-  }
-
-  /* Target the slider range element */
-  :global(.track-progress-slider span > *) {
-    height: 4px !important;
-    min-height: 4px !important;
-    background-color: hsl(var(--accent)) !important;
-  }
-
-  /* More specific targeting for bits-ui slider elements */
-  :global(.track-progress-slider [data-melt-slider-root]) {
-    height: 4px !important;
-  }
-
-  :global(.track-progress-slider [data-melt-slider-range]) {
-    height: 4px !important;
-    background-color: hsl(var(--accent)) !important;
-  }
-
-  /* Show thumb always for selected tracks */
-  :global(.track-progress-slider [data-melt-slider-thumb]) {
-    opacity: 1;
-    transition: opacity 0.2s ease;
-    width: 12px !important;
-    height: 12px !important;
-  }
-
-  /* Ensure the slider container is visible */
-  :global(.group\/slider) {
-    min-height: 8px;
-    display: block;
-  }
-</style>

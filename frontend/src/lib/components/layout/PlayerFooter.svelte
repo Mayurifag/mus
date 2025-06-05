@@ -301,8 +301,8 @@
           <Slider
             bind:value={progressValue}
             onValueChange={handleProgressChange}
-            on:valuecommit={handleProgressCommit}
-            on:input={handleProgressInput}
+            onValueCommit={handleProgressCommit}
+            onInput={handleProgressInput}
             max={duration || 100}
             step={1}
             class="flex-1 cursor-pointer"
@@ -339,8 +339,8 @@
             <Slider
               bind:value={volumeValue}
               onValueChange={handleVolumeChange}
-              on:valuecommit={handleVolumeCommit}
-              on:input={handleVolumeInput}
+              onValueCommit={handleVolumeCommit}
+              onInput={handleVolumeInput}
               max={1}
               step={0.01}
               class="w-full"

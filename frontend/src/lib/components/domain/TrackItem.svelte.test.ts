@@ -91,11 +91,6 @@ describe("TrackItem component", () => {
 
     const progressSlider = screen.getByTestId("track-progress-slider");
     expect(progressSlider).toBeInTheDocument();
-
-    // Check that it has the correct class for styling
-    expect(progressSlider.classList.contains("track-progress-slider")).toBe(
-      true,
-    );
   });
 
   it("does not render progress slider when track is not selected", () => {

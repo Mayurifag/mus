@@ -18,7 +18,22 @@
 - [x] Analyze all css methods which update several states in once. Make them with different methods. Remove all $: and refactor to svelte 5.
 - [x] Recolor all frontend. Switched on repeat/reshuffle buttons should be blue (check)
 - [ ] ~~Divide frontend into components: footer / sidebar / tracklist, etc.~~
-- [ ] Style progress bar so it would be equal like tracklist' one. Remove styling from TrackItem.svelte. Progress bars have to show how much data cached already.
+- [ ] Style progress bar so it would be equal like tracklist' one. Remove styling from TrackItem.svelte.
+- [ ] Implement and display per-track buffered time ranges using a new BufferedRangesService and update Slider.svelte to render these ranges.
+
+This single line implies:
+
+Creating a new service/module (e.g., BufferedRangesService.ts or similar in frontend/src/lib/services/) to manage the Map<number, TimeRange[]> data structure.
+
+This service will contain the logic to process audio.buffered data and update the stored ranges.
+
+AudioService.ts will use this new service to report progress events.
+
+Slider.svelte will be modified to accept and render an array of TimeRange objects.
+
+Relevant parent components (TrackItem.svelte, PlayerFooter.svelte) will pass the buffered ranges for the current track to their Slider instances.
+
+
 - [ ] Larger player footer. Move volume to the right side of next button.
 - [ ] Fix mobile footer css
 - [ ] Scroll to track only if it is not visible on screen.
@@ -31,7 +46,7 @@
 - [ ] Make docker compose working and also dockerize production dockerfile + start some e2e
 - [ ] Rewrite all markdown files with AI
 - [ ] Publish
-- [ ] Little bug - if we drag volume slider overflow left, it will show 100%. Maybe remove this at all.
+- [ ] Little bug - if we drag volume slider overflow left, it will show 100%.
 - [ ] Clicking on album image on player footer should scroll to this track in tracklist.
 - [ ] Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?
 

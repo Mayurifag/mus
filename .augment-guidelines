@@ -68,3 +68,23 @@
 - Frontend icons: `lucide-svelte`.
 - Frontend class composition: `clsx` and `tailwind-merge` (often via `cn` utility from `shadcn-svelte`).
 - Linting/Formatting: Adhere to project's ESLint (JS/TS/Svelte) and Prettier configurations.
+
+
+// AGENT_TASKS Framework - Task Execution
+- When working on a task defined in `AGENT_TASKS/`, you will follow these execution rules.
+- **Refer to `AGENT_TASKS/.rules.md` to understand the task file structure you will be consuming.**
+- **Execution Flow**:
+    1.  Identify the current active task file (usually the most recent or one specified by the user).
+    2.  Within that task file, identify the **next subtask** with a status of `[ ]` (To Do).
+    3.  **Clearly state** which overall task and which specific subtask (by its number and title) you are about to work on.
+    4.  Execute the subtask according to its `Details`, modifying files listed in `Filepaths to Modify` and using any `Relevant Make Commands`.
+    5.  Upon completing the subtask's implementation and associated tests:
+        -   **MANDATORY**: Run `make ci` until it passes **without ANY errors, warnings, linter issues, or skipped files.** This is a critical step. If `make ci` fails, analyze the errors and propose fixes even its not connected with your changes. Do not proceed until `make ci` is clean.
+        -   Update the subtask's status to `[x]` (Completed) in its H3 heading (e.g., `### [x] 1. Subtask Title`).
+    6.  **CRITICAL: After marking a subtask as `[x]` (and `make ci` has passed), you MUST STOP. This is an ONLY place where you stop.**
+    7.  Propose the **complete, updated content** of the task file (`.md`) reflecting the new status of the completed subtask.
+    8.  Wait for user feedback or approval before moving to the next subtask.
+    9.  If a subtask involved no code changes (e.g., research), simply mark it `[x]` and propose the updated task file.
+    10. When all subtasks in a task file are marked `[x]`, update the `Overall Task Status` at the top of the file to `[x]` as well.
+- Always ensure your proposed code changes are complete for the subtask at hand.
+- If you encounter an issue or realize a subtask needs refinement (e.g., different file paths, more details, or splitting into smaller sub-subtasks), communicate this clearly when you propose the updated task file after completing the current subtask.
