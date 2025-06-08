@@ -183,7 +183,7 @@
   });
 </script>
 
-<div class="bg-card fixed right-0 bottom-0 left-0 z-50 border-t">
+<div class="bg-card fixed bottom-0 left-0 right-0 z-50 border-t">
   <Card class="rounded-none border-0 shadow-none">
     <div class="desktop:h-28 flex h-36 items-center pr-4">
       <!-- Track Info -->
@@ -242,7 +242,9 @@
           <Button
             variant="ghost"
             size="icon"
-            class="h-9 w-9 {$trackStore.is_shuffle ? 'bg-accent/10' : ''}"
+            class="icon-glow-effect h-9 w-9 {$trackStore.is_shuffle
+              ? 'bg-accent/10'
+              : ''}"
             on:click={() => trackStore.toggleShuffle()}
             aria-label="Toggle Shuffle"
             aria-pressed={$trackStore.is_shuffle}
@@ -259,7 +261,7 @@
           <Button
             variant="ghost"
             size="icon"
-            class="h-9 w-9 {isRepeat ? 'bg-accent/10' : ''}"
+            class="icon-glow-effect h-9 w-9 {isRepeat ? 'bg-accent/10' : ''}"
             on:click={() => {
               if (audioService) {
                 audioService.toggleRepeat();
@@ -278,7 +280,7 @@
           <Button
             variant="ghost"
             size="icon"
-            class="h-10 w-10"
+            class="icon-glow-effect h-10 w-10"
             on:click={() => trackStore.previousTrack()}
             aria-label="Previous Track"
             disabled={!$trackStore.currentTrack}
@@ -288,7 +290,7 @@
           <Button
             variant="ghost"
             size="icon"
-            class="h-12 w-12"
+            class="icon-glow-effect h-12 w-12"
             on:click={() => {
               if (audioService) {
                 if (isPlaying) {
@@ -310,7 +312,7 @@
           <Button
             variant="ghost"
             size="icon"
-            class="h-10 w-10"
+            class="icon-glow-effect h-10 w-10"
             on:click={() => trackStore.nextTrack()}
             aria-label="Next Track"
             disabled={!$trackStore.currentTrack}
@@ -322,7 +324,7 @@
           <Button
             variant="ghost"
             size="icon"
-            class="h-9 w-9"
+            class="icon-glow-effect h-9 w-9"
             on:click={() => {
               if (audioService) {
                 audioService.toggleMute();
@@ -401,7 +403,7 @@
         <Button
           variant="ghost"
           size="icon"
-          class="desktop:hidden ml-2"
+          class="icon-glow-effect desktop:hidden ml-2"
           on:click={toggleMenu}
           aria-label="Open menu"
         >
@@ -411,3 +413,16 @@
     </div>
   </Card>
 </div>
+
+<style>
+  :global(.icon-glow-effect svg) {
+    color: white;
+    transition: all 0.1s ease;
+  }
+
+  :global(.icon-glow-effect:hover svg) {
+    color: white;
+    filter: drop-shadow(0 0 8px hsl(var(--accent) / 0.8))
+      drop-shadow(0 0 4px hsl(var(--accent) / 1));
+  }
+</style>

@@ -26,13 +26,13 @@
 - [x] Fixed position of buttons in player footer
 - [x] Larger player footer. Move volume to the right side of next button.
 - [x] Fix mobile footer css
-- [ ] Hover on play/next/prev/any buttons - I want to glow with blue, not like now
-- [ ] Scroll to track only if it is not visible on screen.
+- [x] Hover on play/next/prev/any buttons - I want to glow with blue, not like now
 - [ ] Mobile API for Safari - PWA + service worker
 - [ ] show history of tracks in right panel to check functionality of shuffle/repeat tracks - check it
 - [ ] Shuffle - playlist doesnt work correctly.
 - [ ] Run through prompt about enhancing project, get TODOs done
 - [ ] Remove test toasts notifications from frontend and backend
+- [ ] Test toast on track adding
 - [ ] Make docker compose working and also dockerize production dockerfile + start some e2e
 - [ ] Rewrite all markdown files with AI
 - [ ] Secret endpoint
@@ -44,6 +44,7 @@
 - [ ] no cover album img - make it beautiful
 - [ ] Render play button from tracklist under album cover
 - [ ] Marquee for long texts
+- [ ] Scroll to track only if it is not visible on screen. Be sure it scrolls on first page load.
 
 ## Phase 2
 
