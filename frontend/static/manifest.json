@@ -22,8 +22,5 @@
   "theme_color": "#020817",
   "orientation": "portrait-primary",
   "scope": "/",
-  "categories": [
-    "music",
-    "entertainment"
-  ]
+  "categories": ["music", "entertainment"]
 }

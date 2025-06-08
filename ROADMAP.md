@@ -27,7 +27,7 @@
 - [x] Larger player footer. Move volume to the right side of next button.
 - [x] Fix mobile footer css
 - [x] Hover on play/next/prev/any buttons - I want to glow with blue, not like now
-- [ ] Mobile API for Safari - PWA + service worker
+- [x] Mobile API for Safari - PWA + service worker
 - [ ] show history of tracks in right panel to check functionality of shuffle/repeat tracks - check it
 - [ ] Shuffle - playlist doesnt work correctly.
 - [ ] Run through prompt about enhancing project, get TODOs done
