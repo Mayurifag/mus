@@ -1,6 +1,6 @@
 {
-  "name": "Mus Music Player",
-  "short_name": "Mus",
+  "name": "mus",
+  "short_name": "mus",
   "icons": [
     {
       "src": "/images/icon-192.svg",
