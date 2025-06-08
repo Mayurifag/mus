@@ -23,22 +23,22 @@
 - [x] Implement and display per-track buffered time ranges using a new BufferedRangesService and update Slider.svelte to render these ranges.
 - [x] css to fix too large music files names
 - [x] ai workflow Tasks - use just task.md everywhere. Use single backticks. There has to be no step like "review" or "ci" or something.
-- [ ] Fixed position of buttons in player footer
+- [x] Fixed position of buttons in player footer
 - [x] Larger player footer. Move volume to the right side of next button.
-- [ ] Fix mobile footer css
+- [x] Fix mobile footer css
 - [ ] Hover on play/next/prev/any buttons - I want to glow with blue, not like now
 - [ ] Scroll to track only if it is not visible on screen.
 - [ ] Mobile API for Safari - PWA + service worker
 - [ ] show history of tracks in right panel to check functionality of shuffle/repeat tracks - check it
+- [ ] Shuffle - playlist doesnt work correctly.
 - [ ] Run through prompt about enhancing project, get TODOs done
 - [ ] Remove test toasts notifications from frontend and backend
-- [ ] Shuffle - playlist doesnt work correctly.
 - [ ] Make docker compose working and also dockerize production dockerfile + start some e2e
 - [ ] Rewrite all markdown files with AI
 - [ ] Secret endpoint
 - [ ] docker setup
 - [ ] Publish
-- [ ] Little bug - if we drag volume slider overflow left, it will show 100%. Also change cursor on dragging
+- [ ] Little bug - if we drag volume slider overflow left, it will show 100%. Also change cursor on dragging - on hover
 - [ ] Clicking on album image on player footer should scroll to this track in tracklist.
 - [ ] Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?
 - [ ] no cover album img - make it beautiful
@@ -48,6 +48,7 @@
 ## Phase 2
 
 - [ ] Hotkeys for player controls
+- [ ] Hover player controls should show what will be done + also hotkey for that
 - [ ] Edit files in place. Normalize tags has to be automatical. Edit filename (windows names)
 - [ ] If user moves file on opened page, we should upload it to the server
 - [ ] Preview of each file - possibility to set title artist (choose?)

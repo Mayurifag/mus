@@ -18,17 +18,13 @@
   <!-- Toast Test Section -->
   <div class="bg-muted/50 mb-6 rounded-lg border p-4">
     <h3 class="mb-2 text-sm font-semibold">Toast Test</h3>
-    <p class="text-muted-foreground mb-3 text-xs">
-      Test toast notifications. You should see 5 different toasts appear in the
-      top-right corner.
-    </p>
     <Button
       on:click={handleTestToasts}
       variant="outline"
       size="sm"
       class="w-full"
     >
-      Test Toasts
+      Test Toast
     </Button>
   </div>
 </div>

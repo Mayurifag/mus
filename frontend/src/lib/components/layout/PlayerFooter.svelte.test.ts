@@ -104,6 +104,80 @@ describe("PlayerFooter component", () => {
     expect(container.textContent).toContain("Test Artist");
   });
 
+  it("should have correct height classes for mobile and desktop", () => {
+    const { container } = render(PlayerFooter);
+    const mainContainer = container.querySelector(".flex.h-36");
+    expect(mainContainer).toBeTruthy();
+    expect(mainContainer?.classList.contains("desktop:h-28")).toBe(true);
+  });
+
+  it("should hide track info text on mobile and show on desktop", () => {
+    const { container } = render(PlayerFooter);
+    const trackInfoText = container.querySelector(".hidden.desktop\\:flex");
+    expect(trackInfoText).toBeTruthy();
+    expect(trackInfoText?.textContent).toContain("Test Track");
+    expect(trackInfoText?.textContent).toContain("Test Artist");
+  });
+
+  it("should show mobile track info row with artist - title format", () => {
+    const { container } = render(PlayerFooter);
+    const mobileTrackInfo = container.querySelector(".desktop\\:hidden");
+    expect(mobileTrackInfo).toBeTruthy();
+    expect(mobileTrackInfo?.textContent).toContain("Test Artist - Test Track");
+  });
+
+  it("should have three-state responsive album art sizing", () => {
+    const { container } = render(PlayerFooter);
+    const albumArt = container.querySelector(".h-24.w-24.desktop\\:h-18");
+    expect(albumArt).toBeTruthy();
+    expect(albumArt?.classList.contains("h-24")).toBe(true); // Big size (650px-999px)
+    expect(albumArt?.classList.contains("w-24")).toBe(true);
+    expect(albumArt?.classList.contains("desktop:h-18")).toBe(true); // Normal size (≥1000px)
+    expect(albumArt?.classList.contains("desktop:w-18")).toBe(true);
+  });
+
+  it("should hide album image on screens below 650px", () => {
+    const { container } = render(PlayerFooter);
+    const albumImageContainer = container.querySelector(
+      ".hidden.sm650\\:block",
+    );
+    expect(albumImageContainer).toBeTruthy();
+    expect(albumImageContainer?.classList.contains("hidden")).toBe(true);
+    expect(albumImageContainer?.classList.contains("sm650:block")).toBe(true);
+  });
+
+  it("should have proper margins around album image for three states", () => {
+    const { container } = render(PlayerFooter);
+    const albumImageContainer = container.querySelector(
+      ".my-6.ml-6.desktop\\:my-5",
+    );
+    expect(albumImageContainer).toBeTruthy();
+    expect(albumImageContainer?.classList.contains("my-6")).toBe(true); // Big size margin (24px)
+    expect(albumImageContainer?.classList.contains("ml-6")).toBe(true); // Big size left margin (24px)
+    expect(albumImageContainer?.classList.contains("desktop:my-5")).toBe(true); // Normal size margin (20px)
+    expect(albumImageContainer?.classList.contains("desktop:ml-5")).toBe(true); // Normal size left margin (20px)
+  });
+
+  it("should expand central controls when album image is hidden", () => {
+    const { container } = render(PlayerFooter);
+    const centralControls = container.querySelector(".sm650\\:mx-2.mx-4");
+    expect(centralControls).toBeTruthy();
+    expect(centralControls?.classList.contains("mx-4")).toBe(true);
+    expect(centralControls?.classList.contains("sm650:mx-2")).toBe(true);
+  });
+
+  it("should have wider progress bar on mobile screens", () => {
+    const { container } = render(PlayerFooter);
+    const progressContainer = container.querySelector(
+      ".max-w-md.desktop\\:max-w-lg",
+    );
+    expect(progressContainer).toBeTruthy();
+    expect(progressContainer?.classList.contains("max-w-md")).toBe(true); // Wider on mobile
+    expect(progressContainer?.classList.contains("desktop:max-w-lg")).toBe(
+      true,
+    ); // Desktop width
+  });
+
   it("should have shuffle and repeat buttons positioned before previous track button", () => {
     const { container } = render(PlayerFooter);
     const buttons = container.querySelectorAll("button[aria-label]");
@@ -261,10 +335,38 @@ describe("PlayerFooter component", () => {
       "div.flex.items-center.space-x-2",
     );
     const progressSliderRow =
-      centralControlsSection?.querySelector("div.mt-2.flex");
+      centralControlsSection?.querySelector("div.mt-1.flex");
 
     expect(controlButtonsRow).toBeTruthy();
     expect(progressSliderRow).toBeTruthy();
+  });
+
+  it("should have three-row mobile layout structure", () => {
+    const { container } = render(PlayerFooter);
+
+    // Look for the central section with mobile layout classes
+    const centralControlsSection = container.querySelector(
+      "div.flex.h-full.flex-1.flex-col.items-center.justify-around",
+    );
+    expect(centralControlsSection).toBeTruthy();
+
+    // Row 1: Control buttons and volume controls
+    const controlButtonsRow = centralControlsSection?.querySelector(
+      "div.flex.w-full.items-center.justify-center.space-x-2",
+    );
+    expect(controlButtonsRow).toBeTruthy();
+
+    // Row 2: Progress slider with time indicators
+    const progressRow = centralControlsSection?.querySelector(
+      "div.mt-1.flex.w-full.max-w-md.items-center.space-x-2",
+    );
+    expect(progressRow).toBeTruthy();
+
+    // Row 3: Mobile track info (artist - title)
+    const mobileTrackInfoRow = centralControlsSection?.querySelector(
+      "div.desktop\\:hidden.mt-1.flex.w-full.items-center.justify-center.text-center",
+    );
+    expect(mobileTrackInfoRow).toBeTruthy();
   });
 
   describe("buffered ranges integration", () => {

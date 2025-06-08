@@ -2,8 +2,7 @@
   import type { Track, TimeRange } from "$lib/types";
   import type { AudioService } from "$lib/services/AudioService";
   import { trackStore } from "$lib/stores/trackStore";
-  import { Play, Pause } from "@lucide/svelte";
-  import { Button } from "$lib/components/ui/button";
+
   import { Slider } from "$lib/components/ui/slider";
 
   let {
@@ -42,11 +41,6 @@
       // Play a different track - this will trigger auto-play in layout
       trackStore.playTrack(index);
     }
-  }
-
-  function handlePlayButtonClick(event: MouseEvent) {
-    event.stopPropagation();
-    playTrack();
   }
 
   function handleKeyDown(event: KeyboardEvent) {
@@ -237,18 +231,4 @@
   <div class="text-muted-foreground flex flex-col items-end text-sm">
     <span>{formatDuration(track.duration)}</span>
   </div>
-
-  <Button
-    variant="ghost"
-    size="icon"
-    class="h-8 w-8"
-    onclick={handlePlayButtonClick}
-    aria-label={isSelected && localIsPlaying ? "Pause track" : "Play track"}
-  >
-    {#if isSelected && localIsPlaying}
-      <Pause class="h-4 w-4" />
-    {:else}
-      <Play class="h-4 w-4" />
-    {/if}
-  </Button>
 </div>

@@ -185,11 +185,13 @@
 
 <div class="bg-card fixed right-0 bottom-0 left-0 z-50 border-t">
   <Card class="rounded-none border-0 shadow-none">
-    <div class="flex h-28 items-center px-4">
+    <div class="desktop:h-28 flex h-36 items-center pr-4">
       <!-- Track Info -->
-      <div class="flex w-80 min-w-0 items-center space-x-4">
+      <div class="desktop:w-80 flex w-auto min-w-0 items-center">
         {#if $trackStore.currentTrack}
-          <div class="h-18 w-18 flex-shrink-0 overflow-hidden rounded-md">
+          <div
+            class="sm650:block desktop:h-18 desktop:w-18 desktop:my-5 desktop:ml-5 my-6 ml-6 hidden h-24 w-24 flex-shrink-0 overflow-hidden rounded-md"
+          >
             {#if $trackStore.currentTrack.has_cover && $trackStore.currentTrack.cover_original_url}
               <img
                 src={$trackStore.currentTrack.cover_original_url}
@@ -204,7 +206,9 @@
               </div>
             {/if}
           </div>
-          <div class="flex min-w-0 flex-col overflow-hidden">
+          <div
+            class="desktop:flex ml-4 hidden min-w-0 flex-col overflow-hidden"
+          >
             <span class="truncate text-base font-medium"
               >{$trackStore.currentTrack.title}</span
             >
@@ -214,20 +218,26 @@
           </div>
         {:else}
           <div
-            class="bg-muted flex h-18 w-18 flex-shrink-0 items-center justify-center rounded-md"
+            class="sm650:block desktop:h-18 desktop:w-18 desktop:my-5 desktop:ml-5 bg-muted my-6 ml-6 flex hidden h-24 w-24 flex-shrink-0 items-center justify-center rounded-md"
           >
             <span class="text-muted-foreground text-xs">No Track</span>
           </div>
-          <div class="flex min-w-0 flex-col overflow-hidden">
+          <div
+            class="desktop:flex ml-4 hidden min-w-0 flex-col overflow-hidden"
+          >
             <span class="text-muted-foreground text-sm">Not Playing</span>
           </div>
         {/if}
       </div>
 
       <!-- Controls -->
-      <div class="flex flex-1 flex-col items-center justify-center">
-        <!-- Control Buttons Row -->
-        <div class="flex items-center space-x-2">
+      <div
+        class="desktop:justify-center desktop:py-0 desktop:mx-0 sm650:mx-2 mx-4 flex h-full flex-1 flex-col items-center justify-around py-1"
+      >
+        <!-- Mobile Row 1: Control Buttons & Volume Controls -->
+        <div
+          class="desktop:space-x-2 flex w-full items-center justify-center space-x-2"
+        >
           <!-- Shuffle Button -->
           <Button
             variant="ghost"
@@ -326,7 +336,7 @@
               <Volume2 class="h-5 w-5" />
             {/if}
           </Button>
-          <div class="relative w-32">
+          <div class="relative w-24">
             <Slider
               bind:value={volumeValue}
               onValueChange={handleVolumeChange}
@@ -347,8 +357,10 @@
           </div>
         </div>
 
-        <!-- Progress Slider Row -->
-        <div class="mt-2 flex w-full max-w-lg items-center space-x-2">
+        <!-- Mobile Row 2: Progress Slider & Time Indicators -->
+        <div
+          class="desktop:mt-2 desktop:max-w-lg mt-1 flex w-full max-w-md items-center space-x-2"
+        >
           <span class="text-muted-foreground w-10 text-right text-xs">
             {formatTime(currentTime)}
           </span>
@@ -367,6 +379,18 @@
             {formatTime(duration)}
           </span>
         </div>
+
+        <!-- Mobile Row 3: Artist Name - Track Name -->
+        {#if $trackStore.currentTrack}
+          <div
+            class="desktop:hidden mt-1 flex w-full items-center justify-center text-center"
+          >
+            <span class="text-muted-foreground truncate text-xs">
+              {$trackStore.currentTrack.artist} - {$trackStore.currentTrack
+                .title}
+            </span>
+          </div>
+        {/if}
       </div>
 
       <!-- Additional Controls -->
