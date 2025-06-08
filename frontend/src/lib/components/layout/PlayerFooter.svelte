@@ -187,9 +187,9 @@
   <Card class="rounded-none border-0 shadow-none">
     <div class="flex h-28 items-center px-4">
       <!-- Track Info -->
-      <div class="flex w-auto flex-shrink-0 items-center space-x-4">
+      <div class="flex w-auto max-w-sm min-w-0 items-center space-x-4">
         {#if $trackStore.currentTrack}
-          <div class="h-18 w-18 overflow-hidden rounded-md">
+          <div class="h-18 w-18 flex-shrink-0 overflow-hidden rounded-md">
             {#if $trackStore.currentTrack.has_cover && $trackStore.currentTrack.cover_original_url}
               <img
                 src={$trackStore.currentTrack.cover_original_url}
@@ -204,7 +204,7 @@
               </div>
             {/if}
           </div>
-          <div class="flex flex-col overflow-hidden">
+          <div class="flex min-w-0 flex-col overflow-hidden">
             <span class="truncate text-base font-medium"
               >{$trackStore.currentTrack.title}</span
             >
@@ -214,11 +214,11 @@
           </div>
         {:else}
           <div
-            class="bg-muted flex h-18 w-18 items-center justify-center rounded-md"
+            class="bg-muted flex h-18 w-18 flex-shrink-0 items-center justify-center rounded-md"
           >
             <span class="text-muted-foreground text-xs">No Track</span>
           </div>
-          <div class="flex flex-col overflow-hidden">
+          <div class="flex min-w-0 flex-col overflow-hidden">
             <span class="text-muted-foreground text-sm">Not Playing</span>
           </div>
         {/if}
@@ -377,7 +377,7 @@
         <Button
           variant="ghost"
           size="icon"
-          class="ml-2 md:hidden"
+          class="desktop:hidden ml-2"
           on:click={toggleMenu}
           aria-label="Open menu"
         >

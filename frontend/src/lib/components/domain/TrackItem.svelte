@@ -214,7 +214,7 @@
     {/if}
   </div>
 
-  <div class="flex flex-1 flex-col">
+  <div class="flex min-w-0 flex-1 flex-col">
     <span class="truncate font-medium">{track.title}</span>
     <span class="text-muted-foreground truncate text-sm">{track.artist}</span>
 

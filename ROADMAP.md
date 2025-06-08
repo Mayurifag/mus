@@ -21,11 +21,11 @@
 - [x] Style progress bar so it would be equal like tracklist' one. Remove styling from TrackItem.svelte.
 - [x] Move to vscode, update workflow, aliases. Adapt this workflow. Remove cursorrules. Update all snippets. https://www.chatprd.ai/resources/PRD-for-Cursor - browsermcp.io
 - [x] Implement and display per-track buffered time ranges using a new BufferedRangesService and update Slider.svelte to render these ranges.
-- [ ] css to fix too large music files names
+- [x] css to fix too large music files names
+- [x] ai workflow Tasks - use just task.md everywhere. Use single backticks. There has to be no step like "review" or "ci" or something.
 - [ ] Fixed position of buttons in player footer
-- [ ] Larger player footer. Move volume to the right side of next button.
+- [x] Larger player footer. Move volume to the right side of next button.
 - [ ] Fix mobile footer css
-- [ ] ai workflow Tasks - use just task.md everywhere. Use single backticks. There has to be no step like "review" or "ci" or something. Make less subtasks 1-2.
 - [ ] Hover on play/next/prev/any buttons - I want to glow with blue, not like now
 - [ ] Scroll to track only if it is not visible on screen.
 - [ ] Mobile API for Safari - PWA + service worker
@@ -43,6 +43,7 @@
 - [ ] Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?
 - [ ] no cover album img - make it beautiful
 - [ ] Render play button from tracklist under album cover
+- [ ] Marquee for long texts
 
 ## Phase 2
 
