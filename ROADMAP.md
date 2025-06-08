@@ -28,8 +28,8 @@
 - [x] Fix mobile footer css
 - [x] Hover on play/next/prev/any buttons - I want to glow with blue, not like now
 - [x] Mobile API for Safari - PWA + service worker
-- [ ] show history of tracks in right panel to check functionality of shuffle/repeat tracks - check it
-- [ ] Shuffle - playlist doesnt work correctly.
+- [x] show history of tracks in right panel to check functionality of shuffle/repeat tracks - check it
+- [x] Shuffle - playlist doesnt work correctly.
 - [ ] Run through prompt about enhancing project, get TODOs done
 - [ ] Remove test toasts notifications from frontend and backend
 - [ ] Test toast on track adding
