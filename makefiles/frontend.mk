@@ -25,8 +25,12 @@ front-build:
 	cd $(FRONTEND_DIR) && npm run build
 
 .PHONY: front-lint
-front-lint:
+front-lint: front-format
 	cd $(FRONTEND_DIR) && rm -rf coverage/ && npm run lint
+
+.PHONY: front-lint-only
+front-lint-only:
+	cd $(FRONTEND_DIR) && npm run lint
 
 .PHONY: front-format
 front-format:
@@ -39,3 +43,7 @@ front-test:
 .PHONY: front-svelte-check
 front-svelte-check:
 	cd $(FRONTEND_DIR) && npm run check
+
+.PHONY: front-ci-install
+front-ci-install:
+	cd $(FRONTEND_DIR) && npm ci

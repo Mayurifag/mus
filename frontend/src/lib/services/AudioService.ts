@@ -1,6 +1,7 @@
 import type { Track, TimeRange } from "$lib/types";
 import { getStreamUrl } from "$lib/services/apiClient";
 import { writable } from "svelte/store";
+import { trackStore } from "$lib/stores/trackStore";
 
 export class AudioService {
   private audio: HTMLAudioElement;
@@ -45,6 +46,7 @@ export class AudioService {
     );
 
     this.setupEventListeners();
+    this.setupMediaSession();
   }
 
   private setupEventListeners(): void {
@@ -61,10 +63,12 @@ export class AudioService {
 
   private handlePlay = (): void => {
     this._isPlaying.set(true);
+    this.updateMediaSessionPlaybackState();
   };
 
   private handlePause = (): void => {
     this._isPlaying.set(false);
+    this.updateMediaSessionPlaybackState();
   };
 
   private handleLoadedMetadata = (): void => {
@@ -147,6 +151,7 @@ export class AudioService {
       }
       this._currentTime.set(0);
       this._currentBufferedRanges.set([]);
+      this.updateMediaSessionMetadata(track);
     }
   }
 
@@ -259,6 +264,63 @@ export class AudioService {
     if (isRepeat !== undefined) {
       this._isRepeat.set(isRepeat);
     }
+  }
+
+  private setupMediaSession(): void {
+    if (!("mediaSession" in navigator)) return;
+
+    navigator.mediaSession.setActionHandler("play", () => {
+      this.play();
+    });
+
+    navigator.mediaSession.setActionHandler("pause", () => {
+      this.pause();
+    });
+
+    navigator.mediaSession.setActionHandler("nexttrack", () => {
+      trackStore.nextTrack();
+    });
+
+    navigator.mediaSession.setActionHandler("previoustrack", () => {
+      trackStore.previousTrack();
+    });
+
+    navigator.mediaSession.setActionHandler("seekto", (details) => {
+      if (details.seekTime !== undefined) {
+        this.setCurrentTime(details.seekTime);
+      }
+    });
+  }
+
+  private updateMediaSessionMetadata(track: Track): void {
+    if (!("mediaSession" in navigator)) return;
+
+    const artwork: MediaImage[] = [];
+    if (track.cover_original_url) {
+      artwork.push({
+        src: track.cover_original_url,
+        sizes: "512x512",
+        type: "image/webp",
+      });
+    }
+
+    const metadata: MediaMetadataInit = {
+      title: track.title,
+      artist: track.artist,
+    };
+
+    if (artwork.length > 0) {
+      metadata.artwork = artwork;
+    }
+
+    navigator.mediaSession.metadata = new MediaMetadata(metadata);
+  }
+
+  private updateMediaSessionPlaybackState(): void {
+    if (!("mediaSession" in navigator)) return;
+    navigator.mediaSession.playbackState = this._currentIsPlaying
+      ? "playing"
+      : "paused";
   }
 
   destroy(): void {

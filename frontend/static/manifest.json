@@ -1,6 +1,7 @@
 {
-  "name": "mus",
+  "name": "mus - simple selfhosted music player",
   "short_name": "mus",
+  "description": "Simple selfhosted music player.",
   "icons": [
     {
       "src": "/images/icon-192.svg",
@@ -19,5 +20,10 @@
   "display": "standalone",
   "background_color": "#020817",
   "theme_color": "#020817",
-  "orientation": "portrait-primary"
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": [
+    "music",
+    "entertainment"
+  ]
 }
