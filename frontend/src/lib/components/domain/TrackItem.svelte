@@ -202,9 +202,12 @@
         loading="lazy"
       />
     {:else}
-      <div class="bg-muted flex h-full w-full items-center justify-center">
-        <span class="text-muted-foreground text-xs">No Cover</span>
-      </div>
+      <img
+        src="/images/no-cover.svg"
+        alt="No Album Cover"
+        class="h-full w-full object-cover"
+        loading="lazy"
+      />
     {/if}
   </div>
 

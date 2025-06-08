@@ -74,7 +74,7 @@ describe("TrackItem component", () => {
       isSelected: false,
     });
 
-    expect(screen.getByText("No Cover")).toBeInTheDocument();
+    expect(screen.getByAltText("No Album Cover")).toBeInTheDocument();
   });
 
   it("applies selected styles when isSelected is true", () => {

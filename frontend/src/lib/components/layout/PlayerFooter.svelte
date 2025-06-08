@@ -183,7 +183,7 @@
   });
 </script>
 
-<div class="bg-card fixed bottom-0 left-0 right-0 z-50 border-t">
+<div class="bg-card fixed right-0 bottom-0 left-0 z-50 border-t">
   <Card class="rounded-none border-0 shadow-none">
     <div class="desktop:h-28 flex h-36 items-center pr-4">
       <!-- Track Info -->
@@ -199,11 +199,11 @@
                 class="h-full w-full object-cover"
               />
             {:else}
-              <div
-                class="bg-muted flex h-full w-full items-center justify-center"
-              >
-                <span class="text-muted-foreground">No Cover</span>
-              </div>
+              <img
+                src="/images/no-cover.svg"
+                alt="No Album Cover"
+                class="h-full w-full object-cover"
+              />
             {/if}
           </div>
           <div

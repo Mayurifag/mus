@@ -1,8 +1,19 @@
 <svg width="192" height="192" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
-  <rect width="192" height="192" fill="#020817"/>
-  <text x="96" y="106" font-family="Arial, sans-serif" font-size="50" text-anchor="middle" fill="white">Mus</text>
-  <path d="M96 48 C60 48 45 76 45 96 C45 116 60 144 96 144 C132 144 147 116 147 96 C147 76 132 48 96 48 Z" fill="none" stroke="white" stroke-width="4"/>
-  <circle cx="76" cy="88" r="8" fill="white"/>
-  <circle cx="116" cy="88" r="8" fill="white"/>
-  <path d="M72 116 C79 128 113 128 120 116" fill="none" stroke="white" stroke-width="3"/>
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <radialGradient id="bgGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#0d1220;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#050a1a;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  <rect width="192" height="192" fill="url(#bgGradient)"/>
+  <circle cx="96" cy="96" r="70" fill="none" stroke="hsl(217, 91%, 60%)" stroke-width="2" opacity="0.3"/>
+  <polygon points="76,66 76,126 126,96" fill="white" filter="url(#glow)"/>
+  <polygon points="76,66 76,126 126,96" fill="hsl(217, 91%, 60%)" opacity="0.8"/>
 </svg>
