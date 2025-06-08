@@ -25,20 +25,17 @@
 
   function playTrack() {
     if (!audioService) {
-      // If no audioService, just select the track
       trackStore.playTrack(index);
       return;
     }
 
     if (isSelected) {
-      // If this track is already selected, toggle play/pause
       if (localIsPlaying) {
         audioService.pause();
       } else {
         audioService.play();
       }
     } else {
-      // Play a different track - this will trigger auto-play in layout
       trackStore.playTrack(index);
     }
   }
@@ -171,7 +168,7 @@
   }
 
   function handleProgressInput(event: Event): void {
-    event.stopPropagation(); // Prevent track selection when dragging slider
+    event.stopPropagation();
     isUserDragging = true;
   }
 

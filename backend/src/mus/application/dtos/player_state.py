@@ -4,8 +4,6 @@ from pydantic import BaseModel, Field
 
 
 class PlayerStateDTO(BaseModel):
-    """DTO for PlayerState entity in API requests and responses."""
-
     current_track_id: Optional[int] = None
     progress_seconds: float = Field(
         default=0.0, ge=0.0, description="Current playback position in seconds"

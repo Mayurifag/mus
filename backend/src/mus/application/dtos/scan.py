@@ -4,8 +4,6 @@ from pydantic import BaseModel, Field
 
 
 class ScanRequestDTO(BaseModel):
-    """DTO for scan request parameters."""
-
     directory_paths: Optional[List[str]] = Field(
         default=None,
         description="Optional list of directory paths to scan. If not provided, the configured music directory will be used.",
@@ -17,8 +15,6 @@ class ScanRequestDTO(BaseModel):
 
 
 class ScanProgressDTO(BaseModel):
-    """DTO for scan progress updates."""
-
     total_files: int = 0
     processed_files: int = 0
     added_tracks: int = 0
@@ -27,8 +23,6 @@ class ScanProgressDTO(BaseModel):
 
 
 class ScanResponseDTO(BaseModel):
-    """DTO for scan response."""
-
     success: bool
     message: str
     tracks_changes: int = 0

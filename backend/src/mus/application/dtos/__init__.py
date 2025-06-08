@@ -1,5 +1,3 @@
-"""Data Transfer Objects for API requests and responses."""
-
 from src.mus.application.dtos.player_state import PlayerStateDTO
 from src.mus.application.dtos.responses import (
     ErrorResponseDTO,

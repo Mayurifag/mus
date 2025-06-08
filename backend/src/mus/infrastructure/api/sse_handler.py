@@ -46,7 +46,6 @@ async def track_updates_sse(request: Request):
     async def event_generator():
         try:
             while True:
-                # Check if client is still connected
                 if await request.is_disconnected():
                     break
 
@@ -54,11 +53,9 @@ async def track_updates_sse(request: Request):
                     event_data = await asyncio.wait_for(client_queue.get(), timeout=1.0)
                     yield f"data: {json.dumps(event_data)}\n\n"
                 except asyncio.TimeoutError:
-                    # Send a comment to keep connection alive if no real data
                     yield ": keepalive\n\n"
 
         except asyncio.CancelledError:
-            # Handle task cancellation (e.g. server shutdown)
             pass
         finally:
             if client_queue in active_sse_clients:
@@ -76,15 +73,10 @@ async def track_updates_sse(request: Request):
 
 @router.get("/test_toast")
 async def test_toast():
-    """
-    Test endpoint to send various SSE toast notification events.
-    Purely for testing the frontend toast notification system.
-    """
     test_events = [
         {
             "message_to_show": "Track scan completed successfully!",
             "message_level": "success",
-            # "action_key": "reload_tracks",
             "action_key": None,
             "action_payload": {"tracks_added": 5},
         }

@@ -4,8 +4,6 @@ from pydantic import BaseModel, Field
 
 
 class TrackDTO(BaseModel):
-    """DTO for Track entity in API responses."""
-
     id: int
     title: str
     artist: str

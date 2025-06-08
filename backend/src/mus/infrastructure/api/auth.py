@@ -16,9 +16,6 @@ router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 def create_access_token(
     data: Dict[str, Any], expires_delta: Optional[timedelta] = None
 ) -> str:
-    """
-    Create a JWT token with the provided data and expiration time
-    """
     to_encode = data.copy()
 
     if expires_delta:
@@ -32,30 +29,23 @@ def create_access_token(
 
 @router.get("/login-via-secret/{secret_key}")
 async def login_via_secret(secret_key: str) -> RedirectResponse:
-    """
-    Login using a secret key from the URL
-    """
     if secret_key != settings.SECRET_KEY:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
         )
 
-    # Generate token
     token_data = {"sub": "web-user"}
     access_token = create_access_token(token_data)
 
-    # Create redirect response
     response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
-
-    # Set cookie
     response.set_cookie(
         key=COOKIE_NAME,
         value=access_token,
         httponly=True,
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         samesite="lax",
-        secure=False,  # Set to False for local development without HTTPS
+        secure=False,
     )
 
     return response
