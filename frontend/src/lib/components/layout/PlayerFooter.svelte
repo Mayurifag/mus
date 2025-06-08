@@ -187,7 +187,7 @@
   <Card class="rounded-none border-0 shadow-none">
     <div class="flex h-28 items-center px-4">
       <!-- Track Info -->
-      <div class="flex w-auto max-w-sm min-w-0 items-center space-x-4">
+      <div class="flex w-80 min-w-0 items-center space-x-4">
         {#if $trackStore.currentTrack}
           <div class="h-18 w-18 flex-shrink-0 overflow-hidden rounded-md">
             {#if $trackStore.currentTrack.has_cover && $trackStore.currentTrack.cover_original_url}
