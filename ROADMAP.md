@@ -30,14 +30,14 @@
 - [x] Mobile API for Safari - PWA + service worker
 - [x] show history of tracks in right panel to check functionality of shuffle/repeat tracks - check it
 - [x] Shuffle - playlist doesnt work correctly.
-- [ ] Run through prompt about enhancing project, get TODOs done
-- [ ] Remove test toasts notifications from frontend and backend
-- [ ] Test toast on track adding
-- [ ] Make docker compose working and also dockerize production dockerfile + start some e2e
-- [ ] Rewrite all markdown files with AI
-- [ ] Secret endpoint
+- [x] Run through prompt about enhancing project, get TODOs done
+- [x] Remove test toasts notifications from frontend and backend
+- [x] Test toast on track adding
+- [ ] Make docker compose working and also dockerize production dockerfile
+- [ ] Secret endpoint check!
 - [ ] docker setup
 - [ ] Publish
+- [ ] Rewrite all markdown files with AI
 - [ ] Little bug - if we drag volume slider overflow left, it will show 100%. Also change cursor on dragging - on hover
 - [ ] Clicking on album image on player footer should scroll to this track in tracklist.
 - [ ] Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?
@@ -48,6 +48,8 @@
 
 ## Phase 2
 
+- [ ] start some e2e with production dockerimages
+- [ ] Database has to contain real track duration, not from metadata
 - [ ] Hotkeys for player controls
 - [ ] Hover player controls should show what will be done + also hotkey for that
 - [ ] Edit files in place. Normalize tags has to be automatical. Edit filename (windows names)

@@ -129,7 +129,7 @@ describe("trackStore", () => {
     expect(get(trackStore).currentTrackIndex).toBeNull();
   });
 
-  it("should play track and add previous track to history", () => {
+  it("should play track and reset history", () => {
     trackStore.setTracks(mockTracks);
 
     // Playing the same track (0) that's already current should not change anything
@@ -139,22 +139,18 @@ describe("trackStore", () => {
     expect(get(trackStore).playHistory).toEqual([mockTracks[0]]);
     expect(get(trackStore).historyPosition).toBe(0);
 
-    // Playing a different track should add both tracks to history (without duplication)
+    // Playing a different track should reset history to only contain the new track
     trackStore.playTrack(1);
     expect(get(trackStore).currentTrackIndex).toBe(1);
     expect(get(trackStore).currentTrack).toEqual(mockTracks[1]);
-    expect(get(trackStore).playHistory).toEqual([mockTracks[0], mockTracks[1]]);
-    expect(get(trackStore).historyPosition).toBe(1);
+    expect(get(trackStore).playHistory).toEqual([mockTracks[1]]);
+    expect(get(trackStore).historyPosition).toBe(0);
 
     trackStore.playTrack(2);
     expect(get(trackStore).currentTrackIndex).toBe(2);
     expect(get(trackStore).currentTrack).toEqual(mockTracks[2]);
-    expect(get(trackStore).playHistory).toEqual([
-      mockTracks[0],
-      mockTracks[1],
-      mockTracks[2],
-    ]);
-    expect(get(trackStore).historyPosition).toBe(2);
+    expect(get(trackStore).playHistory).toEqual([mockTracks[2]]);
+    expect(get(trackStore).historyPosition).toBe(0);
   });
 
   it("should handle nextTrack in regular (non-shuffle) mode", () => {
@@ -581,29 +577,27 @@ describe("trackStore", () => {
     });
   });
 
-  describe("Manual track selection history bug", () => {
+  describe("Manual track selection behavior", () => {
     beforeEach(() => {
       trackStore.reset();
       trackStore.setTracks(mockTracks);
     });
 
-    it("should not duplicate current track when manually selecting a different track", () => {
+    it("should reset history when manually selecting a different track", () => {
       // Initial state: Track 0 is auto-selected
       let state = get(trackStore);
       expect(state.currentTrackIndex).toBe(0);
       expect(state.playHistory).toEqual([mockTracks[0]]);
       expect(state.historyPosition).toBe(0);
 
-      // User manually selects Track 1
+      // User manually selects Track 1 - should reset history
       trackStore.playTrack(1);
       state = get(trackStore);
 
-      // Expected: History should contain [Track0, Track1] (2 tracks)
-      // Bug: History contains [Track0, Track0, Track1] (3 tracks with duplicate)
       expect(state.currentTrackIndex).toBe(1);
       expect(state.currentTrack).toEqual(mockTracks[1]);
-      expect(state.playHistory).toEqual([mockTracks[0], mockTracks[1]]); // Should be only 2 tracks
-      expect(state.historyPosition).toBe(1);
+      expect(state.playHistory).toEqual([mockTracks[1]]); // History reset to only new track
+      expect(state.historyPosition).toBe(0);
     });
 
     it("should handle multiple manual track selections correctly", () => {
@@ -611,20 +605,16 @@ describe("trackStore", () => {
       let state = get(trackStore);
       expect(state.playHistory).toEqual([mockTracks[0]]);
 
-      // Select Track 1
+      // Select Track 1 - resets history
       trackStore.playTrack(1);
       state = get(trackStore);
-      expect(state.playHistory).toEqual([mockTracks[0], mockTracks[1]]);
+      expect(state.playHistory).toEqual([mockTracks[1]]);
 
-      // Select Track 2
+      // Select Track 2 - resets history again
       trackStore.playTrack(2);
       state = get(trackStore);
-      expect(state.playHistory).toEqual([
-        mockTracks[0],
-        mockTracks[1],
-        mockTracks[2],
-      ]);
-      expect(state.historyPosition).toBe(2);
+      expect(state.playHistory).toEqual([mockTracks[2]]);
+      expect(state.historyPosition).toBe(0);
     });
   });
 });

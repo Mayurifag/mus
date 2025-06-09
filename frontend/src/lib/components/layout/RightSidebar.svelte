@@ -1,19 +1,6 @@
 <script lang="ts">
-  import { Button } from "$lib/components/ui/button";
-  import { toast } from "svelte-sonner";
-  import { triggerTestToasts } from "$lib/services/apiClient";
   import { trackStore } from "$lib/stores/trackStore";
   import type { Track } from "$lib/types";
-
-  async function handleTestToasts() {
-    try {
-      const result = await triggerTestToasts();
-      console.log("Test toasts triggered:", result);
-    } catch (error) {
-      console.error("Error triggering test toasts:", error);
-      toast.error("Failed to trigger test toasts");
-    }
-  }
 
   const MIN_HISTORY_FOR_DEBUG = 2;
 
@@ -85,19 +72,6 @@
 </script>
 
 <div class="h-full w-full p-4">
-  <!-- Toast Test Section -->
-  <div class="bg-muted/50 mb-6 rounded-lg border p-4">
-    <h3 class="mb-2 text-sm font-semibold">Toast Test</h3>
-    <Button
-      on:click={handleTestToasts}
-      variant="outline"
-      size="sm"
-      class="w-full"
-    >
-      Test Toast
-    </Button>
-  </div>
-
   <!-- Playback Debug Section -->
   {#if shouldShowDebugTimeline}
     <div class="border-t pt-4">

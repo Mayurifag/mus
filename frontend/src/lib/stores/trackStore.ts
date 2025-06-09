@@ -313,7 +313,6 @@ function createTrackStore() {
 
         const track = state.tracks[index];
 
-        // Manual track selection resets history to only contain the selected track
         return {
           ...state,
           currentTrackIndex: index,
@@ -334,7 +333,6 @@ function createTrackStore() {
           return shuffleResult ? { ...state, ...shuffleResult } : state;
         }
 
-        // Sequential navigation
         const nextIndex = calculateNextIndex(
           state.currentTrackIndex,
           state.tracks.length,
@@ -357,7 +355,6 @@ function createTrackStore() {
           return shuffleResult ? { ...state, ...shuffleResult } : state;
         }
 
-        // Sequential navigation
         const previousIndex = calculatePreviousIndex(
           state.currentTrackIndex,
           state.tracks.length,

@@ -78,17 +78,6 @@ export function sendPlayerStateBeacon(state: PlayerState): void {
   }
 }
 
-export async function triggerTestToasts(): Promise<{
-  message: string;
-  events_count: number;
-}> {
-  const response = await fetch(`${API_BASE_URL}/events/test_toast`);
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-  return await response.json();
-}
-
 /**
  * Connects to the SSE endpoint for track updates
  * @param onMessageCallback Callback function to handle incoming SSE events

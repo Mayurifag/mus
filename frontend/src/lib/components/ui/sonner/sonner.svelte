@@ -13,7 +13,7 @@
 <Sonner
   {theme}
   class="toaster group"
-  duration={1000}
+  duration={4000}
   toastOptions={{
     classes: {
       toast:

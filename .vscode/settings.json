@@ -44,7 +44,9 @@
     "**/.venv": true,
     "**/node_modules": true,
     "**/.svelte-kit": true,
-    "**/.overmind.sock": true
+    "**/.overmind.sock": true,
+    "**/backend/MagicMock/**": true,
+    "**/backend/data/**": true
   },
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false,
