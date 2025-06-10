@@ -3,27 +3,18 @@ services:
     build:
       context: ..
       dockerfile: docker/backend.Dockerfile
-    ports:
-      - "8000:8000"
-    volumes:
-      - ../backend/src:/app/src
-      - ../data:/app/data
-      - ../music:/app/music
-    environment:
-      - SECRET_KEY=dev_secret_key_please_change_in_production
-      - APP_ENV=development
     restart: unless-stopped
 
   frontend:
-    image: node:20-alpine
-    working_dir: /app
-    ports:
-      - "5173:5173"
-    volumes:
-      - ../frontend:/app
-    command: npm run dev -- --host
+    build:
+      context: ..
+      dockerfile: docker/frontend.Dockerfile
+    extra_hosts:
+      - "localhost:host-gateway"
     depends_on:
       - backend
+    restart: unless-stopped
 
 volumes:
   mus_data:
+  node_modules:

@@ -113,17 +113,11 @@ async def get_current_user_info(
 
 
 # Frontend static file serving from original main.py structure
-# This path needs to be correct relative to where the app runs, or use an absolute path from settings.
-# Assuming PROJECT_ROOT from settings is the actual project root.
-# frontend_static_path = settings.PROJECT_ROOT / "frontend" / ".svelte-kit" / "output" / "client"
-# A more robust way would be to have FRONTEND_BUILD_DIR in settings.
-# For now, using a placeholder that matches common deployment patterns or local dev.
-_default_frontend_path = (
-    settings.PROJECT_ROOT / "frontend" / "build"
-)  # Common for SvelteKit adapter-static
-_alternative_frontend_path = (
-    settings.PROJECT_ROOT / "static"
-)  # If frontend build is copied to a top-level static
+# Calculate paths relative to BASE_DIR
+_base_dir = Path(__file__).resolve().parent
+_project_root = _base_dir.parent.parent.parent
+_default_frontend_path = _project_root / "frontend" / "build"
+_alternative_frontend_path = _project_root / "static"
 
 frontend_serving_path: Path | None = None
 if _default_frontend_path.exists() and _default_frontend_path.is_dir():
@@ -145,7 +139,7 @@ else:
         "Frontend static directory not found at common locations, not mounting SPA."
     )
 
-logger.info(f"Music directories configured: {settings.MUSIC_DIRECTORIES_LIST}")
+logger.info(f"Music directory configured: {settings.MUSIC_DIR_PATH}")
 logger.info(f"Covers will be stored in: {settings.COVERS_DIR_PATH}")
 logger.info(f"Log level set to: {settings.LOG_LEVEL}")
 logger.info(f"Scan interval set to: {settings.SCAN_INTERVAL_SECONDS} seconds")

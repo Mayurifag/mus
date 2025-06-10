@@ -33,21 +33,27 @@
 - [x] Run through prompt about enhancing project, get TODOs done
 - [x] Remove test toasts notifications from frontend and backend
 - [x] Test toast on track adding
-- [ ] Make docker compose working and also dockerize production dockerfile
+- [x] Make docker compose working and also dockerize production dockerfile
 - [ ] Secret endpoint check!
 - [ ] docker setup
+- [ ] robots.txt, llm, so on
 - [ ] Publish
 - [ ] Rewrite all markdown files with AI
 - [ ] Little bug - if we drag volume slider overflow left, it will show 100%. Also change cursor on dragging - on hover
 - [ ] Clicking on album image on player footer should scroll to this track in tracklist.
 - [ ] Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?
-- [ ] no cover album img - make it beautiful
+- [x] no cover album img - make it beautiful
 - [ ] Render play button from tracklist under album cover
 - [ ] Marquee for long texts
 - [ ] Scroll to track only if it is not visible on screen. Be sure it scrolls on first page load.
+- [ ] Solutions to have watchdog for file changes, etc.
+- [ ] Think through tracks deletion
+- [ ] Track scan also has to get real track duration. Not from metadata.
+- [ ] test non docker env once again
 
 ## Phase 2
 
+- [ ] rate limiting
 - [ ] start some e2e with production dockerimages
 - [ ] Database has to contain real track duration, not from metadata
 - [ ] Hotkeys for player controls
@@ -55,7 +61,7 @@
 - [ ] Edit files in place. Normalize tags has to be automatical. Edit filename (windows names)
 - [ ] If user moves file on opened page, we should upload it to the server
 - [ ] Preview of each file - possibility to set title artist (choose?)
-- [ ] Possibility to delete tracks
+- [ ] Possibility to delete tracks from frontend (with confirmation)
 - [ ] History of file editing. Revert functionality.
 
 ## Phase 3

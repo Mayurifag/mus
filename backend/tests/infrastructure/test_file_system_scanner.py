@@ -68,27 +68,12 @@ def custom_music_dir():
             pass
 
 
-def test_music_dir_environment_variable(monkeypatch, custom_music_dir):
-    """Test that FileSystemScanner uses MUSIC_DIR environment variable."""
-    custom_path_str = str(custom_music_dir)
-    monkeypatch.setenv("MUSIC_DIR", custom_path_str)
+def test_music_dir_uses_config():
+    """Test that FileSystemScanner uses centralized config."""
+    from src.mus.config import settings
 
     scanner = FileSystemScanner()
-    # Test the resolved Path object
-    assert scanner.default_root_dir == custom_music_dir
-    # Optionally, test the string attribute if it's still relevant for other reasons
-    assert scanner.default_music_dir_str == custom_path_str
-
-
-def test_music_dir_default_value(monkeypatch):
-    """Test that FileSystemScanner uses default music directory when MUSIC_DIR is not set."""
-    monkeypatch.delenv("MUSIC_DIR", raising=False)
-
-    scanner = FileSystemScanner()
-    # Test the resolved Path object against the default
-    assert scanner.default_root_dir == Path("./music")
-    # Optionally, test the string attribute
-    assert scanner.default_music_dir_str == "./music"
+    assert scanner.default_root_dir == settings.MUSIC_DIR_PATH
 
 
 @pytest.mark.asyncio
@@ -177,15 +162,14 @@ async def test_empty_directory(file_system_scanner, test_music_dir):
 
 
 @pytest.mark.asyncio
-async def test_scan_directories_default(
-    file_system_scanner, test_music_dir, monkeypatch
-):
+async def test_scan_directories_default(test_music_dir, monkeypatch):
     """Test that scan_directories defaults to the music directory when no dirs provided."""
-    monkeypatch.setenv("MUSIC_DIR", str(test_music_dir))
-    scanner_with_patched_env = FileSystemScanner()
+    # Mock the config to use our test directory
+    monkeypatch.setattr("src.mus.config.settings.MUSIC_DIR_PATH", test_music_dir)
+    scanner = FileSystemScanner()
 
     all_files = []
-    async for file_path in scanner_with_patched_env.scan_directories():
+    async for file_path in scanner.scan_directories():
         all_files.append(file_path)
 
     expected_music_files = {
@@ -231,10 +215,11 @@ def temp_music_dir_for_simple_scanner(tmp_path: Path) -> Path:
 def scanner_lean(
     temp_music_dir_for_simple_scanner: Path, monkeypatch: pytest.MonkeyPatch
 ) -> FileSystemScanner:
-    monkeypatch.setenv("MUSIC_DIR", str(temp_music_dir_for_simple_scanner))
-    fss = FileSystemScanner()
-    # fss.root_dir = temp_music_dir_for_simple_scanner # Removed this incorrect line
-    return fss
+    # Mock the config to use our test directory
+    monkeypatch.setattr(
+        "src.mus.config.settings.MUSIC_DIR_PATH", temp_music_dir_for_simple_scanner
+    )
+    return FileSystemScanner()
 
 
 async def collect_results_lean(agen):

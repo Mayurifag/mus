@@ -1,0 +1,25 @@
+# Docker Compose overrides for development
+# Copy this file to docker-compose.overrides.yml and customize as needed
+# This file contains development-specific configuration like ports, volumes, and environment variables
+
+services:
+  backend:
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../backend:/app
+      - ../data:/app/data
+      # Replace with your music directory path
+      - /path/to/your/music:/app/music
+    environment:
+      - SECRET_KEY=dev_secret_key_please_change_in_production
+      - APP_ENV=development
+
+  frontend:
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../frontend:/app
+      - node_modules:/app/node_modules
+    environment:
+      - VITE_SSR_API_BASE_URL=${VITE_SSR_API_BASE_URL:-http://localhost:8000/api/v1}

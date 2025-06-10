@@ -34,16 +34,16 @@ async def get_tracks(
     track_repository: SQLiteTrackRepository = Depends(get_track_repository),
 ) -> List[TrackDTO]:
     tracks = await track_repository.get_all()
+    base_url = f"{request.url.scheme}://{request.url.netloc}"
 
     track_dtos = []
     for track in tracks:
         track_dto = TrackDTO.model_validate(track)
 
         if track.has_cover:
-            track_dto.cover_small_url = (
-                f"{request.url_for('get_track_cover', track_id=track.id, size='small')}"
-            )
-            track_dto.cover_original_url = f"{request.url_for('get_track_cover', track_id=track.id, size='original')}"
+            cover_base = f"{base_url}/api/v1/tracks/{track.id}/covers"
+            track_dto.cover_small_url = f"{cover_base}/small.webp"
+            track_dto.cover_original_url = f"{cover_base}/original.webp"
 
         track_dtos.append(track_dto)
 
@@ -72,11 +72,9 @@ async def stream_track(
     file_ext = os.path.splitext(track.file_path)[1].lower()
     content_type = AUDIO_CONTENT_TYPES.get(file_ext, "audio/mpeg")
 
-    # Generate ETag for caching
     file_stat = await asyncio.to_thread(os.stat, track.file_path)
     etag = _generate_etag(track.file_path, file_stat.st_size, file_stat.st_mtime)
 
-    # Check if client has cached version
     if_none_match = request.headers.get("if-none-match")
     if if_none_match and if_none_match.strip('"') == etag:
         return Response(status_code=304)

@@ -1,7 +1,7 @@
 BACKEND_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../backend)
 
 .PHONY: back-lint
-back-lint:
+back-lint: back-format
 	@echo "Linting backend code..."
 	cd $(BACKEND_DIR) && uv run ruff check src tests
 
@@ -14,6 +14,7 @@ back-format:
 back-test:
 	@echo "Running backend tests..."
 	cd $(BACKEND_DIR) && uv run pytest tests
+	cd $(BACKEND_DIR) && rm -rf MagicMock/
 
 .PHONY: back-dev
 back-dev:

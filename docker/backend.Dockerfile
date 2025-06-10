@@ -2,24 +2,20 @@ FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
-# Install system dependencies
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
+  gcc \
   libvips-dev \
   && rm -rf /var/lib/apt/lists/*
 
 # Install uv
 RUN pip install --no-cache-dir uv
 
-# Copy requirements and install dependencies
-COPY backend/pyproject.toml /app/
+COPY backend/ /app/
+
 RUN uv pip install --system /app
 
-# Create necessary directories
 RUN mkdir -p /app/data/covers /app/music
-
-# Copy application code
-COPY backend/src /app/src
 
 # Expose the application port
 EXPOSE 8000

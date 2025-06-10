@@ -1,4 +1,4 @@
-DOCKER_COMPOSE_CMD := docker compose -f docker/docker-compose.yml
+DOCKER_COMPOSE_CMD := docker compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml
 DOCKER_PROD_CMD := docker build -f docker/production.Dockerfile
 
 .PHONY: up
@@ -15,7 +15,7 @@ down:
 
 .PHONY: logs
 logs:
-	@$(DOCKER_COMPOSE_CMD) logs -f $(ARGS)
+	@$(DOCKER_COMPOSE_CMD) logs --tail=5000 $(ARGS)
 
 .PHONY: rebuild
 rebuild: down build up
@@ -31,3 +31,7 @@ docker-build-prod:
 .PHONY: docker-run-prod
 docker-run-prod:
 	docker run -p 8000:8000 -v $(shell pwd)/data:/app/data -v $(shell pwd)/music:/app/music mus:latest
+
+.PHONY: back-sh
+back-sh:
+	@$(DOCKER_COMPOSE_CMD) exec backend bash

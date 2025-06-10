@@ -7,17 +7,8 @@ export interface MusEvent {
   action_payload: Record<string, unknown> | null;
 }
 
-function getApiBaseUrl(): string {
-  const isDev = import.meta.env.DEV;
-
-  if (isDev) {
-    return "http://localhost:8000/api/v1";
-  }
-
-  return "/api/v1";
-}
-
-const API_BASE_URL = getApiBaseUrl();
+const API_BASE_URL =
+  import.meta.env.VITE_SSR_API_BASE_URL || "http://localhost:8000/api/v1";
 
 export function getStreamUrl(trackId: number): string {
   return `${API_BASE_URL}/tracks/${trackId}/stream`;

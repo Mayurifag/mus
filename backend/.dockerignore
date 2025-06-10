@@ -36,3 +36,6 @@ mus_database.db
 
 # Environment variables
 !.env.example
+
+# Tests
+MagicMock/
