@@ -35,8 +35,8 @@
 - [x] Test toast on track adding
 - [x] Make docker compose working and also dockerize production dockerfile
 - [ ] Secret endpoint check!
-- [ ] docker setup
-- [ ] robots.txt, llm, so on
+- [ ] docker setup for production check locally
+- [x] robots.txt, llm, so on
 - [ ] Publish
 - [ ] Rewrite all markdown files with AI
 - [ ] Little bug - if we drag volume slider overflow left, it will show 100%. Also change cursor on dragging - on hover
