@@ -49,10 +49,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://127.0.0.1:8001/api/v1/tracks",
-        { credentials: "include" },
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks", {
+        credentials: "include",
+      });
       expect(result).toEqual([mockTrack]);
     });
 
@@ -68,10 +67,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://127.0.0.1:8001/api/v1/tracks",
-        { credentials: "include" },
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks", {
+        credentials: "include",
+      });
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching tracks:",
         expect.any(Error),
@@ -85,10 +83,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://127.0.0.1:8001/api/v1/tracks",
-        { credentials: "include" },
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks", {
+        credentials: "include",
+      });
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching tracks:",
         expect.any(Error),
@@ -110,10 +107,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://127.0.0.1:8001/api/v1/player/state",
-        { credentials: "include" },
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state", {
+        credentials: "include",
+      });
       expect(result).toEqual(mockPlayerState);
     });
 
@@ -129,10 +125,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://127.0.0.1:8001/api/v1/player/state",
-        { credentials: "include" },
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state", {
+        credentials: "include",
+      });
       expect(result).toEqual({
         current_track_id: null,
         progress_seconds: 0.0,
@@ -155,10 +150,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://127.0.0.1:8001/api/v1/player/state",
-        { credentials: "include" },
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state", {
+        credentials: "include",
+      });
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching player state:",
         expect.any(Error),
@@ -179,10 +173,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://127.0.0.1:8001/api/v1/player/state",
-        { credentials: "include" },
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state", {
+        credentials: "include",
+      });
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching player state:",
         expect.any(Error),
@@ -209,7 +202,7 @@ describe("apiClient", () => {
       apiClient.sendPlayerStateBeacon(mockPlayerState);
 
       expect(mockSendBeacon).toHaveBeenCalledWith(
-        "http://127.0.0.1:8001/api/v1/player/state",
+        "/api/v1/player/state",
         expect.any(Blob),
       );
     });
@@ -240,7 +233,7 @@ describe("apiClient", () => {
       const result = await apiClient.checkAuthStatus();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://127.0.0.1:8001/api/v1/auth/auth-status",
+        "/api/v1/auth/auth-status",
         { credentials: "include" },
       );
       expect(result).toEqual({ authEnabled: true, isAuthenticated: true });
@@ -259,7 +252,7 @@ describe("apiClient", () => {
       const result = await apiClient.checkAuthStatus();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://127.0.0.1:8001/api/v1/auth/auth-status",
+        "/api/v1/auth/auth-status",
         { credentials: "include" },
       );
       expect(console.error).toHaveBeenCalledWith(

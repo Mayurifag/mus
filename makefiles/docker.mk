@@ -25,7 +25,7 @@ ps:
 	@$(DOCKER_COMPOSE_CMD) ps
 
 .PHONY: docker-test-prod
-docker-test-prod:
+docker-test-prod: docker-test-prod-stop
 	@echo "Testing production Docker image..."
 	@echo "Building production image..."
 	@$(DOCKER_PROD_CMD) -t mus:test .

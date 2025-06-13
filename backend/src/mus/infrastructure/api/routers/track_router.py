@@ -30,18 +30,17 @@ router = APIRouter(prefix="/api/v1/tracks", tags=["tracks"])
 
 @router.get("", response_model=List[TrackDTO])
 async def get_tracks(
-    request: Request,
     track_repository: SQLiteTrackRepository = Depends(get_track_repository),
 ) -> List[TrackDTO]:
     tracks = await track_repository.get_all()
-    base_url = f"{request.url.scheme}://{request.url.netloc}"
 
     track_dtos = []
     for track in tracks:
         track_dto = TrackDTO.model_validate(track)
 
         if track.has_cover:
-            cover_base = f"{base_url}/api/v1/tracks/{track.id}/covers"
+            # Use relative URLs so they work correctly in both SSR and client contexts
+            cover_base = f"/api/v1/tracks/{track.id}/covers"
             track_dto.cover_small_url = f"{cover_base}/small.webp"
             track_dto.cover_original_url = f"{cover_base}/original.webp"
 

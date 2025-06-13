@@ -7,11 +7,20 @@ export interface MusEvent {
   action_payload: Record<string, unknown> | null;
 }
 
-const API_BASE_URL =
+// SSR API base URL for server-side requests (internal backend)
+const SSR_API_BASE_URL =
   import.meta.env.VITE_SSR_API_BASE_URL || "http://127.0.0.1:8001/api/v1";
 
+// Client-side API base URL (through nginx proxy)
+const CLIENT_API_BASE_URL = "/api/v1";
+
+function getApiBaseUrl(isSSR: boolean = false): string {
+  return isSSR ? SSR_API_BASE_URL : CLIENT_API_BASE_URL;
+}
+
 export function getStreamUrl(trackId: number): string {
-  return `${API_BASE_URL}/tracks/${trackId}/stream`;
+  // Stream URLs are always client-side (for audio playback)
+  return `${CLIENT_API_BASE_URL}/tracks/${trackId}/stream`;
 }
 
 export async function fetchTracks(
@@ -19,7 +28,9 @@ export async function fetchTracks(
 ): Promise<Track[]> {
   try {
     const fetchFn = customFetch || fetch;
-    const response = await fetchFn(`${API_BASE_URL}/tracks`, {
+    // Use SSR API URL when customFetch is provided (server-side), client URL otherwise
+    const apiBaseUrl = getApiBaseUrl(!!customFetch);
+    const response = await fetchFn(`${apiBaseUrl}/tracks`, {
       credentials: "include",
     });
     if (!response.ok) {
@@ -37,7 +48,9 @@ export async function fetchPlayerState(
 ): Promise<PlayerState> {
   try {
     const fetchFn = customFetch || fetch;
-    const response = await fetchFn(`${API_BASE_URL}/player/state`, {
+    // Use SSR API URL when customFetch is provided (server-side), client URL otherwise
+    const apiBaseUrl = getApiBaseUrl(!!customFetch);
+    const response = await fetchFn(`${apiBaseUrl}/player/state`, {
       credentials: "include",
     });
     if (response.status === 404) {
@@ -71,7 +84,8 @@ export async function fetchPlayerState(
 
 export function sendPlayerStateBeacon(state: PlayerState): void {
   if (typeof navigator !== "undefined" && navigator.sendBeacon) {
-    const url = `${API_BASE_URL}/player/state`;
+    // Beacon is always client-side
+    const url = `${CLIENT_API_BASE_URL}/player/state`;
     const blob = new Blob([JSON.stringify(state)], {
       type: "application/json",
     });
@@ -87,7 +101,10 @@ export function sendPlayerStateBeacon(state: PlayerState): void {
 export function connectTrackUpdateEvents(
   onMessageCallback: (eventData: MusEvent) => void,
 ): EventSource {
-  const eventSource = new EventSource(`${API_BASE_URL}/events/track-updates`);
+  // EventSource is always client-side
+  const eventSource = new EventSource(
+    `${CLIENT_API_BASE_URL}/events/track-updates`,
+  );
 
   eventSource.onmessage = (event) => {
     try {
@@ -119,7 +136,9 @@ export async function checkAuthStatus(
 ): Promise<{ authEnabled: boolean; isAuthenticated: boolean }> {
   try {
     const fetchFn = customFetch || fetch;
-    const response = await fetchFn(`${API_BASE_URL}/auth/auth-status`, {
+    // Use SSR API URL when customFetch is provided (server-side), client URL otherwise
+    const apiBaseUrl = getApiBaseUrl(!!customFetch);
+    const response = await fetchFn(`${apiBaseUrl}/auth/auth-status`, {
       credentials: "include",
     });
     if (!response.ok) {
