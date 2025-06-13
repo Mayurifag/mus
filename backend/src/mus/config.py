@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, computed_field
 from dotenv import load_dotenv
@@ -15,7 +15,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 class Config(BaseModel):
     APP_ENV: str = app_env if app_env else "development"
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "default-insecure-secret-key")
+    SECRET_KEY: Optional[str] = os.getenv("SECRET_KEY")
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     SCAN_INTERVAL_SECONDS: int = int(os.getenv("SCAN_INTERVAL_SECONDS", "60"))
     MUSIC_DIR_PATH: Path = Path(str(BASE_DIR / ".." / ".." / "music"))

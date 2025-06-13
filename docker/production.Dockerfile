@@ -19,7 +19,7 @@ RUN apt-get update && \
     curl \
     && \
     curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    mv /root/.cargo/bin/uv /usr/local/bin/uv && \
+    mv /root/.local/bin/uv /usr/local/bin/uv && \
     rm -rf /var/lib/apt/lists/*
 WORKDIR /app/backend_build_temp
 COPY backend/pyproject.toml backend/README.md* ./
@@ -44,7 +44,6 @@ RUN groupadd --gid ${GID} appgroup && \
 WORKDIR /app
 COPY --from=backend-builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=backend-builder /usr/local/bin/uvicorn /usr/local/bin/uvicorn
-COPY --from=backend-builder /usr/local/bin/gunicorn /usr/local/bin/gunicorn
 COPY --chown=appuser:appgroup backend/src /app/src
 COPY --from=frontend-builder --chown=appuser:appgroup /app/frontend/build /app/frontend/build
 RUN mkdir -p /app/data/covers /app/music && \

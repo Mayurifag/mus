@@ -51,6 +51,7 @@ describe("apiClient", () => {
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/tracks",
+        { credentials: "include" },
       );
       expect(result).toEqual([mockTrack]);
     });
@@ -69,6 +70,7 @@ describe("apiClient", () => {
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/tracks",
+        { credentials: "include" },
       );
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching tracks:",
@@ -85,6 +87,7 @@ describe("apiClient", () => {
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/tracks",
+        { credentials: "include" },
       );
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching tracks:",
@@ -109,6 +112,7 @@ describe("apiClient", () => {
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/player/state",
+        { credentials: "include" },
       );
       expect(result).toEqual(mockPlayerState);
     });
@@ -127,6 +131,7 @@ describe("apiClient", () => {
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/player/state",
+        { credentials: "include" },
       );
       expect(result).toEqual({
         current_track_id: null,
@@ -152,6 +157,7 @@ describe("apiClient", () => {
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/player/state",
+        { credentials: "include" },
       );
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching player state:",
@@ -175,6 +181,7 @@ describe("apiClient", () => {
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/player/state",
+        { credentials: "include" },
       );
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching player state:",
@@ -215,6 +222,69 @@ describe("apiClient", () => {
       }).not.toThrow();
 
       vi.unstubAllGlobals();
+    });
+  });
+
+  describe("checkAuthStatus", () => {
+    it("returns auth status when fetch is successful", async () => {
+      const mockAuthStatus = { authEnabled: true, isAuthenticated: true };
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue(mockAuthStatus),
+      };
+      vi.mocked(globalThis.fetch).mockResolvedValue(
+        mockResponse as unknown as Response,
+      );
+
+      const result = await apiClient.checkAuthStatus();
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/auth/auth-status",
+        { credentials: "include" },
+      );
+      expect(result).toEqual(mockAuthStatus);
+    });
+
+    it("returns default auth status when fetch fails", async () => {
+      console.error = vi.fn();
+      const mockResponse = {
+        ok: false,
+        status: 500,
+      };
+      vi.mocked(globalThis.fetch).mockResolvedValue(
+        mockResponse as unknown as Response,
+      );
+
+      const result = await apiClient.checkAuthStatus();
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/auth/auth-status",
+        { credentials: "include" },
+      );
+      expect(console.error).toHaveBeenCalledWith(
+        "Error checking auth status:",
+        expect.any(Error),
+      );
+      expect(result).toEqual({ authEnabled: false, isAuthenticated: false });
+    });
+
+    it("uses custom fetch when provided", async () => {
+      const mockAuthStatus = { authEnabled: false, isAuthenticated: false };
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue(mockAuthStatus),
+      };
+      const customFetch = vi.fn().mockResolvedValue(mockResponse);
+
+      const result = await apiClient.checkAuthStatus(customFetch);
+
+      expect(customFetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/auth/auth-status",
+        { credentials: "include" },
+      );
+      expect(result).toEqual(mockAuthStatus);
     });
   });
 });

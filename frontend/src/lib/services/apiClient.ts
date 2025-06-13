@@ -14,9 +14,12 @@ export function getStreamUrl(trackId: number): string {
   return `${API_BASE_URL}/tracks/${trackId}/stream`;
 }
 
-export async function fetchTracks(): Promise<Track[]> {
+export async function fetchTracks(customFetch?: typeof fetch): Promise<Track[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/tracks`);
+    const fetchFn = customFetch || fetch;
+    const response = await fetchFn(`${API_BASE_URL}/tracks`, {
+      credentials: "include",
+    });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -27,9 +30,12 @@ export async function fetchTracks(): Promise<Track[]> {
   }
 }
 
-export async function fetchPlayerState(): Promise<PlayerState> {
+export async function fetchPlayerState(customFetch?: typeof fetch): Promise<PlayerState> {
   try {
-    const response = await fetch(`${API_BASE_URL}/player/state`);
+    const fetchFn = customFetch || fetch;
+    const response = await fetchFn(`${API_BASE_URL}/player/state`, {
+      credentials: "include",
+    });
     if (response.status === 404) {
       // Return default player state if none exists
       return {
@@ -102,4 +108,26 @@ export function connectTrackUpdateEvents(
   };
 
   return eventSource;
+}
+
+export async function checkAuthStatus(
+  customFetch?: typeof fetch,
+): Promise<{ authEnabled: boolean; isAuthenticated: boolean }> {
+  try {
+    const fetchFn = customFetch || fetch;
+    const response = await fetchFn(`${API_BASE_URL}/auth/auth-status`, {
+      credentials: "include",
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return {
+      authEnabled: data.auth_enabled,
+      isAuthenticated: data.authenticated,
+    };
+  } catch (error) {
+    console.error("Error checking auth status:", error);
+    return { authEnabled: false, isAuthenticated: false };
+  }
 }

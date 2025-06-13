@@ -3,8 +3,10 @@
   import type { Snippet } from "svelte";
   import { trackStore } from "$lib/stores/trackStore";
   import { audioServiceStore } from "$lib/stores/audioServiceStore";
+  import { authStore, initializeAuthStore } from "$lib/stores/authStore";
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
   import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
+  import AuthWall from "$lib/components/auth/AuthWall.svelte";
   import { sendPlayerStateBeacon as apiSendPlayerStateBeacon } from "$lib/services/apiClient";
   import { initEventHandlerService } from "$lib/services/eventHandlerService";
   import { AudioService } from "$lib/services/AudioService";
@@ -15,6 +17,9 @@
   import type { LayoutData } from "./$types";
 
   let { data, children }: { data: LayoutData; children: Snippet } = $props();
+
+  // Initialize auth store immediately with SSR data
+  initializeAuthStore(data.authStatus);
 
   let audio: HTMLAudioElement;
   let audioService = $state<AudioService | undefined>(undefined);
@@ -165,28 +170,33 @@
   }
 </script>
 
-<Sheet.Root bind:open={sheetOpen}>
-  <!-- Main content area that uses full viewport scrolling -->
-  <main class="desktop:pr-64 min-h-screen pr-0 pb-20">
-    <div class="p-4">
-      {@render children()}
-    </div>
-  </main>
+<AuthWall
+  authEnabled={$authStore.authEnabled}
+  isAuthenticated={$authStore.isAuthenticated}
+>
+  <Sheet.Root bind:open={sheetOpen}>
+    <!-- Main content area that uses full viewport scrolling -->
+    <main class="desktop:pr-64 min-h-screen pb-20 pr-0">
+      <div class="p-4">
+        {@render children()}
+      </div>
+    </main>
 
-  <Toaster position="top-left" />
+    <Toaster position="top-left" />
 
-  <!-- Desktop Sidebar - positioned fixed on the right -->
-  <aside class="desktop:block fixed top-0 right-0 bottom-20 hidden w-64">
-    <RightSidebar />
-  </aside>
+    <!-- Desktop Sidebar - positioned fixed on the right -->
+    <aside class="desktop:block fixed bottom-20 right-0 top-0 hidden w-64">
+      <RightSidebar />
+    </aside>
 
-  <!-- Mobile Sidebar Sheet -->
-  <Sheet.Content side="right" class="w-64">
-    <RightSidebar />
-  </Sheet.Content>
+    <!-- Mobile Sidebar Sheet -->
+    <Sheet.Content side="right" class="w-64">
+      <RightSidebar />
+    </Sheet.Content>
 
-  <!-- Fixed Player Footer -->
-  <PlayerFooter audioService={$audioServiceStore} />
+    <!-- Fixed Player Footer -->
+    <PlayerFooter audioService={$audioServiceStore} />
 
-  <audio bind:this={audio} preload="auto" id="mus-audio-element"></audio>
-</Sheet.Root>
+    <audio bind:this={audio} preload="auto" id="mus-audio-element"></audio>
+  </Sheet.Root>
+</AuthWall>

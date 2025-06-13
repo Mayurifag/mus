@@ -34,8 +34,8 @@
 - [x] Remove test toasts notifications from frontend and backend
 - [x] Test toast on track adding
 - [x] Make docker compose working and also dockerize production dockerfile
-- [ ] Secret endpoint check!
-- [ ] docker setup for production check locally
+- [x] Secret endpoint check!
+- [ ] docker setup for production check locally - will require Svelte static build - will require to remove SSR or to do something - refactoring and good code organizing needed
 - [x] robots.txt, llm, so on
 - [ ] Publish
 - [ ] Rewrite all markdown files with AI
