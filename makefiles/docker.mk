@@ -1,5 +1,5 @@
 DOCKER_COMPOSE_CMD := docker compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml
-DOCKER_PROD_CMD := docker build -f docker/production.Dockerfile
+DOCKER_PROD_CMD := docker build -f docker/production/production.Dockerfile
 
 .PHONY: up
 up:
@@ -24,13 +24,29 @@ rebuild: down build up
 ps:
 	@$(DOCKER_COMPOSE_CMD) ps
 
-.PHONY: docker-build-prod
-docker-build-prod:
-	@$(DOCKER_PROD_CMD) -t mus:latest .
+.PHONY: docker-test-prod
+docker-test-prod:
+	@echo "Testing production Docker image..."
+	@echo "Building production image..."
+	@$(DOCKER_PROD_CMD) -t mus:test .
+	@echo "Starting production container with music folder from override config..."
+	@MUSIC_PATH=$$(grep -A 15 "backend:" docker/docker-compose.override.yml | grep "/app/music" | sed 's/.*- \([^:]*\):.*/\1/' | xargs) && \
+	echo "Using music path: $$MUSIC_PATH" && \
+	docker run -d --name mus-prod-test -p 4124:8000 \
+		-v "$$MUSIC_PATH":/app/music \
+		mus:test
+	@echo "Waiting for container to start..."
+	@sleep 10
+	@echo "Production container started at http://localhost:4124"
+	@echo "Use 'make docker-test-prod-stop' to stop and clean up"
 
-.PHONY: docker-run-prod
-docker-run-prod:
-	docker run -p 4123:8000 -v $(shell pwd)/data:/app/data -v $(shell pwd)/music:/app/music mus:latest
+.PHONY: docker-test-prod-stop
+docker-test-prod-stop:
+	@echo "Stopping and removing production test container..."
+	@docker stop mus-prod-test 2>/dev/null || true
+	@docker rm mus-prod-test 2>/dev/null || true
+	@docker rmi mus:test 2>/dev/null || true
+	@echo "Production test cleanup complete"
 
 .PHONY: back-sh
 back-sh:

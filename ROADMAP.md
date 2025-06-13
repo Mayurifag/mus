@@ -35,7 +35,7 @@
 - [x] Test toast on track adding
 - [x] Make docker compose working and also dockerize production dockerfile
 - [x] Secret endpoint check!
-- [ ] docker setup for production check locally - will require Svelte static build - will require to remove SSR or to do something - refactoring and good code organizing needed
+- [x] docker setup for production check locally - will require Svelte static build - will require to remove SSR or to do something - refactoring and good code organizing needed
 - [x] robots.txt, llm, so on
 - [ ] Publish
 - [ ] Rewrite all markdown files with AI
@@ -53,7 +53,7 @@
 
 ## Phase 2
 
-- [ ] rate limiting
+- [ ] rate limiting changes
 - [ ] start some e2e with production dockerimages
 - [ ] Database has to contain real track duration, not from metadata
 - [ ] Hotkeys for player controls
@@ -63,6 +63,8 @@
 - [ ] Preview of each file - possibility to set title artist (choose?)
 - [ ] Possibility to delete tracks from frontend (with confirmation)
 - [ ] History of file editing. Revert functionality.
+- [ ] minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier
+- [ ] production image nginx logging. Logging across app.
 
 ## Phase 3
 

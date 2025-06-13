@@ -70,15 +70,9 @@ class CoverProcessor:
             return False
 
     async def extract_cover_from_file(self, file_path: Path) -> Optional[bytes]:
-        """
-        Extract cover art from MP3 (ID3) and FLAC audio files.
-        Returns raw cover art data as bytes if found, None otherwise.
-        """
-        # Run synchronous mutagen operations in a separate thread
         return await asyncio.to_thread(self._extract_cover_sync, file_path)
 
     def _extract_cover_sync(self, file_path: Path) -> Optional[bytes]:
-        """Synchronous implementation of cover extraction."""
         try:
             file_ext = file_path.suffix.lower()
             if file_ext == ".mp3":
@@ -91,12 +85,11 @@ class CoverProcessor:
             return None
 
     def _extract_mp3_cover(self, file_path: Path) -> Optional[bytes]:
-        """Extract cover art from MP3 files using ID3 tags."""
         try:
             audio = MP3(file_path, ID3=ID3)
             if audio.tags is None:
                 return None
-            # Look for APIC frames (album art)
+
             for key in audio.tags.keys():
                 if key.startswith("APIC:"):
                     return audio.tags[key].data
@@ -106,12 +99,10 @@ class CoverProcessor:
             return None
 
     def _extract_flac_cover(self, file_path: Path) -> Optional[bytes]:
-        """Extract cover art from FLAC files."""
         try:
             audio = FLAC(file_path)
-            # FLAC files store pictures in the pictures attribute
+
             if audio.pictures:
-                # Get the first picture (typically cover art)
                 return audio.pictures[0].data
             return None
         except Exception as e:

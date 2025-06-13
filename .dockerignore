@@ -33,3 +33,6 @@ venv
 **/coverage/
 **/npm-debug.log
 **/.eslintcache
+
+# Include production docker directory
+!docker/production/

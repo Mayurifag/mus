@@ -1,6 +1,4 @@
-# Docker Compose overrides for development
 # Copy this file to docker-compose.overrides.yml and customize as needed
-# This file contains development-specific configuration like ports, volumes, and environment variables
 
 services:
   backend:
@@ -9,7 +7,7 @@ services:
     volumes:
       - ../backend:/app
       - ../data:/app/data
-      # Replace with your music directory path
+
       - /path/to/your/music:/app/music
     environment:
       - SECRET_KEY=dev_secret_key_please_change_in_production

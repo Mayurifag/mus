@@ -176,7 +176,7 @@
 >
   <Sheet.Root bind:open={sheetOpen}>
     <!-- Main content area that uses full viewport scrolling -->
-    <main class="desktop:pr-64 min-h-screen pb-20 pr-0">
+    <main class="desktop:pr-64 min-h-screen pr-0 pb-20">
       <div class="p-4">
         {@render children()}
       </div>
@@ -185,7 +185,7 @@
     <Toaster position="top-left" />
 
     <!-- Desktop Sidebar - positioned fixed on the right -->
-    <aside class="desktop:block fixed bottom-20 right-0 top-0 hidden w-64">
+    <aside class="desktop:block fixed top-0 right-0 bottom-20 hidden w-64">
       <RightSidebar />
     </aside>
 

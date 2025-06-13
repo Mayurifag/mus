@@ -8,13 +8,15 @@ export interface MusEvent {
 }
 
 const API_BASE_URL =
-  import.meta.env.VITE_SSR_API_BASE_URL || "http://localhost:8000/api/v1";
+  import.meta.env.VITE_SSR_API_BASE_URL || "http://127.0.0.1:8001/api/v1";
 
 export function getStreamUrl(trackId: number): string {
   return `${API_BASE_URL}/tracks/${trackId}/stream`;
 }
 
-export async function fetchTracks(customFetch?: typeof fetch): Promise<Track[]> {
+export async function fetchTracks(
+  customFetch?: typeof fetch,
+): Promise<Track[]> {
   try {
     const fetchFn = customFetch || fetch;
     const response = await fetchFn(`${API_BASE_URL}/tracks`, {
@@ -30,7 +32,9 @@ export async function fetchTracks(customFetch?: typeof fetch): Promise<Track[]> 
   }
 }
 
-export async function fetchPlayerState(customFetch?: typeof fetch): Promise<PlayerState> {
+export async function fetchPlayerState(
+  customFetch?: typeof fetch,
+): Promise<PlayerState> {
   try {
     const fetchFn = customFetch || fetch;
     const response = await fetchFn(`${API_BASE_URL}/player/state`, {

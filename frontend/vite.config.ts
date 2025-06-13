@@ -3,6 +3,7 @@ import { svelteTesting } from "@testing-library/svelte/vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
 import svgo from "vite-plugin-svgo";
+import viteCompression from "vite-plugin-compression";
 
 export default defineConfig({
   plugins: [
@@ -22,6 +23,8 @@ export default defineConfig({
         },
       ],
     }),
+    viteCompression({ algorithm: "gzip" }),
+    viteCompression({ algorithm: "brotliCompress", ext: ".br" }),
   ],
   test: {
     coverage: {

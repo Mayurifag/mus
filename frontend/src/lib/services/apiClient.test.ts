@@ -50,7 +50,7 @@ describe("apiClient", () => {
       const result = await apiClient.fetchTracks();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/tracks",
+        "http://127.0.0.1:8001/api/v1/tracks",
         { credentials: "include" },
       );
       expect(result).toEqual([mockTrack]);
@@ -69,7 +69,7 @@ describe("apiClient", () => {
       const result = await apiClient.fetchTracks();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/tracks",
+        "http://127.0.0.1:8001/api/v1/tracks",
         { credentials: "include" },
       );
       expect(console.error).toHaveBeenCalledWith(
@@ -86,7 +86,7 @@ describe("apiClient", () => {
       const result = await apiClient.fetchTracks();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/tracks",
+        "http://127.0.0.1:8001/api/v1/tracks",
         { credentials: "include" },
       );
       expect(console.error).toHaveBeenCalledWith(
@@ -111,7 +111,7 @@ describe("apiClient", () => {
       const result = await apiClient.fetchPlayerState();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/player/state",
+        "http://127.0.0.1:8001/api/v1/player/state",
         { credentials: "include" },
       );
       expect(result).toEqual(mockPlayerState);
@@ -130,7 +130,7 @@ describe("apiClient", () => {
       const result = await apiClient.fetchPlayerState();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/player/state",
+        "http://127.0.0.1:8001/api/v1/player/state",
         { credentials: "include" },
       );
       expect(result).toEqual({
@@ -156,7 +156,7 @@ describe("apiClient", () => {
       const result = await apiClient.fetchPlayerState();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/player/state",
+        "http://127.0.0.1:8001/api/v1/player/state",
         { credentials: "include" },
       );
       expect(console.error).toHaveBeenCalledWith(
@@ -180,7 +180,7 @@ describe("apiClient", () => {
       const result = await apiClient.fetchPlayerState();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/player/state",
+        "http://127.0.0.1:8001/api/v1/player/state",
         { credentials: "include" },
       );
       expect(console.error).toHaveBeenCalledWith(
@@ -209,7 +209,7 @@ describe("apiClient", () => {
       apiClient.sendPlayerStateBeacon(mockPlayerState);
 
       expect(mockSendBeacon).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/player/state",
+        "http://127.0.0.1:8001/api/v1/player/state",
         expect.any(Blob),
       );
     });
@@ -227,7 +227,7 @@ describe("apiClient", () => {
 
   describe("checkAuthStatus", () => {
     it("returns auth status when fetch is successful", async () => {
-      const mockAuthStatus = { authEnabled: true, isAuthenticated: true };
+      const mockAuthStatus = { auth_enabled: true, authenticated: true };
       const mockResponse = {
         ok: true,
         status: 200,
@@ -240,10 +240,10 @@ describe("apiClient", () => {
       const result = await apiClient.checkAuthStatus();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/auth/auth-status",
+        "http://127.0.0.1:8001/api/v1/auth/auth-status",
         { credentials: "include" },
       );
-      expect(result).toEqual(mockAuthStatus);
+      expect(result).toEqual({ authEnabled: true, isAuthenticated: true });
     });
 
     it("returns default auth status when fetch fails", async () => {
@@ -259,7 +259,7 @@ describe("apiClient", () => {
       const result = await apiClient.checkAuthStatus();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/auth/auth-status",
+        "http://127.0.0.1:8001/api/v1/auth/auth-status",
         { credentials: "include" },
       );
       expect(console.error).toHaveBeenCalledWith(
@@ -270,7 +270,7 @@ describe("apiClient", () => {
     });
 
     it("uses custom fetch when provided", async () => {
-      const mockAuthStatus = { authEnabled: false, isAuthenticated: false };
+      const mockAuthStatus = { auth_enabled: false, authenticated: false };
       const mockResponse = {
         ok: true,
         status: 200,
@@ -281,10 +281,10 @@ describe("apiClient", () => {
       const result = await apiClient.checkAuthStatus(customFetch);
 
       expect(customFetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/auth/auth-status",
+        "http://127.0.0.1:8001/api/v1/auth/auth-status",
         { credentials: "include" },
       );
-      expect(result).toEqual(mockAuthStatus);
+      expect(result).toEqual({ authEnabled: false, isAuthenticated: false });
     });
   });
 });

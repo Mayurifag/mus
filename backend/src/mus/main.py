@@ -1,11 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from typing import Dict, Any
 from contextlib import asynccontextmanager
 import asyncio
 import logging
-from pathlib import Path
 
 from src.mus.infrastructure.api.middleware.auth import AuthMiddleware, auth_router
 from src.mus.infrastructure.api.routers import (
@@ -23,7 +21,6 @@ from src.mus.application.use_cases.scan_tracks_use_case import ScanTracksUseCase
 from src.mus.infrastructure.tasks.background_scanner import PeriodicScanner
 from src.mus.config import settings
 
-# Configure logging
 logging.basicConfig(
     level=settings.LOG_LEVEL.upper(), format="%(levelname)s:     %(name)s - %(message)s"
 )
@@ -84,52 +81,12 @@ app.include_router(player_router.router)
 app.include_router(track_router.router)
 app.include_router(sse_router)
 
-# This mounts what's in settings.STATIC_DIR_PATH at /static URL path
-if settings.STATIC_DIR_PATH.exists() and settings.STATIC_DIR_PATH.is_dir():
-    app.mount(
-        "/static",
-        StaticFiles(directory=str(settings.STATIC_DIR_PATH)),
-        name="static_assets",
-    )
-    logger.info(f"Serving static files from: {settings.STATIC_DIR_PATH} at /static")
-else:
-    logger.warning(
-        f"Static directory {settings.STATIC_DIR_PATH} not found, not mounting /static."
-    )
-
 
 # The following routes were in the provided main.py context, keeping them.
 @app.get("/api", response_model=Dict[str, Any])
 async def read_root() -> Dict[str, Any]:
     return {"status": "ok", "message": "Mus backend is running"}
 
-
-# Frontend static file serving from original main.py structure
-# Calculate paths relative to BASE_DIR
-_base_dir = Path(__file__).resolve().parent
-_project_root = _base_dir.parent.parent.parent
-_default_frontend_path = _project_root / "frontend" / "build"
-_alternative_frontend_path = _project_root / "static"
-
-frontend_serving_path: Path | None = None
-if _default_frontend_path.exists() and _default_frontend_path.is_dir():
-    frontend_serving_path = _default_frontend_path
-elif _alternative_frontend_path.exists() and _alternative_frontend_path.is_dir():
-    frontend_serving_path = _alternative_frontend_path
-
-if frontend_serving_path:
-    logger.info(
-        f"Attempting to serve frontend static files from: {frontend_serving_path}"
-    )
-    app.mount(
-        "/",
-        StaticFiles(directory=str(frontend_serving_path), html=True),
-        name="frontend",
-    )
-else:
-    logger.warning(
-        "Frontend static directory not found at common locations, not mounting SPA."
-    )
 
 logger.info(f"Music directory configured: {settings.MUSIC_DIR_PATH}")
 logger.info(f"Covers will be stored in: {settings.COVERS_DIR_PATH}")

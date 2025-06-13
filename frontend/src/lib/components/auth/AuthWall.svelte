@@ -31,9 +31,12 @@
           </CardTitle>
         </CardHeader>
         <CardContent class="text-center">
-          <p class="text-muted-foreground">
-            Please use the secret login URL to access the application.
-          </p>
+          <p class="text-muted-foreground">Navigate to</p>
+          <code class="bg-muted mt-2 block rounded px-2 py-1 text-sm"
+            >/api/v1/auth/login-by-secret/<span class="text-blue-500"
+              >SECRET_KEY</span
+            ></code
+          >
         </CardContent>
       </Card>
     </div>

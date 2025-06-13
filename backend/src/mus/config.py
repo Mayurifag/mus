@@ -38,12 +38,5 @@ class Config(BaseModel):
     def COVERS_DIR_PATH(self) -> Path:
         return Path(self.COVERS_DIR)
 
-    STATIC_DIR: str = os.getenv("STATIC_DIR", str(BASE_DIR / ".." / ".." / "static"))
-
-    @computed_field
-    @property
-    def STATIC_DIR_PATH(self) -> Path:
-        return Path(self.STATIC_DIR)
-
 
 settings = Config()
