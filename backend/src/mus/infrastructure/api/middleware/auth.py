@@ -17,12 +17,15 @@ auth_router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
+    now = datetime.now(UTC)
+
     if expires_delta:
-        expire = datetime.now(UTC) + expires_delta
+        expire = now + expires_delta
     else:
         days = 365 if settings.APP_ENV == "production" else 30
-        expire = datetime.now(UTC) + timedelta(days=days)
-    to_encode.update({"exp": expire, "iat": datetime.now(UTC)})
+        expire = now + timedelta(days=days)
+
+    to_encode.update({"exp": expire, "iat": now})
     if not settings.SECRET_KEY:
         raise ValueError("SECRET_KEY is not configured")
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
@@ -52,16 +55,17 @@ async def login_by_secret(secret_key: str, request: Request):
 
     response = RedirectResponse(url=frontend_url, status_code=status.HTTP_303_SEE_OTHER)
 
-    days = 365 if settings.APP_ENV == "production" else 30
-    max_age = days * 24 * 60 * 60
+    is_production = settings.APP_ENV == "production"
+    days = 365 if is_production else 30
 
     response.set_cookie(
         key=AUTH_COOKIE_NAME,
         value=access_token,
         httponly=True,
-        max_age=max_age,
-        secure=settings.APP_ENV == "production",
-        samesite="strict" if settings.APP_ENV == "production" else "lax",
+        max_age=days * 24 * 60 * 60,
+        secure=is_production,
+        samesite="strict" if is_production else "lax",
+        path="/",
     )
 
     return response
@@ -73,17 +77,19 @@ async def auth_status(request: Request) -> dict:
         return {"auth_enabled": False, "authenticated": False}
 
     token = request.cookies.get(AUTH_COOKIE_NAME)
-    if not token:
-        return {"auth_enabled": True, "authenticated": False}
+    authenticated = False
 
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        exp = payload.get("exp")
-        if exp and datetime.fromtimestamp(exp, tz=UTC) < datetime.now(UTC):
-            return {"auth_enabled": True, "authenticated": False}
-        return {"auth_enabled": True, "authenticated": True}
-    except JWTError:
-        return {"auth_enabled": True, "authenticated": False}
+    if token:
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+            exp = payload.get("exp")
+            authenticated = not (
+                exp and datetime.fromtimestamp(exp, tz=UTC) < datetime.now(UTC)
+            )
+        except JWTError:
+            authenticated = False
+
+    return {"auth_enabled": True, "authenticated": authenticated}
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -91,11 +97,25 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not settings.SECRET_KEY:
             return await call_next(request)
 
-        public_paths = ["/api/v1/auth/", "/api/v1/events/"]
+        # Skip authentication for SSR requests: User-Agent "node" + no proxy headers
+        user_agent = request.headers.get("user-agent", "")
+        proxy_headers = [
+            "x-forwarded-for",
+            "x-real-ip",
+            "x-forwarded-proto",
+            "x-forwarded-host",
+        ]
+        has_proxy_headers = any(request.headers.get(header) for header in proxy_headers)
 
+        if user_agent == "node" and not has_proxy_headers:
+            return await call_next(request)
+
+        # Public paths that don't require authentication
+        public_paths = ["/api/v1/auth/", "/api/v1/events/"]
         if any(request.url.path.startswith(path) for path in public_paths):
             return await call_next(request)
 
+        # Verify JWT token from cookie
         token = request.cookies.get(AUTH_COOKIE_NAME)
         if not token:
             return JSONResponse(

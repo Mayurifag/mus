@@ -48,7 +48,6 @@ export async function fetchPlayerState(
 ): Promise<PlayerState> {
   try {
     const fetchFn = customFetch || fetch;
-    // Use SSR API URL when customFetch is provided (server-side), client URL otherwise
     const apiBaseUrl = getApiBaseUrl(!!customFetch);
     const response = await fetchFn(`${apiBaseUrl}/player/state`, {
       credentials: "include",
@@ -136,7 +135,6 @@ export async function checkAuthStatus(
 ): Promise<{ authEnabled: boolean; isAuthenticated: boolean }> {
   try {
     const fetchFn = customFetch || fetch;
-    // Use SSR API URL when customFetch is provided (server-side), client URL otherwise
     const apiBaseUrl = getApiBaseUrl(!!customFetch);
     const response = await fetchFn(`${apiBaseUrl}/auth/auth-status`, {
       credentials: "include",

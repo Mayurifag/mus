@@ -37,6 +37,7 @@
 - [x] Secret endpoint check!
 - [x] docker setup for production check locally - will require Svelte static build - will require to remove SSR or to do something - refactoring and good code organizing needed
 - [x] robots.txt, llm, so on
+- [ ] Get through all the mess. There is frontend/backend communication problem including production over SSR/browser localhost ports ... - analyze all places to fix. Also track covers webp.
 - [ ] Publish
 - [ ] Rewrite all markdown files with AI
 - [ ] Little bug - if we drag volume slider overflow left, it will show 100%. Also change cursor on dragging - on hover
