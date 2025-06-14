@@ -28,8 +28,7 @@ def test_login_by_secret_valid_with_secret_key(client: TestClient) -> None:
 
         token = cookies[AUTH_COOKIE_NAME]
         payload = jwt.decode(token, "test-secret-key", algorithms=[ALGORITHM])
-        assert "exp" in payload
-        assert "iat" in payload
+        assert payload == {}
 
 
 def test_login_by_secret_invalid_key(client: TestClient) -> None:

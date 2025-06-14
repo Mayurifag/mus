@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, computed_field
 from dotenv import load_dotenv
@@ -20,14 +20,7 @@ class Config(BaseModel):
     SCAN_INTERVAL_SECONDS: int = int(os.getenv("SCAN_INTERVAL_SECONDS", "60"))
     MUSIC_DIR_PATH: Path = Path(str(BASE_DIR / ".." / ".." / "music"))
 
-    CORS_ALLOWED_ORIGINS_STR: str = os.getenv(
-        "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
-    )
-
-    @computed_field
-    @property
-    def CORS_ALLOWED_ORIGINS(self) -> List[str]:
-        return [origin.strip() for origin in self.CORS_ALLOWED_ORIGINS_STR.split(",")]
+    FRONTEND_ORIGIN: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 
     COVERS_DIR: str = os.getenv(
         "COVERS_DIR", str(BASE_DIR / ".." / ".." / "data" / "covers")

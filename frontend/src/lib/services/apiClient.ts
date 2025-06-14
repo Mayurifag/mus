@@ -1,4 +1,5 @@
 import type { Track, PlayerState } from "$lib/types";
+import { dev } from "$app/environment";
 
 export interface MusEvent {
   message_to_show: string | null;
@@ -7,49 +8,64 @@ export interface MusEvent {
   action_payload: Record<string, unknown> | null;
 }
 
-// SSR API base URL for server-side requests (internal backend)
-const SSR_API_BASE_URL =
-  import.meta.env.VITE_SSR_API_BASE_URL || "http://127.0.0.1:8001/api/v1";
+const VITE_INTERNAL_API_HOST =
+  import.meta.env.VITE_INTERNAL_API_HOST || "http://localhost:8000";
+const VITE_PUBLIC_API_HOST =
+  import.meta.env.VITE_PUBLIC_API_HOST || "http://localhost:8000";
 
-// Client-side API base URL (through nginx proxy)
-const CLIENT_API_BASE_URL = "/api/v1";
+const API_VERSION = "/api/v1";
 
-function getApiBaseUrl(isSSR: boolean = false): string {
-  return isSSR ? SSR_API_BASE_URL : CLIENT_API_BASE_URL;
+function getApiBaseUrl(): string {
+  if (import.meta.env.SSR) {
+    return `${VITE_INTERNAL_API_HOST}${API_VERSION}`;
+  }
+
+  if (dev) {
+    return `${VITE_PUBLIC_API_HOST}${API_VERSION}`;
+  }
+
+  return API_VERSION;
 }
+
+const API_BASE_PREFIX = dev
+  ? `${VITE_PUBLIC_API_HOST}${API_VERSION}`
+  : API_VERSION;
 
 export function getStreamUrl(trackId: number): string {
-  // Stream URLs are always client-side (for audio playback)
-  return `${CLIENT_API_BASE_URL}/tracks/${trackId}/stream`;
+  return `${API_BASE_PREFIX}/tracks/${trackId}/stream`;
 }
 
-export async function fetchTracks(
-  customFetch?: typeof fetch,
-): Promise<Track[]> {
+export async function fetchTracks(): Promise<Track[]> {
   try {
-    const fetchFn = customFetch || fetch;
-    // Use SSR API URL when customFetch is provided (server-side), client URL otherwise
-    const apiBaseUrl = getApiBaseUrl(!!customFetch);
-    const response = await fetchFn(`${apiBaseUrl}/tracks`, {
+    const apiBaseUrl = getApiBaseUrl();
+    const response = await fetch(`${apiBaseUrl}/tracks`, {
       credentials: "include",
     });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    return await response.json();
+    const tracks: Track[] = await response.json();
+
+    for (const track of tracks) {
+      if (track.cover_small_url) {
+        track.cover_small_url = `${API_BASE_PREFIX}${track.cover_small_url}`;
+      }
+      if (track.cover_original_url) {
+        track.cover_original_url = `${API_BASE_PREFIX}${track.cover_original_url}`;
+      }
+    }
+
+    return tracks;
   } catch (error) {
     console.error("Error fetching tracks:", error);
     return [];
   }
 }
 
-export async function fetchPlayerState(
-  customFetch?: typeof fetch,
-): Promise<PlayerState> {
+export async function fetchPlayerState(): Promise<PlayerState> {
   try {
-    const fetchFn = customFetch || fetch;
-    const apiBaseUrl = getApiBaseUrl(!!customFetch);
-    const response = await fetchFn(`${apiBaseUrl}/player/state`, {
+    const apiBaseUrl = getApiBaseUrl();
+    const response = await fetch(`${apiBaseUrl}/player/state`, {
       credentials: "include",
     });
     if (response.status === 404) {
@@ -69,7 +85,6 @@ export async function fetchPlayerState(
     return await response.json();
   } catch (error) {
     console.error("Error fetching player state:", error);
-    // Return default player state on any error
     return {
       current_track_id: null,
       progress_seconds: 0.0,
@@ -83,8 +98,7 @@ export async function fetchPlayerState(
 
 export function sendPlayerStateBeacon(state: PlayerState): void {
   if (typeof navigator !== "undefined" && navigator.sendBeacon) {
-    // Beacon is always client-side
-    const url = `${CLIENT_API_BASE_URL}/player/state`;
+    const url = `${API_BASE_PREFIX}/player/state`;
     const blob = new Blob([JSON.stringify(state)], {
       type: "application/json",
     });
@@ -100,10 +114,8 @@ export function sendPlayerStateBeacon(state: PlayerState): void {
 export function connectTrackUpdateEvents(
   onMessageCallback: (eventData: MusEvent) => void,
 ): EventSource {
-  // EventSource is always client-side
-  const eventSource = new EventSource(
-    `${CLIENT_API_BASE_URL}/events/track-updates`,
-  );
+  const url = `${API_BASE_PREFIX}/events/track-updates`;
+  const eventSource = new EventSource(url);
 
   eventSource.onmessage = (event) => {
     try {
@@ -117,26 +129,24 @@ export function connectTrackUpdateEvents(
   eventSource.onerror = (error) => {
     console.error("SSE connection error:", error);
 
-    // Attempt to reconnect after a delay
     setTimeout(() => {
       console.log("Attempting to reconnect to SSE...");
       connectTrackUpdateEvents(onMessageCallback);
     }, 5000);
 
-    // Close the errored connection
     eventSource.close();
   };
 
   return eventSource;
 }
 
-export async function checkAuthStatus(
-  customFetch?: typeof fetch,
-): Promise<{ authEnabled: boolean; isAuthenticated: boolean }> {
+export async function checkAuthStatus(): Promise<{
+  authEnabled: boolean;
+  isAuthenticated: boolean;
+}> {
   try {
-    const fetchFn = customFetch || fetch;
-    const apiBaseUrl = getApiBaseUrl(!!customFetch);
-    const response = await fetchFn(`${apiBaseUrl}/auth/auth-status`, {
+    const apiBaseUrl = getApiBaseUrl();
+    const response = await fetch(`${apiBaseUrl}/auth/auth-status`, {
       credentials: "include",
     });
     if (!response.ok) {

@@ -69,7 +69,7 @@ describe("+layout.server.ts", () => {
 
     expect(fetchTracks).toHaveBeenCalled();
     expect(fetchPlayerState).toHaveBeenCalled();
-    expect(checkAuthStatus).toHaveBeenCalledWith(mockEvent.fetch);
+    expect(checkAuthStatus).toHaveBeenCalled();
     expect(result).toEqual({
       tracks: mockTracks,
       playerState: mockPlayerState,
@@ -95,7 +95,7 @@ describe("+layout.server.ts", () => {
 
     expect(fetchTracks).toHaveBeenCalled();
     expect(fetchPlayerState).toHaveBeenCalled();
-    expect(checkAuthStatus).toHaveBeenCalledWith(mockEvent.fetch);
+    expect(checkAuthStatus).toHaveBeenCalled();
     expect(result).toEqual({
       tracks: mockTracks,
       playerState: defaultPlayerState,
@@ -112,7 +112,7 @@ describe("+layout.server.ts", () => {
 
     expect(fetchTracks).toHaveBeenCalled();
     expect(fetchPlayerState).toHaveBeenCalled();
-    expect(checkAuthStatus).toHaveBeenCalledWith(mockEvent.fetch);
+    expect(checkAuthStatus).toHaveBeenCalled();
     expect(result).toEqual({
       tracks: [],
       playerState: mockPlayerState,

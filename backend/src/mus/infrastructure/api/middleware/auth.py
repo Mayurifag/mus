@@ -1,6 +1,6 @@
 import hmac
-from datetime import datetime, timedelta, UTC
 from typing import Optional
+from urllib.parse import urlparse
 
 from fastapi import Request, Response, APIRouter, status
 from fastapi.responses import RedirectResponse, JSONResponse
@@ -15,24 +15,34 @@ AUTH_COOKIE_NAME = "mus_auth_token"
 auth_router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    to_encode = data.copy()
-    now = datetime.now(UTC)
+def _get_cookie_domain() -> Optional[str]:
+    if settings.APP_ENV in ("production", "test") or not settings.FRONTEND_ORIGIN:
+        return None
 
-    if expires_delta:
-        expire = now + expires_delta
-    else:
-        days = 365 if settings.APP_ENV == "production" else 30
-        expire = now + timedelta(days=days)
+    parsed = urlparse(settings.FRONTEND_ORIGIN)
+    return parsed.hostname
 
-    to_encode.update({"exp": expire, "iat": now})
+
+def _validate_token(token: Optional[str]) -> bool:
+    if not token or not settings.SECRET_KEY:
+        return False
+
+    try:
+        jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+        return True
+    except JWTError:
+        return False
+
+
+def create_access_token() -> str:
     if not settings.SECRET_KEY:
         raise ValueError("SECRET_KEY is not configured")
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+
+    return jwt.encode({}, settings.SECRET_KEY, algorithm=ALGORITHM)
 
 
 @auth_router.get("/login-by-secret/{secret_key}", response_model=None)
-async def login_by_secret(secret_key: str, request: Request):
+async def login_by_secret(secret_key: str):
     if not settings.SECRET_KEY:
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -45,27 +55,20 @@ async def login_by_secret(secret_key: str, request: Request):
             content={"detail": "Invalid authentication credentials"},
         )
 
-    access_token = create_access_token({})
-
-    frontend_url = (
-        "http://localhost:5173"
-        if settings.APP_ENV != "production"
-        else f"{request.url.scheme}://{request.url.netloc}"
+    access_token = create_access_token()
+    response = RedirectResponse(
+        url=settings.FRONTEND_ORIGIN, status_code=status.HTTP_303_SEE_OTHER
     )
 
-    response = RedirectResponse(url=frontend_url, status_code=status.HTTP_303_SEE_OTHER)
-
     is_production = settings.APP_ENV == "production"
-    days = 365 if is_production else 30
-
     response.set_cookie(
         key=AUTH_COOKIE_NAME,
         value=access_token,
         httponly=True,
-        max_age=days * 24 * 60 * 60,
         secure=is_production,
         samesite="strict" if is_production else "lax",
         path="/",
+        domain=_get_cookie_domain(),
     )
 
     return response
@@ -77,19 +80,24 @@ async def auth_status(request: Request) -> dict:
         return {"auth_enabled": False, "authenticated": False}
 
     token = request.cookies.get(AUTH_COOKIE_NAME)
-    authenticated = False
+    return {"auth_enabled": True, "authenticated": _validate_token(token)}
 
-    if token:
-        try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-            exp = payload.get("exp")
-            authenticated = not (
-                exp and datetime.fromtimestamp(exp, tz=UTC) < datetime.now(UTC)
-            )
-        except JWTError:
-            authenticated = False
 
-    return {"auth_enabled": True, "authenticated": authenticated}
+def _is_ssr_request(request: Request) -> bool:
+    user_agent = request.headers.get("user-agent", "")
+    proxy_headers = [
+        "x-forwarded-for",
+        "x-real-ip",
+        "x-forwarded-proto",
+        "x-forwarded-host",
+    ]
+    has_proxy_headers = any(request.headers.get(header) for header in proxy_headers)
+    return user_agent == "node" and not has_proxy_headers
+
+
+def _is_public_path(path: str) -> bool:
+    public_paths = ["/api/v1/auth/", "/api/v1/events/"]
+    return any(path.startswith(public_path) for public_path in public_paths)
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -97,44 +105,17 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not settings.SECRET_KEY:
             return await call_next(request)
 
-        # Skip authentication for SSR requests: User-Agent "node" + no proxy headers
-        user_agent = request.headers.get("user-agent", "")
-        proxy_headers = [
-            "x-forwarded-for",
-            "x-real-ip",
-            "x-forwarded-proto",
-            "x-forwarded-host",
-        ]
-        has_proxy_headers = any(request.headers.get(header) for header in proxy_headers)
-
-        if user_agent == "node" and not has_proxy_headers:
+        if _is_ssr_request(request):
             return await call_next(request)
 
-        # Public paths that don't require authentication
-        public_paths = ["/api/v1/auth/", "/api/v1/events/"]
-        if any(request.url.path.startswith(path) for path in public_paths):
+        if _is_public_path(request.url.path):
             return await call_next(request)
 
-        # Verify JWT token from cookie
         token = request.cookies.get(AUTH_COOKIE_NAME)
-        if not token:
+        if not _validate_token(token):
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={"detail": "Authentication required"},
-            )
-
-        try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-            exp = payload.get("exp")
-            if exp and datetime.fromtimestamp(exp, tz=UTC) < datetime.now(UTC):
-                return JSONResponse(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    content={"detail": "Token expired"},
-                )
-        except JWTError:
-            return JSONResponse(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"detail": "Invalid token"},
             )
 
         return await call_next(request)

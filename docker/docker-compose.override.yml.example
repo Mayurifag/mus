@@ -12,9 +12,11 @@ services:
     environment:
       - SECRET_KEY=dev_secret_key_please_change_in_production
       - APP_ENV=development
+      - FRONTEND_ORIGIN=http://localhost:5173
 
   frontend:
     ports:
       - "5173:5173"
     environment:
-      - VITE_SSR_API_BASE_URL=${VITE_SSR_API_BASE_URL:-http://localhost:8000/api/v1}
+      - VITE_INTERNAL_API_HOST=http://backend:8000
+      - VITE_PUBLIC_API_HOST=http://localhost:8000

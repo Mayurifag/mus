@@ -37,23 +37,24 @@
 - [x] Secret endpoint check!
 - [x] docker setup for production check locally - will require Svelte static build - will require to remove SSR or to do something - refactoring and good code organizing needed
 - [x] robots.txt, llm, so on
-- [ ] Get through all the mess. There is frontend/backend communication problem including production over SSR/browser localhost ports ... - analyze all places to fix. Also track covers webp.
-- [ ] Publish
-- [ ] Rewrite all markdown files with AI
+- [x] Get through all the mess. There is frontend/backend communication problem including production over SSR/browser localhost ports ... - analyze all places to fix. Also track covers webp.
+- [ ] Auth problem with cross-site cookies. Migrate to JWT and auth header?
+- [ ] Merge branch, deploy
+- [ ] Once again test all $effects, maybe too much of them
 - [ ] Little bug - if we drag volume slider overflow left, it will show 100%. Also change cursor on dragging - on hover
 - [ ] Clicking on album image on player footer should scroll to this track in tracklist.
-- [ ] Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?
 - [x] no cover album img - make it beautiful
-- [ ] Render play button from tracklist under album cover
-- [ ] Marquee for long texts
 - [ ] Scroll to track only if it is not visible on screen. Be sure it scrolls on first page load.
 - [ ] Solutions to have watchdog for file changes, etc.
-- [ ] Think through tracks deletion
+- [ ] Think through tracks deletion - rescanning should work that case - removing track cover and from db
 - [ ] Track scan also has to get real track duration. Not from metadata.
-- [ ] test non docker env once again
+- [ ] full test
 
 ## Phase 2
 
+- [ ] Marquee for long texts
+- [ ] Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?
+- [ ] Rewrite all markdown files with AI
 - [ ] rate limiting changes
 - [ ] start some e2e with production dockerimages
 - [ ] Database has to contain real track duration, not from metadata
@@ -69,6 +70,7 @@
 
 ## Phase 3
 
+- [ ] Render play button from tracklist under album cover
 - [ ] Define Artist entity
 - [ ] Parse artists, make them unique, add to db. Make functionality to set artist for track. Remove artist from db if no tracks with this artist. Multiple artists for track.
 - [ ] Artist page with all their tracks

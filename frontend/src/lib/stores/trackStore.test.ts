@@ -13,8 +13,10 @@ describe("trackStore", () => {
       file_path: "/path/to/file1.mp3",
       added_at: 1615478400,
       has_cover: true,
-      cover_small_url: "/api/v1/tracks/1/covers/small.webp",
-      cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+      cover_small_url:
+        "http://localhost:8000/api/v1/tracks/1/covers/small.webp",
+      cover_original_url:
+        "http://localhost:8000/api/v1/tracks/1/covers/original.webp",
     },
     {
       id: 2,
@@ -24,8 +26,10 @@ describe("trackStore", () => {
       file_path: "/path/to/file2.mp3",
       added_at: 1615478500,
       has_cover: true,
-      cover_small_url: "/api/v1/tracks/2/covers/small.webp",
-      cover_original_url: "/api/v1/tracks/2/covers/original.webp",
+      cover_small_url:
+        "http://localhost:8000/api/v1/tracks/2/covers/small.webp",
+      cover_original_url:
+        "http://localhost:8000/api/v1/tracks/2/covers/original.webp",
     },
     {
       id: 3,

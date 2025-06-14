@@ -1,7 +1,7 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as apiClient from "./apiClient";
 
-const mockTrack = {
+const mockTrackFromBackend = {
   id: 1,
   title: "Test Track",
   artist: "Test Artist",
@@ -9,8 +9,21 @@ const mockTrack = {
   file_path: "/path/to/song.mp3",
   added_at: Math.floor(Date.now() / 1000) - 3600,
   has_cover: true,
-  cover_small_url: "/api/v1/tracks/1/covers/small.webp",
-  cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+  cover_small_url: "/tracks/1/covers/small.webp",
+  cover_original_url: "/tracks/1/covers/original.webp",
+};
+
+const mockTrackTransformed = {
+  id: 1,
+  title: "Test Track",
+  artist: "Test Artist",
+  duration: 180,
+  file_path: "/path/to/song.mp3",
+  added_at: Math.floor(Date.now() / 1000) - 3600,
+  has_cover: true,
+  cover_small_url: "http://localhost:8000/api/v1/tracks/1/covers/small.webp",
+  cover_original_url:
+    "http://localhost:8000/api/v1/tracks/1/covers/original.webp",
 };
 
 const mockPlayerState = {
@@ -41,7 +54,7 @@ describe("apiClient", () => {
     it("returns tracks when fetch is successful", async () => {
       const mockResponse = {
         ok: true,
-        json: vi.fn().mockResolvedValue([mockTrack]),
+        json: vi.fn().mockResolvedValue([mockTrackFromBackend]),
       };
       vi.mocked(globalThis.fetch).mockResolvedValue(
         mockResponse as unknown as Response,
@@ -49,10 +62,13 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks", {
-        credentials: "include",
-      });
-      expect(result).toEqual([mockTrack]);
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/tracks",
+        {
+          credentials: "include",
+        },
+      );
+      expect(result).toEqual([mockTrackTransformed]);
     });
 
     it("returns empty array when fetch fails", async () => {
@@ -67,9 +83,12 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks", {
-        credentials: "include",
-      });
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/tracks",
+        {
+          credentials: "include",
+        },
+      );
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching tracks:",
         expect.any(Error),
@@ -83,9 +102,12 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks", {
-        credentials: "include",
-      });
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/tracks",
+        {
+          credentials: "include",
+        },
+      );
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching tracks:",
         expect.any(Error),
@@ -107,9 +129,12 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state", {
-        credentials: "include",
-      });
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/player/state",
+        {
+          credentials: "include",
+        },
+      );
       expect(result).toEqual(mockPlayerState);
     });
 
@@ -125,9 +150,12 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state", {
-        credentials: "include",
-      });
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/player/state",
+        {
+          credentials: "include",
+        },
+      );
       expect(result).toEqual({
         current_track_id: null,
         progress_seconds: 0.0,
@@ -150,9 +178,12 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state", {
-        credentials: "include",
-      });
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/player/state",
+        {
+          credentials: "include",
+        },
+      );
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching player state:",
         expect.any(Error),
@@ -173,9 +204,12 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state", {
-        credentials: "include",
-      });
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/player/state",
+        {
+          credentials: "include",
+        },
+      );
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching player state:",
         expect.any(Error),
@@ -202,7 +236,7 @@ describe("apiClient", () => {
       apiClient.sendPlayerStateBeacon(mockPlayerState);
 
       expect(mockSendBeacon).toHaveBeenCalledWith(
-        "/api/v1/player/state",
+        "http://localhost:8000/api/v1/player/state",
         expect.any(Blob),
       );
     });
@@ -233,7 +267,7 @@ describe("apiClient", () => {
       const result = await apiClient.checkAuthStatus();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "/api/v1/auth/auth-status",
+        "http://localhost:8000/api/v1/auth/auth-status",
         { credentials: "include" },
       );
       expect(result).toEqual({ authEnabled: true, isAuthenticated: true });
@@ -252,30 +286,12 @@ describe("apiClient", () => {
       const result = await apiClient.checkAuthStatus();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "/api/v1/auth/auth-status",
+        "http://localhost:8000/api/v1/auth/auth-status",
         { credentials: "include" },
       );
       expect(console.error).toHaveBeenCalledWith(
         "Error checking auth status:",
         expect.any(Error),
-      );
-      expect(result).toEqual({ authEnabled: false, isAuthenticated: false });
-    });
-
-    it("uses custom fetch when provided", async () => {
-      const mockAuthStatus = { auth_enabled: false, authenticated: false };
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        json: vi.fn().mockResolvedValue(mockAuthStatus),
-      };
-      const customFetch = vi.fn().mockResolvedValue(mockResponse);
-
-      const result = await apiClient.checkAuthStatus(customFetch);
-
-      expect(customFetch).toHaveBeenCalledWith(
-        "http://127.0.0.1:8001/api/v1/auth/auth-status",
-        { credentials: "include" },
       );
       expect(result).toEqual({ authEnabled: false, isAuthenticated: false });
     });

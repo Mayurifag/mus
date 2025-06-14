@@ -6,10 +6,10 @@ import {
   checkAuthStatus,
 } from "$lib/services/apiClient";
 
-export const load: LayoutServerLoad = async (event) => {
+export const load: LayoutServerLoad = async () => {
   try {
     // First check auth status
-    const authStatus = await checkAuthStatus(event.fetch);
+    const authStatus = await checkAuthStatus();
 
     // Only fetch protected data if authenticated
     if (authStatus.authEnabled && !authStatus.isAuthenticated) {
@@ -29,8 +29,8 @@ export const load: LayoutServerLoad = async (event) => {
     }
     // User is authenticated or auth is disabled - fetch all data
     const [tracks, playerState] = await Promise.all([
-      fetchTracks(event.fetch),
-      fetchPlayerState(event.fetch),
+      fetchTracks(),
+      fetchPlayerState(),
     ]);
 
     return {
