@@ -51,10 +51,13 @@ async def test_stream_track_file_not_found(app):
     """Test 404 when audio file doesn't exist."""
     track_id = 1
 
-    with patch("os.path.isfile", return_value=False), patch(
-        "src.mus.infrastructure.persistence.sqlite_track_repository.SQLiteTrackRepository.get_by_id",
-        new_callable=AsyncMock,
-        return_value=MagicMock(id=track_id, file_path="/non/existent/path.mp3"),
+    with (
+        patch("os.path.isfile", return_value=False),
+        patch(
+            "src.mus.infrastructure.persistence.sqlite_track_repository.SQLiteTrackRepository.get_by_id",
+            new_callable=AsyncMock,
+            return_value=MagicMock(id=track_id, file_path="/non/existent/path.mp3"),
+        ),
     ):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
@@ -76,9 +79,11 @@ async def test_stream_track_success():
     mock_request = MagicMock()
     mock_request.headers = {}
 
-    with patch("os.path.isfile", return_value=True), patch(
-        "fastapi.responses.FileResponse", return_value=file_response_mock
-    ), patch("asyncio.to_thread") as mock_to_thread:
+    with (
+        patch("os.path.isfile", return_value=True),
+        patch("fastapi.responses.FileResponse", return_value=file_response_mock),
+        patch("asyncio.to_thread") as mock_to_thread,
+    ):
         # Mock os.stat result
         mock_stat = MagicMock()
         mock_stat.st_size = 1024

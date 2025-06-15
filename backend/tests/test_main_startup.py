@@ -37,18 +37,21 @@ async def test_startup_process_runs_unconditionally():
 
     mock_settings_covers_dir = MagicMock(spec=Path)
 
-    with patch(
-        "src.mus.infrastructure.database.engine", new=mock_engine_instance
-    ), patch(
-        "src.mus.infrastructure.database.SQLModel.metadata.create_all"
-    ) as mock_sql_create_all, patch.object(
-        Config,
-        "COVERS_DIR_PATH",
-        new_callable=PropertyMock,
-        return_value=mock_settings_covers_dir,
-    ), patch(
-        "src.mus.main.PeriodicScanner",
-        new=mock_periodic_scanner_class,
+    with (
+        patch("src.mus.infrastructure.database.engine", new=mock_engine_instance),
+        patch(
+            "src.mus.infrastructure.database.SQLModel.metadata.create_all"
+        ) as mock_sql_create_all,
+        patch.object(
+            Config,
+            "COVERS_DIR_PATH",
+            new_callable=PropertyMock,
+            return_value=mock_settings_covers_dir,
+        ),
+        patch(
+            "src.mus.main.PeriodicScanner",
+            new=mock_periodic_scanner_class,
+        ),
     ):
         original_app_env = os.environ.get("APP_ENV")
         with patch("src.mus.main.settings.APP_ENV", "test"):
@@ -83,17 +86,21 @@ async def test_startup_process_runs_in_production():
 
         mock_create_db_and_tables_in_main = AsyncMock()
 
-        with patch(
-            "src.mus.main.create_db_and_tables",
-            new=mock_create_db_and_tables_in_main,
-        ), patch.object(
-            Config,
-            "COVERS_DIR_PATH",
-            new_callable=PropertyMock,
-            return_value=mock_settings_covers_dir,
-        ), patch(
-            "src.mus.main.PeriodicScanner",
-            new=mock_periodic_scanner_class,
+        with (
+            patch(
+                "src.mus.main.create_db_and_tables",
+                new=mock_create_db_and_tables_in_main,
+            ),
+            patch.object(
+                Config,
+                "COVERS_DIR_PATH",
+                new_callable=PropertyMock,
+                return_value=mock_settings_covers_dir,
+            ),
+            patch(
+                "src.mus.main.PeriodicScanner",
+                new=mock_periodic_scanner_class,
+            ),
         ):
             with TestClient(actual_app) as client:
                 client.get("/api")

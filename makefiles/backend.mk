@@ -3,12 +3,17 @@ BACKEND_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../backend)
 .PHONY: back-lint
 back-lint: back-format
 	@echo "Linting backend code..."
-	cd $(BACKEND_DIR) && uv run ruff check src tests
+	cd $(BACKEND_DIR) && uv run ruff check src tests --no-fix
 
 .PHONY: back-format
 back-format:
 	@echo "Formatting backend code..."
 	cd $(BACKEND_DIR) && uv run ruff format src tests
+
+.PHONY: back-format-check
+back-format-check:
+	@echo "Checking backend code formatting..."
+	cd $(BACKEND_DIR) && uv run ruff format src tests --check
 
 .PHONY: back-test
 back-test:

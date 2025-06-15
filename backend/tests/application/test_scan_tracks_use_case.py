@@ -105,11 +105,14 @@ async def test_scan_directory_no_files_found(
     mock_file_system_scanner.scan_directories.side_effect = empty_scan_gen
 
     # Mock the repository that gets instantiated inside the use case
-    with patch(
-        "src.mus.application.use_cases.scan_tracks_use_case.SQLiteTrackRepository"
-    ) as MockRepo, patch(
-        "src.mus.application.use_cases.scan_tracks_use_case.broadcast_sse_event"
-    ) as mock_broadcast_sse:
+    with (
+        patch(
+            "src.mus.application.use_cases.scan_tracks_use_case.SQLiteTrackRepository"
+        ) as MockRepo,
+        patch(
+            "src.mus.application.use_cases.scan_tracks_use_case.broadcast_sse_event"
+        ) as mock_broadcast_sse,
+    ):
         mock_repo_instance = MagicMock(spec=SQLiteTrackRepository)
         mock_repo_instance.session = mock_async_session
         mock_repo_instance.get_latest_track_added_at = AsyncMock(return_value=None)
@@ -242,16 +245,21 @@ async def test_scan_directory_one_new_mp3_file_metadata_extraction(
 
     # Patch os.path.getmtime and mutagen.mp3.MP3 within the use case's execution scope
     # Also patch the repository for assertions
-    with patch(
-        "src.mus.application.use_cases.scan_tracks_use_case.os.path.getmtime",
-        return_value=mock_mtime,
-    ), patch(
-        "src.mus.application.use_cases.scan_tracks_use_case.MP3"
-    ) as mock_mutagen_mp3, patch(
-        "src.mus.application.use_cases.scan_tracks_use_case.SQLiteTrackRepository"
-    ) as MockRepo, patch(
-        "src.mus.application.use_cases.scan_tracks_use_case.broadcast_sse_event"
-    ) as mock_broadcast_sse:
+    with (
+        patch(
+            "src.mus.application.use_cases.scan_tracks_use_case.os.path.getmtime",
+            return_value=mock_mtime,
+        ),
+        patch(
+            "src.mus.application.use_cases.scan_tracks_use_case.MP3"
+        ) as mock_mutagen_mp3,
+        patch(
+            "src.mus.application.use_cases.scan_tracks_use_case.SQLiteTrackRepository"
+        ) as MockRepo,
+        patch(
+            "src.mus.application.use_cases.scan_tracks_use_case.broadcast_sse_event"
+        ) as mock_broadcast_sse,
+    ):
         mock_mutagen_mp3.return_value = mock_mp3_audio
 
         mock_repo_instance = MagicMock(spec=SQLiteTrackRepository)
@@ -440,12 +448,15 @@ async def test_extract_metadata_sync_mtime_oserror_fallback(
     """Test that OSError from os.path.getmtime is handled with mtime=0 fallback."""
     test_file_path = Path("/music/test_song.mp3")
 
-    with patch(
-        "src.mus.application.use_cases.scan_tracks_use_case.os.path.getmtime",
-        side_effect=OSError("Permission denied"),
-    ), patch(
-        "src.mus.application.use_cases.scan_tracks_use_case.MP3"
-    ) as mock_mutagen_mp3:
+    with (
+        patch(
+            "src.mus.application.use_cases.scan_tracks_use_case.os.path.getmtime",
+            side_effect=OSError("Permission denied"),
+        ),
+        patch(
+            "src.mus.application.use_cases.scan_tracks_use_case.MP3"
+        ) as mock_mutagen_mp3,
+    ):
         mock_mp3_audio = MagicMock()
         mock_mp3_audio.tags = {
             "TIT2": MagicMock(text=["Test Title"]),

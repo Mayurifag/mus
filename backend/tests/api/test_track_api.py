@@ -133,9 +133,11 @@ async def test_stream_track_success(client, sample_tracks):
     mock_request = MagicMock()
     mock_request.headers = {}
 
-    with patch("os.path.isfile", return_value=True), patch(
-        "fastapi.responses.FileResponse", return_value=file_response_mock
-    ), patch("asyncio.to_thread") as mock_to_thread:
+    with (
+        patch("os.path.isfile", return_value=True),
+        patch("fastapi.responses.FileResponse", return_value=file_response_mock),
+        patch("asyncio.to_thread") as mock_to_thread,
+    ):
         # Mock os.stat result
         mock_stat = MagicMock()
         mock_stat.st_size = 1024
@@ -186,9 +188,11 @@ async def test_get_track_cover_success_small(client, sample_tracks):
     mock_stat.st_size = 1024
     mock_stat.st_mtime = 1609459200.0
 
-    with patch("os.path.isfile", return_value=True), patch(
-        "os.stat", return_value=mock_stat
-    ), patch("fastapi.responses.FileResponse", return_value=file_response_mock):
+    with (
+        patch("os.path.isfile", return_value=True),
+        patch("os.stat", return_value=mock_stat),
+        patch("fastapi.responses.FileResponse", return_value=file_response_mock),
+    ):
         mock_request = Mock()
         mock_request.headers = {}
 
@@ -213,9 +217,11 @@ async def test_get_track_cover_success_original(client, sample_tracks):
     mock_stat.st_size = 1024
     mock_stat.st_mtime = 1609459200.0
 
-    with patch("os.path.isfile", return_value=True), patch(
-        "os.stat", return_value=mock_stat
-    ), patch("fastapi.responses.FileResponse", return_value=file_response_mock):
+    with (
+        patch("os.path.isfile", return_value=True),
+        patch("os.stat", return_value=mock_stat),
+        patch("fastapi.responses.FileResponse", return_value=file_response_mock),
+    ):
         mock_request = Mock()
         mock_request.headers = {}
 
@@ -239,8 +245,9 @@ async def test_get_track_cover_etag_and_cache_headers(client, sample_tracks):
     mock_stat.st_size = 1024
     mock_stat.st_mtime = 1609459200.0
 
-    with patch("os.path.isfile", return_value=True), patch(
-        "os.stat", return_value=mock_stat
+    with (
+        patch("os.path.isfile", return_value=True),
+        patch("os.stat", return_value=mock_stat),
     ):
         mock_request = Mock()
         mock_request.headers = {}
@@ -267,8 +274,9 @@ async def test_get_track_cover_304_not_modified(client, sample_tracks):
     mock_stat.st_size = 1024
     mock_stat.st_mtime = 1609459200.0
 
-    with patch("os.path.isfile", return_value=True), patch(
-        "os.stat", return_value=mock_stat
+    with (
+        patch("os.path.isfile", return_value=True),
+        patch("os.stat", return_value=mock_stat),
     ):
         expected_file_path = str(settings.COVERS_DIR_PATH / "1_small.webp")
         expected_etag = _generate_etag(expected_file_path, 1024, 1609459200.0)

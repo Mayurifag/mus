@@ -113,12 +113,16 @@ async def test_track_updates_sse():
 
         # Get the first event (our test data)
         event_data = await anext(event_generator)
-        expected_event = f"data: {json.dumps({
-            'message_to_show': 'Test SSE message',
-            'message_level': 'info',
-            'action_key': 'test',
-            'action_payload': None
-        })}\n\n"
+        expected_event = f"data: {
+            json.dumps(
+                {
+                    'message_to_show': 'Test SSE message',
+                    'message_level': 'info',
+                    'action_key': 'test',
+                    'action_payload': None,
+                }
+            )
+        }\n\n"
         assert event_data == expected_event
 
         # Simulate client disconnection
