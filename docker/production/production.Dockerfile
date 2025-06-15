@@ -3,6 +3,8 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci --no-fund --prefer-offline
 COPY frontend/ ./
+ENV VITE_INTERNAL_API_HOST="http://127.0.0.1:8001"
+ENV VITE_PUBLIC_API_HOST=""
 RUN npm run build
 
 FROM python:3.12-slim-bookworm AS backend-builder

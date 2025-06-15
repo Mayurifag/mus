@@ -40,7 +40,8 @@
 - [x] Get through all the mess. There is frontend/backend communication problem including production over SSR/browser localhost ports ... - analyze all places to fix. Also track covers webp.
 - [x] Auth problem with cross-site cookies. Migrate to JWT and auth header?
 - [x] Database, covers, etc. outside of /app directory in docker containers. Maybe /app_data/... After that change dockerignore.
-- [ ] Merge branch, deploy
+- [x] Merge branch, deploy
+- [ ] Fix redirect after login -> goes to localhost:8000 for production
 - [ ] Once again test all $effects, maybe too much of them
 - [ ] Little bug - if we drag volume slider overflow left, it will show 100%. Also change cursor on dragging - on hover. Also have background dark colored for it.
 - [ ] Clicking on album image on player footer should scroll to this track in tracklist.

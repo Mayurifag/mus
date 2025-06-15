@@ -1,5 +1,4 @@
 import type { Track, PlayerState } from "$lib/types";
-import { dev } from "$app/environment";
 import { browser } from "$app/environment";
 
 export interface MusEvent {
@@ -19,37 +18,20 @@ function getAuthHeaders(): Record<string, string> {
   return {};
 }
 
-const VITE_INTERNAL_API_HOST =
-  import.meta.env.VITE_INTERNAL_API_HOST || "http://localhost:8000";
-const VITE_PUBLIC_API_HOST =
-  import.meta.env.VITE_PUBLIC_API_HOST || "http://localhost:8000";
-
-const API_VERSION = "/api/v1";
-
-function getApiBaseUrl(): string {
-  if (import.meta.env.SSR) {
-    return `${VITE_INTERNAL_API_HOST}${API_VERSION}`;
-  }
-
-  if (dev) {
-    return `${VITE_PUBLIC_API_HOST}${API_VERSION}`;
-  }
-
-  return API_VERSION;
-}
-
-const API_BASE_PREFIX = dev
-  ? `${VITE_PUBLIC_API_HOST}${API_VERSION}`
-  : API_VERSION;
+const VITE_INTERNAL_API_HOST = import.meta.env.VITE_INTERNAL_API_HOST || "";
+const VITE_PUBLIC_API_HOST = import.meta.env.VITE_PUBLIC_API_HOST || "";
+const API_PREFIX = import.meta.env.SSR
+  ? VITE_INTERNAL_API_HOST
+  : VITE_PUBLIC_API_HOST;
+const API_VERSION_PATH = "/api/v1";
 
 export function getStreamUrl(trackId: number): string {
-  return `${API_BASE_PREFIX}/tracks/${trackId}/stream`;
+  return `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}/stream`;
 }
 
 export async function fetchTracks(): Promise<Track[]> {
   try {
-    const apiBaseUrl = getApiBaseUrl();
-    const response = await fetch(`${apiBaseUrl}/tracks`, {
+    const response = await fetch(`${API_PREFIX}${API_VERSION_PATH}/tracks`, {
       headers: {
         ...getAuthHeaders(),
       },
@@ -61,10 +43,10 @@ export async function fetchTracks(): Promise<Track[]> {
 
     for (const track of tracks) {
       if (track.cover_small_url) {
-        track.cover_small_url = `${API_BASE_PREFIX}${track.cover_small_url}`;
+        track.cover_small_url = `${VITE_PUBLIC_API_HOST}${track.cover_small_url}`;
       }
       if (track.cover_original_url) {
-        track.cover_original_url = `${API_BASE_PREFIX}${track.cover_original_url}`;
+        track.cover_original_url = `${VITE_PUBLIC_API_HOST}${track.cover_original_url}`;
       }
     }
 
@@ -77,12 +59,14 @@ export async function fetchTracks(): Promise<Track[]> {
 
 export async function fetchPlayerState(): Promise<PlayerState> {
   try {
-    const apiBaseUrl = getApiBaseUrl();
-    const response = await fetch(`${apiBaseUrl}/player/state`, {
-      headers: {
-        ...getAuthHeaders(),
+    const response = await fetch(
+      `${API_PREFIX}${API_VERSION_PATH}/player/state`,
+      {
+        headers: {
+          ...getAuthHeaders(),
+        },
       },
-    });
+    );
     if (response.status === 404) {
       // Return default player state if none exists
       return {
@@ -113,7 +97,7 @@ export async function fetchPlayerState(): Promise<PlayerState> {
 
 export function sendPlayerStateBeacon(state: PlayerState): void {
   if (typeof navigator !== "undefined" && navigator.sendBeacon) {
-    const url = `${API_BASE_PREFIX}/player/state`;
+    const url = `${API_PREFIX}${API_VERSION_PATH}/player/state`;
     const blob = new Blob([JSON.stringify(state)], {
       type: "application/json",
     });
@@ -129,7 +113,7 @@ export function sendPlayerStateBeacon(state: PlayerState): void {
 export function connectTrackUpdateEvents(
   onMessageCallback: (eventData: MusEvent) => void,
 ): EventSource {
-  const url = `${API_BASE_PREFIX}/events/track-updates`;
+  const url = `${API_PREFIX}${API_VERSION_PATH}/events/track-updates`;
   const eventSource = new EventSource(url);
 
   eventSource.onmessage = (event) => {
@@ -160,12 +144,14 @@ export async function checkAuthStatus(): Promise<{
   isAuthenticated: boolean;
 }> {
   try {
-    const apiBaseUrl = getApiBaseUrl();
-    const response = await fetch(`${apiBaseUrl}/auth/auth-status`, {
-      headers: {
-        ...getAuthHeaders(),
+    const response = await fetch(
+      `${API_PREFIX}${API_VERSION_PATH}/auth/auth-status`,
+      {
+        headers: {
+          ...getAuthHeaders(),
+        },
       },
-    });
+    );
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }

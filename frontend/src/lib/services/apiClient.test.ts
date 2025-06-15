@@ -28,8 +28,8 @@ const mockTrackFromBackend = {
   file_path: "/path/to/song.mp3",
   added_at: Math.floor(Date.now() / 1000) - 3600,
   has_cover: true,
-  cover_small_url: "/tracks/1/covers/small.webp",
-  cover_original_url: "/tracks/1/covers/original.webp",
+  cover_small_url: "/api/v1/tracks/1/covers/small.webp",
+  cover_original_url: "/api/v1/tracks/1/covers/original.webp",
 };
 
 const mockTrackTransformed = {
@@ -40,9 +40,8 @@ const mockTrackTransformed = {
   file_path: "/path/to/song.mp3",
   added_at: Math.floor(Date.now() / 1000) - 3600,
   has_cover: true,
-  cover_small_url: "http://localhost:8000/api/v1/tracks/1/covers/small.webp",
-  cover_original_url:
-    "http://localhost:8000/api/v1/tracks/1/covers/original.webp",
+  cover_small_url: "/api/v1/tracks/1/covers/small.webp",
+  cover_original_url: "/api/v1/tracks/1/covers/original.webp",
 };
 
 const mockPlayerState = {
@@ -82,12 +81,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/tracks",
-        {
-          headers: {},
-        },
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks", {
+        headers: {},
+      });
       expect(result).toEqual([mockTrackTransformed]);
     });
 
@@ -103,12 +99,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/tracks",
-        {
-          headers: {},
-        },
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks", {
+        headers: {},
+      });
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching tracks:",
         expect.any(Error),
@@ -122,12 +115,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/tracks",
-        {
-          headers: {},
-        },
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks", {
+        headers: {},
+      });
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching tracks:",
         expect.any(Error),
@@ -149,12 +139,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/player/state",
-        {
-          headers: {},
-        },
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state", {
+        headers: {},
+      });
       expect(result).toEqual(mockPlayerState);
     });
 
@@ -170,12 +157,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/player/state",
-        {
-          headers: {},
-        },
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state", {
+        headers: {},
+      });
       expect(result).toEqual({
         current_track_id: null,
         progress_seconds: 0.0,
@@ -198,12 +182,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/player/state",
-        {
-          headers: {},
-        },
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state", {
+        headers: {},
+      });
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching player state:",
         expect.any(Error),
@@ -224,12 +205,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/player/state",
-        {
-          headers: {},
-        },
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state", {
+        headers: {},
+      });
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching player state:",
         expect.any(Error),
@@ -256,7 +234,7 @@ describe("apiClient", () => {
       apiClient.sendPlayerStateBeacon(mockPlayerState);
 
       expect(mockSendBeacon).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/player/state",
+        "/api/v1/player/state",
         expect.any(Blob),
       );
     });
@@ -287,7 +265,7 @@ describe("apiClient", () => {
       const result = await apiClient.checkAuthStatus();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/auth/auth-status",
+        "/api/v1/auth/auth-status",
         {
           headers: {},
         },
@@ -308,7 +286,7 @@ describe("apiClient", () => {
       const result = await apiClient.checkAuthStatus();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/auth/auth-status",
+        "/api/v1/auth/auth-status",
         {
           headers: {},
         },
@@ -335,14 +313,11 @@ describe("apiClient", () => {
 
       await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/tracks",
-        {
-          headers: {
-            Authorization: "Bearer test-secret-key",
-          },
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks", {
+        headers: {
+          Authorization: "Bearer test-secret-key",
         },
-      );
+      });
     });
 
     it("does not include Authorization header when no auth token in localStorage", async () => {
@@ -358,12 +333,9 @@ describe("apiClient", () => {
 
       await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/tracks",
-        {
-          headers: {},
-        },
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks", {
+        headers: {},
+      });
     });
 
     it("includes Authorization header in checkAuthStatus when token is present", async () => {
@@ -382,7 +354,7 @@ describe("apiClient", () => {
       await apiClient.checkAuthStatus();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/v1/auth/auth-status",
+        "/api/v1/auth/auth-status",
         {
           headers: {
             Authorization: "Bearer test-secret-key",

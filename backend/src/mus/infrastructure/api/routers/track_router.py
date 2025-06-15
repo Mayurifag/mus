@@ -39,7 +39,7 @@ async def get_tracks(
         track_dto = TrackDTO.model_validate(track)
 
         if track.has_cover:
-            cover_base = f"/tracks/{track.id}/covers"
+            cover_base = f"/api/v1/tracks/{track.id}/covers"
             track_dto.cover_small_url = f"{cover_base}/small.webp"
             track_dto.cover_original_url = f"{cover_base}/original.webp"
 
