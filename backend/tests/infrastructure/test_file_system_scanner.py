@@ -1,11 +1,13 @@
-import os
-import pytest
-from pathlib import Path
-from src.mus.infrastructure.scanner.file_system_scanner import FileSystemScanner
 import asyncio
-import time
-from unittest.mock import patch
 import logging
+import os
+import time
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from src.mus.infrastructure.scanner.file_system_scanner import FileSystemScanner
 
 
 @pytest.fixture
@@ -48,9 +50,9 @@ def test_music_dir():
 
 
 @pytest.fixture
-def file_system_scanner():
+def file_system_scanner(test_music_dir):
     """Return a FileSystemScanner instance."""
-    return FileSystemScanner()
+    return FileSystemScanner(test_music_dir)
 
 
 @pytest.fixture
@@ -66,14 +68,6 @@ def custom_music_dir():
             os.rmdir(base_dir)
         except OSError:
             pass
-
-
-def test_music_dir_uses_config():
-    """Test that FileSystemScanner uses centralized config."""
-    from src.mus.config import settings
-
-    scanner = FileSystemScanner()
-    assert scanner.default_root_dir == settings.MUSIC_DIR_PATH
 
 
 @pytest.mark.asyncio
@@ -161,30 +155,6 @@ async def test_empty_directory(file_system_scanner, test_music_dir):
     assert not files  # Expect no files from an empty directory
 
 
-@pytest.mark.asyncio
-async def test_scan_directories_default(test_music_dir, monkeypatch):
-    """Test that scan_directories defaults to the music directory when no dirs provided."""
-    # Mock the config to use our test directory
-    monkeypatch.setattr("src.mus.config.settings.MUSIC_DIR_PATH", test_music_dir)
-    scanner = FileSystemScanner()
-
-    all_files = []
-    async for file_path in scanner.scan_directories():
-        all_files.append(file_path)
-
-    expected_music_files = {
-        test_music_dir / "track1.mp3",
-        test_music_dir / "track2.FLAC",
-        test_music_dir / "album1" / "track3.mp3",
-        test_music_dir / "album1" / "track4.flac",
-        test_music_dir / "album2" / "cd1" / "track5.mp3",
-        test_music_dir / "album2" / "cd2" / "track6.flac",
-        test_music_dir / "album2" / "cd2" / "track7.mp3",
-    }
-    assert set(all_files) == expected_music_files
-    assert len(all_files) == 7
-
-
 @pytest.fixture
 def temp_music_dir_for_simple_scanner(tmp_path: Path) -> Path:
     music_dir = tmp_path / "music_lean"
@@ -212,14 +182,8 @@ def temp_music_dir_for_simple_scanner(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def scanner_lean(
-    temp_music_dir_for_simple_scanner: Path, monkeypatch: pytest.MonkeyPatch
-) -> FileSystemScanner:
-    # Mock the config to use our test directory
-    monkeypatch.setattr(
-        "src.mus.config.settings.MUSIC_DIR_PATH", temp_music_dir_for_simple_scanner
-    )
-    return FileSystemScanner()
+def scanner_lean(temp_music_dir_for_simple_scanner: Path) -> FileSystemScanner:
+    return FileSystemScanner(music_dir_path=temp_music_dir_for_simple_scanner)
 
 
 async def collect_results_lean(agen):

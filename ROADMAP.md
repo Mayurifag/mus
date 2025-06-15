@@ -38,7 +38,9 @@
 - [x] docker setup for production check locally - will require Svelte static build - will require to remove SSR or to do something - refactoring and good code organizing needed
 - [x] robots.txt, llm, so on
 - [x] Get through all the mess. There is frontend/backend communication problem including production over SSR/browser localhost ports ... - analyze all places to fix. Also track covers webp.
-- [ ] Auth problem with cross-site cookies. Migrate to JWT and auth header?
+- [x] Auth problem with cross-site cookies. Migrate to JWT and auth header?
+- [ ] Database, covers, etc. outside of /app directory in docker containers. Maybe /app_data/... After that change dockerignore.
+- [ ] use uuidv7 for track id. Fix track covers
 - [ ] Merge branch, deploy
 - [ ] Once again test all $effects, maybe too much of them
 - [ ] Little bug - if we drag volume slider overflow left, it will show 100%. Also change cursor on dragging - on hover

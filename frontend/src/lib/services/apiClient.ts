@@ -1,11 +1,22 @@
 import type { Track, PlayerState } from "$lib/types";
 import { dev } from "$app/environment";
+import { browser } from "$app/environment";
 
 export interface MusEvent {
   message_to_show: string | null;
   message_level: "success" | "error" | "info" | "warning" | null;
   action_key: string | null;
   action_payload: Record<string, unknown> | null;
+}
+
+function getAuthHeaders(): Record<string, string> {
+  if (!browser) return {};
+
+  const token = localStorage.getItem("auth_token");
+  if (token) {
+    return { Authorization: `Bearer ${token}` };
+  }
+  return {};
 }
 
 const VITE_INTERNAL_API_HOST =
@@ -39,7 +50,9 @@ export async function fetchTracks(): Promise<Track[]> {
   try {
     const apiBaseUrl = getApiBaseUrl();
     const response = await fetch(`${apiBaseUrl}/tracks`, {
-      credentials: "include",
+      headers: {
+        ...getAuthHeaders(),
+      },
     });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -66,7 +79,9 @@ export async function fetchPlayerState(): Promise<PlayerState> {
   try {
     const apiBaseUrl = getApiBaseUrl();
     const response = await fetch(`${apiBaseUrl}/player/state`, {
-      credentials: "include",
+      headers: {
+        ...getAuthHeaders(),
+      },
     });
     if (response.status === 404) {
       // Return default player state if none exists
@@ -147,7 +162,9 @@ export async function checkAuthStatus(): Promise<{
   try {
     const apiBaseUrl = getApiBaseUrl();
     const response = await fetch(`${apiBaseUrl}/auth/auth-status`, {
-      credentials: "include",
+      headers: {
+        ...getAuthHeaders(),
+      },
     });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

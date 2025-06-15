@@ -2,6 +2,8 @@ FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
+ENV MUSIC_DIR_PATH=/app/music
+
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
   gcc \

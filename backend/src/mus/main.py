@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
     await create_db_and_tables()
     settings.COVERS_DIR_PATH.mkdir(parents=True, exist_ok=True)
 
-    file_system_scanner = FileSystemScanner()
+    file_system_scanner = FileSystemScanner(music_dir_path=settings.MUSIC_DIR_PATH)
     cover_processor = CoverProcessor(covers_dir_path=settings.COVERS_DIR_PATH)
     scan_use_case = ScanTracksUseCase(
         session_factory=async_session_factory,

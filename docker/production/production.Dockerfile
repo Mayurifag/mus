@@ -27,7 +27,8 @@ RUN uv pip install --system --no-cache .
 FROM python:3.12-slim-bookworm
 ENV PYTHONUNBUFFERED=1 \
     APP_ENV=production \
-    LOG_LEVEL=info
+    LOG_LEVEL=info \
+    MUSIC_DIR_PATH=/app/music
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \

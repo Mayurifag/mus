@@ -1,14 +1,17 @@
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
-from unittest.mock import patch, AsyncMock, MagicMock
 from sqlmodel import select, text
 
+from src.mus.config import settings
 from src.mus.domain.entities.track import Track
 from src.mus.infrastructure.api.routers.track_router import (
-    stream_track,
-    get_track_cover,
     CoverSize,
+    _generate_etag,
+    get_track_cover,
+    stream_track,
 )
 from src.mus.main import app
 
@@ -186,8 +189,6 @@ async def test_get_track_cover_success_small(client, sample_tracks):
     with patch("os.path.isfile", return_value=True), patch(
         "os.stat", return_value=mock_stat
     ), patch("fastapi.responses.FileResponse", return_value=file_response_mock):
-        from unittest.mock import Mock
-
         mock_request = Mock()
         mock_request.headers = {}
 
@@ -215,8 +216,6 @@ async def test_get_track_cover_success_original(client, sample_tracks):
     with patch("os.path.isfile", return_value=True), patch(
         "os.stat", return_value=mock_stat
     ), patch("fastapi.responses.FileResponse", return_value=file_response_mock):
-        from unittest.mock import Mock
-
         mock_request = Mock()
         mock_request.headers = {}
 
@@ -243,8 +242,6 @@ async def test_get_track_cover_etag_and_cache_headers(client, sample_tracks):
     with patch("os.path.isfile", return_value=True), patch(
         "os.stat", return_value=mock_stat
     ):
-        from unittest.mock import Mock
-
         mock_request = Mock()
         mock_request.headers = {}
 
@@ -273,11 +270,6 @@ async def test_get_track_cover_304_not_modified(client, sample_tracks):
     with patch("os.path.isfile", return_value=True), patch(
         "os.stat", return_value=mock_stat
     ):
-        from unittest.mock import Mock
-        from src.mus.infrastructure.api.routers.track_router import _generate_etag
-        from src.mus.config import settings
-
-        # Use the actual settings path to generate the correct ETag
         expected_file_path = str(settings.COVERS_DIR_PATH / "1_small.webp")
         expected_etag = _generate_etag(expected_file_path, 1024, 1609459200.0)
 

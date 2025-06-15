@@ -18,7 +18,14 @@ class Config(BaseModel):
     SECRET_KEY: Optional[str] = os.getenv("SECRET_KEY")
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     SCAN_INTERVAL_SECONDS: int = int(os.getenv("SCAN_INTERVAL_SECONDS", "60"))
-    MUSIC_DIR_PATH: Path = Path(str(BASE_DIR / ".." / ".." / "music"))
+
+    @computed_field
+    @property
+    def MUSIC_DIR_PATH(self) -> Path:
+        music_dir = os.getenv("MUSIC_DIR_PATH")
+        if music_dir:
+            return Path(music_dir).resolve()
+        return (BASE_DIR / ".." / ".." / "music").resolve()
 
     FRONTEND_ORIGIN: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 
@@ -29,7 +36,7 @@ class Config(BaseModel):
     @computed_field
     @property
     def COVERS_DIR_PATH(self) -> Path:
-        return Path(self.COVERS_DIR)
+        return Path(self.COVERS_DIR).resolve()
 
 
 settings = Config()

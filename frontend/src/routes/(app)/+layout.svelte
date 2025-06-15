@@ -3,11 +3,14 @@
   import type { Snippet } from "svelte";
   import { trackStore } from "$lib/stores/trackStore";
   import { audioServiceStore } from "$lib/stores/audioServiceStore";
-  import { authStore, initializeAuthStore } from "$lib/stores/authStore";
+  import { authStore } from "$lib/stores/authStore";
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
   import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
   import AuthWall from "$lib/components/auth/AuthWall.svelte";
-  import { sendPlayerStateBeacon as apiSendPlayerStateBeacon } from "$lib/services/apiClient";
+  import {
+    sendPlayerStateBeacon as apiSendPlayerStateBeacon,
+    checkAuthStatus,
+  } from "$lib/services/apiClient";
   import { initEventHandlerService } from "$lib/services/eventHandlerService";
   import { AudioService } from "$lib/services/AudioService";
   import * as Sheet from "$lib/components/ui/sheet";
@@ -18,8 +21,10 @@
 
   let { data, children }: { data: LayoutData; children: Snippet } = $props();
 
-  // Initialize auth store immediately with SSR data
-  initializeAuthStore(data.authStatus);
+  // Initialize auth store with default values for SSR
+  if (!browser) {
+    authStore.set({ authEnabled: false, isAuthenticated: false });
+  }
 
   let audio: HTMLAudioElement;
   let audioService = $state<AudioService | undefined>(undefined);
@@ -79,6 +84,14 @@
   }
 
   onMount(async () => {
+    // Check client-side authentication status
+    try {
+      const authStatus = await checkAuthStatus();
+      authStore.set(authStatus);
+    } catch {
+      authStore.set({ authEnabled: false, isAuthenticated: false });
+    }
+
     trackStore.setTracks(data.tracks);
     initializeAudioService();
     restorePlayerState();

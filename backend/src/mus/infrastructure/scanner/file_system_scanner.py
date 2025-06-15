@@ -4,17 +4,14 @@ from pathlib import Path
 from typing import ClassVar, List, Optional, Set
 import logging
 
-from src.mus.config import settings
-
 logger = logging.getLogger(__name__)
 
 
 class FileSystemScanner:
     SUPPORTED_EXTENSIONS: ClassVar[set[str]] = {".mp3", ".flac"}
 
-    def __init__(self):
-        logger.info(f"Using music directory: {settings.MUSIC_DIR_PATH}")
-        self.default_root_dir = settings.MUSIC_DIR_PATH
+    def __init__(self, music_dir_path: Path):
+        self.default_root_dir = music_dir_path
 
     async def _recursive_scan_single_directory(
         self,

@@ -1,6 +1,25 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as apiClient from "./apiClient";
 
+// Mock the environment module
+vi.mock("$app/environment", () => ({
+  dev: true,
+  browser: true,
+}));
+
+// Mock localStorage
+const localStorageMock = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+};
+
+Object.defineProperty(globalThis, "localStorage", {
+  value: localStorageMock,
+  writable: true,
+});
+
 const mockTrackFromBackend = {
   id: 1,
   title: "Test Track",
@@ -42,6 +61,7 @@ describe("apiClient", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     globalThis.fetch = vi.fn();
+    localStorageMock.getItem.mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -65,7 +85,7 @@ describe("apiClient", () => {
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/tracks",
         {
-          credentials: "include",
+          headers: {},
         },
       );
       expect(result).toEqual([mockTrackTransformed]);
@@ -86,7 +106,7 @@ describe("apiClient", () => {
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/tracks",
         {
-          credentials: "include",
+          headers: {},
         },
       );
       expect(console.error).toHaveBeenCalledWith(
@@ -105,7 +125,7 @@ describe("apiClient", () => {
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/tracks",
         {
-          credentials: "include",
+          headers: {},
         },
       );
       expect(console.error).toHaveBeenCalledWith(
@@ -132,7 +152,7 @@ describe("apiClient", () => {
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/player/state",
         {
-          credentials: "include",
+          headers: {},
         },
       );
       expect(result).toEqual(mockPlayerState);
@@ -153,7 +173,7 @@ describe("apiClient", () => {
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/player/state",
         {
-          credentials: "include",
+          headers: {},
         },
       );
       expect(result).toEqual({
@@ -181,7 +201,7 @@ describe("apiClient", () => {
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/player/state",
         {
-          credentials: "include",
+          headers: {},
         },
       );
       expect(console.error).toHaveBeenCalledWith(
@@ -207,7 +227,7 @@ describe("apiClient", () => {
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/player/state",
         {
-          credentials: "include",
+          headers: {},
         },
       );
       expect(console.error).toHaveBeenCalledWith(
@@ -268,7 +288,9 @@ describe("apiClient", () => {
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/auth/auth-status",
-        { credentials: "include" },
+        {
+          headers: {},
+        },
       );
       expect(result).toEqual({ authEnabled: true, isAuthenticated: true });
     });
@@ -287,13 +309,86 @@ describe("apiClient", () => {
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
         "http://localhost:8000/api/v1/auth/auth-status",
-        { credentials: "include" },
+        {
+          headers: {},
+        },
       );
       expect(console.error).toHaveBeenCalledWith(
         "Error checking auth status:",
         expect.any(Error),
       );
       expect(result).toEqual({ authEnabled: false, isAuthenticated: false });
+    });
+  });
+
+  describe("Authorization headers", () => {
+    it("includes Authorization header when auth token is present in localStorage", async () => {
+      localStorageMock.getItem.mockReturnValue("test-secret-key");
+
+      const mockResponse = {
+        ok: true,
+        json: vi.fn().mockResolvedValue([]),
+      };
+      vi.mocked(globalThis.fetch).mockResolvedValue(
+        mockResponse as unknown as Response,
+      );
+
+      await apiClient.fetchTracks();
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/tracks",
+        {
+          headers: {
+            Authorization: "Bearer test-secret-key",
+          },
+        },
+      );
+    });
+
+    it("does not include Authorization header when no auth token in localStorage", async () => {
+      localStorageMock.getItem.mockReturnValue(null);
+
+      const mockResponse = {
+        ok: true,
+        json: vi.fn().mockResolvedValue([]),
+      };
+      vi.mocked(globalThis.fetch).mockResolvedValue(
+        mockResponse as unknown as Response,
+      );
+
+      await apiClient.fetchTracks();
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/tracks",
+        {
+          headers: {},
+        },
+      );
+    });
+
+    it("includes Authorization header in checkAuthStatus when token is present", async () => {
+      localStorageMock.getItem.mockReturnValue("test-secret-key");
+
+      const mockResponse = {
+        ok: true,
+        json: vi
+          .fn()
+          .mockResolvedValue({ auth_enabled: true, authenticated: true }),
+      };
+      vi.mocked(globalThis.fetch).mockResolvedValue(
+        mockResponse as unknown as Response,
+      );
+
+      await apiClient.checkAuthStatus();
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8000/api/v1/auth/auth-status",
+        {
+          headers: {
+            Authorization: "Bearer test-secret-key",
+          },
+        },
+      );
     });
   });
 });

@@ -140,7 +140,7 @@ class ScanTracksUseCase:
                         title=metadata["title"],
                         artist=metadata["artist"],
                         duration=metadata["duration"],
-                        file_path=str(file_path),
+                        file_path=str(file_path.resolve()),
                         has_cover=False,
                         added_at=metadata.get(
                             "mtime", int(datetime.now(timezone.utc).timestamp())

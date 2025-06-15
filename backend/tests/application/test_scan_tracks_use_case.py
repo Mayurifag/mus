@@ -1,18 +1,18 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from pathlib import Path
-from typing import List, Callable, AsyncGenerator
-
-from sqlalchemy.ext.asyncio import AsyncSession
 from contextlib import AbstractAsyncContextManager
+from pathlib import Path
+from typing import AsyncGenerator, Callable, List
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.mus.application.use_cases.scan_tracks_use_case import ScanTracksUseCase
-from src.mus.infrastructure.scanner.file_system_scanner import FileSystemScanner
-from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
 from src.mus.domain.entities.track import Track
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
 )
+from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
+from src.mus.infrastructure.scanner.file_system_scanner import FileSystemScanner
 
 
 @pytest.fixture
