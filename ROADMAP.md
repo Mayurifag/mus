@@ -39,11 +39,10 @@
 - [x] robots.txt, llm, so on
 - [x] Get through all the mess. There is frontend/backend communication problem including production over SSR/browser localhost ports ... - analyze all places to fix. Also track covers webp.
 - [x] Auth problem with cross-site cookies. Migrate to JWT and auth header?
-- [ ] Database, covers, etc. outside of /app directory in docker containers. Maybe /app_data/... After that change dockerignore.
-- [ ] use uuidv7 for track id. Fix track covers
+- [x] Database, covers, etc. outside of /app directory in docker containers. Maybe /app_data/... After that change dockerignore.
 - [ ] Merge branch, deploy
 - [ ] Once again test all $effects, maybe too much of them
-- [ ] Little bug - if we drag volume slider overflow left, it will show 100%. Also change cursor on dragging - on hover
+- [ ] Little bug - if we drag volume slider overflow left, it will show 100%. Also change cursor on dragging - on hover. Also have background dark colored for it.
 - [ ] Clicking on album image on player footer should scroll to this track in tracklist.
 - [x] no cover album img - make it beautiful
 - [ ] Scroll to track only if it is not visible on screen. Be sure it scrolls on first page load.
@@ -54,6 +53,7 @@
 
 ## Phase 2
 
+- [ ] styling for playing music - make it less colored but on hover make blue colored styling for slider
 - [ ] Marquee for long texts
 - [ ] Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?
 - [ ] Rewrite all markdown files with AI

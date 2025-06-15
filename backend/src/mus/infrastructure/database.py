@@ -4,13 +4,11 @@ from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
-
-# Hardcoded database file path
-DATABASE_FILE_PATH = "mus_database.db"
+from src.mus.config import settings
 
 # Create engine
 engine = create_async_engine(
-    f"sqlite+aiosqlite:///{DATABASE_FILE_PATH}",
+    f"sqlite+aiosqlite:///{settings.DATABASE_PATH}",
     echo=False,  # Set to True for debugging SQL queries
 )
 

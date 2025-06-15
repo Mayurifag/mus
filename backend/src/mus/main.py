@@ -29,8 +29,10 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await create_db_and_tables()
+    settings.DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
     settings.COVERS_DIR_PATH.mkdir(parents=True, exist_ok=True)
+    settings.MUSIC_DIR_PATH.mkdir(parents=True, exist_ok=True)
+    await create_db_and_tables()
 
     file_system_scanner = FileSystemScanner(music_dir_path=settings.MUSIC_DIR_PATH)
     cover_processor = CoverProcessor(covers_dir_path=settings.COVERS_DIR_PATH)

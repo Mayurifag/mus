@@ -79,9 +79,3 @@ htmlcov/
 
 # CI/CD
 .github/workflows/*.log
-
-# Application specific
-mus_database.db
-cursor_accounts.txt
-/music
-/data

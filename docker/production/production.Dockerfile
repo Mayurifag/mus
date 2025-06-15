@@ -28,7 +28,7 @@ FROM python:3.12-slim-bookworm
 ENV PYTHONUNBUFFERED=1 \
     APP_ENV=production \
     LOG_LEVEL=info \
-    MUSIC_DIR_PATH=/app/music
+    DATA_DIR_PATH=/app_data
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -61,8 +61,8 @@ RUN echo '{"type": "module"}' > /app/frontend/build/package.json && \
 COPY docker/production/nginx.conf /etc/nginx/nginx.conf
 COPY docker/production/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-RUN mkdir -p /app/data/covers /app/music /var/log/supervisor && \
-    chown -R appuser:appgroup /app/data /app/music /app/frontend/build && \
+RUN mkdir -p /app_data/database /app_data/covers /app_data/music /var/log/supervisor && \
+    chown -R appuser:appgroup /app_data /app/frontend/build && \
     chown appuser:appgroup /app
 
 EXPOSE 8000

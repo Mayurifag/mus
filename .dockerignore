@@ -19,11 +19,11 @@ venv
 **/.coverage
 **/htmlcov
 **/pytest-report.xml
+app_data/
 
 # Backend specific
 **/.pytest_cache/
 **/.ruff_cache/
-**/mus_database.db
 
 # Frontend specific
 **/node_modules/

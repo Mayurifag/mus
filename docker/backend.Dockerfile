@@ -2,7 +2,7 @@ FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
-ENV MUSIC_DIR_PATH=/app/music
+ENV DATA_DIR_PATH=/app_data
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -17,7 +17,7 @@ COPY backend/ /app/
 
 RUN uv pip install --system /app
 
-RUN mkdir -p /app/data/covers /app/music
+RUN mkdir -p $DATA_DIR_PATH/database $DATA_DIR_PATH/covers $DATA_DIR_PATH/music
 
 # Expose the application port
 EXPOSE 8000

@@ -6,9 +6,7 @@ services:
       - "8000:8000"
     volumes:
       - ../backend:/app
-      - ../data:/app/data
-
-      - /path/to/your/music:/app/music
+        - /path/to/your/music:/app_data/music
     environment:
       - SECRET_KEY=dev_secret_key_please_change_in_production
       - APP_ENV=development

@@ -15,9 +15,8 @@ pytest-report.xml
 venv/
 ENV/
 
-# Database
-*.db
-mus_database.db
+# Data directories
+/app_data/
 
 # Caches
 *.egg-info/
@@ -39,6 +38,3 @@ mus_database.db
 
 # Tests
 MagicMock/
-
-/music
-/data/
