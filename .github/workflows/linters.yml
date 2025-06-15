@@ -42,7 +42,17 @@ jobs:
       - name: Run backend linting
         run: |
           cd backend
-          ruff format src tests --check
+          echo "=== Debug Info ==="
+          echo "Python version: $(python --version)"
+          echo "Ruff version: $(ruff --version)"
+          echo "Current directory: $(pwd)"
+          echo "Files in src/:"
+          find src -name "*.py" | head -10
+          echo "Files in tests/:"
+          find tests -name "*.py" | head -10
+          echo "=== Running ruff format check ==="
+          ruff format src tests --check --diff
+          echo "=== Running ruff check ==="
           ruff check src tests --no-fix
 
   backend-test:
