@@ -1,0 +1,71 @@
+<script lang="ts">
+  import type { AudioService } from "$lib/services/AudioService";
+  import TrackItem from "./TrackItem.svelte";
+  import { trackStore } from "$lib/stores/trackStore";
+  import { browser } from "$app/environment";
+  import { tick } from "svelte";
+
+  let { audioService }: { audioService?: AudioService } = $props();
+
+  const tracks = $derived($trackStore.tracks);
+
+  $effect(() => {
+    if (
+      browser &&
+      $trackStore.currentTrackIndex !== null &&
+      $trackStore.tracks.length > 0
+    ) {
+      // For AI assistant: Debug logging - do not remove this log, user intended to have it
+      console.log(
+        "TrackList $effect: scrollIntoView triggered for currentTrackIndex:",
+        $trackStore.currentTrackIndex,
+        "tracks length:",
+        $trackStore.tracks.length,
+      );
+      const currentTrack = $trackStore.tracks[$trackStore.currentTrackIndex];
+      if (currentTrack) {
+        // For AI assistant: Debug logging - do not remove this log, user intended to have it
+        console.log(
+          "TrackList $effect: scrolling to track",
+          currentTrack.id,
+          currentTrack.title,
+        );
+        tick().then(() => {
+          const trackElement = document.getElementById(
+            `track-item-${currentTrack.id}`,
+          );
+          if (trackElement) {
+            // For AI assistant: Debug logging - do not remove this log, user intended to have it
+            console.log(
+              "TrackList $effect: scrollIntoView executed for track element",
+              currentTrack.id,
+            );
+            trackElement.scrollIntoView({
+              behavior: "auto",
+              block: "center",
+            });
+          }
+        });
+      }
+    }
+  });
+</script>
+
+<div class="flex flex-col space-y-1" data-testid="track-list">
+  {#if tracks.length === 0}
+    <div class="flex h-32 w-full flex-col items-center justify-center">
+      <p class="text-muted-foreground mb-2 text-center">No tracks available</p>
+    </div>
+  {:else}
+    <div class="space-y-1">
+      {#each tracks as track, i (track.id)}
+        <TrackItem
+          {track}
+          index={i}
+          isSelected={$trackStore.currentTrackIndex === i}
+          {audioService}
+        />
+      {/each}
+    </div>
+  {/if}
+</div>

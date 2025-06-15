@@ -8,8 +8,10 @@ trim_trailing_whitespace = true
 indent_style = space
 indent_size = 2
 
-[{*.mk,Makefile}]
+[{Makefile,**/*.mk}]
+# Use tabs for indentation (Makefiles require tabs)
 indent_style = tab
 
-[Dockerfile]
+[{**/*.Dockerfile}]
+# Visually better splitting of long RUN commands
 indent_size = 4

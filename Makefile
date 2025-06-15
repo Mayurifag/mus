@@ -1,4 +1,6 @@
-ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
-$(eval $(ARGS):;@:)
+ARGS = $(filter-out $@,$(MAKECMDGOALS))
 
-include docker/makefiles/*.mk
+%:
+	@:
+
+include makefiles/*.mk

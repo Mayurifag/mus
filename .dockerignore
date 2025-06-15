@@ -1,17 +1,38 @@
+# Common
 .git
-.gitignore
-.venv
+.github
 .vscode
-.cursor
-tests/
-*.pyc
-__pycache__/
-.pytest_cache/
-.ruff_cache/
-README.md
-Makefile
-*.mk
-*.db
-data/
-*.log
+.idea
 .DS_Store
+*.log
+*.lock.json
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.Python
+venv
+.venv
+**/.venv
+**/.pytest_cache
+**/.ruff_cache
+**/.coverage
+**/htmlcov
+**/pytest-report.xml
+app_data/
+
+# Backend specific
+**/.pytest_cache/
+**/.ruff_cache/
+
+# Frontend specific
+**/node_modules/
+**/.svelte-kit/
+**/build/
+**/.npm
+**/coverage/
+**/npm-debug.log
+**/.eslintcache
+
+# Include production docker directory
+!docker/production/

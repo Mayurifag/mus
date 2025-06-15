@@ -1,14 +1,22 @@
 services:
-  mus:
+  backend:
     build:
       context: ..
-      dockerfile: docker/Dockerfile
-    ports:
-      - "8000:8000"
+      dockerfile: docker/backend.Dockerfile
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend.Dockerfile
     volumes:
-      - ..:/app:cached
-      - mus_data:/app/data
-      - /Users/mayurifag/Nextcloud/Music:/music:ro
+      - ../frontend:/app
+      - node_modules:/app/node_modules
+    extra_hosts:
+      - "localhost:host-gateway"
+    depends_on:
+      - backend
+    restart: unless-stopped
 
 volumes:
-  mus_data:
+  node_modules:
