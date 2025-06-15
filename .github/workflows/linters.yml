@@ -38,9 +38,12 @@ jobs:
       - name: Install backend dependencies
         run: |
           cd backend
-          uv pip install --system .
+          uv pip install --system . ruff
       - name: Run backend linting
-        run: make back-lint
+        run: |
+          cd backend
+          ruff format src tests --check
+          ruff check src tests --no-fix
 
   backend-test:
     runs-on: ubuntu-latest
