@@ -42,8 +42,8 @@
 - [x] Database, covers, etc. outside of /app directory in docker containers. Maybe /app_data/... After that change dockerignore.
 - [x] Merge branch, deploy
 - [x] Little bug - if we drag volume slider overflow left, it will show 100%. Also change cursor on dragging - on hover. Also have background dark colored for it.
-- [ ] Clicking on album image on player footer should scroll to this track in tracklist.
-- [ ] Scroll to track only if it is not visible on screen. Be sure it scrolls on first page load.
+- [x] Clicking on album image on player footer should scroll to this track in tracklist.
+- [x] Scroll to track only if it is not visible on screen. Be sure it scrolls on first page load.
 - [x] no cover album img - make it beautiful
 - [ ] QR code when SECRET_KEY exists
 - [ ] Test: redirect after login -> goes to localhost:8000 for production

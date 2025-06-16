@@ -190,7 +190,7 @@
   <Sheet.Root bind:open={sheetOpen}>
     <!-- Main content area that uses full viewport scrolling -->
     <main class="desktop:pr-64 min-h-screen pr-0 pb-20">
-      <div class="p-4">
+      <div class="desktop:p-4 py-4">
         {@render children()}
       </div>
     </main>
