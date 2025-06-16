@@ -3,48 +3,62 @@
   import TrackItem from "./TrackItem.svelte";
   import { trackStore } from "$lib/stores/trackStore";
   import { browser } from "$app/environment";
-  import { tick } from "svelte";
+  import { tick, onMount } from "svelte";
 
   let { audioService }: { audioService?: AudioService } = $props();
 
   const tracks = $derived($trackStore.tracks);
+  let isCurrentTrackVisible = $state(false);
+  let observer: IntersectionObserver;
+
+  function scrollToCurrentTrack({ force = false } = {}) {
+    if (!browser || !$trackStore.currentTrack) return;
+
+    const element = document.getElementById(
+      `track-item-${$trackStore.currentTrack.id}`,
+    );
+    if (element && (force || !isCurrentTrackVisible)) {
+      element.scrollIntoView({ behavior: "auto", block: "center" });
+    }
+  }
+
+  onMount(() => {
+    if (!browser) return;
+
+    observer = new IntersectionObserver(
+      (entries) => {
+        isCurrentTrackVisible = entries[0].isIntersecting;
+      },
+      {
+        rootMargin: "-15% 0px -30% 0px",
+      },
+    );
+
+    const handleForceScroll = () => {
+      scrollToCurrentTrack({ force: true });
+    };
+
+    document.body.addEventListener("force-scroll", handleForceScroll);
+
+    return () => {
+      observer?.disconnect();
+      document.body.removeEventListener("force-scroll", handleForceScroll);
+    };
+  });
 
   $effect(() => {
-    if (
-      browser &&
-      $trackStore.currentTrackIndex !== null &&
-      $trackStore.tracks.length > 0
-    ) {
-      // For AI assistant: Debug logging - do not remove this log, user intended to have it
-      console.log(
-        "TrackList $effect: scrollIntoView triggered for currentTrackIndex:",
-        $trackStore.currentTrackIndex,
-        "tracks length:",
-        $trackStore.tracks.length,
+    if (!browser || !observer || $trackStore.currentTrackIndex === null) return;
+
+    observer.disconnect();
+
+    if ($trackStore.currentTrack) {
+      const element = document.getElementById(
+        `track-item-${$trackStore.currentTrack.id}`,
       );
-      const currentTrack = $trackStore.tracks[$trackStore.currentTrackIndex];
-      if (currentTrack) {
-        // For AI assistant: Debug logging - do not remove this log, user intended to have it
-        console.log(
-          "TrackList $effect: scrolling to track",
-          currentTrack.id,
-          currentTrack.title,
-        );
+      if (element) {
+        observer.observe(element);
         tick().then(() => {
-          const trackElement = document.getElementById(
-            `track-item-${currentTrack.id}`,
-          );
-          if (trackElement) {
-            // For AI assistant: Debug logging - do not remove this log, user intended to have it
-            console.log(
-              "TrackList $effect: scrollIntoView executed for track element",
-              currentTrack.id,
-            );
-            trackElement.scrollIntoView({
-              behavior: "auto",
-              block: "center",
-            });
-          }
+          scrollToCurrentTrack();
         });
       }
     }

@@ -3,6 +3,12 @@ import { render } from "@testing-library/svelte";
 import type { Track } from "$lib/types";
 import Page from "../+page.svelte";
 
+// Mock IntersectionObserver
+const mockIntersectionObserver = vi.fn();
+mockIntersectionObserver.prototype.observe = vi.fn();
+mockIntersectionObserver.prototype.disconnect = vi.fn();
+globalThis.IntersectionObserver = mockIntersectionObserver;
+
 // Mock trackStore
 vi.mock("$lib/stores/trackStore", () => ({
   trackStore: {

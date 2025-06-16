@@ -152,6 +152,13 @@
     }
   }
 
+  function triggerManualScroll() {
+    if (browser) {
+      const event = new CustomEvent("force-scroll");
+      document.body.dispatchEvent(event);
+    }
+  }
+
   // Global pointer event handler for drag end
   onMount(() => {
     const handlePointerUp = () => {
@@ -172,7 +179,12 @@
       <div class="desktop:w-80 flex w-auto min-w-0 items-center">
         {#if $trackStore.currentTrack}
           <div
-            class="sm650:block desktop:h-18 desktop:w-18 desktop:my-5 desktop:ml-5 my-6 ml-6 hidden h-24 w-24 flex-shrink-0 overflow-hidden rounded-md"
+            class="sm650:block desktop:h-18 desktop:w-18 desktop:my-5 desktop:ml-5 my-6 ml-6 hidden h-24 w-24 flex-shrink-0 cursor-pointer overflow-hidden rounded-md"
+            onclick={triggerManualScroll}
+            onkeydown={(e) => e.key === "Enter" && triggerManualScroll()}
+            role="button"
+            tabindex="0"
+            aria-label="Scroll to current track"
           >
             {#if $trackStore.currentTrack.has_cover && $trackStore.currentTrack.cover_original_url}
               <img
@@ -191,7 +203,13 @@
           <div
             class="desktop:flex ml-4 hidden min-w-0 flex-col overflow-hidden"
           >
-            <span class="truncate text-base font-medium"
+            <span
+              class="cursor-pointer truncate text-base font-medium hover:underline"
+              onclick={triggerManualScroll}
+              onkeydown={(e) => e.key === "Enter" && triggerManualScroll()}
+              role="button"
+              tabindex="0"
+              aria-label="Scroll to current track"
               >{$trackStore.currentTrack.title}</span
             >
             <span class="text-muted-foreground truncate text-sm">

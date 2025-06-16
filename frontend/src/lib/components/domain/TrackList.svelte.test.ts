@@ -6,6 +6,12 @@ vi.mock("$app/environment", () => ({
   browser: true,
 }));
 
+// Mock IntersectionObserver
+const mockIntersectionObserver = vi.fn();
+mockIntersectionObserver.prototype.observe = vi.fn();
+mockIntersectionObserver.prototype.disconnect = vi.fn();
+globalThis.IntersectionObserver = mockIntersectionObserver;
+
 // Mock tick function
 vi.mock("svelte", async () => {
   const actual = await vi.importActual("svelte");
@@ -87,6 +93,9 @@ describe("TrackList component", () => {
     vi.mocked(TrackItem).mockClear();
     vi.mocked(document.getElementById).mockClear();
     mockScrollIntoView.mockClear();
+    mockIntersectionObserver.mockClear();
+    mockIntersectionObserver.prototype.observe.mockClear();
+    mockIntersectionObserver.prototype.disconnect.mockClear();
   });
 
   it("renders the track list element when tracks are provided", () => {
