@@ -18,6 +18,7 @@
     Repeat1,
   } from "@lucide/svelte";
   import { browser } from "$app/environment";
+  import { onMount, onDestroy } from "svelte";
 
   // Accept AudioService as a prop using Svelte 5 syntax
   let { audioService }: { audioService?: AudioService } = $props();
@@ -28,9 +29,9 @@
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   }
 
-  // Volume feedback variables
-  let showVolumeFeedback = $state(false);
-  let volumeFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
+  // Volume hover and drag state
+  let isVolumeHovered = $state(false);
+  let isVolumeDragging = $state(false);
 
   // Local slider state for two-way binding - use AudioService if available
   let progressValue = $state([0]);
@@ -38,7 +39,6 @@
 
   // Track if user is currently interacting with sliders
   let isUserDraggingProgress = $state(false);
-  let isUserDraggingVolume = $state(false);
 
   // Reactive state from AudioService stores
   let isPlaying = $state(false);
@@ -50,7 +50,7 @@
 
   // Reactive volume feedback value
   let volumeFeedbackValue = $derived(
-    isMuted ? 0 : Math.round((volumeValue[0] || 1) * 100),
+    isMuted ? 0 : Math.round((volumeValue[0] ?? 0) * 100),
   );
 
   // Sync local state with AudioService stores when they change
@@ -96,7 +96,7 @@
   $effect(() => {
     if (audioService?.volumeStore) {
       const unsubscribe = audioService.volumeStore.subscribe((volume) => {
-        if (!isUserDraggingVolume) {
+        if (!isVolumeDragging) {
           volumeValue = [volume];
         }
       });
@@ -142,27 +142,6 @@
     if (audioService) {
       audioService.setVolume(value[0]);
     }
-
-    // Show volume feedback
-    showVolumeFeedback = true;
-
-    // Clear existing timer if any
-    if (volumeFeedbackTimer) {
-      clearTimeout(volumeFeedbackTimer);
-    }
-
-    // Hide feedback after 1.5 seconds
-    volumeFeedbackTimer = setTimeout(() => {
-      showVolumeFeedback = false;
-    }, 150);
-  }
-
-  function handleVolumeCommit(): void {
-    isUserDraggingVolume = false;
-  }
-
-  function handleVolumeInput(): void {
-    isUserDraggingVolume = true;
   }
 
   // Create a function to dispatch a custom event to toggle the sidebar
@@ -173,13 +152,16 @@
     }
   }
 
-  // Clean up timer when component is destroyed using $effect
-  $effect(() => {
-    return () => {
-      if (volumeFeedbackTimer) {
-        clearTimeout(volumeFeedbackTimer);
-      }
+  // Global pointer event handler for drag end
+  onMount(() => {
+    const handlePointerUp = () => {
+      isVolumeDragging = false;
     };
+    window.addEventListener("pointerup", handlePointerUp);
+
+    onDestroy(() => {
+      window.removeEventListener("pointerup", handlePointerUp);
+    });
   });
 </script>
 
@@ -338,20 +320,32 @@
               <Volume2 class="h-5 w-5" />
             {/if}
           </Button>
-          <div class="relative w-24">
+          <div
+            class="relative w-24"
+            class:cursor-pointer={!isVolumeDragging}
+            class:cursor-grabbing={isVolumeDragging}
+            role="slider"
+            aria-label="Volume control"
+            aria-valuenow={volumeFeedbackValue}
+            aria-valuemin="0"
+            aria-valuemax="100"
+            tabindex="0"
+            onmouseenter={() => (isVolumeHovered = true)}
+            onmouseleave={() => (isVolumeHovered = false)}
+            onpointerdown={() => {
+              isVolumeDragging = true;
+            }}
+          >
             <Slider
               bind:value={volumeValue}
               onValueChange={handleVolumeChange}
-              onValueCommit={handleVolumeCommit}
-              onInput={handleVolumeInput}
               max={1}
               step={0.01}
               class="w-full"
             />
-            {#if showVolumeFeedback}
+            {#if isVolumeHovered || isVolumeDragging}
               <div
-                class="bg-primary text-primary-foreground absolute -top-7 left-1/2 -translate-x-1/2 rounded px-2 py-1 text-xs font-medium transition-opacity"
-                style="opacity: {showVolumeFeedback ? '1' : '0'}"
+                class="bg-muted absolute -top-7 left-1/2 -translate-x-1/2 rounded px-2 py-1 text-xs font-medium text-white transition-opacity"
               >
                 {volumeFeedbackValue}%
               </div>

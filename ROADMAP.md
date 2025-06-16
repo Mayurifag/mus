@@ -41,15 +41,17 @@
 - [x] Auth problem with cross-site cookies. Migrate to JWT and auth header?
 - [x] Database, covers, etc. outside of /app directory in docker containers. Maybe /app_data/... After that change dockerignore.
 - [x] Merge branch, deploy
-- [ ] Fix redirect after login -> goes to localhost:8000 for production
-- [ ] Once again test all $effects, maybe too much of them
-- [ ] Little bug - if we drag volume slider overflow left, it will show 100%. Also change cursor on dragging - on hover. Also have background dark colored for it.
+- [x] Little bug - if we drag volume slider overflow left, it will show 100%. Also change cursor on dragging - on hover. Also have background dark colored for it.
 - [ ] Clicking on album image on player footer should scroll to this track in tracklist.
-- [x] no cover album img - make it beautiful
 - [ ] Scroll to track only if it is not visible on screen. Be sure it scrolls on first page load.
+- [x] no cover album img - make it beautiful
+- [ ] QR code when SECRET_KEY exists
+- [ ] Test: redirect after login -> goes to localhost:8000 for production
+- [ ] When <1000px left/right padding on trackitem list has to be gone i think
 - [ ] Solutions to have watchdog for file changes, etc.
 - [ ] Think through tracks deletion - rescanning should work that case - removing track cover and from db
 - [ ] Track scan also has to get real track duration. Not from metadata.
+- [ ] Once again test all $effects, maybe too much of them
 - [ ] full test
 
 ## Phase 2
