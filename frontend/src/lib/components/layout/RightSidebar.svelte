@@ -1,8 +1,13 @@
 <script lang="ts">
   import { trackStore } from "$lib/stores/trackStore";
+  import { authStore } from "$lib/stores/authStore";
+  import { QrCode } from "@lucide/svelte";
+  import QRLoginModal from "$lib/components/auth/QRLoginModal.svelte";
   import type { Track } from "$lib/types";
 
   const MIN_HISTORY_FOR_DEBUG = 2;
+
+  let isQrModalOpen = $state(false);
 
   // Show debug timeline only when shuffle is active and there's meaningful navigation history
   const shouldShowDebugTimeline = $derived(
@@ -72,6 +77,20 @@
 </script>
 
 <div class="h-full w-full p-4">
+  <!-- QR Login Button - Top Right -->
+  {#if $authStore.authEnabled}
+    <div class="mb-6 flex justify-end">
+      <button
+        class="icon-glow-effect relative rounded-md p-2 transition-all duration-200"
+        onclick={() => (isQrModalOpen = true)}
+        title="Open QR code for mobile login"
+        aria-label="Open QR code for mobile login"
+      >
+        <QrCode class="h-8 w-8" />
+      </button>
+    </div>
+  {/if}
+
   <!-- Playback Debug Section -->
   {#if shouldShowDebugTimeline}
     <div class="border-t pt-4">
@@ -109,4 +128,20 @@
       </div>
     </div>
   {/if}
+
+  <!-- QR Login Modal -->
+  <QRLoginModal bind:open={isQrModalOpen} />
 </div>
+
+<style>
+  :global(.icon-glow-effect svg) {
+    color: white;
+    transition: all 0.1s ease;
+  }
+
+  :global(.icon-glow-effect:hover svg) {
+    color: white;
+    filter: drop-shadow(0 0 8px hsl(var(--accent) / 0.8))
+      drop-shadow(0 0 4px hsl(var(--accent) / 1));
+  }
+</style>

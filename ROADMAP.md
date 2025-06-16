@@ -45,17 +45,17 @@
 - [x] Clicking on album image on player footer should scroll to this track in tracklist.
 - [x] Scroll to track only if it is not visible on screen. Be sure it scrolls on first page load.
 - [x] no cover album img - make it beautiful
-- [ ] QR code when SECRET_KEY exists
+- [x] QR code when SECRET_KEY exists
 - [ ] Test: redirect after login -> goes to localhost:8000 for production
-- [ ] When <1000px left/right padding on trackitem list has to be gone i think
-- [ ] Solutions to have watchdog for file changes, etc.
-- [ ] Think through tracks deletion - rescanning should work that case - removing track cover and from db
-- [ ] Track scan also has to get real track duration. Not from metadata.
-- [ ] Once again test all $effects, maybe too much of them
+- [x] When <1000px left/right padding on trackitem list has to be gone i think
 - [ ] full test
 
 ## Phase 2
 
+- [ ] Once again test all $effects, maybe too much of them
+- [ ] Solutions to have watchdog for file changes, etc.
+- [ ] Think through tracks deletion - rescanning should work that case - removing track cover and from db
+- [ ] Track scan also has to get real track duration. Not from metadata.
 - [ ] styling for playing music - make it less colored but on hover make blue colored styling for slider
 - [ ] Marquee for long texts
 - [ ] Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?
@@ -72,6 +72,8 @@
 - [ ] History of file editing. Revert functionality.
 - [ ] minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier
 - [ ] production image nginx logging. Logging across app.
+- [ ] KV in-memory db instead of sqlite. Though tracks fetching is fast so maybe no need
+- [ ] Celery and async tasks
 
 ## Phase 3
 
