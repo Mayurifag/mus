@@ -48,11 +48,12 @@
 - [x] QR code when SECRET_KEY exists
 - [ ] Test: redirect after login -> goes to localhost:8000 for production
 - [x] When <1000px left/right padding on trackitem list has to be gone i think
-- [ ] full test
+- [ ] Full test
 
 ## Phase 2
 
 - [ ] Once again test all $effects, maybe too much of them
+- [ ] Full update of project. Fuck with bits-ui/sliders. also backend
 - [ ] Solutions to have watchdog for file changes, etc.
 - [ ] Think through tracks deletion - rescanning should work that case - removing track cover and from db
 - [ ] Track scan also has to get real track duration. Not from metadata.

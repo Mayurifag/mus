@@ -9,13 +9,15 @@ export interface MusEvent {
 }
 
 function getAuthHeaders(): Record<string, string> {
-  if (!browser) return {};
+  let token;
 
-  const token = localStorage.getItem("auth_token");
-  if (token) {
-    return { Authorization: `Bearer ${token}` };
+  if (import.meta.env.SSR) {
+    token = process.env.SECRET_KEY;
+  } else if (browser) {
+    token = localStorage.getItem("auth_token");
   }
-  return {};
+
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 const VITE_INTERNAL_API_HOST = import.meta.env.VITE_INTERNAL_API_HOST || "";

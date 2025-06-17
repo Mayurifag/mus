@@ -52,7 +52,6 @@ async def login_by_secret(secret_key: str):
     return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
 
 
-# Only used by browser, no SSR requests here
 @auth_router.get("/auth-status")
 async def auth_status(request: Request) -> dict:
     if not settings.SECRET_KEY:
@@ -60,18 +59,6 @@ async def auth_status(request: Request) -> dict:
 
     token = _extract_bearer_token(request)
     return {"auth_enabled": True, "authenticated": _validate_bearer_token(token)}
-
-
-def _is_ssr_request(request: Request) -> bool:
-    user_agent = request.headers.get("user-agent", "")
-    proxy_headers = [
-        "x-forwarded-for",
-        "x-real-ip",
-        "x-forwarded-proto",
-        "x-forwarded-host",
-    ]
-    has_proxy_headers = any(request.headers.get(header) for header in proxy_headers)
-    return user_agent == "node" and not has_proxy_headers
 
 
 def _is_public_path(path: str) -> bool:
@@ -85,9 +72,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         # Allow CORS preflight requests to pass through
         if request.method == "OPTIONS":
-            return await call_next(request)
-
-        if _is_ssr_request(request):
             return await call_next(request)
 
         if _is_public_path(request.url.path):
