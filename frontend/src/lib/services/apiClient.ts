@@ -1,23 +1,10 @@
 import type { Track, PlayerState } from "$lib/types";
-import { browser } from "$app/environment";
 
 export interface MusEvent {
   message_to_show: string | null;
   message_level: "success" | "error" | "info" | "warning" | null;
   action_key: string | null;
   action_payload: Record<string, unknown> | null;
-}
-
-function getAuthHeaders(): Record<string, string> {
-  let token;
-
-  if (import.meta.env.SSR) {
-    token = process.env.SECRET_KEY;
-  } else if (browser) {
-    token = localStorage.getItem("auth_token");
-  }
-
-  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 const VITE_INTERNAL_API_HOST = import.meta.env.VITE_INTERNAL_API_HOST || "";
@@ -33,11 +20,7 @@ export function getStreamUrl(trackId: number): string {
 
 export async function fetchTracks(): Promise<Track[]> {
   try {
-    const response = await fetch(`${API_PREFIX}${API_VERSION_PATH}/tracks`, {
-      headers: {
-        ...getAuthHeaders(),
-      },
-    });
+    const response = await fetch(`${API_PREFIX}${API_VERSION_PATH}/tracks`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -63,11 +46,6 @@ export async function fetchPlayerState(): Promise<PlayerState> {
   try {
     const response = await fetch(
       `${API_PREFIX}${API_VERSION_PATH}/player/state`,
-      {
-        headers: {
-          ...getAuthHeaders(),
-        },
-      },
     );
     if (response.status === 404) {
       // Return default player state if none exists
@@ -141,29 +119,18 @@ export function connectTrackUpdateEvents(
   return eventSource;
 }
 
-export async function checkAuthStatus(): Promise<{
-  authEnabled: boolean;
-  isAuthenticated: boolean;
-}> {
+export async function fetchMagicLinkUrl(): Promise<string> {
   try {
     const response = await fetch(
-      `${API_PREFIX}${API_VERSION_PATH}/auth/auth-status`,
-      {
-        headers: {
-          ...getAuthHeaders(),
-        },
-      },
+      `${API_PREFIX}${API_VERSION_PATH}/auth/qr-code-url`,
     );
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
-    return {
-      authEnabled: data.auth_enabled,
-      isAuthenticated: data.authenticated,
-    };
+    return data.url;
   } catch (error) {
-    console.error("Error checking auth status:", error);
-    return { authEnabled: false, isAuthenticated: false };
+    console.error("Error fetching magic link URL:", error);
+    return "";
   }
 }

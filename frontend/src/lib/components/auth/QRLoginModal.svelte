@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { Dialog } from "bits-ui";
   import { X } from "@lucide/svelte";
   import QRCode from "@castlenine/svelte-qrcode";
-  import { browser } from "$app/environment";
+  import { authConfigStore } from "$lib/stores/authConfigStore";
 
   interface Props {
     open: boolean;
@@ -11,18 +10,7 @@
 
   let { open = $bindable() }: Props = $props();
 
-  let secretKey = $state<string | null>(null);
-
-  onMount(() => {
-    secretKey = localStorage.getItem("auth_token");
-  });
-
-  const loginUrl = $derived.by(() => {
-    if (!browser || !secretKey) return "";
-    const publicApiHost =
-      import.meta.env.VITE_PUBLIC_API_HOST || window.location.origin;
-    return `${publicApiHost}/api/v1/auth/login-by-secret/${secretKey}`;
-  });
+  const loginUrl = $derived($authConfigStore.magicLinkUrl);
 </script>
 
 <Dialog.Root bind:open>

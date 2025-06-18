@@ -1,8 +1,9 @@
 <script lang="ts">
   import { trackStore } from "$lib/stores/trackStore";
-  import { authStore } from "$lib/stores/authStore";
+
   import { QrCode } from "@lucide/svelte";
   import QRLoginModal from "$lib/components/auth/QRLoginModal.svelte";
+  import { authConfigStore } from "$lib/stores/authConfigStore";
   import type { Track } from "$lib/types";
 
   const MIN_HISTORY_FOR_DEBUG = 2;
@@ -78,7 +79,7 @@
 
 <div class="h-full w-full">
   <!-- QR Login Button - Top Right -->
-  {#if $authStore.authEnabled}
+  {#if $authConfigStore.isAuthEnabled}
     <div class="mb-6 flex justify-end">
       <button
         class="icon-glow-effect relative rounded-md p-2 transition-all duration-200"

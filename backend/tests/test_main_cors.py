@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.mus.main import lifespan
-from src.mus.infrastructure.api.middleware.auth import auth_router
+from src.mus.infrastructure.api.routers.auth_router import router as auth_router
 from src.mus.infrastructure.api.routers.player_router import router as player_router
 from src.mus.infrastructure.api.routers.track_router import router as track_router
 

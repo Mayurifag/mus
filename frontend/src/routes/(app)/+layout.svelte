@@ -3,29 +3,24 @@
   import type { Snippet } from "svelte";
   import { trackStore } from "$lib/stores/trackStore";
   import { audioServiceStore } from "$lib/stores/audioServiceStore";
-  import { authStore } from "$lib/stores/authStore";
+
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
   import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
-  import AuthWall from "$lib/components/auth/AuthWall.svelte";
-  import {
-    sendPlayerStateBeacon as apiSendPlayerStateBeacon,
-    checkAuthStatus,
-  } from "$lib/services/apiClient";
+  import { sendPlayerStateBeacon as apiSendPlayerStateBeacon } from "$lib/services/apiClient";
+  import { authConfigStore } from "$lib/stores/authConfigStore";
   import { initEventHandlerService } from "$lib/services/eventHandlerService";
   import { AudioService } from "$lib/services/AudioService";
   import * as Sheet from "$lib/components/ui/sheet";
   import type { Track } from "$lib/types";
   import { browser } from "$app/environment";
   import { Toaster } from "$lib/components/ui/sonner";
-  import { swipe, type SwipeCustomEvent } from "svelte-gestures";
   import type { LayoutData } from "./$types";
 
-  let { data, children }: { data: LayoutData; children: Snippet } = $props();
+  // Import swipe functionality only on client side
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let swipe = $state<any>(undefined);
 
-  // Initialize auth store with default values for SSR
-  if (!browser) {
-    authStore.set({ authEnabled: false, isAuthenticated: false });
-  }
+  let { data, children }: { data: LayoutData; children: Snippet } = $props();
 
   let audio: HTMLAudioElement;
   let audioService = $state<AudioService | undefined>(undefined);
@@ -85,18 +80,23 @@
   }
 
   onMount(async () => {
-    // Check client-side authentication status
-    try {
-      const authStatus = await checkAuthStatus();
-      authStore.set(authStatus);
-    } catch {
-      authStore.set({ authEnabled: false, isAuthenticated: false });
-    }
-
+    authConfigStore.initialize();
     trackStore.setTracks(data.tracks);
     initializeAudioService();
     restorePlayerState();
     setupEventListeners();
+
+    // Load swipe functionality on client side
+    if (browser) {
+      const module = await import("svelte-gestures");
+      swipe = (node: HTMLElement) =>
+        module.swipe(node, () => ({
+          minSwipeDistance: 40,
+          timeframe: 300,
+          touchAction: "pan-y",
+        }));
+    }
+
     isInitializing = false;
   });
 
@@ -183,7 +183,7 @@
     sheetOpen = !sheetOpen;
   }
 
-  function handleSwipe(event: SwipeCustomEvent) {
+  function handleSwipe(event: CustomEvent) {
     if (window.innerWidth < 1000) {
       if (event.detail.direction === "left" && !sheetOpen) {
         sheetOpen = true;
@@ -195,41 +195,32 @@
   }
 </script>
 
-<AuthWall
-  authEnabled={$authStore.authEnabled}
-  isAuthenticated={$authStore.isAuthenticated}
->
-  <Sheet.Root bind:open={sheetOpen}>
-    <!-- Main content area that uses full viewport scrolling -->
-    <main
-      class="desktop:pr-64 min-h-screen pr-0 pb-20"
-      use:swipe={() => ({
-        minSwipeDistance: 40,
-        timeframe: 300,
-        touchAction: "pan-y",
-      })}
-      onswipe={handleSwipe}
-    >
-      <div class="desktop:p-4 py-4">
-        {@render children()}
-      </div>
-    </main>
+<Sheet.Root bind:open={sheetOpen}>
+  <!-- Main content area that uses full viewport scrolling -->
+  <main
+    class="desktop:pr-64 min-h-screen pr-0 pb-20"
+    use:swipe={swipe || undefined}
+    onswipe={handleSwipe}
+  >
+    <div class="desktop:p-4 py-4">
+      {@render children()}
+    </div>
+  </main>
 
-    <Toaster position="top-left" />
+  <Toaster position="top-left" />
 
-    <!-- Desktop Sidebar - positioned fixed on the right -->
-    <aside class="desktop:block fixed top-0 right-0 bottom-20 hidden w-64">
-      <RightSidebar />
-    </aside>
+  <!-- Desktop Sidebar - positioned fixed on the right -->
+  <aside class="desktop:block fixed top-0 right-0 bottom-20 hidden w-64">
+    <RightSidebar />
+  </aside>
 
-    <!-- Mobile Sidebar Sheet -->
-    <Sheet.Content side="right" class="w-64 px-6 py-4">
-      <RightSidebar />
-    </Sheet.Content>
+  <!-- Mobile Sidebar Sheet -->
+  <Sheet.Content side="right" class="w-64 px-6 py-4">
+    <RightSidebar />
+  </Sheet.Content>
 
-    <!-- Fixed Player Footer -->
-    <PlayerFooter audioService={$audioServiceStore} />
+  <!-- Fixed Player Footer -->
+  <PlayerFooter audioService={$audioServiceStore} />
 
-    <audio bind:this={audio} preload="auto" id="mus-audio-element"></audio>
-  </Sheet.Root>
-</AuthWall>
+  <audio bind:this={audio} preload="auto" id="mus-audio-element"></audio>
+</Sheet.Root>

@@ -81,9 +81,7 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks", {
-        headers: {},
-      });
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks");
       expect(result).toEqual([mockTrackTransformed]);
     });
 
@@ -99,9 +97,7 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks", {
-        headers: {},
-      });
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks");
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching tracks:",
         expect.any(Error),
@@ -115,9 +111,7 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks", {
-        headers: {},
-      });
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks");
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching tracks:",
         expect.any(Error),
@@ -139,9 +133,7 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state", {
-        headers: {},
-      });
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state");
       expect(result).toEqual(mockPlayerState);
     });
 
@@ -157,9 +149,7 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state", {
-        headers: {},
-      });
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state");
       expect(result).toEqual({
         current_track_id: null,
         progress_seconds: 0.0,
@@ -182,9 +172,7 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state", {
-        headers: {},
-      });
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state");
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching player state:",
         expect.any(Error),
@@ -205,9 +193,7 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state", {
-        headers: {},
-      });
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state");
       expect(console.error).toHaveBeenCalledWith(
         "Error fetching player state:",
         expect.any(Error),
@@ -247,120 +233,6 @@ describe("apiClient", () => {
       }).not.toThrow();
 
       vi.unstubAllGlobals();
-    });
-  });
-
-  describe("checkAuthStatus", () => {
-    it("returns auth status when fetch is successful", async () => {
-      const mockAuthStatus = { auth_enabled: true, authenticated: true };
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        json: vi.fn().mockResolvedValue(mockAuthStatus),
-      };
-      vi.mocked(globalThis.fetch).mockResolvedValue(
-        mockResponse as unknown as Response,
-      );
-
-      const result = await apiClient.checkAuthStatus();
-
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "/api/v1/auth/auth-status",
-        {
-          headers: {},
-        },
-      );
-      expect(result).toEqual({ authEnabled: true, isAuthenticated: true });
-    });
-
-    it("returns default auth status when fetch fails", async () => {
-      console.error = vi.fn();
-      const mockResponse = {
-        ok: false,
-        status: 500,
-      };
-      vi.mocked(globalThis.fetch).mockResolvedValue(
-        mockResponse as unknown as Response,
-      );
-
-      const result = await apiClient.checkAuthStatus();
-
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "/api/v1/auth/auth-status",
-        {
-          headers: {},
-        },
-      );
-      expect(console.error).toHaveBeenCalledWith(
-        "Error checking auth status:",
-        expect.any(Error),
-      );
-      expect(result).toEqual({ authEnabled: false, isAuthenticated: false });
-    });
-  });
-
-  describe("Authorization headers", () => {
-    it("includes Authorization header when auth token is present in localStorage", async () => {
-      localStorageMock.getItem.mockReturnValue("test-secret-key");
-
-      const mockResponse = {
-        ok: true,
-        json: vi.fn().mockResolvedValue([]),
-      };
-      vi.mocked(globalThis.fetch).mockResolvedValue(
-        mockResponse as unknown as Response,
-      );
-
-      await apiClient.fetchTracks();
-
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks", {
-        headers: {
-          Authorization: "Bearer test-secret-key",
-        },
-      });
-    });
-
-    it("does not include Authorization header when no auth token in localStorage", async () => {
-      localStorageMock.getItem.mockReturnValue(null);
-
-      const mockResponse = {
-        ok: true,
-        json: vi.fn().mockResolvedValue([]),
-      };
-      vi.mocked(globalThis.fetch).mockResolvedValue(
-        mockResponse as unknown as Response,
-      );
-
-      await apiClient.fetchTracks();
-
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks", {
-        headers: {},
-      });
-    });
-
-    it("includes Authorization header in checkAuthStatus when token is present", async () => {
-      localStorageMock.getItem.mockReturnValue("test-secret-key");
-
-      const mockResponse = {
-        ok: true,
-        json: vi
-          .fn()
-          .mockResolvedValue({ auth_enabled: true, authenticated: true }),
-      };
-      vi.mocked(globalThis.fetch).mockResolvedValue(
-        mockResponse as unknown as Response,
-      );
-
-      await apiClient.checkAuthStatus();
-
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "/api/v1/auth/auth-status",
-        {
-          headers: {
-            Authorization: "Bearer test-secret-key",
-          },
-        },
-      );
     });
   });
 });

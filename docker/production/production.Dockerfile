@@ -41,6 +41,7 @@ RUN apt-get update && \
     libnginx-mod-http-brotli-static \
     libvips42 \
     curl \
+    gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
 ARG UID=10001
@@ -60,10 +61,13 @@ COPY --from=frontend-builder --chown=appuser:appgroup /app/frontend/build /app/f
 RUN echo '{"type": "module"}' > /app/frontend/build/package.json && \
     chown appuser:appgroup /app/frontend/build/package.json
 
-COPY docker/production/nginx.conf /etc/nginx/nginx.conf
+COPY docker/production/login.html /app/docker/production/login.html
+COPY docker/production/nginx.conf.template /app/docker/production/nginx.conf.template
+COPY docker/production/start.sh /app/start.sh
 COPY docker/production/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-RUN mkdir -p /app_data/database /app_data/covers /app_data/music /var/log/supervisor && \
+RUN chmod +x /app/start.sh && \
+    mkdir -p /app_data/database /app_data/covers /app_data/music /var/log/supervisor && \
     chown -R appuser:appgroup /app_data /app/frontend/build && \
     chown appuser:appgroup /app
 
@@ -72,4 +76,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:8000/api || exit 1
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["/app/start.sh"]

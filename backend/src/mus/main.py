@@ -5,8 +5,9 @@ from contextlib import asynccontextmanager
 import asyncio
 import logging
 
-from src.mus.infrastructure.api.middleware.auth import AuthMiddleware, auth_router
+
 from src.mus.infrastructure.api.routers import (
+    auth_router,
     player_router,
     track_router,
 )
@@ -74,11 +75,8 @@ if settings.APP_ENV != "production":
         allow_headers=["*"],
     )
 
-# Add authentication middleware
-app.add_middleware(AuthMiddleware)
-
 # Include routers
-app.include_router(auth_router)
+app.include_router(auth_router.router)
 app.include_router(player_router.router)
 app.include_router(track_router.router)
 app.include_router(sse_router)

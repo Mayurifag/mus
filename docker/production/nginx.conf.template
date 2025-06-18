@@ -1,0 +1,153 @@
+load_module modules/ngx_http_brotli_filter_module.so;
+load_module modules/ngx_http_brotli_static_module.so;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+    access_log /dev/stdout main;
+    error_log /dev/stderr warn;
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+
+    limit_req_zone $binary_remote_addr zone=auth_login:10m rate=5r/m;
+    limit_req_zone $binary_remote_addr zone=api:10m rate=100r/m;
+
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types
+        text/plain
+        text/css
+        text/xml
+        text/javascript
+        application/json
+        application/javascript
+        application/xml+rss
+        application/atom+xml
+        image/svg+xml;
+
+    # Security headers (global)
+    add_header X-Frame-Options DENY always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    brotli on;
+    brotli_comp_level 6;
+    brotli_types
+        text/plain
+        text/css
+        text/xml
+        text/javascript
+        application/json
+        application/javascript
+        application/xml+rss
+        application/atom+xml
+        image/svg+xml;
+
+    gzip_static on;
+    brotli_static on;
+
+    server {
+        listen 8000;
+        server_name localhost;
+
+        # Hide nginx version
+        server_tokens off;
+
+        # Internal auth verification endpoint
+        location = /auth-verify {
+            internal;
+            if ($cookie_auth_token = "${SECRET_KEY}") {
+                return 204;
+            }
+            return 401;
+        }
+
+        # Magic link login endpoint
+        location = /login {
+            limit_req zone=auth_login burst=1 nodelay;
+            if ($arg_token = "${SECRET_KEY}") {
+                add_header Set-Cookie "auth_token=${SECRET_KEY}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=31536000";
+                return 302 $scheme://$http_host/;
+            }
+            return 401;
+        }
+
+        # Static login page (public)
+        location = /login.html {
+            root /app/docker/production;
+            try_files /login.html =404;
+            expires 1h;
+            add_header Cache-Control "public, max-age=3600";
+        }
+
+        # Public static assets (no auth required) - exclude API paths
+        location ~* ^(?!/api/).*\.(css|js|map)$ {
+            root /app/frontend/build/client;
+            expires 1y;
+            add_header Cache-Control "public, immutable, max-age=31536000";
+            add_header Vary "Accept-Encoding";
+            gzip_static on;
+        }
+
+        # Public media assets (no auth required) - exclude API paths
+        location ~* ^(?!/api/).*\.(svg|png|jpg|jpeg|gif|ico|webp|woff|woff2|ttf|eot|json|txt)$ {
+            root /app/frontend/build/client;
+            expires 6M;
+            add_header Cache-Control "public, max-age=15552000";
+            add_header Vary "Accept-Encoding";
+        }
+
+        # Protected API endpoints
+        location /api/ {
+            auth_request /auth-verify;
+            error_page 401 = @auth_required;
+            limit_req zone=api burst=20 nodelay;
+
+            proxy_pass http://127.0.0.1:8001;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_connect_timeout 30s;
+            proxy_send_timeout 30s;
+            proxy_read_timeout 30s;
+            proxy_buffering off;
+        }
+
+        # Auth required redirect handler
+        location @auth_required {
+            return 302 $scheme://$http_host/login.html;
+        }
+
+        # Protected main application
+        location / {
+            auth_request /auth-verify;
+            error_page 401 = @auth_required;
+
+            proxy_pass http://127.0.0.1:3000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_connect_timeout 30s;
+            proxy_send_timeout 30s;
+            proxy_read_timeout 30s;
+        }
+    }
+}

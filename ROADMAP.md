@@ -54,16 +54,18 @@
 - [x] Swipe to open right sidebar
 - [x] Make good layout for Mobile S sizes (320px)
 - [x] Hide tests warning in backend
-- [ ] Throw out authentication from app, think of something nginx based yet easy to login in mobile
+- [x] Throw out authentication from app, think of something nginx based yet easy to login in mobile
 - [ ] Fix PWA app and Music API for Safari iOS so it would be next/prev buttons, not seeks
 - [ ] Once again test all $effects, maybe too much of them. Delete console logs.
 - [x] no-cover.svg has to have cache policy
 - [ ] Full update of project. Fuck with bits-ui/sliders. also backend
 - [ ] Too big DOM. Can we render chunk by chunk on scroll? Will it conflict with scroll into view or shuffle?
+- [ ] Recolor login.html
 - [ ] Solutions to have watchdog for file changes, etc.
 - [ ] Think through tracks deletion - rescanning should work that case - removing track cover and from db
 - [ ] Track scan also has to get real track duration. Not from metadata.
 - [ ] styling for playing music - make it less colored but on hover make blue colored styling for slider
+- [ ] Get rid of fucking SSR and simplify code A LOT.
 - [ ] Marquee for long texts - all places
 - [ ] Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?
 - [ ] Rewrite all markdown files with AI

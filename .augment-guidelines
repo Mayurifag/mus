@@ -1,10 +1,10 @@
-- When you consider task done, ALWAYS run `make ci` until it passes without ANY errors, no warnings, no linter errors, no skipped files, no code stdout/stderr.
 - Strive for self-documenting code with clear, descriptive names for variables, functions, classes, and modules. Delete comments and docstrings of descriptions.
 - Try to keep things simple - do not add unnecessary complexity, do not add much logging and errors handling.
 - Keep files small and focused. If file gets more than 100 LOC, consider to refactor it.
-- Try to write tests for non-obvious code
+- Write tests for new code as specified in the "Testing" section below.
 - Do not use long sleeps waiting for project or browser, 1 second more than enough 99% cases.
 - Use best practices for code organization and structure, like SOLID, DRY, YAGNI, KISS, hexagonal architecture, etc.
+- If you remove lines, do not leave empty lines, unless they are needed.
 
 // Styling (Tailwind CSS / Svelte)
 - Primarily use Tailwind CSS utility classes directly in Svelte/HTML files.
@@ -25,11 +25,11 @@
 
 // Svelte & TypeScript
 - In Svelte files, use `<script lang="ts">`. Structure components as: script, style (if necessary), then HTML template. Place imports at the top of the script block.
-- Use Svelte stores (`writable`, `readable`, `derived` from `frontend/src/lib/stores/`) for shared state, subscribing with `$storeName`.
+- Use Svelte stores for managing state. For state shared across multiple components, create dedicated store files (e.g., in `frontend/src/lib/stores/`). For state localized to a component and its direct children, prefer using runes like `$state()` directly within the component.
 - Use SvelteKit's `load` functions (`+page.ts`, `+layout.ts`, or their `.server.ts` counterparts) for data fetching.
 - Avoid `any` in TypeScript. Define clear interfaces and types in `frontend/src/lib/types/`, especially for API DTOs and store states. Use explicit parameter and return types for functions.
 - Organize TypeScript code into logical modules (e.g., `frontend/src/lib/services/`, `frontend/src/lib/stores/`, `frontend/src/lib/utils/`). Use ES module syntax with named exports preferred, and path aliases (e.g., `@/lib/...`).
-- Centralize backend API calls in `frontend/src/lib/services/apiClient.ts` using `xior`, ensuring typed request payloads and response data.
+- Centralize backend API calls in `frontend/src/lib/services/apiClient.ts` using `fetch`, ensuring typed request payloads and response data.
 - MANDATORY: Use Svelte 5 runes for all reactivity. The `$:` syntax is FORBIDDEN in new code.
 - Use `$state()` for component-local reactive state, `$derived()` for computed values, and `$effect()` for side effects.
 - Use `$props()` for accessing component props and `$bindable()` for props that need two-way binding.
