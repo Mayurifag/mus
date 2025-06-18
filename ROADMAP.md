@@ -52,12 +52,12 @@
 ## Phase 2
 
 - [x] Swipe to open right sidebar
-- [ ] Make good layout for Mobile S sizes (320px)
+- [x] Make good layout for Mobile S sizes (320px)
 - [ ] Fix PWA app and Music API for Safari iOS so it would be next/prev buttons, not seeks
 - [ ] Hide tests warning in backend
 - [ ] Throw out authentication from app, think of something nginx based yet easy to login in mobile
 - [ ] Once again test all $effects, maybe too much of them. Delete console logs.
-- [ ] no-cover.svg has to have cache policy
+- [x] no-cover.svg has to have cache policy
 - [ ] Full update of project. Fuck with bits-ui/sliders. also backend
 - [ ] Too big DOM. Can we render chunk by chunk on scroll? Will it conflict with scroll into view or shuffle?
 - [ ] Solutions to have watchdog for file changes, etc.
