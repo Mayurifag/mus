@@ -30,3 +30,6 @@ asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
 pythonpath = ["."]
 env = ["APP_ENV=test"]
+# DeprecationWarning:
+# 🚨 You probably want to use `session.exec()` instead of `session.execute()`.
+filterwarnings = ["ignore::DeprecationWarning"]

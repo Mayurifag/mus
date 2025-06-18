@@ -53,9 +53,9 @@
 
 - [x] Swipe to open right sidebar
 - [x] Make good layout for Mobile S sizes (320px)
-- [ ] Fix PWA app and Music API for Safari iOS so it would be next/prev buttons, not seeks
-- [ ] Hide tests warning in backend
+- [x] Hide tests warning in backend
 - [ ] Throw out authentication from app, think of something nginx based yet easy to login in mobile
+- [ ] Fix PWA app and Music API for Safari iOS so it would be next/prev buttons, not seeks
 - [ ] Once again test all $effects, maybe too much of them. Delete console logs.
 - [x] no-cover.svg has to have cache policy
 - [ ] Full update of project. Fuck with bits-ui/sliders. also backend

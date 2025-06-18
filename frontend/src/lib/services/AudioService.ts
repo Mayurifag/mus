@@ -49,7 +49,9 @@ export class AudioService {
     this.setupMediaSession();
   }
 
+  // TODO: remove this.audio.controls if that wont work for ios PWA
   private setupEventListeners(): void {
+    this.audio.controls = true;
     this.audio.addEventListener("loadedmetadata", this.handleLoadedMetadata);
     this.audio.addEventListener("timeupdate", this.handleTimeUpdate);
     this.audio.addEventListener("ended", this.handleEnded);
@@ -324,6 +326,7 @@ export class AudioService {
   }
 
   destroy(): void {
+    this.audio.controls = false;
     this.audio.removeEventListener("loadedmetadata", this.handleLoadedMetadata);
     this.audio.removeEventListener("timeupdate", this.handleTimeUpdate);
     this.audio.removeEventListener("ended", this.handleEnded);
