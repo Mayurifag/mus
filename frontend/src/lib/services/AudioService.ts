@@ -46,7 +46,6 @@ export class AudioService {
     );
 
     this.setupEventListeners();
-    this.setupMediaSession();
   }
 
   // TODO: remove this.audio.controls if that wont work for ios PWA
@@ -59,6 +58,7 @@ export class AudioService {
     this.audio.addEventListener("canplay", this.handleCanPlay);
     this.audio.addEventListener("play", this.handlePlay);
     this.audio.addEventListener("pause", this.handlePause);
+    this.audio.addEventListener("playing", this.setupActionHandlers);
     this.audio.addEventListener("progress", this.handleProgress);
     this.audio.addEventListener("suspend", this.handleSuspend);
   }
@@ -268,7 +268,7 @@ export class AudioService {
     }
   }
 
-  private setupMediaSession(): void {
+  private setupActionHandlers = (): void => {
     if (!("mediaSession" in navigator)) return;
 
     navigator.mediaSession.setActionHandler("play", () => {
@@ -292,7 +292,10 @@ export class AudioService {
         this.setCurrentTime(details.seekTime);
       }
     });
-  }
+
+    navigator.mediaSession.setActionHandler("seekforward", null);
+    navigator.mediaSession.setActionHandler("seekbackward", null);
+  };
 
   private updateMediaSessionMetadata(track: Track): void {
     if (!("mediaSession" in navigator)) return;
@@ -334,6 +337,7 @@ export class AudioService {
     this.audio.removeEventListener("canplay", this.handleCanPlay);
     this.audio.removeEventListener("play", this.handlePlay);
     this.audio.removeEventListener("pause", this.handlePause);
+    this.audio.removeEventListener("playing", this.setupActionHandlers);
     this.audio.removeEventListener("progress", this.handleProgress);
     this.audio.removeEventListener("suspend", this.handleSuspend);
   }
