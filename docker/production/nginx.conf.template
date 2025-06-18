@@ -21,7 +21,6 @@ http {
     types_hash_max_size 2048;
 
     limit_req_zone $binary_remote_addr zone=auth_login:10m rate=5r/m;
-    limit_req_zone $binary_remote_addr zone=api:10m rate=100r/m;
 
     # Gzip compression
     gzip on;
@@ -38,7 +37,8 @@ http {
         application/javascript
         application/xml+rss
         application/atom+xml
-        image/svg+xml;
+        image/svg+xml
+        text/event-stream;
 
     # Security headers (global)
     add_header X-Frame-Options DENY always;
@@ -57,17 +57,35 @@ http {
         application/javascript
         application/xml+rss
         application/atom+xml
-        image/svg+xml;
+        image/svg+xml
+        text/event-stream;
 
     gzip_static on;
     brotli_static on;
 
+    # Common proxy settings
+    upstream backend {
+        server 127.0.0.1:8001;
+    }
+
+    upstream frontend {
+        server 127.0.0.1:3000;
+    }
+
     server {
         listen 8000;
         server_name localhost;
-
-        # Hide nginx version
         server_tokens off;
+
+        # Common proxy headers
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 30s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+        proxy_buffering off;
 
         # Internal auth verification endpoint
         location = /auth-verify {
@@ -105,29 +123,19 @@ http {
             gzip_static on;
         }
 
-        # Public media assets (no auth required) - exclude API paths
-        location ~* ^(?!/api/).*\.(svg|png|jpg|jpeg|gif|ico|webp|woff|woff2|ttf|eot|json|txt)$ {
-            root /app/frontend/build/client;
-            expires 6M;
-            add_header Cache-Control "public, max-age=15552000";
-            add_header Vary "Accept-Encoding";
-        }
-
-        # Protected API endpoints
+        # All API endpoints
         location /api/ {
             auth_request /auth-verify;
             error_page 401 = @auth_required;
-            limit_req zone=api burst=20 nodelay;
+            proxy_pass http://backend;
 
-            proxy_pass http://127.0.0.1:8001;
-            proxy_set_header Host $http_host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_connect_timeout 30s;
-            proxy_send_timeout 30s;
-            proxy_read_timeout 30s;
-            proxy_buffering off;
+            # SSE endpoints (extended timeouts for persistent connections)
+            location /api/v1/events/ {
+                proxy_set_header Connection '';
+                proxy_http_version 1.1;
+                proxy_read_timeout 300s;
+                proxy_cache off;
+            }
         }
 
         # Auth required redirect handler
@@ -139,15 +147,7 @@ http {
         location / {
             auth_request /auth-verify;
             error_page 401 = @auth_required;
-
-            proxy_pass http://127.0.0.1:3000;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_connect_timeout 30s;
-            proxy_send_timeout 30s;
-            proxy_read_timeout 30s;
+            proxy_pass http://frontend;
         }
     }
 }

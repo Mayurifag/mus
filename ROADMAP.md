@@ -55,20 +55,20 @@
 - [x] Make good layout for Mobile S sizes (320px)
 - [x] Hide tests warning in backend
 - [x] Throw out authentication from app, think of something nginx based yet easy to login in mobile
-- [ ] Fix PWA app and Music API for Safari iOS so it would be next/prev buttons, not seeks
-- [ ] Once again test all $effects, maybe too much of them. Delete console logs.
+- [x] Fix PWA app and Music API for Safari iOS so it would be next/prev buttons, not seeks
 - [x] no-cover.svg has to have cache policy
+- [x] Recolor login.html
 - [ ] Full update of project. Fuck with bits-ui/sliders. also backend
-- [ ] Too big DOM. Can we render chunk by chunk on scroll? Will it conflict with scroll into view or shuffle?
-- [ ] Recolor login.html
+- [ ] Production problems - doesnt redirect correctly on token. Login on mobile doesnt get nice link.
+- [ ] Too big DOM. Try to use `svelte-virtual`. Will it conflict with scroll into view or shuffle?
+- [ ] Once again test all $effects, maybe too much of them. Delete console logs.
 - [ ] Solutions to have watchdog for file changes, etc.
 - [ ] Think through tracks deletion - rescanning should work that case - removing track cover and from db
 - [ ] Track scan also has to get real track duration. Not from metadata.
 - [ ] styling for playing music - make it less colored but on hover make blue colored styling for slider
 - [ ] Get rid of fucking SSR and simplify code A LOT.
 - [ ] Marquee for long texts - all places
-- [ ] Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?
-- [ ] Rewrite all markdown files with AI
+- [o] ~~Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?~~
 - [ ] rate limiting changes
 - [ ] start some e2e with production dockerimages
 - [ ] Database has to contain real track duration, not from metadata
@@ -79,7 +79,7 @@
 - [ ] Preview of each file - possibility to set title artist (choose?)
 - [ ] Possibility to delete tracks from frontend (with confirmation)
 - [ ] History of file editing. Revert functionality.
-- [ ] minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier
+- [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
 - [ ] production image nginx logging. Logging across app.
 - [ ] KV in-memory db instead of sqlite. Though tracks fetching is fast so maybe no need
 - [ ] Celery and async tasks
@@ -92,6 +92,7 @@
 - [ ] Parse artists, make them unique, add to db. Make functionality to set artist for track. Remove artist from db if no tracks with this artist. Multiple artists for track.
 - [ ] Artist page with all their tracks
 - [ ] Artist can have many similar names (Тату = t.A.T.u.) - get from internet their possible titles for automatical matching later? AI?
+- [ ] Write all markdown files with AI
 
 ## Phase 4
 

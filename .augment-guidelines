@@ -5,6 +5,7 @@
 - Do not use long sleeps waiting for project or browser, 1 second more than enough 99% cases.
 - Use best practices for code organization and structure, like SOLID, DRY, YAGNI, KISS, hexagonal architecture, etc.
 - If you remove lines, do not leave empty lines, unless they are needed.
+- Never ask me if you should going, - yes you ALWAYS have to proceed until task is done.
 
 // Styling (Tailwind CSS / Svelte)
 - Primarily use Tailwind CSS utility classes directly in Svelte/HTML files.
