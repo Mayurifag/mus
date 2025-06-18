@@ -172,14 +172,196 @@
   });
 </script>
 
-<div class="bg-card fixed right-0 bottom-0 left-0 z-50 border-t">
-  <Card class="rounded-none border-0 shadow-none">
-    <div class="desktop:h-28 flex h-36 items-center pr-4">
+<div
+  class="bg-card sm700:h-[var(--footer-height-desktop)] fixed bottom-0 left-0 right-0 z-50 h-[var(--footer-height-mobile)] border-t"
+>
+  <Card class="h-full rounded-none border-0 shadow-none">
+    <!-- Mobile Layout (< 700px) -->
+    <div
+      class="sm700:hidden flex h-[var(--footer-height-mobile)] flex-col justify-between p-3"
+    >
+      <!-- Row 1: Controls -->
+      <div class="flex w-full items-center justify-center gap-4">
+        <!-- Shuffle Button -->
+        <Button
+          variant="ghost"
+          size="icon"
+          class="icon-glow-effect h-12 w-12 {$trackStore.is_shuffle
+            ? 'bg-accent/10'
+            : ''}"
+          on:click={() => trackStore.toggleShuffle()}
+          aria-label="Toggle Shuffle"
+          aria-pressed={$trackStore.is_shuffle}
+        >
+          <Shuffle
+            class="h-6 w-6"
+            color={$trackStore.is_shuffle
+              ? "hsl(var(--accent))"
+              : "currentColor"}
+          />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          class="icon-glow-effect h-12 w-12"
+          on:click={() => trackStore.previousTrack()}
+          aria-label="Previous Track"
+          disabled={!$trackStore.currentTrack}
+        >
+          <SkipBack class="h-6 w-6" />
+        </Button>
+
+        <!-- Play/Pause Button (centered) -->
+        <Button
+          variant="ghost"
+          size="icon"
+          class="icon-glow-effect h-14 w-14"
+          on:click={() => {
+            if (audioService) {
+              if (isPlaying) {
+                audioService.pause();
+              } else {
+                audioService.play();
+              }
+            }
+          }}
+          aria-label={isPlaying ? "Pause" : "Play"}
+          disabled={!$trackStore.currentTrack}
+        >
+          {#if isPlaying}
+            <Pause class="h-7 w-7" />
+          {:else}
+            <Play class="h-7 w-7" />
+          {/if}
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          class="icon-glow-effect h-12 w-12"
+          on:click={() => trackStore.nextTrack()}
+          aria-label="Next Track"
+          disabled={!$trackStore.currentTrack}
+        >
+          <SkipForward class="h-6 w-6" />
+        </Button>
+
+        <!-- Repeat Button -->
+        <Button
+          variant="ghost"
+          size="icon"
+          class="icon-glow-effect h-12 w-12 {isRepeat ? 'bg-accent/10' : ''}"
+          on:click={() => {
+            if (audioService) {
+              audioService.toggleRepeat();
+            }
+          }}
+          aria-label="Toggle Repeat"
+          aria-pressed={isRepeat}
+        >
+          {#if isRepeat}
+            <Repeat1 class="h-6 w-6" color="hsl(var(--accent))" />
+          {:else}
+            <Repeat class="h-6 w-6" color="currentColor" />
+          {/if}
+        </Button>
+      </div>
+
+      <!-- Row 2: Volume Controls (centered, no menu) -->
+      <div class="flex w-full items-center justify-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          class="icon-glow-effect h-12 w-12 flex-shrink-0"
+          on:click={() => {
+            if (audioService) {
+              audioService.toggleMute();
+            }
+          }}
+          aria-label={isMuted ? "Unmute" : "Mute"}
+        >
+          {#if isMuted}
+            <VolumeX class="h-6 w-6" />
+          {:else}
+            <Volume2 class="h-6 w-6" />
+          {/if}
+        </Button>
+        <div
+          class="relative w-32 flex-shrink-0"
+          class:cursor-pointer={!isVolumeDragging}
+          class:cursor-grabbing={isVolumeDragging}
+          role="slider"
+          aria-label="Volume control"
+          aria-valuenow={volumeFeedbackValue}
+          aria-valuemin="0"
+          aria-valuemax="100"
+          tabindex="0"
+          onmouseenter={() => (isVolumeHovered = true)}
+          onmouseleave={() => (isVolumeHovered = false)}
+          onpointerdown={() => {
+            isVolumeDragging = true;
+          }}
+        >
+          <Slider
+            bind:value={volumeValue}
+            onValueChange={handleVolumeChange}
+            max={1}
+            step={0.01}
+            class="w-full"
+          />
+          {#if isVolumeHovered || isVolumeDragging}
+            <div
+              class="bg-muted absolute -top-7 left-1/2 -translate-x-1/2 rounded px-2 py-1 text-xs font-medium text-white transition-opacity"
+            >
+              {volumeFeedbackValue}%
+            </div>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Row 3: Progress -->
+      <div class="flex w-full items-center gap-3 px-4">
+        <span class="text-muted-foreground w-10 text-right text-xs">
+          {formatTime(currentTime)}
+        </span>
+        <Slider
+          bind:value={progressValue}
+          onValueChange={handleProgressChange}
+          onValueCommit={handleProgressCommit}
+          onInput={handleProgressInput}
+          max={duration || 100}
+          step={1}
+          class="flex-1 cursor-pointer"
+          disabled={!$trackStore.currentTrack}
+          {bufferedRanges}
+        />
+        <span class="text-muted-foreground w-10 text-xs">
+          {formatTime(duration)}
+        </span>
+      </div>
+
+      <!-- Row 4: Track Info -->
+      <div class="flex w-full items-center justify-center px-4 text-center">
+        {#if $trackStore.currentTrack}
+          <span class="text-muted-foreground truncate text-sm font-medium">
+            {$trackStore.currentTrack.artist} - {$trackStore.currentTrack.title}
+          </span>
+        {:else}
+          <span class="text-muted-foreground text-sm">Not Playing</span>
+        {/if}
+      </div>
+    </div>
+
+    <!-- Desktop Layout (>= 700px) -->
+    <div
+      class="sm700:flex hidden h-[var(--footer-height-desktop)] items-center pr-4"
+    >
       <!-- Track Info -->
       <div class="desktop:w-80 flex w-auto min-w-0 items-center">
         {#if $trackStore.currentTrack}
           <div
-            class="sm650:block desktop:h-18 desktop:w-18 desktop:my-5 desktop:ml-5 my-6 ml-6 hidden h-24 w-24 flex-shrink-0 cursor-pointer overflow-hidden rounded-md"
+            class="desktop:block desktop:h-24 desktop:w-24 desktop:my-5 desktop:ml-5 my-6 ml-6 hidden h-32 w-32 flex-shrink-0 cursor-pointer overflow-hidden rounded-md"
             onclick={triggerManualScroll}
             onkeydown={(e) => e.key === "Enter" && triggerManualScroll()}
             role="button"
@@ -200,9 +382,7 @@
               />
             {/if}
           </div>
-          <div
-            class="desktop:flex ml-4 hidden min-w-0 flex-col overflow-hidden"
-          >
+          <div class="sm700:flex ml-4 hidden min-w-0 flex-col overflow-hidden">
             <span
               class="cursor-pointer truncate text-base font-medium hover:underline"
               onclick={triggerManualScroll}
@@ -218,13 +398,11 @@
           </div>
         {:else}
           <div
-            class="sm650:block desktop:h-18 desktop:w-18 desktop:my-5 desktop:ml-5 bg-muted my-6 ml-6 flex hidden h-24 w-24 flex-shrink-0 items-center justify-center rounded-md"
+            class="desktop:block desktop:h-24 desktop:w-24 desktop:my-5 desktop:ml-5 bg-muted my-6 ml-6 flex hidden h-32 w-32 flex-shrink-0 items-center justify-center rounded-md"
           >
             <span class="text-muted-foreground text-xs">No Track</span>
           </div>
-          <div
-            class="desktop:flex ml-4 hidden min-w-0 flex-col overflow-hidden"
-          >
+          <div class="sm700:flex ml-4 hidden min-w-0 flex-col overflow-hidden">
             <span class="text-muted-foreground text-sm">Not Playing</span>
           </div>
         {/if}
@@ -232,9 +410,9 @@
 
       <!-- Controls -->
       <div
-        class="desktop:justify-center desktop:py-0 desktop:mx-0 sm650:mx-2 mx-4 flex h-full flex-1 flex-col items-center justify-around py-1"
+        class="desktop:justify-center desktop:py-0 desktop:mx-0 sm700:mx-2 mx-4 flex h-full flex-1 flex-col items-center justify-around py-1"
       >
-        <!-- Mobile Row 1: Control Buttons & Volume Controls -->
+        <!-- Desktop Row 1: Control Buttons & Volume Controls -->
         <div
           class="desktop:space-x-2 flex w-full items-center justify-center space-x-2"
         >
@@ -371,9 +549,9 @@
           </div>
         </div>
 
-        <!-- Mobile Row 2: Progress Slider & Time Indicators -->
+        <!-- Desktop Row 2: Progress Slider & Time Indicators -->
         <div
-          class="desktop:mt-2 desktop:max-w-lg mt-1 flex w-full max-w-md items-center space-x-2"
+          class="desktop:mt-2 desktop:max-w-lg mb-2 flex w-full max-w-md items-center space-x-2"
         >
           <span class="text-muted-foreground w-10 text-right text-xs">
             {formatTime(currentTime)}
@@ -393,25 +571,13 @@
             {formatTime(duration)}
           </span>
         </div>
-
-        <!-- Mobile Row 3: Artist Name - Track Name -->
-        {#if $trackStore.currentTrack}
-          <div
-            class="desktop:hidden mt-1 flex w-full items-center justify-center text-center"
-          >
-            <span class="text-muted-foreground truncate text-xs">
-              {$trackStore.currentTrack.artist} - {$trackStore.currentTrack
-                .title}
-            </span>
-          </div>
-        {/if}
       </div>
 
       <!-- Additional Controls -->
       <div
         class="flex w-auto flex-shrink-0 items-center justify-end space-x-2 pr-4"
       >
-        <!-- Mobile Menu Button -->
+        <!-- Desktop Menu Button (hidden on mobile) -->
         <Button
           variant="ghost"
           size="icon"

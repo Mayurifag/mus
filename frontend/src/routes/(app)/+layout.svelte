@@ -17,6 +17,7 @@
   import type { Track } from "$lib/types";
   import { browser } from "$app/environment";
   import { Toaster } from "$lib/components/ui/sonner";
+  import { swipe, type SwipeCustomEvent } from "svelte-gestures";
   import type { LayoutData } from "./$types";
 
   let { data, children }: { data: LayoutData; children: Snippet } = $props();
@@ -181,6 +182,17 @@
   function handleToggleMenu() {
     sheetOpen = !sheetOpen;
   }
+
+  function handleSwipe(event: SwipeCustomEvent) {
+    if (window.innerWidth < 1000) {
+      if (event.detail.direction === "left" && !sheetOpen) {
+        sheetOpen = true;
+      }
+      if (event.detail.direction === "right" && sheetOpen) {
+        sheetOpen = false;
+      }
+    }
+  }
 </script>
 
 <AuthWall
@@ -189,7 +201,15 @@
 >
   <Sheet.Root bind:open={sheetOpen}>
     <!-- Main content area that uses full viewport scrolling -->
-    <main class="desktop:pr-64 min-h-screen pr-0 pb-20">
+    <main
+      class="desktop:pr-64 min-h-screen pr-0 pb-20"
+      use:swipe={() => ({
+        minSwipeDistance: 40,
+        timeframe: 300,
+        touchAction: "pan-y",
+      })}
+      onswipe={handleSwipe}
+    >
       <div class="desktop:p-4 py-4">
         {@render children()}
       </div>
@@ -203,7 +223,7 @@
     </aside>
 
     <!-- Mobile Sidebar Sheet -->
-    <Sheet.Content side="right" class="w-64">
+    <Sheet.Content side="right" class="w-64 px-6 py-4">
       <RightSidebar />
     </Sheet.Content>
 

@@ -9,6 +9,7 @@
     if (data.token) {
       localStorage.setItem("auth_token", data.token);
     }
+    // TODO: maybe I do not need goto now for better pwa
     goto("/", { replaceState: true });
   });
 </script>

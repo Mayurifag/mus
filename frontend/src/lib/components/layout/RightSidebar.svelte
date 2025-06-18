@@ -76,7 +76,7 @@
   });
 </script>
 
-<div class="h-full w-full p-4">
+<div class="h-full w-full">
   <!-- QR Login Button - Top Right -->
   {#if $authStore.authEnabled}
     <div class="mb-6 flex justify-end">

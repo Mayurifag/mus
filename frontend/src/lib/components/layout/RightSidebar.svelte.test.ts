@@ -17,6 +17,6 @@ describe("RightSidebar", () => {
     const { container } = render(RightSidebar);
 
     const div = container.querySelector("div");
-    expect(div).toHaveClass("h-full", "w-full", "p-4");
+    expect(div).toHaveClass("h-full", "w-full");
   });
 });

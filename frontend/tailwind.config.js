@@ -18,7 +18,7 @@ const config = {
     },
     extend: {
       screens: {
-        sm650: "650px",
+        sm700: "700px",
         desktop: "1000px",
       },
       colors: {

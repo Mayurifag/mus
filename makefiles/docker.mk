@@ -17,8 +17,12 @@ down:
 logs:
 	@$(DOCKER_COMPOSE_CMD) logs --tail=5000 $(ARGS)
 
+.PHONY: docker-front-install
+docker-front-install:
+	@$(DOCKER_COMPOSE_CMD) run frontend npm install --no-fund
+
 .PHONY: rebuild
-rebuild: down build up
+rebuild: down build docker-front-install up
 
 .PHONY: ps
 ps:

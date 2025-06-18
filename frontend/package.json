@@ -54,5 +54,8 @@
     "vite-plugin-compression": "^0.5.1",
     "vite-plugin-svgo": "^2.0.0",
     "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "svelte-gestures": "^5.1.4"
   }
 }

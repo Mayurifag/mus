@@ -46,19 +46,25 @@
 - [x] Scroll to track only if it is not visible on screen. Be sure it scrolls on first page load.
 - [x] no cover album img - make it beautiful
 - [x] QR code when SECRET_KEY exists
-- [ ] Test: redirect after login -> goes to localhost:8000 for production
+- [x] Test: redirect after login -> goes to localhost:8000 for production
 - [x] When <1000px left/right padding on trackitem list has to be gone i think
-- [ ] Full test
 
 ## Phase 2
 
-- [ ] Once again test all $effects, maybe too much of them
+- [x] Swipe to open right sidebar
+- [ ] Make good layout for Mobile S sizes (320px)
+- [ ] Fix PWA app and Music API for Safari iOS so it would be next/prev buttons, not seeks
+- [ ] Hide tests warning in backend
+- [ ] Throw out authentication from app, think of something nginx based yet easy to login in mobile
+- [ ] Once again test all $effects, maybe too much of them. Delete console logs.
+- [ ] no-cover.svg has to have cache policy
 - [ ] Full update of project. Fuck with bits-ui/sliders. also backend
+- [ ] Too big DOM. Can we render chunk by chunk on scroll? Will it conflict with scroll into view or shuffle?
 - [ ] Solutions to have watchdog for file changes, etc.
 - [ ] Think through tracks deletion - rescanning should work that case - removing track cover and from db
 - [ ] Track scan also has to get real track duration. Not from metadata.
 - [ ] styling for playing music - make it less colored but on hover make blue colored styling for slider
-- [ ] Marquee for long texts
+- [ ] Marquee for long texts - all places
 - [ ] Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?
 - [ ] Rewrite all markdown files with AI
 - [ ] rate limiting changes
@@ -75,6 +81,7 @@
 - [ ] production image nginx logging. Logging across app.
 - [ ] KV in-memory db instead of sqlite. Though tracks fetching is fast so maybe no need
 - [ ] Celery and async tasks
+- [ ] Full test
 
 ## Phase 3
 
