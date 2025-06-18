@@ -19,7 +19,8 @@
 
   const loginUrl = $derived.by(() => {
     if (!browser || !secretKey) return "";
-    const publicApiHost = import.meta.env.VITE_PUBLIC_API_HOST || "";
+    const publicApiHost =
+      import.meta.env.VITE_PUBLIC_API_HOST || window.location.origin;
     return `${publicApiHost}/api/v1/auth/login-by-secret/${secretKey}`;
   });
 </script>
@@ -52,8 +53,10 @@
             <p class="text-muted-foreground text-sm">
               Scan the QR code above or copy the URL below:
             </p>
-            <div class="bg-muted rounded p-2">
-              <code class="text-xs select-all">{loginUrl}</code>
+            <div class="bg-muted overflow-x-auto rounded p-2">
+              <code class="block text-xs whitespace-nowrap select-all"
+                >{loginUrl}</code
+              >
             </div>
           </div>
         {:else}

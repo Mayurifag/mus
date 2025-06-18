@@ -99,4 +99,49 @@ describe("QRLoginModal", () => {
     );
     expect(codeElement).toHaveClass("select-all");
   });
+
+  it("should use window.location.origin as fallback when VITE_PUBLIC_API_HOST is empty", () => {
+    mockLocalStorage.getItem.mockReturnValue("test-secret-key");
+
+    // Mock window.location.origin
+    Object.defineProperty(window, "location", {
+      value: {
+        origin: "https://example.com",
+      },
+      writable: true,
+    });
+
+    // Mock empty VITE_PUBLIC_API_HOST
+    vi.stubEnv("VITE_PUBLIC_API_HOST", "");
+
+    render(QRLoginModal, {
+      props: {
+        open: true,
+      },
+    });
+
+    const expectedUrl =
+      "https://example.com/api/v1/auth/login-by-secret/test-secret-key";
+    expect(screen.getByText(expectedUrl)).toBeInTheDocument();
+  });
+
+  it("should have horizontal scrolling classes for long URLs", () => {
+    mockLocalStorage.getItem.mockReturnValue("test-secret-key");
+
+    render(QRLoginModal, {
+      props: {
+        open: true,
+      },
+    });
+
+    const codeElement = screen.getByText(
+      "http://localhost:8000/api/v1/auth/login-by-secret/test-secret-key",
+    );
+    expect(codeElement).toHaveClass("whitespace-nowrap");
+    expect(codeElement).toHaveClass("block");
+
+    // Check the parent container has overflow-x-auto
+    const container = codeElement.parentElement;
+    expect(container).toHaveClass("overflow-x-auto");
+  });
 });

@@ -3,6 +3,7 @@
 - Try to keep things simple - do not add unnecessary complexity, do not add much logging and errors handling.
 - Keep files small and focused. If file gets more than 100 LOC, consider to refactor it.
 - Try to write tests for non-obvious code
+- Do not use long sleeps waiting for project or browser, 1 second more than enough 99% cases.
 - Use best practices for code organization and structure, like SOLID, DRY, YAGNI, KISS, hexagonal architecture, etc.
 
 // Styling (Tailwind CSS / Svelte)
