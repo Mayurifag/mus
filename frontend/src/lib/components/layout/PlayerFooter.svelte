@@ -34,8 +34,8 @@
   let isVolumeDragging = $state(false);
 
   // Local slider state for two-way binding - use AudioService if available
-  let progressValue = $state([0]);
-  let volumeValue = $state([1]);
+  let progressValue = $state(0);
+  let volumeValue = $state(1);
 
   // Track if user is currently interacting with sliders
   let isUserDraggingProgress = $state(false);
@@ -50,7 +50,7 @@
 
   // Reactive volume feedback value
   let volumeFeedbackValue = $derived(
-    isMuted ? 0 : Math.round((volumeValue[0] ?? 0) * 100),
+    isMuted ? 0 : Math.round(volumeValue * 100),
   );
 
   // Sync local state with AudioService stores when they change
@@ -77,7 +77,7 @@
       const unsubscribe = audioService.currentTimeStore.subscribe((time) => {
         currentTime = time;
         if (!isUserDraggingProgress) {
-          progressValue = [time];
+          progressValue = time;
         }
       });
       return unsubscribe;
@@ -97,7 +97,7 @@
     if (audioService?.volumeStore) {
       const unsubscribe = audioService.volumeStore.subscribe((volume) => {
         if (!isVolumeDragging) {
-          volumeValue = [volume];
+          volumeValue = volume;
         }
       });
       return unsubscribe;
@@ -124,9 +124,9 @@
     }
   });
 
-  function handleProgressChange(value: number[]): void {
+  function handleProgressChange(value: number): void {
     if (audioService) {
-      audioService.setCurrentTime(value[0]);
+      audioService.setCurrentTime(value);
     }
   }
 
@@ -138,9 +138,9 @@
     isUserDraggingProgress = true;
   }
 
-  function handleVolumeChange(value: number[]): void {
+  function handleVolumeChange(value: number): void {
     if (audioService) {
-      audioService.setVolume(value[0]);
+      audioService.setVolume(value);
     }
   }
 
@@ -189,7 +189,7 @@
           class="icon-glow-effect h-12 w-12 {$trackStore.is_shuffle
             ? 'bg-accent/10'
             : ''}"
-          on:click={() => trackStore.toggleShuffle()}
+          onclick={() => trackStore.toggleShuffle()}
           aria-label="Toggle Shuffle"
           aria-pressed={$trackStore.is_shuffle}
         >
@@ -205,7 +205,7 @@
           variant="ghost"
           size="icon"
           class="icon-glow-effect h-12 w-12"
-          on:click={() => trackStore.previousTrack()}
+          onclick={() => trackStore.previousTrack()}
           aria-label="Previous Track"
           disabled={!$trackStore.currentTrack}
         >
@@ -217,7 +217,7 @@
           variant="ghost"
           size="icon"
           class="icon-glow-effect h-14 w-14"
-          on:click={() => {
+          onclick={() => {
             if (audioService) {
               if (isPlaying) {
                 audioService.pause();
@@ -240,7 +240,7 @@
           variant="ghost"
           size="icon"
           class="icon-glow-effect h-12 w-12"
-          on:click={() => trackStore.nextTrack()}
+          onclick={() => trackStore.nextTrack()}
           aria-label="Next Track"
           disabled={!$trackStore.currentTrack}
         >
@@ -252,7 +252,7 @@
           variant="ghost"
           size="icon"
           class="icon-glow-effect h-12 w-12 {isRepeat ? 'bg-accent/10' : ''}"
-          on:click={() => {
+          onclick={() => {
             if (audioService) {
               audioService.toggleRepeat();
             }
@@ -274,7 +274,7 @@
           variant="ghost"
           size="icon"
           class="icon-glow-effect h-12 w-12 flex-shrink-0"
-          on:click={() => {
+          onclick={() => {
             if (audioService) {
               audioService.toggleMute();
             }
@@ -423,7 +423,7 @@
             class="icon-glow-effect h-9 w-9 {$trackStore.is_shuffle
               ? 'bg-accent/10'
               : ''}"
-            on:click={() => trackStore.toggleShuffle()}
+            onclick={() => trackStore.toggleShuffle()}
             aria-label="Toggle Shuffle"
             aria-pressed={$trackStore.is_shuffle}
           >
@@ -440,7 +440,7 @@
             variant="ghost"
             size="icon"
             class="icon-glow-effect h-9 w-9 {isRepeat ? 'bg-accent/10' : ''}"
-            on:click={() => {
+            onclick={() => {
               if (audioService) {
                 audioService.toggleRepeat();
               }
@@ -459,7 +459,7 @@
             variant="ghost"
             size="icon"
             class="icon-glow-effect h-10 w-10"
-            on:click={() => trackStore.previousTrack()}
+            onclick={() => trackStore.previousTrack()}
             aria-label="Previous Track"
             disabled={!$trackStore.currentTrack}
           >
@@ -469,7 +469,7 @@
             variant="ghost"
             size="icon"
             class="icon-glow-effect h-12 w-12"
-            on:click={() => {
+            onclick={() => {
               if (audioService) {
                 if (isPlaying) {
                   audioService.pause();
@@ -491,7 +491,7 @@
             variant="ghost"
             size="icon"
             class="icon-glow-effect h-10 w-10"
-            on:click={() => trackStore.nextTrack()}
+            onclick={() => trackStore.nextTrack()}
             aria-label="Next Track"
             disabled={!$trackStore.currentTrack}
           >
@@ -503,7 +503,7 @@
             variant="ghost"
             size="icon"
             class="icon-glow-effect h-9 w-9"
-            on:click={() => {
+            onclick={() => {
               if (audioService) {
                 audioService.toggleMute();
               }
@@ -582,7 +582,7 @@
           variant="ghost"
           size="icon"
           class="icon-glow-effect desktop:hidden ml-2"
-          on:click={toggleMenu}
+          onclick={toggleMenu}
           aria-label="Open menu"
         >
           <Menu class="h-5 w-5" />

@@ -6,7 +6,7 @@ import type { TimeRange } from "$lib/types";
 describe("Slider component", () => {
   it("renders without bufferedRanges", () => {
     const { container } = render(Slider, {
-      value: [50],
+      value: 50,
       max: 100,
     });
 
@@ -16,7 +16,7 @@ describe("Slider component", () => {
 
   it("renders without bufferedRanges when undefined", () => {
     const { container } = render(Slider, {
-      value: [50],
+      value: 50,
       max: 100,
       bufferedRanges: undefined,
     });
@@ -30,7 +30,7 @@ describe("Slider component", () => {
 
   it("renders without bufferedRanges when empty array", () => {
     const { container } = render(Slider, {
-      value: [50],
+      value: 50,
       max: 100,
       bufferedRanges: [],
     });
@@ -46,7 +46,7 @@ describe("Slider component", () => {
     const bufferedRanges: TimeRange[] = [{ start: 10, end: 50 }];
 
     const { container } = render(Slider, {
-      value: [25],
+      value: 25,
       max: 100,
       bufferedRanges,
     });
@@ -66,7 +66,7 @@ describe("Slider component", () => {
     ];
 
     const { container } = render(Slider, {
-      value: [45],
+      value: 45,
       max: 100,
       bufferedRanges,
     });
@@ -87,7 +87,7 @@ describe("Slider component", () => {
     const bufferedRanges: TimeRange[] = [{ start: 30, end: 90 }];
 
     const { container } = render(Slider, {
-      value: [60],
+      value: 60,
       max: 180,
       bufferedRanges,
     });
@@ -104,7 +104,7 @@ describe("Slider component", () => {
     const bufferedRanges: TimeRange[] = [{ start: 10, end: 50 }];
 
     const { container } = render(Slider, {
-      value: [25],
+      value: 25,
       max: 100,
       bufferedRanges,
     });
@@ -123,7 +123,7 @@ describe("Slider component", () => {
     const bufferedRanges: TimeRange[] = [{ start: 10, end: 50 }];
 
     const { container } = render(Slider, {
-      value: [25],
+      value: 25,
       max: 100,
       bufferedRanges,
     });
@@ -148,7 +148,7 @@ describe("Slider component", () => {
     const bufferedRanges: TimeRange[] = [{ start: 50, end: 50 }];
 
     const { container } = render(Slider, {
-      value: [25],
+      value: 25,
       max: 100,
       bufferedRanges,
     });
@@ -165,7 +165,7 @@ describe("Slider component", () => {
     const bufferedRanges: TimeRange[] = [{ start: 80, end: 120 }];
 
     const { container } = render(Slider, {
-      value: [50],
+      value: 50,
       max: 100,
       bufferedRanges,
     });

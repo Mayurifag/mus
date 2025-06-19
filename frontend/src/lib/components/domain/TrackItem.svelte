@@ -47,7 +47,7 @@
     }
   }
 
-  let progressValue = $state([0]);
+  let progressValue = $state(0);
   let isUserDragging = $state(false);
   let localIsPlaying = $state(false);
   let duration = $state(0);
@@ -100,7 +100,7 @@
                 "isUserDragging:",
                 isUserDragging,
               );
-              progressValue = [time];
+              progressValue = time;
             }
           }),
         );
@@ -151,15 +151,15 @@
       return () => unsubscribers.forEach((unsub) => unsub());
     } else {
       localIsPlaying = false;
-      progressValue = [0];
+      progressValue = 0;
       duration = 0;
       bufferedRanges = [];
     }
   });
 
-  function handleProgressChange(value: number[]): void {
+  function handleProgressChange(value: number): void {
     if (audioService) {
-      audioService.setCurrentTime(value[0]);
+      audioService.setCurrentTime(value);
     }
   }
 

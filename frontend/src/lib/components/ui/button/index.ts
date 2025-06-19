@@ -1,4 +1,3 @@
-import type { Button as ButtonPrimitive } from "bits-ui";
 import { type VariantProps, tv } from "tailwind-variants";
 import Root from "./button.svelte";
 
@@ -32,12 +31,19 @@ const buttonVariants = tv({
 type Variant = VariantProps<typeof buttonVariants>["variant"];
 type Size = VariantProps<typeof buttonVariants>["size"];
 
-type Props = ButtonPrimitive.Props & {
+type Props = {
   variant?: Variant;
   size?: Size;
+  class?: string;
+  children?: import("svelte").Snippet;
+  onclick?: (event: MouseEvent) => void;
+  [key: string]: unknown;
 };
 
-type Events = ButtonPrimitive.Events;
+type Events = {
+  click: MouseEvent;
+  keydown: KeyboardEvent;
+};
 
 export {
   Root,
