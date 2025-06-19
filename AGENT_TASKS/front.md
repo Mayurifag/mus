@@ -32,9 +32,9 @@ The expected workflow is as follows:
 ### [ ] 1. Update Frontend Dependencies and Fix Component Issues
 **Description**: Update all frontend dependencies to their latest versions and resolve any resulting breaking changes, particularly with `bits-ui` components.
 **Details**:
-1.  Navigate to the `frontend` directory.
-2.  Use `npm-check-updates` to upgrade all dependencies in `package.json`. Run `ncu -u`.
-3.  Install the updated dependencies by running `npm install`.
+
+Move Sliders to On Mount sections. Do not make non-bits ui solution for SSR. Any similar problems have to be moved to on mount section as well.
+
 4.  Run `make ci` to identify build errors and test failures.
 5.  Systematically address the issues. For any broken UI components in `frontend/src/lib/components/ui`, remove the component's directory and re-add it using the `shadcn-svelte` CLI.
     - Example: If the slider is broken, run `rm -rf frontend/src/lib/components/ui/slider` and then `npx shadcn-svelte@latest add slider`.
