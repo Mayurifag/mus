@@ -7,30 +7,29 @@ ENV VITE_INTERNAL_API_HOST="http://127.0.0.1:8001"
 ENV VITE_PUBLIC_API_HOST=""
 RUN npm run build
 
-FROM python:3.12-slim-bookworm AS backend-builder
-ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=off \
-    UV_SYSTEM_PYTHON=1
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS backend-builder
+ENV PYTHONUNBUFFERED=1
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
     libvips-dev \
-    curl \
-    && \
-    curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    mv /root/.local/bin/uv /usr/local/bin/uv && \
-    rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app/backend_build_temp
+RUN uv venv /opt/venv
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 COPY backend/pyproject.toml backend/README.md* ./
 COPY backend/src ./src
-RUN uv pip install --system --no-cache .
+RUN uv pip install --no-cache .
 
 FROM python:3.12-slim-bookworm
 ENV PYTHONUNBUFFERED=1 \
     APP_ENV=production \
     LOG_LEVEL=info \
-    DATA_DIR_PATH=/app_data
+    DATA_DIR_PATH=/app_data \
+    VIRTUAL_ENV=/opt/venv \
+    PATH="/opt/venv/bin:$PATH"
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -51,13 +50,10 @@ RUN groupadd --gid ${GID} appgroup && \
 
 WORKDIR /app
 
-COPY --from=backend-builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=backend-builder /usr/local/bin/uvicorn /usr/local/bin/uvicorn
+COPY --from=backend-builder /opt/venv /opt/venv
 COPY --chown=appuser:appgroup backend/src /app/src
 COPY --from=frontend-builder --chown=appuser:appgroup /app/frontend/build /app/frontend/build
 
-# SvelteKit adapter-node generates ES modules but doesn't create package.json
-# Node.js requires "type": "module" to import ES modules properly
 RUN echo '{"type": "module"}' > /app/frontend/build/package.json && \
     chown appuser:appgroup /app/frontend/build/package.json
 

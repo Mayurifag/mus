@@ -58,7 +58,9 @@
 - [x] Fix PWA app and Music API for Safari iOS so it would be next/prev buttons, not seeks
 - [x] no-cover.svg has to have cache policy
 - [x] Recolor login.html
-- [ ] Full update of project. Fuck with bits-ui/sliders. also backend
+- [x] Full update of project. Fuck with bits-ui/sliders. also backend
+- [ ] Production dockerfile rewrite to use uv image + check
+- [ ] node 24 + python 3.13
 - [ ] Production problems - doesnt redirect correctly on token. Login on mobile doesnt get nice link.
 - [ ] Too big DOM. Try to use `svelte-virtual`. Will it conflict with scroll into view or shuffle?
 - [ ] Once again test all $effects, maybe too much of them. Delete console logs.
