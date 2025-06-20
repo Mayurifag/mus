@@ -16,7 +16,6 @@
 - [x] Why we have +page.svelte and +layout.svelte? Should not that be only one?
 - [x] once again fix saving state, log on backend, check close tab and other cases
 - [x] Analyze all css methods which update several states in once. Make them with different methods. Remove all $: and refactor to svelte 5.
-- [x] Recolor all frontend. Switched on repeat/reshuffle buttons should be blue (check)
 - [ ] ~~Divide frontend into components: footer / sidebar / tracklist, etc.~~
 - [x] Style progress bar so it would be equal like tracklist' one. Remove styling from TrackItem.svelte.
 - [x] Move to vscode, update workflow, aliases. Adapt this workflow. Remove cursorrules. Update all snippets. https://www.chatprd.ai/resources/PRD-for-Cursor - browsermcp.io
@@ -49,7 +48,7 @@
 - [x] Test: redirect after login -> goes to localhost:8000 for production
 - [x] When <1000px left/right padding on trackitem list has to be gone i think
 
-## Phase 2
+## Phase 2: Backend Event-Driven Redesign
 
 - [x] Swipe to open right sidebar
 - [x] Make good layout for Mobile S sizes (320px)
@@ -62,33 +61,53 @@
 - [x] Production dockerfile rewrite to use uv image + check
 - [x] node 24 + python 3.13
 - [x] Production problems - doesnt redirect correctly on token. Login on mobile doesnt get nice link.
-- [ ] Too big DOM. Try to use `svelte-virtual`. Will it conflict with scroll into view or shuffle?
-- [ ] Once again test all $effects, maybe too much of them. Delete console logs.
-- [ ] Solutions to have watchdog for file changes, etc.
-- [ ] Think through tracks deletion - rescanning should work that case - removing track cover and from db
-- [ ] Track scan also has to get real track duration. Not from metadata.
-- [ ] styling for playing music - make it less colored but on hover make blue colored styling for slider
-- [ ] Get rid of fucking SSR and simplify code A LOT.
-- [ ] Marquee for long texts - all places
+- [x] sliders - beginning a bit filled; end not filled a bit
+- [ ] **Foundation: Database & Queues**
+    - [ ] Enhance `Track` schema with `inode` and `content_hash` for robust file tracking.
+        - [ ] Add `processing_status: str` enum (`PENDING`, `METADATA_DONE`, `ART_DONE`, `COMPLETE`, `ERROR`).
+        - [ ] Add `last_error_message: str | None`.
+    - [ ] Tune SQLite for concurrency by enabling WAL mode and a busy timeout. Maybe other tuning as well
+        - [ ] Enable `PRAGMA journal_mode=WAL` and `PRAGMA synchronous = NORMAL` on all connections.
+        - [ ] Set `PRAGMA busy_timeout` to 5000ms.
+    - [ ] Set up a task queue system (e.g., RQ) using DragonflyDB as the broker. Be sure you do it fine inside production image.
+        - [ ] Add `dragonfly` service to `docker-compose.yml` for local development.
+        - [ ] Add DragonflyDB installation to the production Dockerfile.
+        - [ ] Add `[program:dragonfly]` and `[program:rq-worker]` to `supervisord.conf`.
+        - [ ] Use two queues: `high_priority` for file events and `low_priority` for analysis (covers, ffprobe, etc.).
+- [ ] **Core Processing Pipeline**
+    - [ ] Implement `watchdog` to monitor the music directory for real-time file changes (`created`, `modified`, `deleted`, `moved`).
+    - [ ] Remove all current code about processing files. We will start from scratch!!
+    - [ ] On startup, perform an initial full scan that populates the database or the queue before the watcher takes over.
+        - [ ] This scan will synchronously extract fast metadata (`mutagen`) in batches and save to the DB. It will then enqueue slower tasks (covers, duration) to the `low_priority` queue.
+    - [ ] Create an asynchronous worker to process `created` and `modified` events for metadata extraction and accurate duration analysis (using FFprobe).
+    - [ ] Create a dedicated worker for cover art extraction and processing, triggered after successful metadata processing.
+    - [ ] Create a dedicated worker to handle `deleted` events, ensuring tracks and their associated covers are removed.
+    - [ ] Implement logic to handle `moved` events by updating the file path based on inode, preserving the track's identity.
+- [ ] **Features & Robustness**
+    - [ ] Implement `TrackHistory` table and API to track the last 5 metadata changes per track and allow for rollbacks.
+    - [ ] Implement basic performance monitoring (e.g., queue depths).
 - [o] ~~Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?~~
 - [ ] rate limiting changes
 - [ ] start some e2e with production dockerimages
-- [ ] Database has to contain real track duration, not from metadata
-- [ ] Hotkeys for player controls
-- [ ] Hover player controls should show what will be done + also hotkey for that
 - [ ] Edit files in place. Normalize tags has to be automatical. Edit filename (windows names)
-- [ ] If user moves file on opened page, we should upload it to the server
 - [ ] Preview of each file - possibility to set title artist (choose?)
+- [ ] If user moves file on opened page, we should upload it to the server
 - [ ] Possibility to delete tracks from frontend (with confirmation)
 - [ ] History of file editing. Revert functionality.
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
-- [ ] production image nginx logging. Logging across app.
-- [ ] KV in-memory db instead of sqlite. Though tracks fetching is fast so maybe no need
 - [ ] Celery and async tasks
+- [ ] Once again test all $effects, maybe too much of them. Delete console logs.
 - [ ] Full test
 
 ## Phase 3
 
+- [ ] production image nginx better logging. Logging across app.
+- [ ] Hotkeys for player controls
+- [ ] Hover player controls should show what will be done + also hotkey for that
+- [ ] Marquee for long texts - all places
+- [ ] ~~styling for playing music - make it less colored but on hover make blue colored styling for slider~~
+- [ ] Get rid of fucking SSR and simplify code A LOT - ???.
+- [ ] Too big DOM. Try to use `svelte-virtual`. Will it conflict with scroll into view or shuffle?
 - [ ] Render play button from tracklist under album cover
 - [ ] Define Artist entity
 - [ ] Parse artists, make them unique, add to db. Make functionality to set artist for track. Remove artist from db if no tracks with this artist. Multiple artists for track.
