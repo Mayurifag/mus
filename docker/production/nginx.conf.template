@@ -101,7 +101,8 @@ http {
             limit_req zone=auth_login burst=1 nodelay;
             if ($arg_token = "${SECRET_KEY}") {
                 add_header Set-Cookie "auth_token=${SECRET_KEY}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=31536000";
-                return 302 $scheme://$http_host/;
+                add_header Content-Type "text/html";
+                return 200 '<html><head><script>window.location.replace("/");</script></head><body>Redirecting...</body></html>';
             }
             return 401;
         }

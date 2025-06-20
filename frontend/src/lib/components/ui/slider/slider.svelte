@@ -20,26 +20,13 @@
     onValueCommit?: (value: number) => void;
     [key: string]: unknown;
   } = $props();
-
-  function handleValueChange(newValue: number) {
-    value = newValue;
-    if (onValueChange) {
-      onValueChange(newValue);
-    }
-  }
-
-  function handleValueCommit(newValue: number) {
-    if (onValueCommit) {
-      onValueCommit(newValue);
-    }
-  }
 </script>
 
 <SliderPrimitive.Root
   type="single"
   bind:value
-  onValueChange={handleValueChange}
-  onValueCommit={handleValueCommit}
+  {onValueChange}
+  {onValueCommit}
   {max}
   class={cn(
     "group relative flex w-full touch-none items-center select-none",
@@ -62,7 +49,10 @@
           ></div>
         {/each}
       {/if}
-      <SliderPrimitive.Range class="bg-accent absolute h-full" />
+      <SliderPrimitive.Range
+        class="bg-accent absolute h-full"
+        style="left: 0; width: {(value / max) * 100}%;"
+      />
     </span>
     {#each thumbItems as { index } (index)}
       <SliderPrimitive.Thumb
