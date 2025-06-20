@@ -1,20 +1,19 @@
 FROM node:20-alpine AS frontend-builder
 WORKDIR /app/frontend
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm ci --no-fund --prefer-offline
 COPY frontend/ ./
 ENV VITE_INTERNAL_API_HOST="http://127.0.0.1:8001"
 ENV VITE_PUBLIC_API_HOST=""
-RUN npm run build
+RUN npm ci --no-fund --prefer-offline \
+    && npm run build \
+    ;
 
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS backend-builder
 ENV PYTHONUNBUFFERED=1
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    build-essential \
-    gcc \
-    libvips-dev \
-    && rm -rf /var/lib/apt/lists/*
+        build-essential \
+        gcc \
+        libvips-dev
 WORKDIR /app/backend_build_temp
 RUN uv venv /opt/venv
 ENV VIRTUAL_ENV=/opt/venv
@@ -33,14 +32,14 @@ ENV PYTHONUNBUFFERED=1 \
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    nginx \
-    supervisor \
-    nodejs \
-    libnginx-mod-http-brotli-filter \
-    libnginx-mod-http-brotli-static \
-    libvips42 \
-    curl \
-    gettext-base \
+        nginx \
+        supervisor \
+        nodejs \
+        libnginx-mod-http-brotli-filter \
+        libnginx-mod-http-brotli-static \
+        libvips42 \
+        curl \
+        gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
 ARG UID=10001

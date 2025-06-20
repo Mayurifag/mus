@@ -16,10 +16,13 @@ const createAuthConfigStore = () => {
     subscribe,
     async initialize() {
       try {
-        const url = await fetchMagicLinkUrl();
+        const relativeUrl = await fetchMagicLinkUrl();
+        const fullUrl = relativeUrl
+          ? `${window.location.origin}${relativeUrl}`
+          : "";
         set({
-          isAuthEnabled: url !== "",
-          magicLinkUrl: url,
+          isAuthEnabled: relativeUrl !== "",
+          magicLinkUrl: fullUrl,
         });
       } catch (error) {
         console.error("Failed to initialize auth config:", error);
