@@ -1,4 +1,4 @@
-FROM node:20-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/ ./
 ENV VITE_INTERNAL_API_HOST="http://127.0.0.1:8001"
@@ -7,7 +7,7 @@ RUN npm ci --no-fund --prefer-offline \
     && npm run build \
     ;
 
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS backend-builder
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS backend-builder
 ENV PYTHONUNBUFFERED=1
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -22,7 +22,7 @@ COPY backend/pyproject.toml backend/README.md* ./
 COPY backend/src ./src
 RUN uv pip install --no-cache .
 
-FROM python:3.12-slim-bookworm
+FROM python:3.13-slim-bookworm
 ENV PYTHONUNBUFFERED=1 \
     APP_ENV=production \
     LOG_LEVEL=info \
