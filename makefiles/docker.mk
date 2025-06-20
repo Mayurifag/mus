@@ -21,8 +21,12 @@ logs:
 docker-front-install:
 	@$(DOCKER_COMPOSE_CMD) run frontend npm install --no-fund
 
+.PHONY: back-docker-install
+back-docker-install:
+	@$(DOCKER_COMPOSE_CMD) exec backend uv pip sync /app/requirements.txt
+
 .PHONY: rebuild
-rebuild: down build docker-front-install up
+rebuild: down build up
 
 .PHONY: ps
 ps:
@@ -57,4 +61,4 @@ docker-test-prod-stop:
 
 .PHONY: back-sh
 back-sh:
-	@$(DOCKER_COMPOSE_CMD) exec backend bash
+	@$(DOCKER_COMPOSE_CMD) run -it backend bash

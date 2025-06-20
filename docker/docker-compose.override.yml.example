@@ -1,21 +1,29 @@
-# Copy this file to docker-compose.overrides.yml and customize as needed
-
 services:
   backend:
     ports:
       - "8000:8000"
     volumes:
       - ../backend:/app
-        - /path/to/your/music:/app_data/music
+      - backend_venv:/opt/venv
+      - /path/to/your/music:/app_data/music
     environment:
-      - SECRET_KEY=dev_secret_key_please_change_in_production
       - APP_ENV=development
       - FRONTEND_ORIGIN=http://localhost:5173
+      - SECRET_KEY=dev_secret_key_please_change_in_production
+    restart: unless-stopped
 
   frontend:
     ports:
       - "5173:5173"
+    volumes:
+      - ../frontend:/app
+      - node_modules:/app/node_modules
     environment:
       - SECRET_KEY=dev_secret_key_please_change_in_production
       - VITE_INTERNAL_API_HOST=http://backend:8000
       - VITE_PUBLIC_API_HOST=http://localhost:8000
+    restart: unless-stopped
+
+volumes:
+  node_modules:
+  backend_venv:

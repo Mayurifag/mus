@@ -27,7 +27,9 @@ describe("authConfigStore", () => {
 
     const state = get(authConfigStore);
     expect(state.isAuthEnabled).toBe(true);
-    expect(state.magicLinkUrl).toBe(mockUrl);
+    expect(state.magicLinkUrl).toBe(
+      "http://localhost:3000/login?token=test-secret-key",
+    );
   });
 
   it("should set auth disabled when empty URL is returned", async () => {
