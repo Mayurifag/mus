@@ -21,6 +21,10 @@ click==8.2.1
     #   uvicorn
 fastapi==0.115.13
     # via mus (pyproject.toml)
+ffmpeg-python==0.2.0
+    # via mus (pyproject.toml)
+future==1.0.0
+    # via ffmpeg-python
 greenlet==3.2.3
     # via mus (pyproject.toml)
 h11==0.16.0
@@ -102,6 +106,8 @@ uvicorn==0.34.3
     # via mus (pyproject.toml)
 uvloop==0.21.0
     # via uvicorn
+watchdog==6.0.0
+    # via mus (pyproject.toml)
 watchfiles==1.1.0
     # via uvicorn
 websockets==15.0.1

@@ -41,6 +41,7 @@ RUN apt-get update && \
         libvips42 \
         curl \
         gettext-base \
+        ffmpeg \
     && ARCHITECTURE="amd64" && \
     if [ "$TARGETARCH" = "arm64" ]; then ARCHITECTURE="aarch64"; fi && \
     curl -L "https://github.com/dragonflydb/dragonfly/releases/download/v1.31.0/dragonfly-${ARCHITECTURE}.tar.gz" -o dragonfly.tar.gz && \

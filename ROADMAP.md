@@ -62,21 +62,21 @@
 - [x] node 24 + python 3.13
 - [x] Production problems - doesnt redirect correctly on token. Login on mobile doesnt get nice link.
 - [x] sliders - beginning a bit filled; end not filled a bit
-- [ ] **Foundation: Database & Queues**
-    - [ ] Enhance `Track` schema with `inode` and `content_hash` for robust file tracking.
-        - [ ] Add `processing_status: str` enum (`PENDING`, `METADATA_DONE`, `ART_DONE`, `COMPLETE`, `ERROR`).
-        - [ ] Add `last_error_message: str | None`.
-    - [ ] Tune SQLite for concurrency by enabling WAL mode and a busy timeout. Maybe other tuning as well
-        - [ ] Enable `PRAGMA journal_mode=WAL` and `PRAGMA synchronous = NORMAL` on all connections.
-        - [ ] Set `PRAGMA busy_timeout` to 5000ms.
-    - [ ] Set up a task queue system (e.g., RQ) using DragonflyDB as the broker. Be sure you do it fine inside production image.
-        - [ ] Add `dragonfly` service to `docker-compose.yml` for local development.
-        - [ ] Add DragonflyDB installation to the production Dockerfile.
-        - [ ] Add `[program:dragonfly]` and `[program:rq-worker]` to `supervisord.conf`.
-        - [ ] Use two queues: `high_priority` for file events and `low_priority` for analysis (covers, ffprobe, etc.). Those will be just two tasks. Analysis will be one file but with functionality from different files.
+- [x] **Foundation: Database & Queues**
+    - [x] Enhance `Track` schema with `inode` and `content_hash` for robust file tracking.
+        - [x] Add `processing_status: str` enum (`PENDING`, `METADATA_DONE`, `ART_DONE`, `COMPLETE`, `ERROR`).
+        - [x] Add `last_error_message: str | None`.
+    - [x] Tune SQLite for concurrency by enabling WAL mode and a busy timeout. Maybe other tuning as well
+        - [x] Enable `PRAGMA journal_mode=WAL` and `PRAGMA synchronous = NORMAL` on all connections.
+        - [x] Set `PRAGMA busy_timeout` to 5000ms.
+    - [x] Set up a task queue system (e.g., RQ) using DragonflyDB as the broker. Be sure you do it fine inside production image.
+        - [x] Add `dragonfly` service to `docker-compose.yml` for local development.
+        - [x] Add DragonflyDB installation to the production Dockerfile.
+        - [x] Add `[program:dragonfly]` and `[program:rq-worker]` to `supervisord.conf`.
+        - [x] Use two queues: `high_priority` for file events and `low_priority` for analysis (covers, ffprobe, etc.). Those will be just two tasks. Analysis will be one file but with functionality from different files.
 - [ ] **Core Processing Pipeline**
-    - [ ] Implement `watchdog` to monitor the music directory for real-time file changes (`created`, `modified`, `deleted`, `moved`).
-    - [ ] Remove all current code about processing files. We will start from scratch!!
+    - [x] Implement `watchdog` to monitor the music directory for real-time file changes (`created`, `modified`, `deleted`, `moved`).
+    - [x] Remove all current code about processing files. We will start from scratch!!
     - [ ] On startup, perform an initial full scan that populates the database or the queue before the watcher takes over.
         - [ ] This scan will synchronously extract fast metadata (`mutagen`) in batches and save to the DB. It will then enqueue slower tasks (covers, duration) to the `low_priority` queue.
     - [ ] Create an asynchronous worker to process `created` and `modified` events for metadata extraction and accurate duration analysis (using FFprobe).
