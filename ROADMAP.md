@@ -73,7 +73,7 @@
         - [ ] Add `dragonfly` service to `docker-compose.yml` for local development.
         - [ ] Add DragonflyDB installation to the production Dockerfile.
         - [ ] Add `[program:dragonfly]` and `[program:rq-worker]` to `supervisord.conf`.
-        - [ ] Use two queues: `high_priority` for file events and `low_priority` for analysis (covers, ffprobe, etc.).
+        - [ ] Use two queues: `high_priority` for file events and `low_priority` for analysis (covers, ffprobe, etc.). Those will be just two tasks. Analysis will be one file but with functionality from different files.
 - [ ] **Core Processing Pipeline**
     - [ ] Implement `watchdog` to monitor the music directory for real-time file changes (`created`, `modified`, `deleted`, `moved`).
     - [ ] Remove all current code about processing files. We will start from scratch!!
@@ -87,6 +87,7 @@
     - [ ] Implement `TrackHistory` table and API to track the last 5 metadata changes per track and allow for rollbacks.
     - [ ] Implement basic performance monitoring (e.g., queue depths).
 - [o] ~~Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?~~
+- [ ] Frontend should get only usable fields for /tracks.
 - [ ] rate limiting changes
 - [ ] start some e2e with production dockerimages
 - [ ] Edit files in place. Normalize tags has to be automatical. Edit filename (windows names)

@@ -47,6 +47,10 @@ class SQLiteTrackRepository:
             file_path=track_data.file_path,
             has_cover=track_data.has_cover,
             added_at=track_data.added_at,
+            inode=track_data.inode,
+            content_hash=track_data.content_hash,
+            processing_status=track_data.processing_status,
+            last_error_message=track_data.last_error_message,
         )
         stmt = stmt.on_conflict_do_update(
             index_elements=["file_path"],
@@ -55,6 +59,10 @@ class SQLiteTrackRepository:
                 "artist": stmt.excluded.artist,
                 "duration": stmt.excluded.duration,
                 "has_cover": stmt.excluded.has_cover,
+                "inode": stmt.excluded.inode,
+                "content_hash": stmt.excluded.content_hash,
+                "processing_status": stmt.excluded.processing_status,
+                "last_error_message": stmt.excluded.last_error_message,
             },
         )
         await self.session.execute(stmt)
