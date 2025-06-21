@@ -13,3 +13,25 @@ services:
       - "localhost:host-gateway"
     depends_on:
       - backend
+
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:v1.31.0
+    restart: unless-stopped
+    ulimits:
+      memlock: -1
+    command: ["dragonfly", "--cache_mode=true", "--maxmemory=512mb", "--save_schedule="]
+
+  rq-worker:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    depends_on:
+      - backend
+      - dragonfly
+    volumes:
+      - ../backend:/app
+      - backend_venv:/opt/venv
+    environment:
+      - APP_ENV=development
+      - DRAGONFLY_URL=dragonfly://dragonfly:6379
+    command: sh -c "[ -f /app/requirements.txt ] && uv pip sync /app/requirements.txt; rq worker high_priority low_priority --url dragonfly://dragonfly:6379"
