@@ -13,3 +13,9 @@ services:
       - "localhost:host-gateway"
     depends_on:
       - backend
+
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:v1.31.0
+    restart: unless-stopped
+    ulimits:
+      memlock: -1
