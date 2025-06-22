@@ -68,30 +68,16 @@ async def test_startup_process_runs_unconditionally():
 async def test_startup_process_runs_in_production():
     original_app_env = os.environ.get("APP_ENV")
     with patch("src.mus.main.settings.APP_ENV", "production"):
-        mock_settings_covers_dir = MagicMock(spec=Path)
+        mock_scanner = AsyncMock()
+        mock_scanner.scan.return_value = mock_scanner
 
-        mock_create_db_and_tables_in_main = AsyncMock()
-
-        with (
-            patch(
-                "src.mus.main.create_db_and_tables",
-                new=mock_create_db_and_tables_in_main,
-            ),
-            patch.object(
-                Config,
-                "COVERS_DIR_PATH",
-                new_callable=PropertyMock,
-                return_value=mock_settings_covers_dir,
-            ),
+        with patch(
+            "src.mus.main.InitialScanner.create_default", return_value=mock_scanner
         ):
             with TestClient(actual_app) as client:
                 client.get("/api")
 
-                mock_create_db_and_tables_in_main.assert_awaited_once()
-
-                mock_settings_covers_dir.mkdir.assert_called_once_with(
-                    parents=True, exist_ok=True
-                )
+                mock_scanner.scan.assert_awaited_once()
 
     if original_app_env is not None:
         os.environ["APP_ENV"] = original_app_env

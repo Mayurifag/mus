@@ -39,7 +39,7 @@
           </div>
           <div class="space-y-2">
             <p class="text-muted-foreground text-sm">
-              Scan the QR code above or copy the URL below:
+              Scan the QR code or copy the URL:
             </p>
             <div class="bg-muted overflow-x-auto rounded p-2">
               <code class="block text-xs whitespace-nowrap select-all"

@@ -77,8 +77,8 @@
 - [ ] **Core Processing Pipeline**
     - [x] Implement `watchdog` to monitor the music directory for real-time file changes (`created`, `modified`, `deleted`, `moved`).
     - [x] Remove all current code about processing files. We will start from scratch!!
-    - [ ] On startup, perform an initial full scan that populates the database or the queue before the watcher takes over.
-        - [ ] This scan will synchronously extract fast metadata (`mutagen`) in batches and save to the DB. It will then enqueue slower tasks (covers, duration) to the `low_priority` queue.
+    - [x] On startup, perform an initial full scan that populates the database or the queue before the watcher takes over.
+        - [x] This scan will synchronously extract fast metadata (`mutagen`) in batches and save to the DB. It will then enqueue slower tasks (covers, duration) to the `low_priority` queue.
     - [ ] Create an asynchronous worker to process `created` and `modified` events for metadata extraction and accurate duration analysis (using FFprobe).
     - [ ] Create a dedicated worker for cover art extraction and processing, triggered after successful metadata processing.
     - [ ] Create a dedicated worker to handle `deleted` events, ensuring tracks and their associated covers are removed.
@@ -88,6 +88,9 @@
     - [ ] Implement basic performance monitoring (e.g., queue depths).
 - [o] ~~Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?~~
 - [ ] Frontend should get only usable fields for /tracks.
+- [ ] Slider cursor hand on cover
+- [ ] robots.txt unauthorized + maybe other assets
+- [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling.
 - [ ] rate limiting changes
 - [ ] start some e2e with production dockerimages
 - [ ] Edit files in place. Normalize tags has to be automatical. Edit filename (windows names)
@@ -97,7 +100,7 @@
 - [ ] History of file editing. Revert functionality.
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
 - [ ] Celery and async tasks
-- [ ] Once again test all $effects, maybe too much of them. Delete console logs.
+- [ ] Once again test all $effects, maybe too much of them. Delete console logs. isUserDragging needed?
 - [ ] Full test
 
 ## Phase 3
@@ -109,6 +112,7 @@
 - [ ] ~~styling for playing music - make it less colored but on hover make blue colored styling for slider~~
 - [ ] Get rid of fucking SSR and simplify code A LOT - ???.
 - [ ] Too big DOM. Try to use `svelte-virtual`. Will it conflict with scroll into view or shuffle?
+- [ ] Make scrolling if only outside of page
 - [ ] Render play button from tracklist under album cover
 - [ ] Define Artist entity
 - [ ] Parse artists, make them unique, add to db. Make functionality to set artist for track. Remove artist from db if no tracks with this artist. Multiple artists for track.
