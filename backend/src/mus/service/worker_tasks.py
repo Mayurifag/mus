@@ -25,13 +25,16 @@ async def process_slow_metadata(track_id: int):
         return
 
     file_path = Path(track.file_path)
+    cover_processor = CoverProcessor(settings.COVERS_DIR_PATH)
 
-    accurate_duration = await asyncio.to_thread(get_accurate_duration, file_path)
+    duration_task = asyncio.to_thread(get_accurate_duration, file_path)
+    cover_task = cover_processor.extract_cover_from_file(file_path)
+
+    accurate_duration, cover_data = await asyncio.gather(duration_task, cover_task)
+
     if accurate_duration > 0 and accurate_duration != track.duration:
         track.duration = accurate_duration
 
-    cover_processor = CoverProcessor(settings.COVERS_DIR_PATH)
-    cover_data = await cover_processor.extract_cover_from_file(file_path)
     track.has_cover = bool(
         cover_data
         and await cover_processor.process_and_save_cover(
@@ -77,17 +80,18 @@ async def process_file_move(src_path: str, dest_path: str):
             )
 
 
-async def process_file_created(file_path_str: str):
+async def process_file_upsert(file_path_str: str, is_creation: bool = False):
     file_path = Path(file_path_str)
     metadata = extract_fast_metadata(file_path)
     if not metadata:
         return
 
-    existing_track = await get_track_by_inode(metadata["inode"])
-    if existing_track:
-        existing_track.file_path = str(file_path)
-        await update_track(existing_track)
-        return
+    if is_creation:
+        existing_track = await get_track_by_inode(metadata["inode"])
+        if existing_track:
+            existing_track.file_path = str(file_path)
+            await update_track(existing_track)
+            return
 
     track = Track(
         title=metadata["title"],
@@ -102,30 +106,16 @@ async def process_file_created(file_path_str: str):
 
     if upserted_track and upserted_track.id:
         enqueue_slow_metadata(upserted_track.id)
+        action = "Added" if is_creation else "Updated"
+        level = "success" if is_creation else "info"
         await notify_sse_from_worker(
-            "reload_tracks", f"Added track '{track.title}'", "success"
+            "reload_tracks", f"{action} track '{track.title}'", level
         )
+
+
+async def process_file_created(file_path_str: str):
+    await process_file_upsert(file_path_str, is_creation=True)
 
 
 async def process_file_modified(file_path_str: str):
-    file_path = Path(file_path_str)
-    metadata = extract_fast_metadata(file_path)
-    if not metadata:
-        return
-
-    track = Track(
-        title=metadata["title"],
-        artist=metadata["artist"],
-        duration=metadata["duration"],
-        file_path=str(file_path),
-        added_at=metadata["added_at"],
-        inode=metadata["inode"],
-        processing_status=ProcessingStatus.METADATA_DONE,
-    )
-    upserted_track = await upsert_track(track)
-
-    if upserted_track and upserted_track.id:
-        enqueue_slow_metadata(upserted_track.id)
-        await notify_sse_from_worker(
-            "reload_tracks", f"Updated track '{track.title}'", "info"
-        )
+    await process_file_upsert(file_path_str, is_creation=False)
