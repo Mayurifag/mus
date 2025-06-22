@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional, Literal
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
+import httpx
 
 router = APIRouter(prefix="/api/v1/events", tags=["events"])
 
@@ -18,15 +19,6 @@ async def broadcast_sse_event(
     action_key: Optional[str] = None,
     action_payload: Optional[Dict[str, Any]] = None,
 ):
-    """
-    Broadcast a generic SSE event to all connected clients.
-
-    Args:
-        message_to_show: Optional message to display to the user
-        message_level: Optional level of the message (success, error, info, warning)
-        action_key: Optional key identifying the action to take (e.g., 'reload_tracks')
-        action_payload: Optional data associated with the action
-    """
     event_data = {
         "message_to_show": message_to_show,
         "message_level": message_level,
@@ -69,3 +61,39 @@ async def track_updates_sse(request: Request):
             "Connection": "keep-alive",
         },
     )
+
+
+@router.post("/trigger")
+async def trigger_sse_event(
+    message_to_show: Optional[str] = None,
+    message_level: Optional[MessageLevel] = None,
+    action_key: Optional[str] = None,
+    action_payload: Optional[Dict[str, Any]] = None,
+):
+    await broadcast_sse_event(
+        message_to_show=message_to_show,
+        message_level=message_level,
+        action_key=action_key,
+        action_payload=action_payload,
+    )
+    return {"status": "ok"}
+
+
+async def notify_sse_from_worker(
+    action_key: str, message: Optional[str] = None, level: Optional[MessageLevel] = None
+):
+    import os
+
+    backend_url = os.getenv("BACKEND_URL", "http://127.0.0.1:8001")
+    try:
+        async with httpx.AsyncClient() as client:
+            params = {"action_key": action_key}
+            if message:
+                params["message_to_show"] = message
+            if level:
+                params["message_level"] = level
+            await client.post(
+                f"{backend_url}/api/v1/events/trigger", params=params, timeout=1.0
+            )
+    except Exception:
+        pass

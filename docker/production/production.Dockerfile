@@ -28,6 +28,7 @@ ENV PYTHONUNBUFFERED=1 \
     APP_ENV=production \
     LOG_LEVEL=info \
     DATA_DIR_PATH=/app_data \
+    BACKEND_URL=http://127.0.0.1:8001 \
     VIRTUAL_ENV=/opt/venv \
     PATH="/opt/venv/bin:$PATH"
 

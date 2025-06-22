@@ -1,15 +1,13 @@
 from typing import List
 
-from rq import Queue
 from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.mus.domain.entities.track import Track
+from src.mus.util.queue_utils import enqueue_slow_metadata
 
 
-async def batch_upsert_tracks(
-    session: AsyncSession, tracks: List[Track], queue: Queue, worker_function: str
-) -> int:
+async def batch_upsert_tracks(session: AsyncSession, tracks: List[Track]) -> int:
     if not tracks:
         return 0
 
@@ -35,9 +33,7 @@ async def batch_upsert_tracks(
     await session.commit()
 
     if track_ids:
-        queue.enqueue_many([
-            queue.prepare_data(worker_function, args=(track_id,))
-            for track_id in track_ids
-        ])
+        for track_id in track_ids:
+            enqueue_slow_metadata(track_id)
 
     return len(track_ids)

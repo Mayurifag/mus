@@ -1,8 +1,6 @@
 import asyncio
 import time
 import logging
-from rq import Queue
-from redis import Redis
 from pathlib import Path
 
 from src.mus.domain.entities.track import Track, ProcessingStatus
@@ -18,18 +16,13 @@ from src.mus.config import settings
 logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 100
-WORKER_FUNCTION_NAME = "src.mus.service.worker_tasks.process_slow_metadata"
 
 
 class InitialScanner:
     def __init__(
-        self,
-        track_repository: SQLiteTrackRepository,
-        low_priority_queue: Queue,
-        batch_size: int = BATCH_SIZE,
+        self, track_repository: SQLiteTrackRepository, batch_size: int = BATCH_SIZE
     ):
         self.track_repository = track_repository
-        self.low_priority_queue = low_priority_queue
         self.file_scanner = FileSystemScanner(settings.MUSIC_DIR_PATH)
         self.batch_size = batch_size
 
@@ -42,16 +35,20 @@ class InitialScanner:
 
         async with async_session_factory() as session:
             track_repository = SQLiteTrackRepository(session)
-            low_priority_queue = Queue(
-                "low_priority", connection=Redis.from_url(settings.DRAGONFLY_URL)
-            )
-            return cls(track_repository, low_priority_queue)
+            return cls(track_repository)
 
     async def scan(self) -> "InitialScanner":
         tasks_with_paths: list[tuple[asyncio.Task, Path]] = []
 
         async for file_path in self.file_scanner.scan_directories():
-            tasks_with_paths.append((asyncio.create_task(asyncio.to_thread(extract_fast_metadata, file_path)), file_path))
+            tasks_with_paths.append(
+                (
+                    asyncio.create_task(
+                        asyncio.to_thread(extract_fast_metadata, file_path)
+                    ),
+                    file_path,
+                )
+            )
 
             if len(tasks_with_paths) >= self.batch_size:
                 await self._process_tasks_batch(tasks_with_paths)
@@ -62,15 +59,25 @@ class InitialScanner:
 
         return self
 
-    async def _process_tasks_batch(self, tasks_with_paths: list[tuple[asyncio.Task, Path]]) -> None:
+    async def _process_tasks_batch(
+        self, tasks_with_paths: list[tuple[asyncio.Task, Path]]
+    ) -> None:
         now = int(time.time())
         metadata_results = await asyncio.gather(*(t for t, _ in tasks_with_paths))
 
-        tracks = [Track(title=m["title"], artist=m["artist"], duration=m["duration"],
-                       file_path=str(p), added_at=m.get("added_at", now), inode=m["inode"],
-                       processing_status=ProcessingStatus.METADATA_DONE)
-                 for m, (_, p) in zip(metadata_results, tasks_with_paths) if m]
+        tracks = [
+            Track(
+                title=m["title"],
+                artist=m["artist"],
+                duration=m["duration"],
+                file_path=str(p),
+                added_at=m.get("added_at", now),
+                inode=m["inode"],
+                processing_status=ProcessingStatus.METADATA_DONE,
+            )
+            for m, (_, p) in zip(metadata_results, tasks_with_paths)
+            if m
+        ]
 
         if tracks:
-            await batch_upsert_tracks(self.track_repository.session, tracks,
-                                    self.low_priority_queue, WORKER_FUNCTION_NAME)
+            await batch_upsert_tracks(self.track_repository.session, tracks)

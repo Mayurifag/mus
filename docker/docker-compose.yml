@@ -9,6 +9,7 @@ services:
     build:
       context: ..
       dockerfile: docker/frontend.Dockerfile
+    # I forgot why I added that maybe thats not needed anymore with auth (not sure)
     extra_hosts:
       - "localhost:host-gateway"
     depends_on:
@@ -28,10 +29,3 @@ services:
     depends_on:
       - backend
       - dragonfly
-    volumes:
-      - ../backend:/app
-      - backend_venv:/opt/venv
-    environment:
-      - APP_ENV=development
-      - DRAGONFLY_URL=redis://dragonfly:6379
-    command: sh -c "[ -f /app/requirements.txt ] && uv pip sync /app/requirements.txt; rq worker high_priority low_priority --url redis://dragonfly:6379"

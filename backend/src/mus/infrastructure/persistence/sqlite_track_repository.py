@@ -77,3 +77,17 @@ class SQLiteTrackRepository:
         result = await self.session.exec(select(func.max(Track.added_at)))
         latest_added_at = result.one_or_none()
         return latest_added_at
+
+    async def get_by_inode(self, inode: int) -> Optional[Track]:
+        result = await self.session.exec(select(Track).where(Track.inode == inode))
+        return result.first()
+
+    async def delete_by_path(self, file_path: str) -> bool:
+        result = await self.session.exec(
+            select(Track).where(Track.file_path == file_path)
+        )
+        track = result.first()
+        if track:
+            await self.session.delete(track)
+            return True
+        return False

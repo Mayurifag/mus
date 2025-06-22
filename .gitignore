@@ -79,3 +79,4 @@ htmlcov/
 
 # CI/CD
 .github/workflows/*.log
+.aider*
