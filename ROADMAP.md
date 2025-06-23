@@ -92,6 +92,7 @@
 - [x] robots.txt unauthorized + maybe other assets
 - [x] rate limiting changes
 - [x] start some e2e with production dockerimages
+- [ ] Linters: Vulture (+ test), djlint (not sure if I need it), biomejs for e2e in github actions, ruff/black config
 - [ ] Edit files in place. Normalize tags has to be automatical. Edit filename (windows names)
 - [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
 - [ ] Possibility to delete tracks from frontend (with confirmation)
