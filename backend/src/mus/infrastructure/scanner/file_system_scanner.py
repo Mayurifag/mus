@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class FileSystemScanner:
-    SUPPORTED_EXTENSIONS: ClassVar[set[str]] = {".mp3", ".flac"}
+    SUPPORTED_EXTENSIONS: ClassVar[set[str]] = {".mp3", ".flac", ".wav"}
 
     def __init__(self, music_dir_path: Path):
         self.default_root_dir = music_dir_path

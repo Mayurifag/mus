@@ -1,0 +1,19 @@
+{
+  "name": "e2e",
+  "version": "1.0.0",
+  "description": "E2E testing suite for mus",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:e2e": "./run-tests.sh headless",
+    "test:e2e:headed": "./run-tests.sh headed",
+    "test:e2e:debug": "./run-tests.sh debug",
+    "cleanup": "./cleanup.sh",
+    "postinstall": "npx playwright install chromium --with-deps"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.0.0"
+  }
+}

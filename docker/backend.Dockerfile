@@ -11,6 +11,7 @@ RUN apt-get update \
         gcc \
         libvips-dev \
         ffmpeg \
+        curl \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r appgroup && useradd -r -g appgroup --create-home appuser \
     && mkdir -p $DATA_DIR_PATH/database $DATA_DIR_PATH/covers $DATA_DIR_PATH/music \
@@ -20,5 +21,8 @@ RUN apt-get update \
 USER appuser
 
 EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:8000/api/healthcheck.json || exit 1
 
 CMD ["sh", "-c", "[ -f /app/requirements.txt ] && uv pip sync /app/requirements.txt; uvicorn src.mus.main:app --host 0.0.0.0 --port 8000 --reload --reload-delay 0.5"]

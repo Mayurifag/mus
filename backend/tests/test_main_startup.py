@@ -49,7 +49,7 @@ async def test_startup_process_runs_unconditionally():
         original_app_env = os.environ.get("APP_ENV")
         with patch("src.mus.main.settings.APP_ENV", "test"):
             with TestClient(actual_app) as client:
-                client.get("/api")
+                client.get("/api/healthcheck.json")
 
                 assert mock_engine_begin_method.call_count == 1
                 assert mock_sql_create_all.call_count == 1

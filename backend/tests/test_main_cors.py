@@ -37,9 +37,9 @@ def create_app_with_env(env_value=None):
     app.include_router(player_router)
     app.include_router(track_router)
 
-    @app.get("/api")
-    async def read_root():
-        return {"status": "ok", "message": "Mus backend is running"}
+    @app.get("/api/healthcheck.json")
+    async def healthcheck():
+        return {"status": "healthy", "timestamp": int(__import__("time").time())}
 
     return app
 

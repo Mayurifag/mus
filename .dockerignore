@@ -34,5 +34,8 @@ app_data/
 **/npm-debug.log
 **/.eslintcache
 
+# E2E Testing
+e2e/
+
 # Include production docker directory
 !docker/production/

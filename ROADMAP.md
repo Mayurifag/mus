@@ -91,14 +91,15 @@
 - [x] Slider cursor hand on cover
 - [x] robots.txt unauthorized + maybe other assets
 - [x] rate limiting changes
-- [ ] start some e2e with production dockerimages
+- [x] start some e2e with production dockerimages
 - [ ] Edit files in place. Normalize tags has to be automatical. Edit filename (windows names)
-- [ ] Preview of each file - possibility to set title artist (choose?)
-- [ ] If user moves file on opened page, we should upload it to the server
+- [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
 - [ ] Possibility to delete tracks from frontend (with confirmation)
 - [ ] History of file editing. Revert functionality.
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
 - [o] ~~Celery and async tasks~~
+- [ ] e2e in CI before deployment after linters. Complex github actions flow.
+- [ ] Complex e2e test: some file has to be flac with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
 - [ ] Once again test all $effects, maybe too much of them. Delete console logs. isUserDragging needed?
 - [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401
 - [ ] Full test
@@ -115,6 +116,7 @@
 - [ ] Make scrolling if only outside of page
 - [ ] Render play button from tracklist under album cover
 - [ ] Define Artist entity
+- [ ] Preview of each file - possibility to set title artist (choose?)
 - [ ] Parse artists, make them unique, add to db. Make functionality to set artist for track. Remove artist from db if no tracks with this artist. Multiple artists for track.
 - [ ] Artist page with all their tracks
 - [ ] Artist can have many similar names (Тату = t.A.T.u.) - get from internet their possible titles for automatical matching later? AI?

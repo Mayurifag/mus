@@ -58,6 +58,6 @@ app.include_router(monitoring_router.router)
 app.include_router(sse_router)
 
 
-@app.get("/api", response_model=Dict[str, Any])
-async def read_root() -> Dict[str, Any]:
-    return {"status": "ok", "message": "mus backend is running"}
+@app.get("/api/healthcheck.json", response_model=Dict[str, Any])
+async def healthcheck() -> Dict[str, Any]:
+    return {"status": "healthy", "timestamp": int(__import__("time").time())}

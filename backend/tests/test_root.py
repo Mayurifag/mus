@@ -6,17 +6,17 @@ from typing import Any, Dict
 
 
 @pytest.mark.asyncio
-async def test_root_endpoint() -> None:
+async def test_healthcheck_endpoint() -> None:
     main = importlib.import_module("mus.main")
     app: FastAPI = main.app
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        response = await ac.get("/api")
+        response = await ac.get("/api/healthcheck.json")
     assert response.status_code == 200
     data: Dict[str, Any] = response.json()
-    assert "status" in data and data["status"] == "ok"
-    assert "message" in data
+    assert "status" in data and data["status"] == "healthy"
+    assert "timestamp" in data
 
 
 @pytest.mark.asyncio

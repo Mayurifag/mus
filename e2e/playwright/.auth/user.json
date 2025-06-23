@@ -1,0 +1,15 @@
+{
+  "cookies": [
+    {
+      "name": "auth_token",
+      "value": "e2e-secret-key",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1782243696.897413,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Strict"
+    }
+  ],
+  "origins": []
+}
