@@ -1,7 +1,8 @@
-from typing import List, Optional
+from typing import Optional, Sequence
 from sqlmodel import select, desc, func
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
+from sqlalchemy.engine import Row
 
 from src.mus.domain.entities.track import Track
 
@@ -16,9 +17,13 @@ class SQLiteTrackRepository:
         result = await self.session.exec(select(Track).where(Track.id == track_id))
         return result.first()
 
-    async def get_all(self) -> List[Track]:
-        result = await self.session.exec(select(Track).order_by(desc(Track.added_at)))
-        return list(result.all())
+    async def get_all(self) -> Sequence[Row]:
+        result = await self.session.execute(
+            select(
+                Track.id, Track.title, Track.artist, Track.duration, Track.has_cover
+            ).order_by(desc(Track.added_at))
+        )
+        return result.all()
 
     async def exists_by_path(self, file_path: str) -> bool:
         result = await self.session.exec(
@@ -47,6 +52,10 @@ class SQLiteTrackRepository:
             file_path=track_data.file_path,
             has_cover=track_data.has_cover,
             added_at=track_data.added_at,
+            inode=track_data.inode,
+            content_hash=track_data.content_hash,
+            processing_status=track_data.processing_status,
+            last_error_message=track_data.last_error_message,
         )
         stmt = stmt.on_conflict_do_update(
             index_elements=["file_path"],
@@ -55,6 +64,10 @@ class SQLiteTrackRepository:
                 "artist": stmt.excluded.artist,
                 "duration": stmt.excluded.duration,
                 "has_cover": stmt.excluded.has_cover,
+                "inode": stmt.excluded.inode,
+                "content_hash": stmt.excluded.content_hash,
+                "processing_status": stmt.excluded.processing_status,
+                "last_error_message": stmt.excluded.last_error_message,
             },
         )
         await self.session.execute(stmt)
@@ -69,3 +82,17 @@ class SQLiteTrackRepository:
         result = await self.session.exec(select(func.max(Track.added_at)))
         latest_added_at = result.one_or_none()
         return latest_added_at
+
+    async def get_by_inode(self, inode: int) -> Optional[Track]:
+        result = await self.session.exec(select(Track).where(Track.inode == inode))
+        return result.first()
+
+    async def delete_by_path(self, file_path: str) -> bool:
+        result = await self.session.exec(
+            select(Track).where(Track.file_path == file_path)
+        )
+        track = result.first()
+        if track:
+            await self.session.delete(track)
+            return True
+        return False

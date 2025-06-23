@@ -7,8 +7,6 @@ const mockTracks = [
     title: "Test Track",
     artist: "Test Artist",
     duration: 180,
-    file_path: "/path/to/track.mp3",
-    added_at: Date.now(),
     has_cover: true,
     cover_small_url: "/api/v1/tracks/1/covers/small.webp",
     cover_original_url: "/api/v1/tracks/1/covers/original.webp",

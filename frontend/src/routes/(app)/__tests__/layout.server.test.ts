@@ -22,8 +22,6 @@ describe("+layout.server.ts", () => {
       title: "Test Track",
       artist: "Test Artist",
       duration: 180,
-      file_path: "/path/to/track.mp3",
-      added_at: Math.floor(Date.now() / 1000) - 3600,
       has_cover: true,
       cover_small_url: "/api/v1/tracks/1/covers/small.webp",
       cover_original_url: "/api/v1/tracks/1/covers/original.webp",

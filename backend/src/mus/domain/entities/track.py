@@ -1,5 +1,15 @@
+from enum import Enum
 from sqlmodel import Field, SQLModel
+from sqlalchemy import Column, String
 from typing import Optional
+
+
+class ProcessingStatus(str, Enum):
+    PENDING = "PENDING"
+    METADATA_DONE = "METADATA_DONE"
+    ART_DONE = "ART_DONE"
+    COMPLETE = "COMPLETE"
+    ERROR = "ERROR"
 
 
 class Track(SQLModel, table=True):
@@ -10,3 +20,9 @@ class Track(SQLModel, table=True):
     file_path: str = Field(unique=True, index=True)
     added_at: int
     has_cover: bool = Field(default=False)
+    inode: Optional[int] = Field(default=None, index=True)
+    content_hash: Optional[str] = Field(default=None, index=True)
+    processing_status: ProcessingStatus = Field(
+        default=ProcessingStatus.PENDING, sa_column=Column(String(20), nullable=False)
+    )
+    last_error_message: Optional[str] = Field(default=None)

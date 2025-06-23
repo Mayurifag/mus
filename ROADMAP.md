@@ -62,32 +62,35 @@
 - [x] node 24 + python 3.13
 - [x] Production problems - doesnt redirect correctly on token. Login on mobile doesnt get nice link.
 - [x] sliders - beginning a bit filled; end not filled a bit
-- [ ] **Foundation: Database & Queues**
-    - [ ] Enhance `Track` schema with `inode` and `content_hash` for robust file tracking.
-        - [ ] Add `processing_status: str` enum (`PENDING`, `METADATA_DONE`, `ART_DONE`, `COMPLETE`, `ERROR`).
-        - [ ] Add `last_error_message: str | None`.
-    - [ ] Tune SQLite for concurrency by enabling WAL mode and a busy timeout. Maybe other tuning as well
-        - [ ] Enable `PRAGMA journal_mode=WAL` and `PRAGMA synchronous = NORMAL` on all connections.
-        - [ ] Set `PRAGMA busy_timeout` to 5000ms.
-    - [ ] Set up a task queue system (e.g., RQ) using DragonflyDB as the broker. Be sure you do it fine inside production image.
-        - [ ] Add `dragonfly` service to `docker-compose.yml` for local development.
-        - [ ] Add DragonflyDB installation to the production Dockerfile.
-        - [ ] Add `[program:dragonfly]` and `[program:rq-worker]` to `supervisord.conf`.
-        - [ ] Use two queues: `high_priority` for file events and `low_priority` for analysis (covers, ffprobe, etc.).
-- [ ] **Core Processing Pipeline**
-    - [ ] Implement `watchdog` to monitor the music directory for real-time file changes (`created`, `modified`, `deleted`, `moved`).
-    - [ ] Remove all current code about processing files. We will start from scratch!!
-    - [ ] On startup, perform an initial full scan that populates the database or the queue before the watcher takes over.
-        - [ ] This scan will synchronously extract fast metadata (`mutagen`) in batches and save to the DB. It will then enqueue slower tasks (covers, duration) to the `low_priority` queue.
-    - [ ] Create an asynchronous worker to process `created` and `modified` events for metadata extraction and accurate duration analysis (using FFprobe).
-    - [ ] Create a dedicated worker for cover art extraction and processing, triggered after successful metadata processing.
-    - [ ] Create a dedicated worker to handle `deleted` events, ensuring tracks and their associated covers are removed.
-    - [ ] Implement logic to handle `moved` events by updating the file path based on inode, preserving the track's identity.
-- [ ] **Features & Robustness**
-    - [ ] Implement `TrackHistory` table and API to track the last 5 metadata changes per track and allow for rollbacks.
-    - [ ] Implement basic performance monitoring (e.g., queue depths).
+- [x] **Foundation: Database & Queues**
+    - [x] Enhance `Track` schema with `inode` and `content_hash` for robust file tracking.
+        - [x] Add `processing_status: str` enum (`PENDING`, `METADATA_DONE`, `ART_DONE`, `COMPLETE`, `ERROR`).
+        - [x] Add `last_error_message: str | None`.
+    - [x] Tune SQLite for concurrency by enabling WAL mode and a busy timeout. Maybe other tuning as well
+        - [x] Enable `PRAGMA journal_mode=WAL` and `PRAGMA synchronous = NORMAL` on all connections.
+        - [x] Set `PRAGMA busy_timeout` to 5000ms.
+    - [x] Set up a task queue system (e.g., RQ) using DragonflyDB as the broker. Be sure you do it fine inside production image.
+        - [x] Add `dragonfly` service to `docker-compose.yml` for local development.
+        - [x] Add DragonflyDB installation to the production Dockerfile.
+        - [x] Add `[program:dragonfly]` and `[program:rq-worker]` to `supervisord.conf`.
+        - [x] Use two queues: `high_priority` for file events and `low_priority` for analysis (covers, ffprobe, etc.). Those will be just two tasks. Analysis will be one file but with functionality from different files.
+- [x] **Core Processing Pipeline**
+    - [x] Implement `watchdog` to monitor the music directory for real-time file changes (`created`, `modified`, `deleted`, `moved`).
+    - [x] Remove all current code about processing files. We will start from scratch!!
+    - [x] On startup, perform an initial full scan that populates the database or the queue before the watcher takes over.
+        - [x] This scan will synchronously extract fast metadata (`mutagen`) in batches and save to the DB. It will then enqueue slower tasks (covers, duration) to the `low_priority` queue.
+    - [x] Create an asynchronous worker to process `created` and `modified` events for metadata extraction and accurate duration analysis (using FFprobe).
+    - [x] Create a dedicated worker for cover art extraction and processing, triggered after successful metadata processing.
+    - [x] Create a dedicated worker to handle `deleted` events, ensuring tracks and their associated covers are removed.
+    - [x] Implement logic to handle `moved` events by updating the file path based on inode, preserving the track's identity.
+- [x] **Features & Robustness**
+    - [x] Implement `TrackHistory` table and API to track the last 5 metadata changes per track and allow for rollbacks.
+    - [x] Implement basic performance monitoring (e.g., queue depths).
 - [o] ~~Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?~~
-- [ ] rate limiting changes
+- [ ] Frontend should get only usable fields for /tracks.
+- [x] Slider cursor hand on cover
+- [x] robots.txt unauthorized + maybe other assets
+- [x] rate limiting changes
 - [ ] start some e2e with production dockerimages
 - [ ] Edit files in place. Normalize tags has to be automatical. Edit filename (windows names)
 - [ ] Preview of each file - possibility to set title artist (choose?)
@@ -95,8 +98,9 @@
 - [ ] Possibility to delete tracks from frontend (with confirmation)
 - [ ] History of file editing. Revert functionality.
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
-- [ ] Celery and async tasks
-- [ ] Once again test all $effects, maybe too much of them. Delete console logs.
+- [o] ~~Celery and async tasks~~
+- [ ] Once again test all $effects, maybe too much of them. Delete console logs. isUserDragging needed?
+- [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401
 - [ ] Full test
 
 ## Phase 3
@@ -108,6 +112,7 @@
 - [ ] ~~styling for playing music - make it less colored but on hover make blue colored styling for slider~~
 - [ ] Get rid of fucking SSR and simplify code A LOT - ???.
 - [ ] Too big DOM. Try to use `svelte-virtual`. Will it conflict with scroll into view or shuffle?
+- [ ] Make scrolling if only outside of page
 - [ ] Render play button from tracklist under album cover
 - [ ] Define Artist entity
 - [ ] Parse artists, make them unique, add to db. Make functionality to set artist for track. Remove artist from db if no tracks with this artist. Multiple artists for track.

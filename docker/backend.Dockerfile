@@ -10,6 +10,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         gcc \
         libvips-dev \
+        ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r appgroup && useradd -r -g appgroup --create-home appuser \
     && mkdir -p $DATA_DIR_PATH/database $DATA_DIR_PATH/covers $DATA_DIR_PATH/music \

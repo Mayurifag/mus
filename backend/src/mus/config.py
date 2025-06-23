@@ -16,6 +16,8 @@ class Config(BaseModel):
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     SCAN_INTERVAL_SECONDS: int = int(os.getenv("SCAN_INTERVAL_SECONDS", "60"))
 
+    DRAGONFLY_URL: str = os.getenv("DRAGONFLY_URL", "redis://127.0.0.1:6379")
+
     DATA_DIR_PATH: Path = Path(os.getenv("DATA_DIR_PATH", "./app_data")).resolve()
 
     @computed_field

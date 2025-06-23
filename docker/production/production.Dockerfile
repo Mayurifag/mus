@@ -23,10 +23,12 @@ COPY backend/src ./src
 RUN uv pip install --no-cache .
 
 FROM python:3.13-slim-bookworm
+ARG TARGETARCH
 ENV PYTHONUNBUFFERED=1 \
     APP_ENV=production \
     LOG_LEVEL=info \
     DATA_DIR_PATH=/app_data \
+    BACKEND_URL=http://127.0.0.1:8001 \
     VIRTUAL_ENV=/opt/venv \
     PATH="/opt/venv/bin:$PATH"
 
@@ -40,6 +42,13 @@ RUN apt-get update && \
         libvips42 \
         curl \
         gettext-base \
+        ffmpeg \
+    && ARCHITECTURE="amd64" && \
+    if [ "$TARGETARCH" = "arm64" ]; then ARCHITECTURE="aarch64"; fi && \
+    curl -L "https://github.com/dragonflydb/dragonfly/releases/download/v1.31.0/dragonfly-${ARCHITECTURE}.tar.gz" -o dragonfly.tar.gz && \
+    tar -xvzf dragonfly.tar.gz && \
+    find . -name "dragonfly*" -type f -executable -exec mv {} /usr/local/bin/dragonfly \; && \
+    rm dragonfly.tar.gz \
     && rm -rf /var/lib/apt/lists/*
 
 ARG UID=10001

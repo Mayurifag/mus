@@ -124,6 +124,17 @@ http {
             gzip_static on;
         }
 
+        # Public static files (robots.txt, favicon, manifest, images)
+        location ~* ^/(robots\.txt|favicon\.svg|manifest\.json|images/.*)$ {
+            root /app/frontend/build;
+            try_files $uri =404;
+            expires 1d;
+            add_header Cache-Control "public, max-age=86400";
+            add_header Vary "Accept-Encoding";
+            gzip_static on;
+            brotli_static on;
+        }
+
         # SSE endpoints (extended timeouts for persistent connections)
         location /api/v1/events/ {
             auth_request /auth-verify;

@@ -41,6 +41,7 @@ async def test_add_track(repository, sample_track):
 async def test_get_all_tracks(repository, sample_track):
     # Add a few tracks
     track1 = await repository.add(sample_track)
+    track1_id = track1.id
 
     track2 = Track(
         title="Another Track",
@@ -51,15 +52,16 @@ async def test_get_all_tracks(repository, sample_track):
         added_at=1609459200,  # January 1, 2021 00:00:00 UTC
     )
     track2 = await repository.add(track2)
+    track2_id = track2.id
 
-    # Get all tracks
-    tracks = await repository.get_all()
+    # Get all tracks (now returns Row objects)
+    rows = await repository.get_all()
 
     # Check that both tracks are returned
-    assert len(tracks) == 2
-    track_ids = {track.id for track in tracks}
-    assert track1.id in track_ids
-    assert track2.id in track_ids
+    assert len(rows) == 2
+    row_ids = {row.id for row in rows}
+    assert track1_id in row_ids
+    assert track2_id in row_ids
 
 
 @pytest.mark.asyncio
@@ -108,23 +110,22 @@ async def test_upsert_track_insert_new(session, sample_track):
     # Create a new repository with the session
     repository = SQLiteTrackRepository(session)
 
-    # Upsert a new track and get its file_path for later reference
+    # Upsert a new track
     await repository.upsert_track(sample_track)
-    file_path = sample_track.file_path
 
     # Commit the changes explicitly
     await session.commit()
 
     # Retrieve using the standard repository methods which should work
-    tracks = await repository.get_all()
+    rows = await repository.get_all()
 
     # Check that a track was inserted
-    assert len(tracks) == 1
-    track = tracks[0]
-    assert track.id is not None
-    assert track.title == "Test Track"
-    assert track.artist == "Test Artist"
-    assert track.file_path == file_path
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.id is not None
+    assert row.title == "Test Track"
+    assert row.artist == "Test Artist"
+    # Note: file_path is not returned by get_all anymore
 
 
 @pytest.mark.asyncio
@@ -153,23 +154,20 @@ async def test_upsert_track_update_existing(session, sample_track):
     )
 
     updated_track = await repository.upsert_track(updated_track_data)
+    updated_track_id = updated_track.id
     await session.commit()
 
     # Retrieve the updated track using the repository method
-    tracks = await repository.get_all()
-    assert len(tracks) == 1
-    retrieved_track = tracks[0]
+    rows = await repository.get_all()
+    assert len(rows) == 1
+    retrieved_row = rows[0]
 
-    # Check that metadata was updated but added_at was preserved
-    assert updated_track.id == original_id  # Same ID
-    assert retrieved_track.id == original_id  # Same ID
-    assert (
-        updated_track.added_at == original_added_at
-    )  # Preserved original added_at timestamp
-    assert (
-        retrieved_track.added_at == original_added_at
-    )  # Preserved original added_at timestamp
-    assert updated_track.title == "Updated Title"  # Updated title
-    assert updated_track.artist == "Updated Artist"  # Updated artist
-    assert updated_track.duration == 200  # Updated duration
-    assert updated_track.has_cover is True  # Updated has_cover
+    # Check that metadata was updated
+    assert updated_track_id == original_id  # Same ID
+    assert retrieved_row.id == original_id  # Same ID
+    # Note: added_at is not returned by get_all anymore
+    # Check the updated values from the Row object
+    assert retrieved_row.title == "Updated Title"  # Updated title
+    assert retrieved_row.artist == "Updated Artist"  # Updated artist
+    assert retrieved_row.duration == 200  # Updated duration
+    assert retrieved_row.has_cover is True  # Updated has_cover

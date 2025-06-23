@@ -9,7 +9,23 @@ services:
     build:
       context: ..
       dockerfile: docker/frontend.Dockerfile
+    # I forgot why I added that maybe thats not needed anymore with auth (not sure)
     extra_hosts:
       - "localhost:host-gateway"
     depends_on:
       - backend
+
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:v1.31.0
+    restart: unless-stopped
+    ulimits:
+      memlock: -1
+    command: ["dragonfly", "--cache_mode=true", "--maxmemory=512mb", "--save_schedule=", "--proactor_threads=2"]
+
+  rq-worker:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    depends_on:
+      - backend
+      - dragonfly

@@ -6,10 +6,13 @@ services:
       - ../backend:/app
       - backend_venv:/opt/venv
       - /path/to/your/music:/app_data/music
+      - app_data_database:/app_data/database
+      - app_data_covers:/app_data/covers
     environment:
       - APP_ENV=development
       - FRONTEND_ORIGIN=http://localhost:5173
       - SECRET_KEY=dev_secret_key_please_change_in_production
+      - DRAGONFLY_URL=redis://dragonfly:6379
     restart: unless-stopped
 
   frontend:
@@ -24,6 +27,25 @@ services:
       - VITE_PUBLIC_API_HOST=http://localhost:8000
     restart: unless-stopped
 
+  dragonfly:
+    ports:
+      - "6379:6379"
+
+  rq-worker:
+    volumes:
+      - ../backend:/app
+      - backend_venv:/opt/venv
+      - /path/to/your/music:/app_data/music
+      - app_data_database:/app_data/database
+      - app_data_covers:/app_data/covers
+    environment:
+      - APP_ENV=development
+      - DRAGONFLY_URL=redis://dragonfly:6379
+      - BACKEND_URL=http://backend:8001
+    command: sh -c "[ -f /app/requirements.txt ] && uv pip sync /app/requirements.txt; rq worker high_priority low_priority --url redis://dragonfly:6379"
+
 volumes:
   node_modules:
   backend_venv:
+  app_data_database:
+  app_data_covers:
