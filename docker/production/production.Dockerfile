@@ -47,7 +47,7 @@ RUN apt-get update && \
     if [ "$TARGETARCH" = "arm64" ]; then ARCHITECTURE="aarch64"; fi && \
     curl -L "https://github.com/dragonflydb/dragonfly/releases/download/v1.31.0/dragonfly-${ARCHITECTURE}.tar.gz" -o dragonfly.tar.gz && \
     tar -xvzf dragonfly.tar.gz && \
-    mv dragonfly /usr/local/bin/ && \
+    find . -name "dragonfly*" -type f -executable -exec mv {} /usr/local/bin/dragonfly \; && \
     rm dragonfly.tar.gz \
     && rm -rf /var/lib/apt/lists/*
 

@@ -74,15 +74,15 @@
         - [x] Add DragonflyDB installation to the production Dockerfile.
         - [x] Add `[program:dragonfly]` and `[program:rq-worker]` to `supervisord.conf`.
         - [x] Use two queues: `high_priority` for file events and `low_priority` for analysis (covers, ffprobe, etc.). Those will be just two tasks. Analysis will be one file but with functionality from different files.
-- [ ] **Core Processing Pipeline**
+- [x] **Core Processing Pipeline**
     - [x] Implement `watchdog` to monitor the music directory for real-time file changes (`created`, `modified`, `deleted`, `moved`).
     - [x] Remove all current code about processing files. We will start from scratch!!
     - [x] On startup, perform an initial full scan that populates the database or the queue before the watcher takes over.
         - [x] This scan will synchronously extract fast metadata (`mutagen`) in batches and save to the DB. It will then enqueue slower tasks (covers, duration) to the `low_priority` queue.
-    - [ ] Create an asynchronous worker to process `created` and `modified` events for metadata extraction and accurate duration analysis (using FFprobe).
-    - [ ] Create a dedicated worker for cover art extraction and processing, triggered after successful metadata processing.
-    - [ ] Create a dedicated worker to handle `deleted` events, ensuring tracks and their associated covers are removed.
-    - [ ] Implement logic to handle `moved` events by updating the file path based on inode, preserving the track's identity.
+    - [x] Create an asynchronous worker to process `created` and `modified` events for metadata extraction and accurate duration analysis (using FFprobe).
+    - [x] Create a dedicated worker for cover art extraction and processing, triggered after successful metadata processing.
+    - [x] Create a dedicated worker to handle `deleted` events, ensuring tracks and their associated covers are removed.
+    - [x] Implement logic to handle `moved` events by updating the file path based on inode, preserving the track's identity.
 - [ ] **Features & Robustness**
     - [ ] Implement `TrackHistory` table and API to track the last 5 metadata changes per track and allow for rollbacks.
     - [ ] Implement basic performance monitoring (e.g., queue depths).
@@ -90,7 +90,7 @@
 - [ ] Frontend should get only usable fields for /tracks.
 - [ ] Slider cursor hand on cover
 - [ ] robots.txt unauthorized + maybe other assets
-- [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling.
+- [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401
 - [ ] rate limiting changes
 - [ ] start some e2e with production dockerimages
 - [ ] Edit files in place. Normalize tags has to be automatical. Edit filename (windows names)

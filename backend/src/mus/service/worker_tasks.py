@@ -1,9 +1,12 @@
 import asyncio
 from pathlib import Path
+import time
 
 from src.mus.config import settings
 from src.mus.domain.entities.track import ProcessingStatus, Track
+from src.mus.domain.entities.track_history import TrackHistory
 from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
+
 from src.mus.util.ffprobe_analyzer import get_accurate_duration
 from src.mus.util.metadata_extractor import extract_fast_metadata
 from src.mus.infrastructure.api.sse_handler import notify_sse_from_worker
@@ -15,6 +18,8 @@ from src.mus.util.db_utils import (
     update_track,
     delete_track_by_path,
     update_track_path,
+    add_track_history,
+    prune_track_history,
 )
 from src.mus.util.queue_utils import enqueue_slow_metadata
 
@@ -93,6 +98,8 @@ async def process_file_upsert(file_path_str: str, is_creation: bool = False):
             await update_track(existing_track)
             return
 
+    existing_track = await get_track_by_path(str(file_path))
+
     track = Track(
         title=metadata["title"],
         artist=metadata["artist"],
@@ -103,6 +110,22 @@ async def process_file_upsert(file_path_str: str, is_creation: bool = False):
         processing_status=ProcessingStatus.METADATA_DONE,
     )
     upserted_track = await upsert_track(track)
+
+    if existing_track and upserted_track and upserted_track.id:
+        if (
+            existing_track.title != upserted_track.title
+            or existing_track.artist != upserted_track.artist
+            or existing_track.duration != upserted_track.duration
+        ):
+            history_entry = TrackHistory(
+                track_id=upserted_track.id,
+                title=existing_track.title,
+                artist=existing_track.artist,
+                duration=existing_track.duration,
+                changed_at=int(time.time()),
+            )
+            await add_track_history(history_entry)
+            await prune_track_history(upserted_track.id, 5)
 
     if upserted_track and upserted_track.id:
         enqueue_slow_metadata(upserted_track.id)

@@ -6,6 +6,11 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy import event
 
 from src.mus.config import settings
+from src.mus.domain.entities.track import Track
+from src.mus.domain.entities.track_history import TrackHistory
+
+# Ensure SQLModel metadata includes all table definitions
+__all__ = ["Track", "TrackHistory"]
 
 # Create engine
 engine = create_async_engine(

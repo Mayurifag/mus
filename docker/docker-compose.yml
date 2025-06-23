@@ -20,7 +20,7 @@ services:
     restart: unless-stopped
     ulimits:
       memlock: -1
-    command: ["dragonfly", "--cache_mode=true", "--maxmemory=512mb", "--save_schedule="]
+    command: ["dragonfly", "--cache_mode=true", "--maxmemory=512mb", "--save_schedule=", "--proactor_threads=2"]
 
   rq-worker:
     build:
