@@ -68,9 +68,23 @@ async def sample_tracks(track_repository, clear_tracks):
 
 @pytest.mark.asyncio
 async def test_get_tracks(client, sample_tracks):
+    # Create mock Row objects that match what the repository now returns
+    from sqlalchemy.engine import Row
+    from unittest.mock import MagicMock
+
+    mock_rows = []
+    for track in sample_tracks:
+        mock_row = MagicMock(spec=Row)
+        mock_row.id = track.id
+        mock_row.title = track.title
+        mock_row.artist = track.artist
+        mock_row.duration = track.duration
+        mock_row.has_cover = track.has_cover
+        mock_rows.append(mock_row)
+
     with patch(
         "src.mus.infrastructure.persistence.sqlite_track_repository.SQLiteTrackRepository.get_all",
-        return_value=sample_tracks,
+        return_value=mock_rows,
     ):
         response = client.get("/api/v1/tracks")
 
@@ -82,6 +96,11 @@ async def test_get_tracks(client, sample_tracks):
         assert data[0]["title"] == "Test Track 1"
         assert data[1]["id"] == 2
         assert data[1]["title"] == "Test Track 2"
+        # Ensure file_path and added_at are not in the response
+        assert "file_path" not in data[0]
+        assert "added_at" not in data[0]
+        assert "file_path" not in data[1]
+        assert "added_at" not in data[1]
 
 
 @pytest.mark.asyncio

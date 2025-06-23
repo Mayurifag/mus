@@ -83,15 +83,14 @@
     - [x] Create a dedicated worker for cover art extraction and processing, triggered after successful metadata processing.
     - [x] Create a dedicated worker to handle `deleted` events, ensuring tracks and their associated covers are removed.
     - [x] Implement logic to handle `moved` events by updating the file path based on inode, preserving the track's identity.
-- [ ] **Features & Robustness**
-    - [ ] Implement `TrackHistory` table and API to track the last 5 metadata changes per track and allow for rollbacks.
-    - [ ] Implement basic performance monitoring (e.g., queue depths).
+- [x] **Features & Robustness**
+    - [x] Implement `TrackHistory` table and API to track the last 5 metadata changes per track and allow for rollbacks.
+    - [x] Implement basic performance monitoring (e.g., queue depths).
 - [o] ~~Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?~~
 - [ ] Frontend should get only usable fields for /tracks.
-- [ ] Slider cursor hand on cover
-- [ ] robots.txt unauthorized + maybe other assets
-- [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401
-- [ ] rate limiting changes
+- [x] Slider cursor hand on cover
+- [x] robots.txt unauthorized + maybe other assets
+- [x] rate limiting changes
 - [ ] start some e2e with production dockerimages
 - [ ] Edit files in place. Normalize tags has to be automatical. Edit filename (windows names)
 - [ ] Preview of each file - possibility to set title artist (choose?)
@@ -99,8 +98,9 @@
 - [ ] Possibility to delete tracks from frontend (with confirmation)
 - [ ] History of file editing. Revert functionality.
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
-- [ ] Celery and async tasks
+- [o] ~~Celery and async tasks~~
 - [ ] Once again test all $effects, maybe too much of them. Delete console logs. isUserDragging needed?
+- [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401
 - [ ] Full test
 
 ## Phase 3

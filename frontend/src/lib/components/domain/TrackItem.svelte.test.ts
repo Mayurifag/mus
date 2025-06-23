@@ -38,8 +38,6 @@ describe("TrackItem component", () => {
       title: "Test Song",
       artist: "Test Artist",
       duration: 180,
-      file_path: "/path/to/song.mp3",
-      added_at: Math.floor(Date.now() / 1000) - 3600, // 1 hour ago
       has_cover: true,
       cover_small_url: "/api/v1/tracks/1/covers/small.webp",
       cover_original_url: "/api/v1/tracks/1/covers/original.webp",

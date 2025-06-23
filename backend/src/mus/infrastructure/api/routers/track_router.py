@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse, Response
 from typing import List, Final
 import os
 import hashlib
-from src.mus.application.dtos.track import TrackDTO
+from src.mus.application.dtos.track import TrackListDTO
 from src.mus.infrastructure.api.dependencies import get_track_repository
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
@@ -28,18 +28,18 @@ AUDIO_CONTENT_TYPES: Final = {
 router = APIRouter(prefix="/api/v1/tracks", tags=["tracks"])
 
 
-@router.get("", response_model=List[TrackDTO])
+@router.get("", response_model=List[TrackListDTO])
 async def get_tracks(
     track_repository: SQLiteTrackRepository = Depends(get_track_repository),
-) -> List[TrackDTO]:
-    tracks = await track_repository.get_all()
+) -> List[TrackListDTO]:
+    rows = await track_repository.get_all()
 
     track_dtos = []
-    for track in tracks:
-        track_dto = TrackDTO.model_validate(track)
+    for row in rows:
+        track_dto = TrackListDTO.model_validate(row)
 
-        if track.has_cover:
-            cover_base = f"/api/v1/tracks/{track.id}/covers"
+        if row.has_cover:
+            cover_base = f"/api/v1/tracks/{row.id}/covers"
             track_dto.cover_small_url = f"{cover_base}/small.webp"
             track_dto.cover_original_url = f"{cover_base}/original.webp"
 

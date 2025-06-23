@@ -3,8 +3,6 @@ export interface Track {
   title: string;
   artist: string;
   duration: number; // Duration in seconds
-  file_path: string;
-  added_at: number; // Unix timestamp
   has_cover: boolean;
   cover_small_url: string | null;
   cover_original_url: string | null;

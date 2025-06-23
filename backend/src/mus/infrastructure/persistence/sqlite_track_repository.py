@@ -1,7 +1,8 @@
-from typing import List, Optional
+from typing import Optional, Sequence
 from sqlmodel import select, desc, func
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
+from sqlalchemy.engine import Row
 
 from src.mus.domain.entities.track import Track
 
@@ -16,9 +17,13 @@ class SQLiteTrackRepository:
         result = await self.session.exec(select(Track).where(Track.id == track_id))
         return result.first()
 
-    async def get_all(self) -> List[Track]:
-        result = await self.session.exec(select(Track).order_by(desc(Track.added_at)))
-        return list(result.all())
+    async def get_all(self) -> Sequence[Row]:
+        result = await self.session.execute(
+            select(
+                Track.id, Track.title, Track.artist, Track.duration, Track.has_cover
+            ).order_by(desc(Track.added_at))
+        )
+        return result.all()
 
     async def exists_by_path(self, file_path: str) -> bool:
         result = await self.session.exec(
