@@ -87,12 +87,12 @@
     - [x] Implement `TrackHistory` table and API to track the last 5 metadata changes per track and allow for rollbacks.
     - [x] Implement basic performance monitoring (e.g., queue depths).
 - [o] ~~Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?~~
-- [ ] Frontend should get only usable fields for /tracks.
+- [x] Frontend should get only usable fields for /tracks.
 - [x] Slider cursor hand on cover
 - [x] robots.txt unauthorized + maybe other assets
 - [x] rate limiting changes
 - [x] start some e2e with production dockerimages
-- [ ] Linters: Vulture (+ test), djlint (not sure if I need it), biomejs for e2e in github actions, ruff/black config
+- [x] vulture/bandit linters
 - [ ] Edit files in place. Normalize tags has to be automatical. Edit filename (windows names)
 - [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
 - [ ] Possibility to delete tracks from frontend (with confirmation)

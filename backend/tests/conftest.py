@@ -45,7 +45,8 @@ async def create_test_db():
 
 
 @pytest_asyncio.fixture
-async def session(_create_test_db) -> AsyncGenerator[AsyncSession, None]:
+async def session(create_test_db) -> AsyncGenerator[AsyncSession, None]:
+    _ = create_test_db  # Fixture dependency for DB setup
     async with AsyncSession(engine) as session:
         yield session
 

@@ -49,7 +49,7 @@ def test_cors_headers_present_in_development():
     app = create_app_with_env("development")
     with TestClient(app) as client:
         response = client.options(
-            "/api",
+            "/api/healthcheck.json",
             headers={
                 "Origin": "http://localhost:5173",
                 "Access-Control-Request-Method": "GET",
@@ -71,7 +71,7 @@ def test_cors_headers_absent_in_production():
         # When CORS middleware is not present, OPTIONS request will result in 405 Method Not Allowed
         # as FastAPI doesn't handle OPTIONS by default without CORS middleware
         response = client.options(
-            "/api",
+            "/api/healthcheck.json",
             headers={
                 "Origin": "http://localhost:5173",
                 "Access-Control-Request-Method": "GET",
@@ -81,7 +81,7 @@ def test_cors_headers_absent_in_production():
 
         # Also verify that a regular GET request doesn't have CORS headers
         response = client.get(
-            "/api",
+            "/api/healthcheck.json",
             headers={"Origin": "http://localhost:5173"},
         )
         assert response.status_code == 200
@@ -93,7 +93,7 @@ def test_cors_default_to_development_when_app_env_not_set():
     app = create_app_with_env(None)
     with TestClient(app) as client:
         response = client.options(
-            "/api",
+            "/api/healthcheck.json",
             headers={
                 "Origin": "http://localhost:5173",
                 "Access-Control-Request-Method": "GET",

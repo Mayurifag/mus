@@ -75,7 +75,7 @@ async def test_startup_process_runs_in_production():
             "src.mus.main.InitialScanner.create_default", return_value=mock_scanner
         ):
             with TestClient(actual_app) as client:
-                client.get("/api")
+                client.get("/api/healthcheck.json")
 
                 mock_scanner.scan.assert_awaited_once()
 

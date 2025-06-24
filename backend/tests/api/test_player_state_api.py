@@ -40,7 +40,7 @@ async def reset_player_state(player_state_repository):
 
 
 @pytest_asyncio.fixture
-async def saved_state(player_state_repository, _reset_player_state):
+async def saved_state(player_state_repository):
     # Create a state that will be updated by test_save_player_state_update
     # to have current_track_id=50
     state = PlayerState(
@@ -86,7 +86,7 @@ async def test_get_player_state_exists(client, saved_state):
 
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings(warning_filter)
-async def test_get_player_state_not_exists(client, _reset_player_state):
+async def test_get_player_state_not_exists(client):
     # Ensure we don't have a state initially, then request it
     response = client.get("/api/v1/player/state")
 
@@ -104,7 +104,7 @@ async def test_get_player_state_not_exists(client, _reset_player_state):
 
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings(warning_filter)
-async def test_save_player_state_new(client, _reset_player_state):
+async def test_save_player_state_new(client):
     new_state = {
         "current_track_id": 10,
         "progress_seconds": 45.5,
@@ -129,7 +129,7 @@ async def test_save_player_state_new(client, _reset_player_state):
 
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings(warning_filter)
-async def test_save_player_state_update(client, _saved_state):
+async def test_save_player_state_update(client):
     updated_state = {
         "current_track_id": 50,
         "progress_seconds": 60.0,
@@ -184,7 +184,7 @@ async def test_save_player_state_volume_range(client):
 
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings(warning_filter)
-async def test_save_player_state_shuffle_repeat_false(client, _reset_player_state):
+async def test_save_player_state_shuffle_repeat_false(client):
     state_with_false_flags = {
         "current_track_id": 15,
         "progress_seconds": 120.0,
@@ -209,7 +209,7 @@ async def test_save_player_state_shuffle_repeat_false(client, _reset_player_stat
 
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings(warning_filter)
-async def test_save_player_state_toggle_shuffle_repeat(client, _reset_player_state):
+async def test_save_player_state_toggle_shuffle_repeat(client):
     # First save with shuffle=True, repeat=False
     initial_state = {
         "current_track_id": 20,
