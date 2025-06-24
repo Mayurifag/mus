@@ -1,5 +1,5 @@
 from typing import Optional, Sequence
-from sqlmodel import select, desc, func
+from sqlmodel import select, desc
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
 from sqlalchemy.engine import Row
@@ -77,22 +77,6 @@ class SQLiteTrackRepository:
         )
         return result.one()
 
-    async def get_latest_track_added_at(self) -> Optional[int]:
-        """Fetches the maximum 'added_at' timestamp from all tracks."""
-        result = await self.session.exec(select(func.max(Track.added_at)))
-        latest_added_at = result.one_or_none()
-        return latest_added_at
-
     async def get_by_inode(self, inode: int) -> Optional[Track]:
         result = await self.session.exec(select(Track).where(Track.inode == inode))
         return result.first()
-
-    async def delete_by_path(self, file_path: str) -> bool:
-        result = await self.session.exec(
-            select(Track).where(Track.file_path == file_path)
-        )
-        track = result.first()
-        if track:
-            await self.session.delete(track)
-            return True
-        return False

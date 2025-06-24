@@ -34,7 +34,7 @@ async def clear_tracks(track_repository):
 
 
 @pytest_asyncio.fixture
-async def sample_tracks(track_repository, clear_tracks):
+async def sample_tracks(track_repository, _clear_tracks):
     tracks = [
         Track(
             id=1,
@@ -104,7 +104,7 @@ async def test_get_tracks(client, sample_tracks):
 
 
 @pytest.mark.asyncio
-async def test_get_tracks_empty(client, clear_tracks):
+async def test_get_tracks_empty(client, _clear_tracks):
     with patch(
         "src.mus.infrastructure.persistence.sqlite_track_repository.SQLiteTrackRepository.get_all",
         return_value=[],

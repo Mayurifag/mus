@@ -38,7 +38,7 @@ jobs:
       - name: Install backend dependencies
         run: |
           cd backend
-          uv pip install --system . ruff
+          uv pip install --system . ruff vulture bandit
       - name: Run backend linting
         run: |
           make back-format-check

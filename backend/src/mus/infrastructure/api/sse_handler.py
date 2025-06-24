@@ -95,5 +95,7 @@ async def notify_sse_from_worker(
             await client.post(
                 f"{backend_url}/api/v1/events/trigger", params=params, timeout=1.0
             )
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+
+        logging.getLogger(__name__).debug(f"Failed to send SSE notification: {e}")

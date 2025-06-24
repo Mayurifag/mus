@@ -91,7 +91,7 @@ async def stream_track(
 
 def _generate_etag(file_path: str, file_size: int, mtime: float) -> str:
     etag_data = f"{file_path}:{file_size}:{mtime}"
-    return hashlib.md5(etag_data.encode()).hexdigest()
+    return hashlib.md5(etag_data.encode(), usedforsecurity=False).hexdigest()
 
 
 @router.get(

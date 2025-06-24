@@ -4,6 +4,8 @@ BACKEND_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../backend)
 back-lint: back-format
 	@echo "Linting backend code..."
 	cd $(BACKEND_DIR) && uv run ruff check src tests --no-fix
+	cd $(BACKEND_DIR) && uv run vulture src tests --min-confidence 90
+	cd $(BACKEND_DIR) && uv run bandit -r src
 
 .PHONY: back-format
 back-format:

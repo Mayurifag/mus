@@ -7,7 +7,6 @@ from typing import Optional
 class ProcessingStatus(str, Enum):
     PENDING = "PENDING"
     METADATA_DONE = "METADATA_DONE"
-    ART_DONE = "ART_DONE"
     COMPLETE = "COMPLETE"
     ERROR = "ERROR"
 
