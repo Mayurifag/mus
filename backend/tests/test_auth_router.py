@@ -2,12 +2,11 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 
-from src.mus.main import app
 from src.mus.config import settings
 
 
 @pytest.fixture
-def client():
+def client(app):
     with TestClient(app) as test_client:
         yield test_client
 

@@ -2,13 +2,11 @@ import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
-from src.mus.main import app
-
 warning_filter = "ignore::sqlalchemy.exc.SAWarning"
 
 
 @pytest.mark.filterwarnings(warning_filter)
-def test_get_queue_stats():
+def test_get_queue_stats(app):
     with (
         patch(
             "src.mus.infrastructure.api.routers.monitoring_router.get_high_priority_queue"

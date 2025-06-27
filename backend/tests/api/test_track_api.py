@@ -13,11 +13,10 @@ from src.mus.infrastructure.api.routers.track_router import (
     get_track_cover,
     stream_track,
 )
-from src.mus.main import app
 
 
 @pytest.fixture
-def client():
+def client(app):
     with TestClient(app) as test_client:
         yield test_client
 

@@ -102,7 +102,7 @@ async def test_rollback_track_history():
 
 @pytest.mark.asyncio
 @pytest.mark.filterwarnings(warning_filter)
-async def test_rollback_track_history_not_found():
+async def test_rollback_track_history_not_found(app):
     client = TestClient(app)
     response = client.post("/api/v1/tracks/history/999/rollback")
 

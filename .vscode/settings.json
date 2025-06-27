@@ -44,9 +44,12 @@
     "**/.venv": true,
     "**/node_modules": true,
     "**/.svelte-kit": true,
+    "**/.vite": true,
     "**/.overmind.sock": true,
     "**/backend/MagicMock/**": true,
-    "**/backend/data/**": true
+    "**/backend/app_data/**": true,
+    "**/e2e/test-results/**": true,
+    "**/e2e/playwright-report/**": true
   },
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false,

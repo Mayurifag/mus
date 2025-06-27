@@ -93,10 +93,32 @@
 - [x] rate limiting changes
 - [x] start some e2e with production dockerimages
 - [x] vulture/bandit linters
-- [ ] Edit files in place. Normalize tags has to be automatical. Edit filename (windows names)
+- [ ] Edit files and the tags in place
+  - [ ] First of all: we should check on app load if we actually can change files (user might use read-only volume). Find the best way to find this. If we cant, we should disable all editing functionality.
+  - [ ] Use modal window. Mobile - most of screen. Desktop idk. If there are no changes, click outside of modal will close it. If there are changes, we should confirm that. Also there has to be cancel button.
+  - [ ] UI Trigger - three-dot menu on each TrackItem that reveals an "Edit" option. This keeps the main track list UI clean.
+  - [ ] API Endpoint Design: A logical RESTful approach would be a PATCH request to an endpoint like /api/v1/tracks/{track_id}. The request body would contain the new metadata and the rename_file boolean flag. I want to send ONLY CHANGES, not all metadata. That way will be easier to save history. We have to handle the case when there is no changes - think what should we do because PATCH is not idempotent and we do not want to save that in history.
+  - [ ] Tags have to have good encoding - ID3v2.4 with UTF-8 encoding (or ID3v2.3?)
+  - [ ] Tags have to be windows compatible for filenames (prevent <, >, :, ", /, \, |, ?, *). Remove them.
+  - [ ] Default option to rename filename as well (checkbox). Ticked by default, but user can prevent that. Use artist - track name notation. Always preview new filename. Make warning on long filenames I think (>100). Prevent to save 255 characters.
+  - [ ] Save file history
+  - [ ] Add reverting functionality
+  - [ ] We have to think that in future we will have possibility to have Artist entity and maybe in future we will match whats in db with new file
+  - [ ] Think already what to do with multiple artists - where do additional ones have to be stated and what will be the separator to divide them and show later. In Artist field metatags lets split them with ";". In filename lets split them with "ft. %artist%".
+  - [ ] Cover art - cant be changed now, yet show it. In future I want to be able to fetch arts from some search, yt, or else and pick best one
+  - [ ] Error handling on file save - if file is missing (rare case) or there are rights problem (common case probably) - show error to user
+  - [ ] History has to save the exact change in jsonb and all file metadata with its filename in jsonb.
+  - [ ] Show exact changes will be done - for example if we change encoding it also has to be shown
+  - [ ] Make sure this would use less effects as possible. We have to include file_path now for /tracks still for editing files
+  - [ ] There have to be fields with multiple artists to save later
+- [ ] Remove files in editing file dialog - with confirmation.
 - [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
-- [ ] Possibility to delete tracks from frontend (with confirmation)
-- [ ] History of file editing. Revert functionality.
+- [ ] Mobile bug: right sidebar doesnt open on swipe
+- [ ] Desktop bug: if user drags track and releases finger outside of slider on track, track will stop (fix the event, use mousedown/mouseup everythere)
+- [ ] If we are selecting text on track item, it should not stop track. Btw think to edit the copied things to like artist - title.
+- [ ] On hover on controls we should set hand cursor
+- [ ] Make scrolling if only outside of page. Its kinda not fine now. Think about best UX first. Do not break on load page scrolling. Its like works on a 2nd try
+- [ ] Too big DOM. Try to use `svelte-virtual`. Will it conflict with scroll into view or shuffle?
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
 - [o] ~~Celery and async tasks~~
 - [ ] e2e in CI before deployment after linters. Complex github actions flow.
@@ -107,15 +129,15 @@
 
 ## Phase 3
 
+- [ ] docker-compose - i think we dont need separated volumes for cover/db, might be single
 - [ ] production image nginx better logging. Logging across app.
 - [ ] Hotkeys for player controls
 - [ ] Hover player controls should show what will be done + also hotkey for that
 - [ ] Marquee for long texts - all places
 - [ ] ~~styling for playing music - make it less colored but on hover make blue colored styling for slider~~
 - [ ] Get rid of fucking SSR and simplify code A LOT - ???.
-- [ ] Too big DOM. Try to use `svelte-virtual`. Will it conflict with scroll into view or shuffle?
-- [ ] Make scrolling if only outside of page
 - [ ] Render play button from tracklist under album cover
+- [ ] Edit cover arts - download from some search, from youtube or else to pick one. I do not want to handle uploading covers yet I think.
 - [ ] Define Artist entity
 - [ ] Preview of each file - possibility to set title artist (choose?)
 - [ ] Parse artists, make them unique, add to db. Make functionality to set artist for track. Remove artist from db if no tracks with this artist. Multiple artists for track.
@@ -125,8 +147,6 @@
 
 ## Phase 4
 
-- [ ] Implement playlist management service (Deferred)
-- [ ] fast search - has to be server side
 - [ ] Download page - with form to add url
 - [ ] yt-dlp from yt (list domains)
 - [ ] ...?? soundcloud?
@@ -136,9 +156,12 @@
 
 - [ ] Define Album entity, album page with tracks
 - [ ] Define Playlist entity
+- [ ] Implement playlist management service (Deferred)
 - [ ] Many-to-many relation between tracks/albums/artists
-- [ ] Should I force buffering of track?
-- [ ] Should I buffer next/previous tracks for 3s? For that we have to have prev/nextTrackIndex (maybe on buttons?). prev/next track buttons should use them and unified function
+- [ ] ~~Buffering - I think in real world it works super fine, no need.~~
+  - [ ] ~~Should I force buffering of track?~~
+  - [ ] ~~Should I buffer next/previous tracks for 3s? For that we have to have prev/nextTrackIndex (maybe on buttons?). prev/next track buttons should use them and unified function~~
+- [ ] fast search - has to be server side to look vk/yt - and download!
 
 ## Phase 6 - vk
 
