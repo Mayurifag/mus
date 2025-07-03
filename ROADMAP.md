@@ -94,6 +94,8 @@
 - [x] start some e2e with production dockerimages
 - [x] vulture/bandit linters
 - [ ] Edit files and the tags in place
+  - [ ] Return file_path to /tracks endpoint because frontend needs that data
+  - [ ] TrackHistory has to be added with missing fields. I want there history changes and first will be the scan init. Initial data saved without delta
   - [ ] First of all: we should check on app load if we actually can change files (user might use read-only volume). Find the best way to find this. If we cant, we should disable all editing functionality.
   - [ ] Use modal window. Mobile - most of screen. Desktop idk. If there are no changes, click outside of modal will close it. If there are changes, we should confirm that. Also there has to be cancel button.
   - [ ] UI Trigger - three-dot menu on each TrackItem that reveals an "Edit" option. This keeps the main track list UI clean.
@@ -111,7 +113,16 @@
   - [ ] Show exact changes will be done - for example if we change encoding it also has to be shown
   - [ ] Make sure this would use less effects as possible. We have to include file_path now for /tracks still for editing files
   - [ ] There have to be fields with multiple artists to save later
+  - [ ] User cant click "Save" if there are no changes and no tags edits needed. API should do nothing on no changes.
+  - [ ] Lets use PlayerState for editing files boolean to not add system permissions endpoint
+  - [ ] I want final filename for tracks to be saved like "Artist 1, Artist 2 - Title" (no using featuring word or else)
+  - [ ] DO NOT ADD revert functionality yet, thats complex task, lets do it later. Just know that it will exist
+- [ ] Setup playwright mcp, rewrite all AGENT_TASKS prompts
+- [ ] https://x.com/steipete/status/1940314756705132683
+- [ ] https://x.com/robzolkos/status/1940462968593875060
+- [ ] ghostty
 - [ ] Remove files in editing file dialog - with confirmation.
+- [ ] Revert functionality UI
 - [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
 - [ ] Mobile bug: right sidebar doesnt open on swipe
 - [ ] Desktop bug: if user drags track and releases finger outside of slider on track, track will stop (fix the event, use mousedown/mouseup everythere)
@@ -125,6 +136,7 @@
 - [ ] Complex e2e test: some file has to be flac with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
 - [ ] Once again test all $effects, maybe too much of them. Delete console logs. isUserDragging needed?
 - [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401
+- [ ] Analyze my frontend code. I want to know if all components from frontend/src/lib/components/ui are really used. Also point places where are they are not used but have to be used
 - [ ] Full test
 
 ## Phase 3
