@@ -24,6 +24,7 @@ class TrackListDTO(BaseModel):
     title: str
     artist: str
     duration: int = Field(description="Duration in seconds")
+    file_path: str
     has_cover: bool = False
 
     # URLs are constructed by the API layer based on track_id
@@ -31,3 +32,9 @@ class TrackListDTO(BaseModel):
     cover_original_url: Optional[str] = None
 
     model_config = {"from_attributes": True}
+
+
+class TrackUpdateDTO(BaseModel):
+    title: Optional[str] = None
+    artist: Optional[str] = None
+    rename_file: bool = False

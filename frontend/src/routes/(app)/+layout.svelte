@@ -3,6 +3,7 @@
   import type { Snippet } from "svelte";
   import { trackStore } from "$lib/stores/trackStore";
   import { audioServiceStore } from "$lib/stores/audioServiceStore";
+  import { permissionsStore } from "$lib/stores/permissionsStore";
 
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
   import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
@@ -81,6 +82,7 @@
 
   onMount(async () => {
     authConfigStore.initialize();
+    permissionsStore.set(data.permissions);
     trackStore.setTracks(data.tracks);
     initializeAudioService();
     restorePlayerState();

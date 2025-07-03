@@ -2,8 +2,12 @@
   import type { Track, TimeRange } from "$lib/types";
   import type { AudioService } from "$lib/services/AudioService";
   import { trackStore } from "$lib/stores/trackStore";
+  import { permissionsStore } from "$lib/stores/permissionsStore";
 
   import { Slider } from "$lib/components/ui/slider";
+  import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
+  import { MoreVertical } from "@lucide/svelte";
+  import EditTrackModal from "./EditTrackModal.svelte";
 
   let {
     track,
@@ -52,6 +56,7 @@
   let localIsPlaying = $state(false);
   let duration = $state(0);
   let bufferedRanges = $state<TimeRange[]>([]);
+  let editModalOpen = $state(false);
 
   $effect(() => {
     if (isSelected && audioService) {
@@ -231,4 +236,39 @@
   <div class="text-muted-foreground flex flex-col items-end text-sm">
     <span>{formatDuration(track.duration)}</span>
   </div>
+
+  <div
+    onclick={(e) => e.stopPropagation()}
+    onkeydown={(e) => e.stopPropagation()}
+    role="button"
+    tabindex="-1"
+  >
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger>
+        {#snippet child({ props })}
+          <button
+            {...props}
+            class="hover:bg-muted cursor-pointer rounded-md p-1 transition-colors"
+            disabled={!$permissionsStore.can_write_files}
+            aria-label="Track options"
+            title={!$permissionsStore.can_write_files
+              ? "Editing disabled: write permissions not available"
+              : "Track options"}
+          >
+            <MoreVertical class="h-4 w-4" />
+          </button>
+        {/snippet}
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Content>
+        <DropdownMenu.Item
+          onclick={() => (editModalOpen = true)}
+          class="focus:bg-muted focus:text-foreground cursor-pointer"
+        >
+          Edit
+        </DropdownMenu.Item>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
+  </div>
 </div>
+
+<EditTrackModal bind:open={editModalOpen} {track} />

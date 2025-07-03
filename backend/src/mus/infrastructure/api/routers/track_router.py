@@ -1,10 +1,11 @@
 from enum import Enum
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from fastapi.responses import FileResponse, Response
-from typing import List, Final
+from typing import List, Final, Dict, Any
 import os
 import hashlib
-from src.mus.application.dtos.track import TrackListDTO
+from src.mus.application.dtos.track import TrackListDTO, TrackUpdateDTO
+from src.mus.application.use_cases.edit_track_use_case import EditTrackUseCase
 from src.mus.infrastructure.api.dependencies import get_track_repository
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
@@ -144,3 +145,13 @@ async def get_track_cover(
             "Cache-Control": "public, max-age=31536000, immutable",
         },
     )
+
+
+@router.patch("/{track_id}")
+async def update_track(
+    update_data: TrackUpdateDTO,
+    track_id: int = Path(..., gt=0),
+    track_repository: SQLiteTrackRepository = Depends(get_track_repository),
+) -> Dict[str, Any]:
+    use_case = EditTrackUseCase(track_repository)
+    return await use_case.execute(track_id, update_data)

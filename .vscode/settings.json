@@ -56,35 +56,14 @@
   "python.testing.pytestArgs": [
     "tests"
   ],
-  "terminal.integrated.profiles.linux": {
-    "cursorFriendlyBash": {
-      "path": "bash",
-      "args": [
-        "--noprofile",
-        "--norc"
-      ]
-    }
-  },
-  "terminal.integrated.defaultProfile.linux": "cursorFriendlyBash",
+  "terminal.integrated.defaultProfile.osx": "bash",
   "terminal.integrated.profiles.osx": {
-    "cursorFriendlyBash": {
-      "path": "bash",
+    "bash": {
+      "path": "/bin/bash",
       "args": [
-        "--noprofile",
-        "--norc"
+        "-i"
       ]
     }
   },
-  "terminal.integrated.defaultProfile.osx": "cursorFriendlyBash",
-  "terminal.integrated.profiles.windows": {
-    "cursorFriendlyBash": {
-      "path": "bash",
-      "args": [
-        "--noprofile",
-        "--norc"
-      ]
-    }
-  },
-  "terminal.integrated.defaultProfile.windows": "cursorFriendlyBash",
   "svelte.enable-ts-plugin": true
 }

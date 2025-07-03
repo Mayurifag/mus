@@ -90,6 +90,37 @@ export function sendPlayerStateBeacon(state: PlayerState): void {
  * @param onMessageCallback Callback function to handle incoming SSE events
  * @returns The EventSource instance
  */
+export async function updateTrack(
+  trackId: number,
+  updateData: {
+    title?: string;
+    artist?: string;
+    rename_file?: boolean;
+  },
+): Promise<{ status: string; track?: Track }> {
+  try {
+    const response = await fetch(
+      `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updateData),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating track:", error);
+    throw error;
+  }
+}
+
 export function connectTrackUpdateEvents(
   onMessageCallback: (eventData: MusEvent) => void,
 ): EventSource {
@@ -117,6 +148,23 @@ export function connectTrackUpdateEvents(
   };
 
   return eventSource;
+}
+
+export async function fetchPermissions(): Promise<{
+  can_write_files: boolean;
+}> {
+  try {
+    const response = await fetch(
+      `${API_PREFIX}${API_VERSION_PATH}/system/permissions`,
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching permissions:", error);
+    return { can_write_files: false };
+  }
 }
 
 export async function fetchMagicLinkUrl(): Promise<string> {

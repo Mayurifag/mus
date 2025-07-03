@@ -10,6 +10,7 @@ describe("trackStore", () => {
       title: "Test Track 1",
       artist: "Test Artist 1",
       duration: 180,
+      file_path: "/music/track1.mp3",
       has_cover: true,
       cover_small_url:
         "http://localhost:8000/api/v1/tracks/1/covers/small.webp",
@@ -21,6 +22,7 @@ describe("trackStore", () => {
       title: "Test Track 2",
       artist: "Test Artist 2",
       duration: 240,
+      file_path: "/music/track2.mp3",
       has_cover: true,
       cover_small_url:
         "http://localhost:8000/api/v1/tracks/2/covers/small.webp",
@@ -32,6 +34,7 @@ describe("trackStore", () => {
       title: "Test Track 3",
       artist: "Test Artist 3",
       duration: 200,
+      file_path: "/music/track3.mp3",
       has_cover: false,
       cover_small_url: null,
       cover_original_url: null,

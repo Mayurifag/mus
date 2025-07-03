@@ -20,6 +20,7 @@ describe("AudioService", () => {
     title: "Test Track",
     artist: "Test Artist",
     duration: 180,
+    file_path: "/music/test-track.mp3",
     has_cover: true,
     cover_small_url: "/api/v1/tracks/1/covers/small.webp",
     cover_original_url: "/api/v1/tracks/1/covers/original.webp",

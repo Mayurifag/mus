@@ -20,7 +20,12 @@ class SQLiteTrackRepository:
     async def get_all(self) -> Sequence[Row]:
         result = await self.session.execute(
             select(
-                Track.id, Track.title, Track.artist, Track.duration, Track.has_cover
+                Track.id,
+                Track.title,
+                Track.artist,
+                Track.duration,
+                Track.file_path,
+                Track.has_cover,
             ).order_by(desc(Track.added_at))
         )
         return result.all()

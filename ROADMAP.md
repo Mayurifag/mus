@@ -120,16 +120,16 @@
 - [ ] Setup playwright mcp, rewrite all AGENT_TASKS prompts
 - [ ] https://x.com/steipete/status/1940314756705132683
 - [ ] https://x.com/robzolkos/status/1940462968593875060
-- [ ] ghostty
+- [ ] ghostty and mise in bashrc
 - [ ] Remove files in editing file dialog - with confirmation.
-- [ ] Revert functionality UI
 - [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
+- [ ] Too big DOM. Try to use `svelte-virtual`. Will it conflict with scroll into view or shuffle?
 - [ ] Mobile bug: right sidebar doesnt open on swipe
 - [ ] Desktop bug: if user drags track and releases finger outside of slider on track, track will stop (fix the event, use mousedown/mouseup everythere)
 - [ ] If we are selecting text on track item, it should not stop track. Btw think to edit the copied things to like artist - title.
 - [ ] On hover on controls we should set hand cursor
 - [ ] Make scrolling if only outside of page. Its kinda not fine now. Think about best UX first. Do not break on load page scrolling. Its like works on a 2nd try
-- [ ] Too big DOM. Try to use `svelte-virtual`. Will it conflict with scroll into view or shuffle?
+- [ ] Revert functionality UI
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
 - [o] ~~Celery and async tasks~~
 - [ ] e2e in CI before deployment after linters. Complex github actions flow.
