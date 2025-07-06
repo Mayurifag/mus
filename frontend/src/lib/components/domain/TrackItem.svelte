@@ -6,7 +6,7 @@
 
   import { Slider } from "$lib/components/ui/slider";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
-  import { MoreVertical } from "@lucide/svelte";
+  import { MoreVertical, Pencil } from "@lucide/svelte";
   import EditTrackModal from "./EditTrackModal.svelte";
 
   let {
@@ -264,6 +264,7 @@
           onclick={() => (editModalOpen = true)}
           class="focus:bg-muted focus:text-foreground cursor-pointer"
         >
+          <Pencil class="mr-2 h-4 w-4" />
           Edit
         </DropdownMenu.Item>
       </DropdownMenu.Content>

@@ -93,43 +93,52 @@
 - [x] rate limiting changes
 - [x] start some e2e with production dockerimages
 - [x] vulture/bandit linters
-- [ ] Edit files and the tags in place
-  - [ ] Return file_path to /tracks endpoint because frontend needs that data
-  - [ ] TrackHistory has to be added with missing fields. I want there history changes and first will be the scan init. Initial data saved without delta
-  - [ ] First of all: we should check on app load if we actually can change files (user might use read-only volume). Find the best way to find this. If we cant, we should disable all editing functionality.
-  - [ ] Use modal window. Mobile - most of screen. Desktop idk. If there are no changes, click outside of modal will close it. If there are changes, we should confirm that. Also there has to be cancel button.
-  - [ ] UI Trigger - three-dot menu on each TrackItem that reveals an "Edit" option. This keeps the main track list UI clean.
-  - [ ] API Endpoint Design: A logical RESTful approach would be a PATCH request to an endpoint like /api/v1/tracks/{track_id}. The request body would contain the new metadata and the rename_file boolean flag. I want to send ONLY CHANGES, not all metadata. That way will be easier to save history. We have to handle the case when there is no changes - think what should we do because PATCH is not idempotent and we do not want to save that in history.
-  - [ ] Tags have to have good encoding - ID3v2.4 with UTF-8 encoding (or ID3v2.3?)
-  - [ ] Tags have to be windows compatible for filenames (prevent <, >, :, ", /, \, |, ?, *). Remove them.
-  - [ ] Default option to rename filename as well (checkbox). Ticked by default, but user can prevent that. Use artist - track name notation. Always preview new filename. Make warning on long filenames I think (>100). Prevent to save 255 characters.
-  - [ ] Save file history
-  - [ ] Add reverting functionality
-  - [ ] We have to think that in future we will have possibility to have Artist entity and maybe in future we will match whats in db with new file
-  - [ ] Think already what to do with multiple artists - where do additional ones have to be stated and what will be the separator to divide them and show later. In Artist field metatags lets split them with ";". In filename lets split them with "ft. %artist%".
-  - [ ] Cover art - cant be changed now, yet show it. In future I want to be able to fetch arts from some search, yt, or else and pick best one
-  - [ ] Error handling on file save - if file is missing (rare case) or there are rights problem (common case probably) - show error to user
-  - [ ] History has to save the exact change in jsonb and all file metadata with its filename in jsonb.
-  - [ ] Show exact changes will be done - for example if we change encoding it also has to be shown
-  - [ ] Make sure this would use less effects as possible. We have to include file_path now for /tracks still for editing files
-  - [ ] There have to be fields with multiple artists to save later
-  - [ ] User cant click "Save" if there are no changes and no tags edits needed. API should do nothing on no changes.
-  - [ ] Lets use PlayerState for editing files boolean to not add system permissions endpoint
-  - [ ] I want final filename for tracks to be saved like "Artist 1, Artist 2 - Title" (no using featuring word or else)
-  - [ ] DO NOT ADD revert functionality yet, thats complex task, lets do it later. Just know that it will exist
-- [ ] Setup playwright mcp, rewrite all AGENT_TASKS prompts
-- [ ] https://x.com/steipete/status/1940314756705132683
-- [ ] https://x.com/robzolkos/status/1940462968593875060
-- [ ] ghostty and mise in bashrc
+- [x] Edit files and the tags in place
+  - [x] Return file_path to /tracks endpoint because frontend needs that data
+  - [x] TrackHistory has to be added with missing fields. I want there history changes and first will be the scan init. Initial data saved without delta
+  - [x] First of all: we should check on app load if we actually can change files (user might use read-only volume). Find the best way to find this. If we cant, we should disable all editing functionality.
+  - [x] Use modal window. Mobile - most of screen. Desktop idk. If there are no changes, click outside of modal will close it. If there are changes, we should confirm that. Also there has to be cancel button.
+  - [x] UI Trigger - three-dot menu on each TrackItem that reveals an "Edit" option. This keeps the main track list UI clean.
+  - [x] API Endpoint Design: A logical RESTful approach would be a PATCH request to an endpoint like /api/v1/tracks/{track_id}. The request body would contain the new metadata and the rename_file boolean flag. I want to send ONLY CHANGES, not all metadata. That way will be easier to save history. We have to handle the case when there is no changes - think what should we do because PATCH is not idempotent and we do not want to save that in history.
+  - [x] Tags have to have good encoding - ID3v2.4 with UTF-8 encoding (or ID3v2.3?)
+  - [x] Tags have to be windows compatible for filenames (prevent <, >, :, ", /, \, |, ?, *). Remove them.
+  - [x] Default option to rename filename as well (checkbox). Ticked by default, but user can prevent that. Use artist - track name notation. Always preview new filename. Make warning on long filenames I think (>100). Prevent to save 255 characters.
+  - [x] Save file history
+  - [ ] ~~Add reverting functionality~~
+  - [x] We have to think that in future we will have possibility to have Artist entity and maybe in future we will match whats in db with new file
+  - [x] Think already what to do with multiple artists - where do additional ones have to be stated and what will be the separator to divide them and show later. In Artist field metatags lets split them with ";". In filename lets split them with "ft. %artist%".
+  - [x] Cover art - cant be changed now, yet show it. In future I want to be able to fetch arts from some search, yt, or else and pick best one
+  - [x] Error handling on file save - if file is missing (rare case) or there are rights problem (common case probably) - show error to user
+  - [x] History has to save the exact change in jsonb and all file metadata with its filename in jsonb.
+  - [x] Make sure this would use less effects as possible. We have to include file_path now for /tracks still for editing files
+  - [x] There have to be fields with multiple artists to save later
+  - [x] User cant click "Save" if there are no changes and no tags edits needed. API should do nothing on no changes.
+  - [x] ~~Lets use PlayerState for editing files boolean to not add system permissions endpoint~~
+  - [x] I want final filename for tracks to be saved like "Artist 1, Artist 2 - Title" (no using featuring word or else)
+- [x] ~~ghostty and~~ mise in bashrc
+- [ ] Edit button on dropdown menu on hover restyling with little glow instead of blue background
+- [ ] 0 changes move to the left in edit modal
+- [ ] Additional artists styling on frontend and inside editing modal. Also editing modal - original cover to the left, edit in place. maybe filename shown with little font somewhere.
 - [ ] Remove files in editing file dialog - with confirmation.
 - [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
 - [ ] Too big DOM. Try to use `svelte-virtual`. Will it conflict with scroll into view or shuffle?
-- [ ] Mobile bug: right sidebar doesnt open on swipe
+- [ ] Mobile bug: right sidebar doesnt open on swipel
 - [ ] Desktop bug: if user drags track and releases finger outside of slider on track, track will stop (fix the event, use mousedown/mouseup everythere)
+- [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while.
 - [ ] If we are selecting text on track item, it should not stop track. Btw think to edit the copied things to like artist - title.
 - [ ] On hover on controls we should set hand cursor
 - [ ] Make scrolling if only outside of page. Its kinda not fine now. Think about best UX first. Do not break on load page scrolling. Its like works on a 2nd try
+- [ ] Check that wrong tags could be fixed in UI - wrong encoding, wrong fields filled
+- [ ] Actually fetch changes, not working now at all. Probably this panel in another component
 - [ ] Revert functionality UI
+- [ ] Download track functionality
+- [ ] Edit track might consider to save true duration - check that functionality
+- [ ] Show exact changes will be done - for example if we change encoding it also has to be shown
+- [ ] After edit track we have to scroll to the same place where scrolling was
+- [ ] check long filenames on edit - add warning
+- [ ] ~~Setup playwright mcp~~ Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
+- [ ] https://x.com/steipete/status/1940314756705132683
+- [ ] https://x.com/robzolkos/status/1940462968593875060
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
 - [o] ~~Celery and async tasks~~
 - [ ] e2e in CI before deployment after linters. Complex github actions flow.

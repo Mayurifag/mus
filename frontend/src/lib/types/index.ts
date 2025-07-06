@@ -22,3 +22,16 @@ export interface PlayerState {
   is_shuffle: boolean;
   is_repeat: boolean;
 }
+
+export interface TrackHistory {
+  id: number;
+  track_id: number;
+  title: string;
+  artist: string;
+  duration: number;
+  changed_at: number;
+  event_type: string;
+  filename: string;
+  changes?: Record<string, unknown> | null;
+  full_snapshot?: Record<string, unknown> | null;
+}

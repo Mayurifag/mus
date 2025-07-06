@@ -1,4 +1,4 @@
-import type { Track, PlayerState } from "$lib/types";
+import type { Track, PlayerState, TrackHistory } from "$lib/types";
 
 export interface MusEvent {
   message_to_show: string | null;
@@ -118,6 +118,23 @@ export async function updateTrack(
   } catch (error) {
     console.error("Error updating track:", error);
     throw error;
+  }
+}
+
+export async function fetchTrackHistory(
+  trackId: number,
+): Promise<TrackHistory[]> {
+  try {
+    const response = await fetch(
+      `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}/history`,
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching track history:", error);
+    return [];
   }
 }
 

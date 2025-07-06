@@ -7,7 +7,8 @@
   import { Button } from "$lib/components/ui/button";
   import { updateTrack } from "$lib/services/apiClient";
   import { toast } from "svelte-sonner";
-  import { Plus, X } from "@lucide/svelte";
+  import { Plus, X, Clock } from "@lucide/svelte";
+  import TrackChangesPanel from "./TrackChangesPanel.svelte";
 
   let {
     open = $bindable(),
@@ -16,6 +17,9 @@
     open: boolean;
     track: Track;
   } = $props();
+
+  let hasTrackChanges = $state(false);
+  let trackChangesCount = $state(0);
 
   let formState = $state({
     title: "",
@@ -28,10 +32,16 @@
   function resetState() {
     formState.title = track.title;
     formState.renameFile = true;
-    artists = (track.artist?.split(";") ?? [])
+    const artistList = (track.artist?.split(";") ?? [])
       .map((a) => a.trim())
-      .filter(Boolean)
-      .map((value) => ({ id: artistIdCounter++, value }));
+      .filter(Boolean);
+
+    // Ensure there's always at least one artist field
+    if (artistList.length === 0) {
+      artistList.push("");
+    }
+
+    artists = artistList.map((value) => ({ id: artistIdCounter++, value }));
   }
 
   onMount(() => {
@@ -45,7 +55,10 @@
   });
 
   const currentArtistString = $derived(
-    artists.map((a) => a.value.trim()).join(";"),
+    artists
+      .map((a) => a.value.trim())
+      .filter((a) => a !== "")
+      .join(";"),
   );
 
   const originalFilename = $derived(track.file_path.split("/").pop() ?? "");
@@ -58,8 +71,8 @@
   ): string {
     const sanitize = (name: string) => name.replace(/[<>:"/\\|?*]/g, "");
     const artistsString = artistsArray
-      .map((a) => a.value)
-      .filter((a) => a.trim())
+      .map((a) => a.value.trim())
+      .filter((a) => a !== "")
       .join(", ");
     const sanitizedArtists = sanitize(artistsString);
     const sanitizedTitle = sanitize(title);
@@ -81,8 +94,15 @@
     const filenameWouldChange =
       newFilenamePreview && newFilenamePreview !== originalFilename;
 
+    // Validation checks
+    const isTitleValid = formState.title.trim() !== "";
+    const isPrimaryArtistValid =
+      artists.length > 0 && artists[0].value.trim() !== "";
+    const isFormValid = isTitleValid && isPrimaryArtistValid;
+
     const hasSavableChanges =
-      metadataChanged || (formState.renameFile && filenameWouldChange);
+      isFormValid &&
+      (metadataChanged || (formState.renameFile && filenameWouldChange));
 
     const hasUnsavedChanges = metadataChanged || formState.renameFile !== true;
 
@@ -90,6 +110,9 @@
       hasSavableChanges,
       hasUnsavedChanges,
       showRenameSection: metadataChanged || filenameWouldChange,
+      isFormValid,
+      isTitleValid,
+      isPrimaryArtistValid,
     };
   });
 
@@ -98,7 +121,13 @@
   }
 
   function removeArtist(id: number) {
-    artists = artists.filter((artist) => artist.id !== id);
+    // Always keep at least one artist field
+    if (artists.length > 1) {
+      artists = artists.filter((artist) => artist.id !== id);
+    } else {
+      // If it's the only artist, just clear its value instead of removing
+      artists[0].value = "";
+    }
   }
 
   async function handleSave() {
@@ -131,13 +160,6 @@
 
 <Dialog.Root bind:open>
   <Dialog.Content class="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
-    <Dialog.Header>
-      <Dialog.Title>Edit Track</Dialog.Title>
-      <Dialog.Description>
-        Make changes to the track metadata. Click save when you're done.
-      </Dialog.Description>
-    </Dialog.Header>
-
     <div class="grid gap-6 py-6">
       <div class="flex items-center gap-6">
         <div
@@ -158,9 +180,15 @@
           {/if}
         </div>
         <div class="min-w-0 flex-1">
-          <p class="truncate text-lg font-semibold">{track.title}</p>
-          <p class="text-muted-foreground truncate">{track.artist}</p>
-          <p class="text-muted-foreground mt-1 truncate text-sm">
+          <p class="break-words text-lg font-semibold leading-tight">
+            {track.title}
+          </p>
+          <p class="text-muted-foreground break-words leading-tight">
+            {track.artist}
+          </p>
+          <p
+            class="text-muted-foreground mt-1 break-words text-sm leading-tight"
+          >
             {originalFilename}
           </p>
         </div>
@@ -169,7 +197,14 @@
       <div class="space-y-4">
         <div class="space-y-2">
           <label for="title" class="text-sm font-medium">Title</label>
-          <Input id="title" bind:value={formState.title} class="w-full" />
+          <Input
+            id="title"
+            bind:value={formState.title}
+            class={`w-full ${!changes.isTitleValid ? "border-destructive bg-destructive/10" : ""}`}
+          />
+          {#if !changes.isTitleValid}
+            <p class="text-destructive text-sm">Title is required</p>
+          {/if}
         </div>
 
         <div class="space-y-3">
@@ -189,34 +224,39 @@
 
           <div class="space-y-2">
             {#each artists as artist, i (artist.id)}
-              <div class="flex items-center gap-2">
-                <Input
-                  bind:value={artist.value}
-                  placeholder={i === 0 ? "Primary artist" : "Additional artist"}
-                  class="flex-1"
-                />
-                {#if artists.length > 1}
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onclick={() => removeArtist(artist.id)}
-                    class="text-muted-foreground hover:text-destructive h-10 w-10 cursor-pointer p-0"
-                  >
-                    <X class="h-4 w-4" />
-                  </Button>
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <Input
+                    bind:value={artist.value}
+                    placeholder={i === 0
+                      ? "Primary artist"
+                      : "Additional artist"}
+                    class={`flex-1 ${i === 0 && !changes.isPrimaryArtistValid ? "border-destructive bg-destructive/10" : ""}`}
+                  />
+                  {#if artists.length > 1 || (artists.length === 1 && artist.value.trim() !== "")}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onclick={() => removeArtist(artist.id)}
+                      class="text-muted-foreground hover:text-destructive h-10 w-10 cursor-pointer p-0"
+                    >
+                      <X class="h-4 w-4" />
+                    </Button>
+                  {/if}
+                </div>
+                {#if i === 0 && !changes.isPrimaryArtistValid}
+                  <p class="text-destructive text-sm">
+                    Primary artist is required
+                  </p>
                 {/if}
               </div>
             {/each}
           </div>
-
-          <p class="text-muted-foreground text-xs">
-            Add multiple artists for collaborations and featured artists.
-          </p>
         </div>
       </div>
 
-      {#if changes.showRenameSection}
+      {#if changes.showRenameSection && changes.hasSavableChanges}
         <div class="mt-6 border-t pt-6">
           <div class="space-y-4">
             <div class="flex items-center space-x-3">
@@ -242,12 +282,19 @@
                   </span>
                 </div>
                 <div class="rounded-md border bg-white p-3 dark:bg-slate-800">
-                  {#if newFilenamePreview}
+                  {#if newFilenamePreview && changes.isFormValid}
                     <code
                       class="break-all text-sm text-slate-800 dark:text-slate-200"
                     >
                       {newFilenamePreview}
                     </code>
+                  {:else if !changes.isFormValid}
+                    <span
+                      class="text-destructive dark:text-destructive text-sm italic"
+                    >
+                      Complete required fields (title and primary artist) to see
+                      filename preview
+                    </span>
                   {:else}
                     <span
                       class="text-sm italic text-slate-500 dark:text-slate-400"
@@ -265,23 +312,50 @@
           </div>
         </div>
       {/if}
+
+      <!-- Always render TrackChangesPanel for binding, but hide wrapper when no changes -->
+      <TrackChangesPanel
+        trackId={track.id}
+        bind:hasChanges={hasTrackChanges}
+        bind:changesCount={trackChangesCount}
+      />
+
+      {#if hasTrackChanges}
+        <div class="mt-6 border-t pt-6">
+          <!-- TrackChangesPanel content will be shown here when hasTrackChanges is true -->
+        </div>
+      {/if}
     </div>
 
-    <Dialog.Footer>
-      <Button
-        variant="outline"
-        onclick={() => (open = false)}
-        class="cursor-pointer"
-      >
-        Cancel
-      </Button>
-      <Button
-        onclick={handleSave}
-        disabled={!changes.hasSavableChanges}
-        class="cursor-pointer"
-      >
-        Save changes
-      </Button>
+    <Dialog.Footer class="flex items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <Clock class="text-muted-foreground h-4 w-4" />
+        <span class="text-muted-foreground text-sm">
+          {trackChangesCount} changes
+        </span>
+      </div>
+
+      <div class="flex gap-2">
+        <Button
+          variant="outline"
+          onclick={() => (open = false)}
+          class="cursor-pointer"
+        >
+          Cancel
+        </Button>
+        <Button
+          onclick={handleSave}
+          disabled={!changes.hasSavableChanges}
+          class="cursor-pointer"
+          title={!changes.isFormValid
+            ? "Please fill in required fields (title and primary artist)"
+            : !changes.hasSavableChanges
+              ? "No changes to save"
+              : "Save changes"}
+        >
+          Save changes
+        </Button>
+      </div>
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
