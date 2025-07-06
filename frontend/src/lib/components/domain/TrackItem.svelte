@@ -248,7 +248,7 @@
         {#snippet child({ props })}
           <button
             {...props}
-            class="hover:bg-muted cursor-pointer rounded-md p-1 transition-colors"
+            class="icon-glow-effect cursor-pointer rounded-md p-1 transition-colors"
             disabled={!$permissionsStore.can_write_files}
             aria-label="Track options"
             title={!$permissionsStore.can_write_files

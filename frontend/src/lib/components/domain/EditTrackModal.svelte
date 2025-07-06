@@ -327,7 +327,7 @@
       {/if}
     </div>
 
-    <Dialog.Footer class="flex items-center justify-between gap-4">
+    <Dialog.Footer class="!justify-between">
       <div class="flex items-center gap-2">
         <Clock class="text-muted-foreground h-4 w-4" />
         <span class="text-muted-foreground text-sm">

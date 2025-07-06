@@ -26,7 +26,10 @@ back-docker-install:
 	@$(DOCKER_COMPOSE_CMD) exec backend uv pip sync /app/requirements.txt
 
 .PHONY: rebuild
-rebuild: down build up
+rebuild: down
+	@echo "Removing app_data_database and app_data_covers volumes..."
+	@docker volume rm $$(docker volume ls -q | grep -E "(app_data_database|app_data_covers)") 2>/dev/null || true
+	@$(MAKE) build up
 
 .PHONY: ps
 ps:

@@ -41,6 +41,8 @@ async def test_add_history_entry(repository, sample_track):
         artist="Old Artist",
         duration=120,
         changed_at=1609459100,
+        filename="test.mp3",
+        event_type="test",
     )
 
     result = await repository.add(history_entry)
@@ -63,6 +65,8 @@ async def test_get_by_track_id(repository, sample_track):
         artist="Old Artist 1",
         duration=120,
         changed_at=1609459100,
+        filename="test1.mp3",
+        event_type="test",
     )
     history2 = TrackHistory(
         track_id=track_id,
@@ -70,6 +74,8 @@ async def test_get_by_track_id(repository, sample_track):
         artist="Old Artist 2",
         duration=130,
         changed_at=1609459200,
+        filename="test2.mp3",
+        event_type="test",
     )
 
     await repository.add(history1)
@@ -91,6 +97,8 @@ async def test_get_by_id(repository, sample_track):
         artist="Old Artist",
         duration=120,
         changed_at=1609459100,
+        filename="test.mp3",
+        event_type="test",
     )
 
     added_entry = await repository.add(history_entry)
@@ -119,6 +127,8 @@ async def test_prune_history(repository, sample_track):
             artist=f"Old Artist {i}",
             duration=120 + i,
             changed_at=1609459100 + i,
+            filename=f"test{i}.mp3",
+            event_type="test",
         )
         await repository.add(history_entry)
 
