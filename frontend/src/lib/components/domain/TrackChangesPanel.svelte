@@ -1,8 +1,7 @@
 <script lang="ts">
   import type { TrackHistory } from "$lib/types";
   import { fetchTrackHistory } from "$lib/services/apiClient";
-  import { Clock, FileText, Edit, Scan } from "@lucide/svelte";
-  import { formatArtistsForDisplay } from "$lib/utils";
+  import { Clock } from "@lucide/svelte";
 
   let {
     trackId,
@@ -45,34 +44,14 @@
     }
   });
 
-  function formatTimestamp(timestamp: number): string {
-    return new Date(timestamp * 1000).toLocaleString();
-  }
-
-  function getEventIcon(eventType: string) {
-    switch (eventType) {
-      case "initial_scan":
-        return Scan;
-      case "edit":
-        return Edit;
-      case "metadata_update":
-        return FileText;
-      default:
-        return Clock;
-    }
-  }
-
-  function getEventLabel(eventType: string): string {
-    switch (eventType) {
-      case "initial_scan":
-        return "Initial scan";
-      case "edit":
-        return "Manual edit";
-      case "metadata_update":
-        return "Metadata update";
-      default:
-        return "Unknown";
-    }
+  function formatDateTime(timestamp: number): string {
+    const date = new Date(timestamp * 1000);
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    return `${day}.${month}.${year} - ${hours}:${minutes}`;
   }
 
   function formatChanges(
@@ -106,11 +85,17 @@
       );
     }
 
-    if (changes.file_renamed) {
-      changesList.push("File was renamed");
-    }
-
     return changesList;
+  }
+
+  function getChangeTooltip(entry: any): string {
+    if (entry.changes?.file_renamed) {
+      return "File was renamed";
+    }
+    if (entry.changes && Object.keys(entry.changes).length > 0) {
+      return "File was saved";
+    }
+    return "";
   }
 </script>
 
@@ -146,25 +131,6 @@
       <table class="w-full border-collapse text-xs">
         <thead>
           <tr class="border-muted border-b">
-            <th class="text-muted-foreground p-2 text-left font-medium">ID</th>
-            <th class="text-muted-foreground p-2 text-left font-medium"
-              >Track ID</th
-            >
-            <th class="text-muted-foreground p-2 text-left font-medium"
-              >Event</th
-            >
-            <th class="text-muted-foreground p-2 text-left font-medium"
-              >Title</th
-            >
-            <th class="text-muted-foreground p-2 text-left font-medium"
-              >Artist</th
-            >
-            <th class="text-muted-foreground p-2 text-left font-medium"
-              >Duration</th
-            >
-            <th class="text-muted-foreground p-2 text-left font-medium"
-              >Filename</th
-            >
             <th class="text-muted-foreground p-2 text-left font-medium"
               >Changed At</th
             >
@@ -179,45 +145,26 @@
         <tbody>
           {#each history as entry (entry.id)}
             {@const changes = formatChanges(entry.changes)}
-            {@const Icon = getEventIcon(entry.event_type)}
+            {@const changeTooltip = getChangeTooltip(entry)}
             <tr class="border-muted/50 hover:bg-muted/20 border-b">
-              <td class="text-muted-foreground p-2">{entry.id}</td>
-              <td class="text-muted-foreground p-2">{entry.track_id}</td>
-              <td class="p-2">
-                <span class="inline-flex items-center gap-1">
-                  <Icon class="h-3 w-3" />
-                  <span class="font-medium"
-                    >{getEventLabel(entry.event_type)}</span
-                  >
-                </span>
-              </td>
-              <td class="max-w-32 truncate p-2" title={entry.title}
-                >{entry.title}</td
-              >
-              <td class="max-w-32 truncate p-2" title={entry.artist}
-                >{formatArtistsForDisplay(entry.artist)}</td
-              >
-              <td class="text-muted-foreground p-2">{entry.duration}s</td>
-              <td
-                class="text-muted-foreground max-w-40 truncate p-2"
-                title={entry.filename}>{entry.filename}</td
-              >
               <td class="text-muted-foreground p-2"
-                >{formatTimestamp(entry.changed_at)}</td
+                >{formatDateTime(entry.changed_at)}</td
               >
-              <td class="max-w-48 p-2">
+              <td class="max-w-48 p-2" title={changeTooltip}>
                 {#if changes.length > 0}
-                  <div class="space-y-1">
+                  <ul class="list-inside list-disc space-y-1">
                     {#each changes as change, index (index)}
-                      <div class="text-muted-foreground">{change}</div>
+                      <li class="text-muted-foreground text-xs">{change}</li>
                     {/each}
-                  </div>
+                  </ul>
                 {:else if entry.event_type === "initial_scan"}
-                  <span class="text-muted-foreground italic"
+                  <span class="text-muted-foreground text-xs italic"
                     >Track discovered</span
                   >
                 {:else}
-                  <span class="text-muted-foreground italic">No changes</span>
+                  <span class="text-muted-foreground text-xs italic"
+                    >No changes</span
+                  >
                 {/if}
               </td>
               <td class="max-w-48 p-2">
