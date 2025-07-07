@@ -5,8 +5,7 @@
   import { permissionsStore } from "$lib/stores/permissionsStore";
 
   import { Slider } from "$lib/components/ui/slider";
-  import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
-  import { MoreVertical, Pencil } from "@lucide/svelte";
+  import { Pencil } from "@lucide/svelte";
   import EditTrackModal from "./EditTrackModal.svelte";
   import { formatArtistsForDisplay } from "$lib/utils";
 
@@ -241,37 +240,23 @@
   </div>
 
   <div
+    class="hidden md:block"
     onclick={(e) => e.stopPropagation()}
     onkeydown={(e) => e.stopPropagation()}
     role="button"
     tabindex="-1"
   >
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        {#snippet child({ props })}
-          <button
-            {...props}
-            class="icon-glow-effect cursor-pointer rounded-md p-1 transition-colors"
-            disabled={!$permissionsStore.can_write_files}
-            aria-label="Track options"
-            title={!$permissionsStore.can_write_files
-              ? "Editing disabled: write permissions not available"
-              : "Track options"}
-          >
-            <MoreVertical class="h-4 w-4" />
-          </button>
-        {/snippet}
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content>
-        <DropdownMenu.Item
-          onclick={() => (editModalOpen = true)}
-          class="focus:bg-muted focus:text-foreground cursor-pointer"
-        >
-          <Pencil class="mr-2 h-4 w-4" />
-          Edit
-        </DropdownMenu.Item>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+    <button
+      class="text-muted-foreground icon-glow-effect cursor-pointer rounded-md p-1 transition-colors"
+      disabled={!$permissionsStore.can_write_files}
+      onclick={() => (editModalOpen = true)}
+      aria-label="Edit track"
+      title={!$permissionsStore.can_write_files
+        ? "Editing disabled: write permissions not available"
+        : "Edit"}
+    >
+      <Pencil class="h-5 w-5" />
+    </button>
   </div>
 </div>
 

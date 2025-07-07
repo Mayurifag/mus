@@ -88,7 +88,7 @@
     return changesList;
   }
 
-  function getChangeTooltip(entry: any): string {
+  function getChangeTooltip(entry: TrackHistory): string {
     if (entry.changes?.file_renamed) {
       return "File was renamed";
     }
