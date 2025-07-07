@@ -56,14 +56,15 @@
   "python.testing.pytestArgs": [
     "tests"
   ],
-  // "terminal.integrated.defaultProfile.osx": "bash",
-  // "terminal.integrated.profiles.osx": {
-  //   "bash": {
-  //     "path": "/bin/bash",
-  //     "args": [
-  //       "-i"
-  //     ]
-  //   }
-  // },
+  "terminal.integrated.defaultProfile.osx": "bash",
+  "terminal.integrated.profiles.osx": {
+    "bash": {
+      "path": "/bin/bash",
+      "args": [
+        "-i",
+        "-l"
+      ]
+    }
+  },
   "svelte.enable-ts-plugin": true
 }

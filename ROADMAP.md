@@ -121,42 +121,45 @@
 - [x] Additional artists styling on frontend and inside editing modal. Also editing modal - original cover to the left, edit in place. maybe filename shown with little font somewhere.
 - [x] "Edit" -> make not a dropdown menu but an icon with tooltip. Hide on small screens.
 - [x] Mobile bug: right sidebar doesnt open on swipe
-- [ ] Desktop bug: if user drags track and releases finger outside of slider on track, track will stop (fix the event, use mousedown/mouseup everythere)
+- [x] Desktop bug: if user drags track and releases finger outside of slider on track, track will stop (fix the event, use mousedown/mouseup everythere)
+- [x] If we are selecting text on track item, it should not stop track. Btw think to edit the copied things to like artist - title.
+- [x] On hover on controls we should set hand cursor
+- [x] Panel of last changes. Rename. Think of icons. It seems works wrong now the change itself saved
+- [ ] Too big DOM
+  - [ ] Try to use `svelte-tiny-virtual-list` or other Svelte 5 compatible fresh lib. Check <https://github.com/inokawa/virtua>
+  - [ ] Delete all current code to scroll to current track
+  - [ ] Will CTRL+F work? If not - we need simple search or smth
+  - [ ] Will shuffle work?
+  - [ ] Make scrolling - on page load; on clicking next/prev if track not on sight; if track not on sight and browser window is not focused
+  - [ ] When track added or removed - think to change only it, refactor will be needed, but we will add it beautifully on the end like I wanted to do. Check scrolling to be on same place.
+  - [ ] After edit track we have to scroll to the same place where scrolling was
+  - [ ] During testing check console log for effects
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while.
-- [ ] If we are selecting text on track item, it should not stop track. Btw think to edit the copied things to like artist - title.
-- [ ] On hover on controls we should set hand cursor
-- [ ] Make scrolling if only outside of page. Its kinda not fine now. Think about best UX first. Do not break on load page scrolling. Its like works on a 2nd try
-- [ ] Check that wrong tags could be fixed in UI - wrong encoding, wrong fields filled
-- [ ] Panel of last changes. Rename. Think of icons. It seems works wrong now the change itself saved
-- [ ] Remove files in editing file dialog - with confirmation. Maybe its not files but just entries in db.
-- [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
-- [ ] Too big DOM. Try to use `svelte-virtual`. Will it conflict with scroll into view or shuffle?
-- [ ] Revert functionality UI
-- [ ] Download track functionality
-- [ ] Edit track might consider to save true duration - check that functionality
-- [ ] Show exact changes will be done - for example if we change encoding it also has to be shown
-- [ ] After edit track we have to scroll to the same place where scrolling was
-- [ ] check long filenames on edit - add warning
-- [ ] ~~Setup playwright mcp~~ Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
+- [ ] Edit track functionality enhancements
+  - [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
+  - [ ] Revert functionality UI
+  - [ ] Show exact changes will be done - for example if we change encoding it also has to be shown
+  - [ ] Check that wrong tags could be fixed in UI - wrong encoding, wrong fields filled
+  - [ ] check long filenames on edit - add warning
+  - [ ] Remove files in editing file dialog - with confirmation. It may be not files but just entries in db.
+- [x] Setup playwright mcp. Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
 - [ ] https://x.com/steipete/status/1940314756705132683
 - [ ] https://x.com/robzolkos/status/1940462968593875060
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
-- [o] ~~Celery and async tasks~~
+- [x] ~~Celery and async tasks~~
+- [ ] Player footer - on change windows calculate div for player controls - this will allow to have full size for artist-title
 - [ ] e2e in CI before deployment after linters. Complex github actions flow.
 - [ ] Complex e2e test: some file has to be flac with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
-- [ ] Once again test all $effects, maybe too much of them. Delete console logs. isUserDragging needed?
 - [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401
-- [ ] Analyze my frontend code. I want to know if all components from frontend/src/lib/components/ui are really used. Also point places where are they are not used but have to be used
-- [ ] I need to think about universal buttons hovering style guide.
-- [ ] Full test
 
 ## Phase 3
 
+- [ ] Download track functionality
 - [ ] docker-compose - i think we dont need separated volumes for cover/db, might be single
 - [ ] production image nginx better logging. Logging across app.
 - [ ] Hotkeys for player controls
 - [ ] Hover player controls should show what will be done + also hotkey for that
-- [ ] Marquee for long texts - all places
+- [ ] Marquee for long texts - all places - not sure where we exactly have to do that. Probably for player footer
 - [ ] ~~styling for playing music - make it less colored but on hover make blue colored styling for slider~~
 - [ ] Get rid of fucking SSR and simplify code A LOT - ???.
 - [ ] Render play button from tracklist under album cover

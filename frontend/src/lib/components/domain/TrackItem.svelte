@@ -252,6 +252,8 @@
     class="hidden md:block"
     onclick={(e) => e.stopPropagation()}
     onkeydown={(e) => e.stopPropagation()}
+    onmousedown={(e) => e.stopPropagation()}
+    onmouseup={(e) => e.stopPropagation()}
     role="button"
     tabindex="-1"
   >

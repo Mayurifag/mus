@@ -149,7 +149,7 @@
 </script>
 
 <div
-  class="bg-card sm700:h-[var(--footer-height-desktop)] fixed bottom-0 left-0 right-0 z-50 h-[var(--footer-height-mobile)] border-t"
+  class="bg-card sm700:h-[var(--footer-height-desktop)] fixed right-0 bottom-0 left-0 z-50 h-[var(--footer-height-mobile)] border-t"
 >
   <Card class="h-full rounded-none border-0 shadow-none">
     <!-- Mobile Layout (< 700px) -->
@@ -556,16 +556,3 @@
     </div>
   </Card>
 </div>
-
-<style>
-  :global(.icon-glow-effect svg) {
-    color: white;
-    transition: all 0.1s ease;
-  }
-
-  :global(.icon-glow-effect:hover svg) {
-    color: white;
-    filter: drop-shadow(0 0 8px hsl(var(--accent) / 0.8))
-      drop-shadow(0 0 4px hsl(var(--accent) / 1));
-  }
-</style>

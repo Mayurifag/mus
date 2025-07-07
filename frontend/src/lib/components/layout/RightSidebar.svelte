@@ -136,16 +136,3 @@
   <!-- QR Login Modal -->
   <QRLoginModal bind:open={isQrModalOpen} />
 </div>
-
-<style>
-  :global(.icon-glow-effect svg) {
-    color: white;
-    transition: all 0.1s ease;
-  }
-
-  :global(.icon-glow-effect:hover svg) {
-    color: white;
-    filter: drop-shadow(0 0 8px hsl(var(--accent) / 0.8))
-      drop-shadow(0 0 4px hsl(var(--accent) / 1));
-  }
-</style>
