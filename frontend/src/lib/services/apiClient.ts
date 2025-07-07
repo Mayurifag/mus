@@ -1,11 +1,4 @@
-import type { Track, PlayerState, TrackHistory } from "$lib/types";
-
-export interface MusEvent {
-  message_to_show: string | null;
-  message_level: "success" | "error" | "info" | "warning" | null;
-  action_key: string | null;
-  action_payload: Record<string, unknown> | null;
-}
+import type { Track, PlayerState, TrackHistory, MusEvent } from "$lib/types";
 
 const VITE_INTERNAL_API_HOST = import.meta.env.VITE_INTERNAL_API_HOST || "";
 const VITE_PUBLIC_API_HOST = import.meta.env.VITE_PUBLIC_API_HOST || "";
@@ -18,6 +11,19 @@ export function getStreamUrl(trackId: number): string {
   return `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}/stream`;
 }
 
+export function createTrackWithUrls(trackData: Record<string, unknown> | Track): Track {
+  const track = trackData as Track;
+  return {
+    ...track,
+    cover_small_url: track.cover_small_url
+      ? `${VITE_PUBLIC_API_HOST}${track.cover_small_url}`
+      : null,
+    cover_original_url: track.cover_original_url
+      ? `${VITE_PUBLIC_API_HOST}${track.cover_original_url}`
+      : null,
+  };
+}
+
 export async function fetchTracks(): Promise<Track[]> {
   try {
     const response = await fetch(`${API_PREFIX}${API_VERSION_PATH}/tracks`);
@@ -26,16 +32,7 @@ export async function fetchTracks(): Promise<Track[]> {
     }
     const tracks: Track[] = await response.json();
 
-    for (const track of tracks) {
-      if (track.cover_small_url) {
-        track.cover_small_url = `${VITE_PUBLIC_API_HOST}${track.cover_small_url}`;
-      }
-      if (track.cover_original_url) {
-        track.cover_original_url = `${VITE_PUBLIC_API_HOST}${track.cover_original_url}`;
-      }
-    }
-
-    return tracks;
+    return tracks.map(track => createTrackWithUrls(track));
   } catch (error) {
     console.error("Error fetching tracks:", error);
     return [];

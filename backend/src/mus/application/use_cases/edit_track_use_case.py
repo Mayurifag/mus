@@ -13,6 +13,7 @@ from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
 )
 from src.mus.util.db_utils import add_track_history
+from src.mus.infrastructure.api.sse_handler import notify_sse_from_worker
 
 
 class EditTrackUseCase:
@@ -122,5 +123,11 @@ class EditTrackUseCase:
             },
         )
         await add_track_history(history_entry)
+        await notify_sse_from_worker(
+            action_key="track_updated",
+            message=f"Updated track '{track.title}'",
+            level="info",
+            payload=track.model_dump(),
+        )
 
         return {"status": "success", "track": track}

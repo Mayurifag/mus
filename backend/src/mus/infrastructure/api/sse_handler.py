@@ -1,9 +1,12 @@
 import asyncio
 import json
+import logging
+import os
 from typing import List, Dict, Any, Optional, Literal
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 import httpx
 
 router = APIRouter(prefix="/api/v1/events", tags=["events"])
@@ -11,6 +14,13 @@ router = APIRouter(prefix="/api/v1/events", tags=["events"])
 active_sse_clients: List[asyncio.Queue] = []
 
 MessageLevel = Literal["success", "error", "info", "warning"]
+
+
+class MusEvent(BaseModel):
+    message_to_show: Optional[str] = None
+    message_level: Optional[MessageLevel] = None
+    action_key: Optional[str] = None
+    action_payload: Optional[Dict[str, Any]] = None
 
 
 async def broadcast_sse_event(
@@ -64,38 +74,33 @@ async def track_updates_sse(request: Request):
 
 
 @router.post("/trigger")
-async def trigger_sse_event(
-    message_to_show: Optional[str] = None,
-    message_level: Optional[MessageLevel] = None,
-    action_key: Optional[str] = None,
-    action_payload: Optional[Dict[str, Any]] = None,
-):
+async def trigger_sse_event(event_data: MusEvent):
     await broadcast_sse_event(
-        message_to_show=message_to_show,
-        message_level=message_level,
-        action_key=action_key,
-        action_payload=action_payload,
+        message_to_show=event_data.message_to_show,
+        message_level=event_data.message_level,
+        action_key=event_data.action_key,
+        action_payload=event_data.action_payload,
     )
     return {"status": "ok"}
 
 
 async def notify_sse_from_worker(
-    action_key: str, message: Optional[str] = None, level: Optional[MessageLevel] = None
+    action_key: str,
+    message: Optional[str] = None,
+    level: Optional[MessageLevel] = None,
+    payload: Optional[Dict[str, Any]] = None,
 ):
-    import os
-
     backend_url = os.getenv("BACKEND_URL", "http://127.0.0.1:8001")
     try:
         async with httpx.AsyncClient() as client:
-            params = {"action_key": action_key}
-            if message:
-                params["message_to_show"] = message
-            if level:
-                params["message_level"] = level
+            body = {
+                "action_key": action_key,
+                "message_to_show": message,
+                "message_level": level,
+                "action_payload": payload,
+            }
             await client.post(
-                f"{backend_url}/api/v1/events/trigger", params=params, timeout=1.0
+                f"{backend_url}/api/v1/events/trigger", json=body, timeout=1.0
             )
     except Exception as e:
-        import logging
-
         logging.getLogger(__name__).debug(f"Failed to send SSE notification: {e}")

@@ -148,9 +148,6 @@
       await updateTrack(track.id, payload);
       toast.success("Track updated successfully");
       open = false;
-
-      // Trigger a page reload to refresh the track list
-      window.location.reload();
     } catch (error) {
       console.error("Error updating track:", error);
       toast.error("Failed to update track");

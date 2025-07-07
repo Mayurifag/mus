@@ -50,7 +50,10 @@ async def process_slow_metadata(track_id: int):
     track.processing_status = ProcessingStatus.COMPLETE
     await update_track(track)
     await notify_sse_from_worker(
-        "reload_tracks", f"Processed metadata for '{track.title}'", "success"
+        action_key="track_updated",
+        message=f"Processed metadata for '{track.title}'",
+        level="success",
+        payload=track.model_dump(),
     )
 
 
@@ -70,7 +73,10 @@ async def process_file_deletion(file_path_str: str):
             await asyncio.to_thread(cover_path.unlink)
 
     await notify_sse_from_worker(
-        "reload_tracks", f"Deleted track '{track_title}'", "info"
+        action_key="track_deleted",
+        message=f"Deleted track '{track_title}'",
+        level="info",
+        payload={"id": track_id},
     )
 
 
@@ -78,10 +84,13 @@ async def process_file_move(src_path: str, dest_path: str):
     track = await get_track_by_path(src_path)
     if track:
         track_title = track.title
-        success = await update_track_path(src_path, dest_path)
-        if success:
+        updated_track = await update_track_path(src_path, dest_path)
+        if updated_track is not None:
             await notify_sse_from_worker(
-                "reload_tracks", f"Moved track '{track_title}'", "info"
+                action_key="track_updated",
+                message=f"Moved track '{track_title}'",
+                level="info",
+                payload=updated_track.model_dump(),
             )
 
 
@@ -172,10 +181,14 @@ async def process_file_upsert(file_path_str: str, is_creation: bool = False):
 
     if upserted_track and upserted_track.id:
         enqueue_slow_metadata(upserted_track.id)
-        action = "Added" if is_creation else "Updated"
+        action_key = "track_added" if is_creation else "track_updated"
+        action_message = "Added" if is_creation else "Updated"
         level = "success" if is_creation else "info"
         await notify_sse_from_worker(
-            "reload_tracks", f"{action} track '{track.title}'", level
+            action_key=action_key,
+            message=f"{action_message} track '{track.title}'",
+            level=level,
+            payload=upserted_track.model_dump(),
         )
 
 

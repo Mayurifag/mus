@@ -35,3 +35,10 @@ export interface TrackHistory {
   changes?: Record<string, unknown> | null;
   full_snapshot?: Record<string, unknown> | null;
 }
+
+export interface MusEvent {
+  message_to_show: string | null;
+  message_level: "success" | "error" | "info" | "warning" | null;
+  action_key: string | null;
+  action_payload: Record<string, unknown> | null;
+}

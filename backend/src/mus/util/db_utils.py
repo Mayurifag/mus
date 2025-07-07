@@ -66,15 +66,16 @@ async def delete_track_by_path(file_path: str) -> Optional[int]:
         return None
 
 
-async def update_track_path(src_path: str, dest_path: str) -> bool:
+async def update_track_path(src_path: str, dest_path: str) -> Optional[Track]:
     async with get_track_repo() as (_, session):
         result = await session.exec(select(Track).where(Track.file_path == src_path))
         track = result.first()
         if track:
             track.file_path = dest_path
             await session.commit()
-            return True
-        return False
+            await session.refresh(track)
+            return track
+        return None
 
 
 async def add_track_history(history_entry: TrackHistory) -> TrackHistory:

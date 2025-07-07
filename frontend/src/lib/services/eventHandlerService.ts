@@ -1,15 +1,7 @@
 import { toast } from "svelte-sonner";
 import * as apiClient from "./apiClient";
 import { trackStore } from "$lib/stores/trackStore";
-
-type MessageLevel = "success" | "error" | "info" | "warning";
-
-interface MusEvent {
-  message_to_show: string | null;
-  message_level: MessageLevel | null;
-  action_key: string | null;
-  action_payload: Record<string, unknown> | null;
-}
+import type { MusEvent } from "$lib/types";
 
 /**
  * Handles incoming SSE events from the backend
@@ -23,16 +15,27 @@ export function handleMusEvent(payload: MusEvent): void {
   }
 
   // Handle actions based on action_key
-  if (payload.action_key === "reload_tracks") {
-    // Only reload tracks if we actually need to (avoid redundant calls)
-    apiClient
-      .fetchTracks()
-      .then((tracks) => {
-        trackStore.setTracks(tracks);
-      })
-      .catch((error) => {
-        console.error("Failed to reload tracks:", error);
-      });
+  switch (payload.action_key) {
+    case "track_added":
+      if (payload.action_payload) {
+        const track = apiClient.createTrackWithUrls(payload.action_payload);
+        trackStore.addTrack(track);
+      }
+      break;
+    case "track_updated":
+      if (payload.action_payload) {
+        const track = apiClient.createTrackWithUrls(payload.action_payload);
+        trackStore.updateTrack(track);
+      }
+      break;
+    case "track_deleted":
+      if (
+        payload.action_payload &&
+        typeof payload.action_payload.id === "number"
+      ) {
+        trackStore.deleteTrack(payload.action_payload.id);
+      }
+      break;
   }
 }
 

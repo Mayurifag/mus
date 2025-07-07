@@ -1,18 +1,19 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { initEventHandlerService, handleMusEvent } from "./eventHandlerService";
 import * as apiClient from "./apiClient";
 import { trackStore } from "$lib/stores/trackStore";
-import { toast } from "svelte-sonner";
+import type { MusEvent } from "$lib/types";
 
 // Mock dependencies
 vi.mock("./apiClient", () => ({
   connectTrackUpdateEvents: vi.fn(),
-  fetchTracks: vi.fn(),
 }));
 
 vi.mock("$lib/stores/trackStore", () => ({
   trackStore: {
-    setTracks: vi.fn(),
+    addTrack: vi.fn(),
+    updateTrack: vi.fn(),
+    deleteTrack: vi.fn(),
   },
 }));
 
@@ -25,125 +26,168 @@ vi.mock("svelte-sonner", () => ({
   },
 }));
 
+// Mock environment variables
+vi.mock("$app/environment", () => ({
+  browser: true,
+}));
+
 describe("eventHandlerService", () => {
-  // Create a spy for console.log
-  const consoleSpy = vi.spyOn(console, "log");
-
   beforeEach(() => {
-    // Reset all mocks before each test
-    vi.resetAllMocks();
-  });
-
-  afterEach(() => {
-    // Clear console spy
-    consoleSpy.mockClear();
+    vi.clearAllMocks();
   });
 
   describe("handleMusEvent", () => {
-    it("should show a toast when message_to_show is provided", () => {
-      // Call the function with a test payload
-      handleMusEvent({
+    it("should show toast message when message_to_show is provided", async () => {
+      const { toast } = await import("svelte-sonner");
+
+      const payload: MusEvent = {
         message_to_show: "Test message",
         message_level: "success",
         action_key: null,
         action_payload: null,
-      });
+      };
 
-      // Verify toast was called with the correct arguments
+      handleMusEvent(payload);
+
       expect(toast.success).toHaveBeenCalledWith("Test message");
     });
 
-    it("should default to info toast when message_level is not provided", () => {
-      handleMusEvent({
-        message_to_show: "Info message",
+    it("should default to info level when message_level is null", async () => {
+      const { toast } = await import("svelte-sonner");
+
+      const payload: MusEvent = {
+        message_to_show: "Test message",
         message_level: null,
         action_key: null,
         action_payload: null,
-      });
+      };
 
-      expect(toast.info).toHaveBeenCalledWith("Info message");
+      handleMusEvent(payload);
+
+      expect(toast.info).toHaveBeenCalledWith("Test message");
     });
 
-    it("should reload tracks when action_key is reload_tracks", async () => {
-      // Setup mock return value for fetchTracks
-      const mockTracks = [
-        {
-          id: 1,
-          title: "Test Track",
-          artist: "Test Artist",
-          duration: 180,
-          file_path: "/path/to/file.mp3",
-          added_at: Date.now(),
-          has_cover: false,
-          cover_small_url: null,
-          cover_original_url: null,
-        },
-      ];
-      vi.mocked(apiClient.fetchTracks).mockResolvedValue(mockTracks);
+    it("should handle track_added event", () => {
+      const trackData = {
+        id: 1,
+        title: "Test Track",
+        artist: "Test Artist",
+        duration: 180,
+        file_path: "/music/test.mp3",
+        has_cover: true,
+        cover_small_url: "/api/v1/tracks/1/covers/small.webp",
+        cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+      };
 
-      // Call the function with reload_tracks action
-      handleMusEvent({
+      const payload: MusEvent = {
         message_to_show: null,
         message_level: null,
-        action_key: "reload_tracks",
+        action_key: "track_added",
+        action_payload: trackData,
+      };
+
+      handleMusEvent(payload);
+
+      expect(trackStore.addTrack).toHaveBeenCalledWith({
+        ...trackData,
+        cover_small_url: "/api/v1/tracks/1/covers/small.webp",
+        cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+      });
+    });
+
+    it("should handle track_updated event", () => {
+      const trackData = {
+        id: 1,
+        title: "Updated Track",
+        artist: "Updated Artist",
+        duration: 200,
+        file_path: "/music/updated.mp3",
+        has_cover: false,
+        cover_small_url: null,
+        cover_original_url: null,
+      };
+
+      const payload: MusEvent = {
+        message_to_show: null,
+        message_level: null,
+        action_key: "track_updated",
+        action_payload: trackData,
+      };
+
+      handleMusEvent(payload);
+
+      expect(trackStore.updateTrack).toHaveBeenCalledWith({
+        ...trackData,
+        cover_small_url: null,
+        cover_original_url: null,
+      });
+    });
+
+    it("should handle track_deleted event", () => {
+      const payload: MusEvent = {
+        message_to_show: null,
+        message_level: null,
+        action_key: "track_deleted",
+        action_payload: { id: 1 },
+      };
+
+      handleMusEvent(payload);
+
+      expect(trackStore.deleteTrack).toHaveBeenCalledWith(1);
+    });
+
+    it("should not call trackStore methods when action_payload is missing", () => {
+      const payload: MusEvent = {
+        message_to_show: null,
+        message_level: null,
+        action_key: "track_added",
         action_payload: null,
-      });
+      };
 
-      // Verify fetchTracks was called
-      expect(apiClient.fetchTracks).toHaveBeenCalled();
+      handleMusEvent(payload);
 
-      // Wait for the promise to resolve
-      await vi.waitFor(() => {
-        expect(trackStore.setTracks).toHaveBeenCalledWith(mockTracks);
-      });
+      expect(trackStore.addTrack).not.toHaveBeenCalled();
+      expect(trackStore.updateTrack).not.toHaveBeenCalled();
+      expect(trackStore.deleteTrack).not.toHaveBeenCalled();
     });
 
-    it("should handle scan progress when action_key is scan_progress", () => {
-      const progressPayload = { processed: 5, total: 10 };
-
-      handleMusEvent({
+    it("should not call deleteTrack when id is not a number", () => {
+      const payload: MusEvent = {
         message_to_show: null,
         message_level: null,
-        action_key: "scan_progress",
-        action_payload: progressPayload,
-      });
+        action_key: "track_deleted",
+        action_payload: { id: "not-a-number" },
+      };
 
-      // Instead of checking for console.log, we can verify that no errors occurred
-      // This is a silent operation that shouldn't produce stdout
-      expect(true).toBeTruthy();
+      handleMusEvent(payload);
+
+      expect(trackStore.deleteTrack).not.toHaveBeenCalled();
     });
 
-    it("should handle unknown action keys silently", () => {
-      handleMusEvent({
+    it("should handle unknown action_key gracefully", () => {
+      const payload: MusEvent = {
         message_to_show: null,
         message_level: null,
         action_key: "unknown_action",
-        action_payload: { test: "data" },
-      });
+        action_payload: null,
+      };
 
-      // Instead of checking for console.log, we can verify that no errors occurred
-      // This is a silent operation that shouldn't produce stdout
-      expect(true).toBeTruthy();
+      expect(() => handleMusEvent(payload)).not.toThrow();
     });
   });
 
   describe("initEventHandlerService", () => {
     it("should initialize the event source and return it", () => {
-      // Setup mock EventSource
       const mockEventSource = { close: vi.fn() };
       vi.mocked(apiClient.connectTrackUpdateEvents).mockReturnValue(
         mockEventSource as unknown as EventSource,
       );
 
-      // Call the function
       const result = initEventHandlerService();
 
-      // Verify connectTrackUpdateEvents was called with handleMusEvent
       expect(apiClient.connectTrackUpdateEvents).toHaveBeenCalledWith(
         expect.any(Function),
       );
-
-      // Verify the function returns the event source
       expect(result).toBe(mockEventSource);
     });
   });

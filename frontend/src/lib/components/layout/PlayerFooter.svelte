@@ -139,17 +139,10 @@
       document.body.dispatchEvent(event);
     }
   }
-
-  function triggerManualScroll() {
-    if (browser) {
-      const event = new CustomEvent("force-scroll");
-      document.body.dispatchEvent(event);
-    }
-  }
 </script>
 
 <div
-  class="bg-card sm700:h-[var(--footer-height-desktop)] fixed right-0 bottom-0 left-0 z-50 h-[var(--footer-height-mobile)] border-t"
+  class="bg-card sm700:h-[var(--footer-height-desktop)] fixed bottom-0 left-0 right-0 z-50 h-[var(--footer-height-mobile)] border-t"
 >
   <Card class="h-full rounded-none border-0 shadow-none">
     <!-- Mobile Layout (< 700px) -->
@@ -332,12 +325,7 @@
       <div class="desktop:w-80 flex w-auto min-w-0 items-center">
         {#if $trackStore.currentTrack}
           <div
-            class="desktop:block desktop:h-24 desktop:w-24 desktop:my-5 desktop:ml-5 my-6 ml-6 hidden h-32 w-32 flex-shrink-0 cursor-pointer overflow-hidden rounded-md"
-            onclick={triggerManualScroll}
-            onkeydown={(e) => e.key === "Enter" && triggerManualScroll()}
-            role="button"
-            tabindex="0"
-            aria-label="Scroll to current track"
+            class="desktop:block desktop:h-24 desktop:w-24 desktop:my-5 desktop:ml-5 my-6 ml-6 hidden h-32 w-32 flex-shrink-0 overflow-hidden rounded-md"
           >
             {#if $trackStore.currentTrack.has_cover && $trackStore.currentTrack.cover_original_url}
               <img
@@ -354,13 +342,7 @@
             {/if}
           </div>
           <div class="sm700:flex ml-4 hidden min-w-0 flex-col overflow-hidden">
-            <span
-              class="cursor-pointer truncate text-base font-medium hover:underline"
-              onclick={triggerManualScroll}
-              onkeydown={(e) => e.key === "Enter" && triggerManualScroll()}
-              role="button"
-              tabindex="0"
-              aria-label="Scroll to current track"
+            <span class="truncate text-base font-medium"
               >{$trackStore.currentTrack.title}</span
             >
             <span class="text-muted-foreground truncate text-sm">

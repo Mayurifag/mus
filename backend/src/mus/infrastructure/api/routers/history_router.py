@@ -50,7 +50,10 @@ async def rollback_track_history(
     await session.commit()
 
     await notify_sse_from_worker(
-        "reload_tracks", f"Rolled back track '{track.title}'", "info"
+        action_key="track_updated",
+        message=f"Rolled back track '{track.title}'",
+        level="info",
+        payload=track.model_dump(),
     )
 
     return {"message": "Track rolled back successfully"}

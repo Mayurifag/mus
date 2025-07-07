@@ -126,14 +126,15 @@
 - [x] On hover on controls we should set hand cursor
 - [x] Panel of last changes. Rename. Think of icons. It seems works wrong now the change itself saved
 - [ ] Too big DOM
-  - [ ] Try to use `svelte-tiny-virtual-list` or other Svelte 5 compatible fresh lib. Check <https://github.com/inokawa/virtua>
-  - [ ] Delete all current code to scroll to current track
-  - [ ] Will CTRL+F work? If not - we need simple search or smth
-  - [ ] Will shuffle work?
+  - [ ] When we add track or delete it, event has to not reload all tracks, it has to add it/remove it from the list, just change dom a little bit. Same with edit. Do not ever reload all list.
+  - [ ] Delete all current code to scroll to current track or another automatic scrolling
+  - [ ] Add <https://github.com/inokawa/virtua>. Use context7 documentation to get latest information to work it with svelte
+  - [ ] Will CTRL+F work? If not - we need simple search or smth - needs to be checked
+  - [ ] Will shuffle work? - seems yes
   - [ ] Make scrolling - on page load; on clicking next/prev if track not on sight; if track not on sight and browser window is not focused
-  - [ ] When track added or removed - think to change only it, refactor will be needed, but we will add it beautifully on the end like I wanted to do. Check scrolling to be on same place.
   - [ ] After edit track we have to scroll to the same place where scrolling was
   - [ ] During testing check console log for effects
+- [ ] Fix progress clicking on slider sometimes
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while.
 - [ ] Edit track functionality enhancements
   - [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
@@ -145,6 +146,7 @@
 - [x] Setup playwright mcp. Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
 - [ ] https://x.com/steipete/status/1940314756705132683
 - [ ] https://x.com/robzolkos/status/1940462968593875060
+- [ ] Update mr alias to include full text from snippet
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
 - [x] ~~Celery and async tasks~~
 - [ ] Player footer - on change windows calculate div for player controls - this will allow to have full size for artist-title
@@ -162,33 +164,29 @@
 - [ ] Marquee for long texts - all places - not sure where we exactly have to do that. Probably for player footer
 - [ ] ~~styling for playing music - make it less colored but on hover make blue colored styling for slider~~
 - [ ] Get rid of fucking SSR and simplify code A LOT - ???.
-- [ ] Render play button from tracklist under album cover
+- [ ] Render play button from tracklist under album cover in tracklist
 - [ ] Edit cover arts - download from some search, from youtube or else to pick one. I do not want to handle uploading covers yet I think.
 - [ ] Define Artist entity
-- [ ] Preview of each file - possibility to set title artist (choose?)
+- [ ] Edit modal - possibility to set title artist (choose?)
 - [ ] Parse artists, make them unique, add to db. Make functionality to set artist for track. Remove artist from db if no tracks with this artist. Multiple artists for track.
 - [ ] Artist page with all their tracks
 - [ ] Artist can have many similar names (Тату = t.A.T.u.) - get from internet their possible titles for automatical matching later? AI?
-- [ ] Write all markdown files with AI
 
-## Phase 4
+## Phase yt
 
+- [ ] fast search - has to be server side to look vk/yt - and download!
 - [ ] Download page - with form to add url
 - [ ] yt-dlp from yt (list domains)
-- [ ] ...?? soundcloud?
 - [ ] yt-dlp from other sites?
 
-## Phase 5 - playlist management and album management
+## Phase vk / other services ?
+
+- [ ] vk.com player with download functionality
+- [ ] ...?? soundcloud?
+
+## Phase playlist management and album management
 
 - [ ] Define Album entity, album page with tracks
 - [ ] Define Playlist entity
 - [ ] Implement playlist management service (Deferred)
 - [ ] Many-to-many relation between tracks/albums/artists
-- [ ] ~~Buffering - I think in real world it works super fine, no need.~~
-  - [ ] ~~Should I force buffering of track?~~
-  - [ ] ~~Should I buffer next/previous tracks for 3s? For that we have to have prev/nextTrackIndex (maybe on buttons?). prev/next track buttons should use them and unified function~~
-- [ ] fast search - has to be server side to look vk/yt - and download!
-
-## Phase 6 - vk
-
-- [ ] vk.com player with download functionality
