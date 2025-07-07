@@ -80,10 +80,14 @@ class EditTrackUseCase:
             new_file_path = str(Path(track.file_path).parent / new_name)
             os.rename(track.file_path, new_file_path)
 
+        # Store original values before updating
+        original_title = track.title
+        original_artist = track.artist
+
         # Update track object
-        if "title" in changes_delta:
+        if "title" in changes_delta and update_data.title is not None:
             track.title = update_data.title
-        if "artist" in changes_delta:
+        if "artist" in changes_delta and update_data.artist is not None:
             track.artist = update_data.artist
         if new_file_path != track.file_path:
             track.file_path = new_file_path
@@ -96,10 +100,10 @@ class EditTrackUseCase:
             track_id=track.id,
             event_type="edit",
             changes={
-                "title": {"old": track.title, "new": update_data.title}
+                "title": {"old": original_title, "new": update_data.title}
                 if "title" in changes_delta
                 else None,
-                "artist": {"old": track.artist, "new": update_data.artist}
+                "artist": {"old": original_artist, "new": update_data.artist}
                 if "artist" in changes_delta
                 else None,
                 "file_renamed": update_data.rename_file,

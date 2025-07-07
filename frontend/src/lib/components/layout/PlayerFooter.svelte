@@ -5,6 +5,7 @@
   import { trackStore } from "$lib/stores/trackStore";
   import type { AudioService } from "$lib/services/AudioService";
   import type { TimeRange } from "$lib/types";
+  import { formatArtistsForDisplay } from "$lib/utils";
   import {
     Play,
     Pause,
@@ -345,7 +346,8 @@
       <div class="flex w-full items-center justify-center px-4 text-center">
         {#if $trackStore.currentTrack}
           <span class="text-muted-foreground truncate text-sm font-medium">
-            {$trackStore.currentTrack.artist} - {$trackStore.currentTrack.title}
+            {formatArtistsForDisplay($trackStore.currentTrack.artist)} - {$trackStore
+              .currentTrack.title}
           </span>
         {:else}
           <span class="text-muted-foreground text-sm">Not Playing</span>
@@ -393,7 +395,7 @@
               >{$trackStore.currentTrack.title}</span
             >
             <span class="text-muted-foreground truncate text-sm">
-              {$trackStore.currentTrack.artist}
+              {formatArtistsForDisplay($trackStore.currentTrack.artist)}
             </span>
           </div>
         {:else}

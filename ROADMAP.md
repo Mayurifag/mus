@@ -119,9 +119,7 @@
 - [x] Edit button on dropdown menu on hover restyling with little glow instead of blue background
 - [x] 0 changes move to the left in edit modal
 - [ ] Additional artists styling on frontend and inside editing modal. Also editing modal - original cover to the left, edit in place. maybe filename shown with little font somewhere.
-- [ ] Remove files in editing file dialog - with confirmation.
-- [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
-- [ ] Too big DOM. Try to use `svelte-virtual`. Will it conflict with scroll into view or shuffle?
+- [ ] "Edit" -> make not a dropdown menu but an icon with tooltip. Hide on small screens.
 - [ ] Mobile bug: right sidebar doesnt open on swipe
 - [ ] Desktop bug: if user drags track and releases finger outside of slider on track, track will stop (fix the event, use mousedown/mouseup everythere)
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while.
@@ -130,6 +128,9 @@
 - [ ] Make scrolling if only outside of page. Its kinda not fine now. Think about best UX first. Do not break on load page scrolling. Its like works on a 2nd try
 - [ ] Check that wrong tags could be fixed in UI - wrong encoding, wrong fields filled
 - [ ] Panel of last changes. Rename. Think of icons. It seems works wrong now the change itself saved
+- [ ] Remove files in editing file dialog - with confirmation. Maybe its not files but just entries in db.
+- [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
+- [ ] Too big DOM. Try to use `svelte-virtual`. Will it conflict with scroll into view or shuffle?
 - [ ] Revert functionality UI
 - [ ] Download track functionality
 - [ ] Edit track might consider to save true duration - check that functionality

@@ -8,6 +8,7 @@
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
   import { MoreVertical, Pencil } from "@lucide/svelte";
   import EditTrackModal from "./EditTrackModal.svelte";
+  import { formatArtistsForDisplay } from "$lib/utils";
 
   let {
     track,
@@ -215,7 +216,9 @@
 
   <div class="flex min-w-0 flex-1 flex-col">
     <span class="truncate font-medium">{track.title}</span>
-    <span class="text-muted-foreground truncate text-sm">{track.artist}</span>
+    <span class="text-muted-foreground truncate text-sm"
+      >{formatArtistsForDisplay(track.artist)}</span
+    >
 
     {#if isSelected}
       <Slider

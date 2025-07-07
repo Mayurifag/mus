@@ -5,6 +5,7 @@
   import QRLoginModal from "$lib/components/auth/QRLoginModal.svelte";
   import { authConfigStore } from "$lib/stores/authConfigStore";
   import type { Track } from "$lib/types";
+  import { formatArtistsForDisplay } from "$lib/utils";
 
   const MIN_HISTORY_FOR_DEBUG = 2;
 
@@ -118,7 +119,9 @@
                   : 'text-muted-foreground/70'}"
               >
                 {#if item.track}
-                  {item.track.title} - {item.track.artist}
+                  {item.track.title} - {formatArtistsForDisplay(
+                    item.track.artist,
+                  )}
                 {:else}
                   <span class="italic">No track</span>
                 {/if}

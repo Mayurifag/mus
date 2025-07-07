@@ -19,6 +19,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function formatArtistsForDisplay(artistString: string): string {
+  return artistString
+    .split(";")
+    .map((artist) => artist.trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
 type FlyAndScaleParams = {
   y?: number;
   x?: number;

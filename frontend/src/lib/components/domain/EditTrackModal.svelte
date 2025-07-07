@@ -9,6 +9,7 @@
   import { toast } from "svelte-sonner";
   import { Plus, X, Clock } from "@lucide/svelte";
   import TrackChangesPanel from "./TrackChangesPanel.svelte";
+  import { formatArtistsForDisplay } from "$lib/utils";
 
   let {
     open = $bindable(),
@@ -159,7 +160,9 @@
 </script>
 
 <Dialog.Root bind:open>
-  <Dialog.Content class="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
+  <Dialog.Content
+    class="max-h-[95vh] overflow-y-auto sm:max-w-[600px] lg:max-w-[900px]"
+  >
     <div class="grid gap-6 py-6">
       <div class="flex items-center gap-6">
         <div
@@ -180,14 +183,14 @@
           {/if}
         </div>
         <div class="min-w-0 flex-1">
-          <p class="break-words text-lg font-semibold leading-tight">
+          <p class="text-lg leading-tight font-semibold break-words">
             {track.title}
           </p>
-          <p class="text-muted-foreground break-words leading-tight">
-            {track.artist}
+          <p class="text-muted-foreground leading-tight break-words">
+            {formatArtistsForDisplay(track.artist)}
           </p>
           <p
-            class="text-muted-foreground mt-1 break-words text-sm leading-tight"
+            class="text-muted-foreground mt-1 text-sm leading-tight break-words"
           >
             {originalFilename}
           </p>
@@ -284,7 +287,7 @@
                 <div class="rounded-md border bg-white p-3 dark:bg-slate-800">
                   {#if newFilenamePreview && changes.isFormValid}
                     <code
-                      class="break-all text-sm text-slate-800 dark:text-slate-200"
+                      class="text-sm break-all text-slate-800 dark:text-slate-200"
                     >
                       {newFilenamePreview}
                     </code>
@@ -297,7 +300,7 @@
                     </span>
                   {:else}
                     <span
-                      class="text-sm italic text-slate-500 dark:text-slate-400"
+                      class="text-sm text-slate-500 italic dark:text-slate-400"
                     >
                       Enter title and artist to see filename preview
                     </span>
@@ -313,27 +316,27 @@
         </div>
       {/if}
 
-      <!-- Always render TrackChangesPanel for binding, but hide wrapper when no changes -->
-      <TrackChangesPanel
-        trackId={track.id}
-        bind:hasChanges={hasTrackChanges}
-        bind:changesCount={trackChangesCount}
-      />
-
-      {#if hasTrackChanges}
-        <div class="mt-6 border-t pt-6">
-          <!-- TrackChangesPanel content will be shown here when hasTrackChanges is true -->
-        </div>
-      {/if}
+      <!-- Always render TrackChangesPanel for binding, show conditionally -->
+      <div class={hasTrackChanges ? "mt-6 border-t pt-6" : "hidden"}>
+        <TrackChangesPanel
+          trackId={track.id}
+          bind:hasChanges={hasTrackChanges}
+          bind:changesCount={trackChangesCount}
+        />
+      </div>
     </div>
 
     <Dialog.Footer class="!justify-between">
-      <div class="flex items-center gap-2">
-        <Clock class="text-muted-foreground h-4 w-4" />
-        <span class="text-muted-foreground text-sm">
-          {trackChangesCount} changes
-        </span>
-      </div>
+      {#if hasTrackChanges}
+        <div class="flex items-center gap-2">
+          <Clock class="text-muted-foreground h-4 w-4" />
+          <span class="text-muted-foreground text-sm">
+            {trackChangesCount} changes
+          </span>
+        </div>
+      {:else}
+        <div></div>
+      {/if}
 
       <div class="flex gap-2">
         <Button

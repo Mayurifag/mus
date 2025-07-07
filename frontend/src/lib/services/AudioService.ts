@@ -2,6 +2,7 @@ import type { Track, TimeRange } from "$lib/types";
 import { getStreamUrl } from "$lib/services/apiClient";
 import { writable } from "svelte/store";
 import { trackStore } from "$lib/stores/trackStore";
+import { formatArtistsForDisplay } from "$lib/utils";
 
 export class AudioService {
   private audio: HTMLAudioElement;
@@ -149,7 +150,7 @@ export class AudioService {
       this.audio.src = streamUrl;
       this.audio.load();
       if (typeof document !== "undefined") {
-        document.title = `${track.artist} - ${track.title}`;
+        document.title = `${formatArtistsForDisplay(track.artist)} - ${track.title}`;
       }
       this._currentTime.set(0);
       this._currentBufferedRanges.set([]);
@@ -311,7 +312,7 @@ export class AudioService {
 
     const metadata: MediaMetadataInit = {
       title: track.title,
-      artist: track.artist,
+      artist: formatArtistsForDisplay(track.artist),
     };
 
     if (artwork.length > 0) {

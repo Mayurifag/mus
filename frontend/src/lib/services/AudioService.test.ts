@@ -250,6 +250,25 @@ describe("AudioService", () => {
     }).not.toThrow();
   });
 
+  it("should format artists correctly in document.title with semicolon-separated artists", () => {
+    const mockDocument = {
+      title: "",
+    };
+    (globalThis as unknown as { document: typeof mockDocument }).document =
+      mockDocument;
+
+    const trackWithMultipleArtists: Track = {
+      ...mockTrack,
+      artist: "Artist One;Artist Two;Artist Three",
+    };
+
+    audioService.updateAudioSource(trackWithMultipleArtists, true);
+
+    expect(mockDocument.title).toBe(
+      "Artist One, Artist Two, Artist Three - Test Track",
+    );
+  });
+
   it("should auto-play when updateAudioSource is called with isPlaying=true", () => {
     audioService.updateAudioSource(mockTrack, true);
 
