@@ -120,7 +120,7 @@
 - [x] 0 changes move to the left in edit modal
 - [x] Additional artists styling on frontend and inside editing modal. Also editing modal - original cover to the left, edit in place. maybe filename shown with little font somewhere.
 - [x] "Edit" -> make not a dropdown menu but an icon with tooltip. Hide on small screens.
-- [ ] Mobile bug: right sidebar doesnt open on swipe
+- [x] Mobile bug: right sidebar doesnt open on swipe
 - [ ] Desktop bug: if user drags track and releases finger outside of slider on track, track will stop (fix the event, use mousedown/mouseup everythere)
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while.
 - [ ] If we are selecting text on track item, it should not stop track. Btw think to edit the copied things to like artist - title.

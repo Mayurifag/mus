@@ -17,9 +17,11 @@
   import { Toaster } from "$lib/components/ui/sonner";
   import type { LayoutData } from "./$types";
 
-  // Import swipe functionality only on client side
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let swipe = $state<any>(undefined);
+  // Touch handling for swipe gestures
+  let startX = $state<number | null>(null);
+  let startY = $state<number | null>(null);
+  const SWIPE_THRESHOLD = 50; // Minimum distance for swipe
+  const EDGE_THRESHOLD = 30; // Distance from edge to detect edge swipe
 
   let { data, children }: { data: LayoutData; children: Snippet } = $props();
 
@@ -87,17 +89,6 @@
     initializeAudioService();
     restorePlayerState();
     setupEventListeners();
-
-    // Load swipe functionality on client side
-    if (browser) {
-      const module = await import("svelte-gestures");
-      swipe = (node: HTMLElement) =>
-        module.swipe(node, () => ({
-          minSwipeDistance: 40,
-          timeframe: 300,
-          touchAction: "pan-y",
-        }));
-    }
 
     isInitializing = false;
   });
@@ -185,15 +176,37 @@
     sheetOpen = !sheetOpen;
   }
 
-  function handleSwipe(event: CustomEvent) {
-    if (window.innerWidth < 1000) {
-      if (event.detail.direction === "left" && !sheetOpen) {
-        sheetOpen = true;
-      }
-      if (event.detail.direction === "right" && sheetOpen) {
-        sheetOpen = false;
-      }
+  function handleTouchStart(event: TouchEvent) {
+    if (window.innerWidth >= 1000) return;
+    startX = event.touches[0].clientX;
+    startY = event.touches[0].clientY;
+  }
+
+  function handleTouchEnd(event: TouchEvent) {
+    if (window.innerWidth >= 1000 || !startX || !startY) return;
+
+    const deltaX = event.changedTouches[0].clientX - startX;
+    const deltaY = Math.abs(event.changedTouches[0].clientY - startY);
+
+    const cleanup = () => {
+      startX = null;
+      startY = null;
+    };
+
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD || deltaY > Math.abs(deltaX)) {
+      return cleanup();
     }
+
+    // Open sidebar: swipe from right edge to left when closed
+    if (
+      deltaX < -SWIPE_THRESHOLD &&
+      startX > window.innerWidth - EDGE_THRESHOLD &&
+      !sheetOpen
+    ) {
+      sheetOpen = true;
+    }
+
+    cleanup();
   }
 </script>
 
@@ -201,8 +214,8 @@
   <!-- Main content area that uses full viewport scrolling -->
   <main
     class="desktop:pr-64 min-h-screen pr-0 pb-20"
-    use:swipe={swipe || undefined}
-    onswipe={handleSwipe}
+    ontouchstart={handleTouchStart}
+    ontouchend={handleTouchEnd}
   >
     <div class="desktop:p-4 py-4">
       {@render children()}
