@@ -52,11 +52,30 @@
   }
 
   let progressValue = $state(0);
-  let isUserDragging = $state(false);
   let localIsPlaying = $state(false);
   let duration = $state(0);
   let bufferedRanges = $state<TimeRange[]>([]);
   let editModalOpen = $state(false);
+
+  let mouseDownTarget: EventTarget | null = null;
+  let isDragging = $state(false);
+
+  function handleMouseDown(event: MouseEvent): void {
+    if (event.button !== 0) return;
+    mouseDownTarget = event.target;
+  }
+
+  function handleMouseUp(event: MouseEvent): void {
+    if (event.button !== 0) return;
+
+    const isValidClick = mouseDownTarget === event.target;
+
+    mouseDownTarget = null;
+
+    if (isValidClick) {
+      playTrack();
+    }
+  }
 
   $effect(() => {
     if (isSelected && audioService) {
@@ -95,15 +114,13 @@
         );
         unsubscribers.push(
           audioService.currentTimeStore.subscribe((time) => {
-            if (!isUserDragging) {
+            if (!isDragging) {
               // For AI assistant: Debug logging - do not remove this log, user intended to have it
               console.log(
                 "TrackItem $effect: currentTime updated for track",
                 track.id,
                 "time:",
                 time,
-                "isUserDragging:",
-                isUserDragging,
               );
               progressValue = time;
             }
@@ -162,23 +179,16 @@
     }
   });
 
-  function handleProgressChange(value: number): void {
-    if (audioService) {
-      audioService.setCurrentTime(value);
-    }
-  }
-
   function handleProgressCommit(): void {
-    isUserDragging = false;
+    if (audioService) {
+      audioService.setCurrentTime(progressValue);
+    }
+    isDragging = false;
   }
 
   function handleProgressInput(event: Event): void {
     event.stopPropagation();
-    isUserDragging = true;
-  }
-
-  function handleSliderContainerClick(event: Event): void {
-    event.stopPropagation();
+    isDragging = true;
   }
 </script>
 
@@ -186,7 +196,8 @@
   class="hover:bg-muted/50 flex cursor-pointer items-center gap-4 rounded-md p-2 transition-colors {isSelected
     ? 'bg-secondary'
     : ''}"
-  onclick={playTrack}
+  onmousedown={handleMouseDown}
+  onmouseup={handleMouseUp}
   onkeydown={handleKeyDown}
   role="button"
   tabindex="0"
@@ -222,14 +233,12 @@
     {#if isSelected}
       <Slider
         bind:value={progressValue}
-        onValueChange={handleProgressChange}
         onValueCommit={handleProgressCommit}
         onInput={handleProgressInput}
         max={duration || 100}
         step={1}
         class="relative z-10 mt-1 w-full cursor-pointer"
         data-testid="track-progress-slider"
-        onclick={handleSliderContainerClick}
         {bufferedRanges}
       />
     {/if}

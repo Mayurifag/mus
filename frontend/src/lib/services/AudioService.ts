@@ -8,7 +8,6 @@ export class AudioService {
   private audio: HTMLAudioElement;
   private onPlaybackFinishedCallback: () => void;
   private shouldAutoPlay = false;
-  private lastAudioProgressSyncTime = 0;
 
   // Convert internal state to reactive stores
   private _volume = writable(1.0);
@@ -186,13 +185,8 @@ export class AudioService {
   }
 
   setCurrentTime(time: number): void {
-    const now = Date.now();
-    const timeDiff = Math.abs(this.audio.currentTime - time);
-    if (timeDiff > 1 && now - this.lastAudioProgressSyncTime > 100) {
-      this._currentTime.set(time);
-      this.audio.currentTime = time;
-      this.lastAudioProgressSyncTime = now;
-    }
+    this._currentTime.set(time);
+    this.audio.currentTime = time;
   }
 
   get volume(): number {

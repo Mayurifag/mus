@@ -19,7 +19,6 @@
     Repeat1,
   } from "@lucide/svelte";
   import { browser } from "$app/environment";
-  import { onMount, onDestroy } from "svelte";
 
   // Accept AudioService as a prop using Svelte 5 syntax
   let { audioService }: { audioService?: AudioService } = $props();
@@ -30,16 +29,10 @@
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   }
 
-  // Volume hover and drag state
   let isVolumeHovered = $state(false);
-  let isVolumeDragging = $state(false);
-
-  // Local slider state for two-way binding - use AudioService if available
   let progressValue = $state(0);
   let volumeValue = $state(1);
-
-  // Track if user is currently interacting with sliders
-  let isUserDraggingProgress = $state(false);
+  let isDraggingProgress = $state(false);
 
   // Reactive state from AudioService stores
   let isPlaying = $state(false);
@@ -77,7 +70,7 @@
     if (audioService?.currentTimeStore) {
       const unsubscribe = audioService.currentTimeStore.subscribe((time) => {
         currentTime = time;
-        if (!isUserDraggingProgress) {
+        if (!isDraggingProgress) {
           progressValue = time;
         }
       });
@@ -97,9 +90,7 @@
   $effect(() => {
     if (audioService?.volumeStore) {
       const unsubscribe = audioService.volumeStore.subscribe((volume) => {
-        if (!isVolumeDragging) {
-          volumeValue = volume;
-        }
+        volumeValue = volume;
       });
       return unsubscribe;
     }
@@ -125,18 +116,15 @@
     }
   });
 
-  function handleProgressChange(value: number): void {
-    if (audioService) {
-      audioService.setCurrentTime(value);
-    }
-  }
-
   function handleProgressCommit(): void {
-    isUserDraggingProgress = false;
+    if (audioService) {
+      audioService.setCurrentTime(progressValue);
+    }
+    isDraggingProgress = false;
   }
 
   function handleProgressInput(): void {
-    isUserDraggingProgress = true;
+    isDraggingProgress = true;
   }
 
   function handleVolumeChange(value: number): void {
@@ -145,7 +133,6 @@
     }
   }
 
-  // Create a function to dispatch a custom event to toggle the sidebar
   function toggleMenu() {
     if (browser) {
       const event = new CustomEvent("toggle-sheet");
@@ -159,22 +146,10 @@
       document.body.dispatchEvent(event);
     }
   }
-
-  // Global pointer event handler for drag end
-  onMount(() => {
-    const handlePointerUp = () => {
-      isVolumeDragging = false;
-    };
-    window.addEventListener("pointerup", handlePointerUp);
-
-    onDestroy(() => {
-      window.removeEventListener("pointerup", handlePointerUp);
-    });
-  });
 </script>
 
 <div
-  class="bg-card sm700:h-[var(--footer-height-desktop)] fixed right-0 bottom-0 left-0 z-50 h-[var(--footer-height-mobile)] border-t"
+  class="bg-card sm700:h-[var(--footer-height-desktop)] fixed bottom-0 left-0 right-0 z-50 h-[var(--footer-height-mobile)] border-t"
 >
   <Card class="h-full rounded-none border-0 shadow-none">
     <!-- Mobile Layout (< 700px) -->
@@ -289,9 +264,7 @@
           {/if}
         </Button>
         <div
-          class="relative w-32 flex-shrink-0"
-          class:cursor-pointer={!isVolumeDragging}
-          class:cursor-grabbing={isVolumeDragging}
+          class="relative w-32 flex-shrink-0 cursor-pointer"
           role="slider"
           aria-label="Volume control"
           aria-valuenow={volumeFeedbackValue}
@@ -300,9 +273,6 @@
           tabindex="0"
           onmouseenter={() => (isVolumeHovered = true)}
           onmouseleave={() => (isVolumeHovered = false)}
-          onpointerdown={() => {
-            isVolumeDragging = true;
-          }}
         >
           <Slider
             bind:value={volumeValue}
@@ -311,7 +281,7 @@
             step={0.01}
             class="w-full"
           />
-          {#if isVolumeHovered || isVolumeDragging}
+          {#if isVolumeHovered}
             <div
               class="bg-muted absolute -top-7 left-1/2 -translate-x-1/2 rounded px-2 py-1 text-xs font-medium text-white transition-opacity"
             >
@@ -328,7 +298,6 @@
         </span>
         <Slider
           bind:value={progressValue}
-          onValueChange={handleProgressChange}
           onValueCommit={handleProgressCommit}
           onInput={handleProgressInput}
           max={duration || 100}
@@ -519,9 +488,7 @@
             {/if}
           </Button>
           <div
-            class="relative w-24"
-            class:cursor-pointer={!isVolumeDragging}
-            class:cursor-grabbing={isVolumeDragging}
+            class="relative w-24 cursor-pointer"
             role="slider"
             aria-label="Volume control"
             aria-valuenow={volumeFeedbackValue}
@@ -530,9 +497,6 @@
             tabindex="0"
             onmouseenter={() => (isVolumeHovered = true)}
             onmouseleave={() => (isVolumeHovered = false)}
-            onpointerdown={() => {
-              isVolumeDragging = true;
-            }}
           >
             <Slider
               bind:value={volumeValue}
@@ -541,7 +505,7 @@
               step={0.01}
               class="w-full"
             />
-            {#if isVolumeHovered || isVolumeDragging}
+            {#if isVolumeHovered}
               <div
                 class="bg-muted absolute -top-7 left-1/2 -translate-x-1/2 rounded px-2 py-1 text-xs font-medium text-white transition-opacity"
               >
@@ -560,7 +524,6 @@
           </span>
           <Slider
             bind:value={progressValue}
-            onValueChange={handleProgressChange}
             onValueCommit={handleProgressCommit}
             onInput={handleProgressInput}
             max={duration || 100}

@@ -116,7 +116,8 @@ describe("TrackItem component", () => {
     render(TrackItem, { track: mockTrack, index: 2, isSelected: false });
 
     const trackItemElement = screen.getByTestId("track-item");
-    await fireEvent.click(trackItemElement);
+    await fireEvent.mouseDown(trackItemElement, { button: 0 });
+    await fireEvent.mouseUp(trackItemElement, { button: 0 });
 
     expect(vi.mocked(trackStore.playTrack)).toHaveBeenCalledWith(2);
   });

@@ -118,16 +118,14 @@ describe("AudioService", () => {
     expect(mockAudio.volume).toBe(0.8);
   });
 
-  it("should set current time with debouncing", () => {
+  it("should set current time immediately", () => {
     mockAudio.currentTime = 0;
 
-    // First call should work
     audioService.setCurrentTime(10);
     expect(mockAudio.currentTime).toBe(10);
 
-    // Immediate second call should be debounced
     audioService.setCurrentTime(20);
-    expect(mockAudio.currentTime).toBe(10); // Should not change due to debouncing
+    expect(mockAudio.currentTime).toBe(20);
   });
 
   it("should toggle repeat state", () => {
