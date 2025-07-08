@@ -31,6 +31,7 @@ describe("+layout.server.ts", () => {
       has_cover: true,
       cover_small_url: "/api/v1/tracks/1/covers/small.webp",
       cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+      updated_at: 1640995200,
     },
   ];
 

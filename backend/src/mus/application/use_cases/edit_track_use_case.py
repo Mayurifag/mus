@@ -13,7 +13,8 @@ from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
 )
 from src.mus.util.db_utils import add_track_history
-from src.mus.infrastructure.api.sse_handler import notify_sse_from_worker
+from src.mus.infrastructure.api.sse_handler import broadcast_sse_event
+from src.mus.util.track_dto_utils import create_track_dto_with_covers
 
 
 class EditTrackUseCase:
@@ -93,6 +94,10 @@ class EditTrackUseCase:
         if new_file_path != track.file_path:
             track.file_path = new_file_path
 
+        # Set updated timestamp if any changes were made
+        if changes_delta or new_file_path != track.file_path:
+            track.updated_at = int(time.time())
+
         await self.track_repo.session.commit()
         await self.track_repo.session.refresh(track)
 
@@ -123,11 +128,14 @@ class EditTrackUseCase:
             },
         )
         await add_track_history(history_entry)
-        await notify_sse_from_worker(
+        # Create TrackListDTO with proper cover URLs for SSE event
+        track_dto = create_track_dto_with_covers(track)
+
+        await broadcast_sse_event(
             action_key="track_updated",
-            message=f"Updated track '{track.title}'",
-            level="info",
-            payload=track.model_dump(),
+            message_to_show=f"Updated track '{track.title}'",
+            message_level="info",
+            action_payload=track_dto.model_dump(),
         )
 
         return {"status": "success", "track": track}

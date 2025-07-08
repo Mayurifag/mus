@@ -21,6 +21,13 @@
     audioService?: AudioService;
   } = $props();
 
+  // Make track data reactive to prop changes
+  const trackTitle = $derived(track.title);
+  const trackArtist = $derived(track.artist);
+  const trackDuration = $derived(track.duration);
+  const trackHasCover = $derived(track.has_cover);
+  const trackCoverSmallUrl = $derived(track.cover_small_url);
+
   function formatDuration(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
@@ -207,10 +214,10 @@
   <div
     class="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-md"
   >
-    {#if track.has_cover && track.cover_small_url}
+    {#if trackHasCover && trackCoverSmallUrl}
       <img
-        src={track.cover_small_url}
-        alt="Album art for {track.title}"
+        src={trackCoverSmallUrl}
+        alt="Album art for {trackTitle}"
         class="h-full w-full object-cover"
         loading="lazy"
       />
@@ -225,9 +232,9 @@
   </div>
 
   <div class="flex min-w-0 flex-1 flex-col">
-    <span class="truncate font-medium">{track.title}</span>
+    <span class="truncate font-medium">{trackTitle}</span>
     <span class="text-muted-foreground truncate text-sm"
-      >{formatArtistsForDisplay(track.artist)}</span
+      >{formatArtistsForDisplay(trackArtist)}</span
     >
 
     {#if isSelected}
@@ -245,7 +252,7 @@
   </div>
 
   <div class="text-muted-foreground flex flex-col items-end text-sm">
-    <span>{formatDuration(track.duration)}</span>
+    <span>{formatDuration(trackDuration)}</span>
   </div>
 
   <div

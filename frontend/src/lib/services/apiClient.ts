@@ -11,7 +11,9 @@ export function getStreamUrl(trackId: number): string {
   return `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}/stream`;
 }
 
-export function createTrackWithUrls(trackData: Record<string, unknown> | Track): Track {
+export function createTrackWithUrls(
+  trackData: Record<string, unknown> | Track,
+): Track {
   const track = trackData as Track;
   return {
     ...track,
@@ -32,7 +34,7 @@ export async function fetchTracks(): Promise<Track[]> {
     }
     const tracks: Track[] = await response.json();
 
-    return tracks.map(track => createTrackWithUrls(track));
+    return tracks.map((track) => createTrackWithUrls(track));
   } catch (error) {
     console.error("Error fetching tracks:", error);
     return [];
@@ -135,11 +137,19 @@ export async function fetchTrackHistory(
   }
 }
 
+let globalEventSource: EventSource | null = null;
+
 export function connectTrackUpdateEvents(
   onMessageCallback: (eventData: MusEvent) => void,
 ): EventSource {
+  // Close existing connection if any
+  if (globalEventSource) {
+    globalEventSource.close();
+  }
+
   const url = `${API_PREFIX}${API_VERSION_PATH}/events/track-updates`;
   const eventSource = new EventSource(url);
+  globalEventSource = eventSource;
 
   eventSource.onmessage = (event) => {
     try {
@@ -150,15 +160,13 @@ export function connectTrackUpdateEvents(
     }
   };
 
-  eventSource.onerror = (error) => {
-    console.error("SSE connection error:", error);
-
-    setTimeout(() => {
-      console.log("Attempting to reconnect to SSE...");
-      connectTrackUpdateEvents(onMessageCallback);
-    }, 5000);
-
-    eventSource.close();
+  eventSource.onerror = () => {
+    // Only attempt reconnection if this is still the active connection
+    if (eventSource === globalEventSource) {
+      setTimeout(() => {
+        connectTrackUpdateEvents(onMessageCallback);
+      }, 5000);
+    }
   };
 
   return eventSource;

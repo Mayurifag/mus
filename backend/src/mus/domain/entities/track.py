@@ -18,6 +18,7 @@ class Track(SQLModel, table=True):
     duration: int
     file_path: str = Field(unique=True, index=True)
     added_at: int
+    updated_at: int = Field(default=0)
     has_cover: bool = Field(default=False)
     inode: Optional[int] = Field(default=None, index=True)
     content_hash: Optional[str] = Field(default=None, index=True)

@@ -10,6 +10,9 @@ class TrackDTO(BaseModel):
     duration: int = Field(description="Duration in seconds")
     file_path: str
     added_at: int = Field(description="Unix timestamp when the track was added")
+    updated_at: int = Field(
+        description="Unix timestamp when the track was last updated"
+    )
     has_cover: bool = False
 
     # URLs are constructed by the API layer based on track_id
@@ -25,6 +28,9 @@ class TrackListDTO(BaseModel):
     artist: str
     duration: int = Field(description="Duration in seconds")
     file_path: str
+    updated_at: int = Field(
+        description="Unix timestamp when the track was last updated"
+    )
     has_cover: bool = False
 
     # URLs are constructed by the API layer based on track_id

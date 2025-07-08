@@ -80,6 +80,7 @@ async def test_get_tracks(client, sample_tracks):
         mock_row.duration = track.duration
         mock_row.has_cover = track.has_cover
         mock_row.file_path = track.file_path
+        mock_row.updated_at = track.updated_at
         mock_rows.append(mock_row)
 
     with patch(

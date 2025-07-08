@@ -146,7 +146,6 @@
 
     try {
       await updateTrack(track.id, payload);
-      toast.success("Track updated successfully");
       open = false;
     } catch (error) {
       console.error("Error updating track:", error);

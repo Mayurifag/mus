@@ -16,6 +16,7 @@ describe("trackStore", () => {
         "http://localhost:8000/api/v1/tracks/1/covers/small.webp",
       cover_original_url:
         "http://localhost:8000/api/v1/tracks/1/covers/original.webp",
+      updated_at: 1640995200,
     },
     {
       id: 2,
@@ -28,6 +29,7 @@ describe("trackStore", () => {
         "http://localhost:8000/api/v1/tracks/2/covers/small.webp",
       cover_original_url:
         "http://localhost:8000/api/v1/tracks/2/covers/original.webp",
+      updated_at: 1640995300,
     },
     {
       id: 3,
@@ -38,6 +40,7 @@ describe("trackStore", () => {
       has_cover: false,
       cover_small_url: null,
       cover_original_url: null,
+      updated_at: 1640995400,
     },
   ];
 

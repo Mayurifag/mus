@@ -2,11 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { initEventHandlerService, handleMusEvent } from "./eventHandlerService";
 import * as apiClient from "./apiClient";
 import { trackStore } from "$lib/stores/trackStore";
-import type { MusEvent } from "$lib/types";
+import type { MusEvent, Track } from "$lib/types";
 
 // Mock dependencies
 vi.mock("./apiClient", () => ({
   connectTrackUpdateEvents: vi.fn(),
+  createTrackWithUrls: vi.fn(),
 }));
 
 vi.mock("$lib/stores/trackStore", () => ({
@@ -32,8 +33,14 @@ vi.mock("$app/environment", () => ({
 }));
 
 describe("eventHandlerService", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+
+    // Set up createTrackWithUrls mock to return the input data
+    const apiClient = await import("./apiClient");
+    vi.mocked(apiClient.createTrackWithUrls).mockImplementation(
+      (data) => data as Track,
+    );
   });
 
   describe("handleMusEvent", () => {

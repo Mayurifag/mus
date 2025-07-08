@@ -41,8 +41,9 @@ async def get_tracks(
 
         if row.has_cover:
             cover_base = f"/api/v1/tracks/{row.id}/covers"
-            track_dto.cover_small_url = f"{cover_base}/small.webp"
-            track_dto.cover_original_url = f"{cover_base}/original.webp"
+            cache_param = f"?v={row.updated_at}"
+            track_dto.cover_small_url = f"{cover_base}/small.webp{cache_param}"
+            track_dto.cover_original_url = f"{cover_base}/original.webp{cache_param}"
 
         track_dtos.append(track_dto)
 

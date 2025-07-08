@@ -25,6 +25,7 @@ class SQLiteTrackRepository:
                 Track.artist,
                 Track.duration,
                 Track.file_path,
+                Track.updated_at,
                 Track.has_cover,
             ).order_by(desc(Track.added_at))
         )
@@ -57,6 +58,7 @@ class SQLiteTrackRepository:
             file_path=track_data.file_path,
             has_cover=track_data.has_cover,
             added_at=track_data.added_at,
+            updated_at=track_data.updated_at,
             inode=track_data.inode,
             content_hash=track_data.content_hash,
             processing_status=track_data.processing_status,
@@ -69,6 +71,7 @@ class SQLiteTrackRepository:
                 "artist": stmt.excluded.artist,
                 "duration": stmt.excluded.duration,
                 "has_cover": stmt.excluded.has_cover,
+                "updated_at": stmt.excluded.updated_at,
                 "inode": stmt.excluded.inode,
                 "content_hash": stmt.excluded.content_hash,
                 "processing_status": stmt.excluded.processing_status,

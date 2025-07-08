@@ -4,6 +4,7 @@ export interface Track {
   artist: string;
   duration: number;
   file_path: string;
+  updated_at: number;
   has_cover: boolean;
   cover_small_url: string | null;
   cover_original_url: string | null;

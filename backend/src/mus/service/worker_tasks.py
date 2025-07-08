@@ -6,6 +6,7 @@ from src.mus.config import settings
 from src.mus.domain.entities.track import ProcessingStatus, Track
 from src.mus.domain.entities.track_history import TrackHistory
 from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
+from src.mus.util.track_dto_utils import create_track_dto_with_covers
 
 from src.mus.util.ffprobe_analyzer import get_accurate_duration
 from src.mus.util.metadata_extractor import extract_fast_metadata
@@ -37,23 +38,37 @@ async def process_slow_metadata(track_id: int):
 
     accurate_duration, cover_data = await asyncio.gather(duration_task, cover_task)
 
+    track_updated = False
+
     if accurate_duration > 0 and accurate_duration != track.duration:
         track.duration = accurate_duration
+        track_updated = True
 
-    track.has_cover = bool(
+    new_has_cover = bool(
         cover_data
         and await cover_processor.process_and_save_cover(
             track_id, cover_data, file_path
         )
     )
 
+    if track.has_cover != new_has_cover:
+        track.has_cover = new_has_cover
+        track_updated = True
+
+    if track_updated:
+        track.updated_at = int(time.time())
+
     track.processing_status = ProcessingStatus.COMPLETE
     await update_track(track)
+
+    # Create TrackListDTO with proper cover URLs for SSE event
+    track_dto = create_track_dto_with_covers(track)
+
     await notify_sse_from_worker(
         action_key="track_updated",
         message=f"Processed metadata for '{track.title}'",
         level="success",
-        payload=track.model_dump(),
+        payload=track_dto.model_dump(),
     )
 
 
@@ -115,6 +130,7 @@ async def process_file_upsert(file_path_str: str, is_creation: bool = False):
         duration=metadata["duration"],
         file_path=str(file_path),
         added_at=metadata["added_at"],
+        updated_at=metadata["added_at"],  # Set initial updated_at to added_at
         inode=metadata["inode"],
         processing_status=ProcessingStatus.METADATA_DONE,
     )
@@ -184,11 +200,15 @@ async def process_file_upsert(file_path_str: str, is_creation: bool = False):
         action_key = "track_added" if is_creation else "track_updated"
         action_message = "Added" if is_creation else "Updated"
         level = "success" if is_creation else "info"
+
+        # Create TrackListDTO with proper cover URLs for SSE event
+        track_dto = create_track_dto_with_covers(upserted_track)
+
         await notify_sse_from_worker(
             action_key=action_key,
             message=f"{action_message} track '{track.title}'",
             level=level,
-            payload=upserted_track.model_dump(),
+            payload=track_dto.model_dump(),
         )
 
 
