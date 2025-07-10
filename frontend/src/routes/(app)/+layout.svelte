@@ -213,7 +213,8 @@
 <Sheet.Root bind:open={sheetOpen}>
   <!-- Main content area that uses full viewport scrolling -->
   <main
-    class="desktop:pr-64 min-h-screen pr-0 pb-20"
+    class="desktop:pr-64 min-h-screen overflow-x-hidden pb-4 pr-0"
+    style="overscroll-behavior-y: contain;"
     ontouchstart={handleTouchStart}
     ontouchend={handleTouchEnd}
   >
@@ -225,7 +226,7 @@
   <Toaster position="top-left" />
 
   <!-- Desktop Sidebar - positioned fixed on the right -->
-  <aside class="desktop:block fixed top-0 right-0 bottom-20 hidden w-64">
+  <aside class="desktop:block fixed bottom-20 right-0 top-0 hidden w-64">
     <RightSidebar />
   </aside>
 
@@ -237,5 +238,6 @@
   <!-- Fixed Player Footer -->
   <PlayerFooter audioService={$audioServiceStore} />
 
-  <audio bind:this={audio} preload="auto" id="mus-audio-element"></audio>
+  <audio bind:this={audio} preload="auto" id="mus-audio-element" class="hidden"
+  ></audio>
 </Sheet.Root>

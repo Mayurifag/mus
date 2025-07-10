@@ -16,7 +16,7 @@
 - [x] Why we have +page.svelte and +layout.svelte? Should not that be only one?
 - [x] once again fix saving state, log on backend, check close tab and other cases
 - [x] Analyze all css methods which update several states in once. Make them with different methods. Remove all $: and refactor to svelte 5.
-- [ ] ~~Divide frontend into components: footer / sidebar / tracklist, etc.~~
+- [x] Divide frontend into components: footer / sidebar / tracklist, etc.
 - [x] Style progress bar so it would be equal like tracklist' one. Remove styling from TrackItem.svelte.
 - [x] Move to vscode, update workflow, aliases. Adapt this workflow. Remove cursorrules. Update all snippets. https://www.chatprd.ai/resources/PRD-for-Cursor - browsermcp.io
 - [x] Implement and display per-track buffered time ranges using a new BufferedRangesService and update Slider.svelte to render these ranges.
@@ -128,7 +128,7 @@
 - [ ] Too big DOM
   - [x] When we add track or delete it, event has to not reload all tracks, it has to add it/remove it from the list, just change dom a little bit. Same with edit. Do not ever reload all list.
   - [x] Delete all current code to scroll to current track or another automatic scrolling
-  - [ ] Add <https://github.com/inokawa/virtua>. Use context7 documentation to get latest information to work it with svelte
+  - [x] Add <https://github.com/inokawa/virtua>. Use context7 documentation to get latest information to work it with svelte
   - [ ] Make scrolling - on page load; on clicking next/prev if track not on sight; if track not on sight and browser window is not focused to trackid
   - [x] Will CTRL+F work? If not - we need simple search or smth - needs to be checked
   - [x] Will shuffle work? - seems yes
@@ -146,6 +146,7 @@
   - [ ] check long filenames on edit - add warning
   - [ ] Remove files in editing file dialog - with confirmation. It may be not files but just entries in db.
 - [x] Setup playwright mcp. Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
+- [ ] Remove non-docker development
 - [ ] Use app a little bit and see if there are much effects used to prevent cascade of them. Are there any ready solutions for that?
 - [ ] https://x.com/steipete/status/1940314756705132683
 - [ ] https://x.com/robzolkos/status/1940462968593875060
