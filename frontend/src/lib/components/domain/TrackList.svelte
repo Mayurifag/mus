@@ -12,6 +12,7 @@
   let virtualizer = $state<ReturnType<typeof createWindowVirtualizer> | null>(
     null,
   );
+  let initialScrollDone = $state(false);
 
   $effect(() => {
     if (browser) {
@@ -21,6 +22,23 @@
         overscan: 15,
         getScrollElement: () => window,
       });
+    }
+  });
+
+  $effect(() => {
+    if (
+      !initialScrollDone &&
+      virtualizer &&
+      $trackStore.currentTrackIndex !== null
+    ) {
+      setTimeout(() => {
+        if (virtualizer && $trackStore.currentTrackIndex !== null) {
+          $virtualizer!.scrollToIndex($trackStore.currentTrackIndex, {
+            align: "center",
+          });
+        }
+      }, 50);
+      initialScrollDone = true;
     }
   });
 

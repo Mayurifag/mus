@@ -125,16 +125,27 @@
 - [x] If we are selecting text on track item, it should not stop track. Btw think to edit the copied things to like artist - title.
 - [x] On hover on controls we should set hand cursor
 - [x] Panel of last changes. Rename. Think of icons. It seems works wrong now the change itself saved
-- [ ] Too big DOM
+- [x] Too big DOM
   - [x] When we add track or delete it, event has to not reload all tracks, it has to add it/remove it from the list, just change dom a little bit. Same with edit. Do not ever reload all list.
   - [x] Delete all current code to scroll to current track or another automatic scrolling
   - [x] Add <https://github.com/inokawa/virtua>. Use context7 documentation to get latest information to work it with svelte
-  - [ ] Make scrolling - on page load; on clicking next/prev if track not on sight; if track not on sight and browser window is not focused to trackid
+  - [x] Make scrolling - on page load
+  - [x] Test if scrolling works all scenarios
   - [x] Will CTRL+F work? If not - we need simple search or smth - needs to be checked
   - [x] Will shuffle work? - seems yes
   - [x] After edit track we have to scroll to the same place where scrolling was
   - [o] ~~During testing check console log for effects~~
-- [ ] Fix progress clicking on slider sometimes
+- [x] Fix progress clicking on slider sometimes
+- [ ] Effects refactoring
+  - [ ] Use app a little bit and see if there are much effects used to prevent cascade of them. Are there any ready solutions for that?
+  - [ ] derived.by - maybe use gemini to see what can be done better
+  - [ ] some util log
+  - [ ] 2 effects on filling slider - maybe it fills both sliders so 2 effects?
+  - [ ] Embrace $derived to make your components more readable, maintainable, and performant.
+  - [ ] Refactor side effects ($effect) to be more focused and to implement more robust application logic (like the player state saving).
+- [ ] Add rq-dashboard
+- [ ] Add watchdog events monitoring
+- [ ] It seems, app changes are triggering watchdog - not sure! App changes should not update mtime
 - [x] init scan - doesnt update covers
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while.
 - [ ] Mobile - make footer upper. PWA instructions in QR code add. Process anything not working.
@@ -147,13 +158,12 @@
   - [ ] Remove files in editing file dialog - with confirmation. It may be not files but just entries in db.
 - [x] Setup playwright mcp. Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
 - [ ] Remove non-docker development
-- [ ] Use app a little bit and see if there are much effects used to prevent cascade of them. Are there any ready solutions for that?
 - [ ] https://x.com/steipete/status/1940314756705132683
 - [ ] https://x.com/robzolkos/status/1940462968593875060
 - [ ] Update mr alias to include full text from snippet
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
 - [x] ~~Celery and async tasks~~
-- [ ] Player footer - on change windows calculate div for player controls - this will allow to have full size for artist-title
+- [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
 - [ ] e2e in CI before deployment after linters. Complex github actions flow.
 - [ ] Complex e2e test: some file has to be flac with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
 - [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401
