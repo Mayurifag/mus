@@ -151,18 +151,18 @@
   - [x] It seems, app changes are triggering watchdog - not sure! App changes should not update mtime! It updates now
 - [x] init scan - doesnt update covers
 - [x] Mobile - make footer upper. PWA instructions in QR code add. Process anything not working.
+- [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
 - [ ] Edit track functionality enhancements
-  - [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
   - [ ] Revert functionality UI
   - [ ] Show exact changes will be done - for example if we change encoding it also has to be shown
   - [ ] Check that wrong tags could be fixed in UI - wrong encoding, wrong fields filled
   - [ ] check long filenames on edit - add warning
   - [ ] Remove files in editing file dialog - with confirmation. It may be not files but just entries in db.
 - [x] Setup playwright mcp. Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
-- [ ] Remove non-docker development
-- [ ] https://x.com/steipete/status/1940314756705132683
-- [ ] https://x.com/robzolkos/status/1940462968593875060
-- [ ] Update mr alias to include full text from snippet
+- [ ] Work on snippets for LLM
+  - [ ] https://x.com/steipete/status/1940314756705132683
+  - [ ] https://x.com/robzolkos/status/1940462968593875060
+  - [ ] Update mr alias to include full text from snippet
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
 - [x] ~~Celery and async tasks~~
 - [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
@@ -173,6 +173,7 @@
 
 ## Phase non needed features
 
+- [ ] Remove non-docker development - not sure if thats needed
 - [ ] Sort tracks by different fields and ways
 - [ ] Continue refactoring effects
 - [ ] fast search - has to be server side to look vk/yt - and download in future!
