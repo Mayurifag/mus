@@ -34,7 +34,7 @@
     --ring: 0 0% 3.9%; */
 
     --radius: 0.5rem;
-    --footer-height-mobile: 12rem;
+    --footer-height-mobile: calc(12rem + env(safe-area-inset-bottom));
     --footer-height-desktop: 8rem;
   }
 

@@ -209,7 +209,10 @@
   <Toaster position="top-left" />
 
   <!-- Desktop Sidebar - positioned fixed on the right -->
-  <aside class="desktop:block fixed top-0 right-0 bottom-20 hidden w-64">
+  <aside
+    class="desktop:block fixed top-0 right-0 hidden w-64"
+    style="bottom: var(--footer-height-desktop);"
+  >
     <RightSidebar />
   </aside>
 

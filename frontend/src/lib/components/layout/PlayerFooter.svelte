@@ -131,6 +131,7 @@
 
 <div
   class="bg-card sm700:h-[var(--footer-height-desktop)] fixed right-0 bottom-0 left-0 z-50 h-[var(--footer-height-mobile)] border-t"
+  style="padding-bottom: env(safe-area-inset-bottom);"
 >
   <Card class="h-full rounded-none border-0 shadow-none">
     <!-- Mobile Layout (< 700px) -->
