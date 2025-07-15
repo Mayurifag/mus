@@ -8,6 +8,7 @@ export class AudioService {
   private audio: HTMLAudioElement;
   private onPlaybackFinishedCallback: () => void;
   private shouldAutoPlay = false;
+  private isSeeking = false;
 
   // Convert internal state to reactive stores
   private _volume = writable(1.0);
@@ -80,6 +81,8 @@ export class AudioService {
   };
 
   private handleTimeUpdate = (): void => {
+    if (this.isSeeking) return;
+
     if (this.audio && !isNaN(this.audio.currentTime)) {
       this._currentTime.set(this.audio.currentTime);
     }
@@ -184,9 +187,22 @@ export class AudioService {
     });
   }
 
-  setCurrentTime(time: number): void {
+  setTime(time: number): void {
     this._currentTime.set(time);
     this.audio.currentTime = time;
+  }
+
+  startSeeking(): void {
+    this.isSeeking = true;
+  }
+
+  seek(time: number): void {
+    this._currentTime.set(time);
+  }
+
+  endSeeking(time: number): void {
+    this.setTime(time);
+    this.isSeeking = false;
   }
 
   get volume(): number {
@@ -284,7 +300,7 @@ export class AudioService {
 
     navigator.mediaSession.setActionHandler("seekto", (details) => {
       if (details.seekTime !== undefined) {
-        this.setCurrentTime(details.seekTime);
+        this.setTime(details.seekTime);
       }
     });
 

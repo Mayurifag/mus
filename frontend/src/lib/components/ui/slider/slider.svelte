@@ -10,14 +10,16 @@
     bufferedRanges,
     onValueChange,
     onValueCommit,
+    onpointerdown,
     ...restProps
   }: {
     class?: string;
     value?: number;
     max?: number;
     bufferedRanges?: TimeRange[];
-    onValueChange?: (value: number) => void;
+    onValueChange?: (value: number[]) => void;
     onValueCommit?: (value: number) => void;
+    onpointerdown?: (event: PointerEvent) => void;
     [key: string]: unknown;
   } = $props();
 </script>
@@ -25,13 +27,14 @@
 <SliderPrimitive.Root
   type="single"
   bind:value
-  {onValueChange}
+  onValueChange={(v: number) => onValueChange?.([v])}
   {onValueCommit}
   {max}
   class={cn(
     "group relative flex w-full touch-none items-center select-none",
     className,
   )}
+  {onpointerdown}
   {...restProps}
 >
   {#snippet children({ thumbItems })}

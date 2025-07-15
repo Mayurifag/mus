@@ -64,8 +64,6 @@
   let editModalOpen = $state(false);
 
   let mouseDownTarget: EventTarget | null = null;
-  let isDragging = $state(false);
-
   function handleMouseDown(event: MouseEvent): void {
     if (event.button !== 0) return;
     mouseDownTarget = event.target;
@@ -84,7 +82,7 @@
   }
 
   $effect(() => {
-    if (isSelected && currentTime !== undefined && !isDragging) {
+    if (isSelected && currentTime !== undefined) {
       progressValue = currentTime;
     } else if (!isSelected) {
       progressValue = 0;
@@ -93,14 +91,8 @@
 
   function handleProgressCommit(): void {
     if (audioService) {
-      audioService.setCurrentTime(progressValue);
+      audioService.endSeeking(progressValue);
     }
-    isDragging = false;
-  }
-
-  function handleProgressInput(event: Event): void {
-    event.stopPropagation();
-    isDragging = true;
   }
 </script>
 
@@ -146,7 +138,8 @@
       <Slider
         bind:value={progressValue}
         onValueCommit={handleProgressCommit}
-        onInput={handleProgressInput}
+        onpointerdown={() => audioService?.startSeeking()}
+        onValueChange={(v: number[]) => audioService?.seek(v[0])}
         max={duration || 100}
         step={1}
         class="relative z-10 mt-1 w-full cursor-pointer"

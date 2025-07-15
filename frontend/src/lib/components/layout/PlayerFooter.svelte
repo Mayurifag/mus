@@ -20,105 +20,97 @@
   } from "@lucide/svelte";
   import { browser } from "$app/environment";
 
-  // Accept AudioService as a prop using Svelte 5 syntax
   let { audioService }: { audioService?: AudioService } = $props();
-
   let isVolumeHovered = $state(false);
   let progressValue = $state(0);
   let volumeValue = $state(1);
-  let isDraggingProgress = $state(false);
 
-  // Reactive state from AudioService stores
   let isPlaying = $state(false);
   let isMuted = $state(false);
   let currentTime = $state(0);
   let duration = $state(0);
   let isRepeat = $state(false);
   let bufferedRanges = $state<TimeRange[]>([]);
-
-  // Reactive volume feedback value
   let volumeFeedbackValue = $derived(
     isMuted ? 0 : Math.round(volumeValue * 100),
   );
 
-  // Sync local state with AudioService stores when they change
   $effect(() => {
-    if (audioService?.isPlayingStore) {
-      const unsubscribe = audioService.isPlayingStore.subscribe((playing) => {
-        isPlaying = playing;
-      });
-      return unsubscribe;
-    }
-  });
+    if (audioService) {
+      const unsubscribers: (() => void)[] = [];
 
-  $effect(() => {
-    if (audioService?.isMutedStore) {
-      const unsubscribe = audioService.isMutedStore.subscribe((muted) => {
-        isMuted = muted;
-      });
-      return unsubscribe;
-    }
-  });
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.isPlayingStore) {
+        unsubscribers.push(
+          audioService.isPlayingStore.subscribe((playing) => {
+            isPlaying = playing;
+          }),
+        );
+      }
 
-  $effect(() => {
-    if (audioService?.currentTimeStore) {
-      const unsubscribe = audioService.currentTimeStore.subscribe((time) => {
-        currentTime = time;
-        if (!isDraggingProgress) {
-          progressValue = time;
-        }
-      });
-      return unsubscribe;
-    }
-  });
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.isMutedStore) {
+        unsubscribers.push(
+          audioService.isMutedStore.subscribe((muted) => {
+            isMuted = muted;
+          }),
+        );
+      }
 
-  $effect(() => {
-    if (audioService?.durationStore) {
-      const unsubscribe = audioService.durationStore.subscribe((dur) => {
-        duration = dur;
-      });
-      return unsubscribe;
-    }
-  });
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.currentTimeStore) {
+        unsubscribers.push(
+          audioService.currentTimeStore.subscribe((time) => {
+            currentTime = time;
+            progressValue = time;
+          }),
+        );
+      }
 
-  $effect(() => {
-    if (audioService?.volumeStore) {
-      const unsubscribe = audioService.volumeStore.subscribe((volume) => {
-        volumeValue = volume;
-      });
-      return unsubscribe;
-    }
-  });
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.durationStore) {
+        unsubscribers.push(
+          audioService.durationStore.subscribe((dur) => {
+            duration = dur;
+          }),
+        );
+      }
 
-  $effect(() => {
-    if (audioService?.isRepeatStore) {
-      const unsubscribe = audioService.isRepeatStore.subscribe((repeat) => {
-        isRepeat = repeat;
-      });
-      return unsubscribe;
-    }
-  });
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.volumeStore) {
+        unsubscribers.push(
+          audioService.volumeStore.subscribe((volume) => {
+            volumeValue = volume;
+          }),
+        );
+      }
 
-  $effect(() => {
-    if (audioService?.currentBufferedRangesStore) {
-      const unsubscribe = audioService.currentBufferedRangesStore.subscribe(
-        (ranges) => {
-          bufferedRanges = ranges;
-        },
-      );
-      return unsubscribe;
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.isRepeatStore) {
+        unsubscribers.push(
+          audioService.isRepeatStore.subscribe((repeat) => {
+            isRepeat = repeat;
+          }),
+        );
+      }
+
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.currentBufferedRangesStore) {
+        unsubscribers.push(
+          audioService.currentBufferedRangesStore.subscribe((ranges) => {
+            bufferedRanges = ranges;
+          }),
+        );
+      }
+
+      return () => unsubscribers.forEach((unsub) => unsub());
     }
   });
 
   function handleProgressCommit(): void {
     if (audioService) {
-      audioService.setCurrentTime(progressValue);
+      audioService.endSeeking(progressValue);
     }
-    isDraggingProgress = false;
-  }
-
-  function handleProgressInput(): void {
-    isDraggingProgress = true;
   }
 
   function handleVolumeChange(value: number): void {
@@ -263,7 +255,7 @@
         >
           <Slider
             bind:value={volumeValue}
-            onValueChange={handleVolumeChange}
+            onValueChange={(v: number[]) => handleVolumeChange(v[0])}
             max={1}
             step={0.01}
             class="w-full"
@@ -286,7 +278,8 @@
         <Slider
           bind:value={progressValue}
           onValueCommit={handleProgressCommit}
-          onInput={handleProgressInput}
+          onpointerdown={() => audioService?.startSeeking()}
+          onValueChange={(v: number[]) => audioService?.seek(v[0])}
           max={duration || 100}
           step={1}
           class="flex-1 cursor-pointer"
@@ -476,7 +469,7 @@
           >
             <Slider
               bind:value={volumeValue}
-              onValueChange={handleVolumeChange}
+              onValueChange={(v: number[]) => handleVolumeChange(v[0])}
               max={1}
               step={0.01}
               class="w-full"
@@ -501,7 +494,8 @@
           <Slider
             bind:value={progressValue}
             onValueCommit={handleProgressCommit}
-            onInput={handleProgressInput}
+            onpointerdown={() => audioService?.startSeeking()}
+            onValueChange={(v: number[]) => audioService?.seek(v[0])}
             max={duration || 100}
             step={1}
             class="flex-1 cursor-pointer"

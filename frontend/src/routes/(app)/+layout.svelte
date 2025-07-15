@@ -61,7 +61,7 @@
       );
       if (trackIndex >= 0) {
         trackStore.setCurrentTrackIndex(trackIndex);
-        audioService.setCurrentTime(progress_seconds);
+        audioService.setTime(progress_seconds);
         audioService.updateAudioSource(data.tracks[trackIndex], false);
         lastCurrentTrackId = current_track_id;
       }
