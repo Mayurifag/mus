@@ -5,6 +5,7 @@
   import { trackStore } from "$lib/stores/trackStore";
   import type { AudioService } from "$lib/services/AudioService";
   import type { TimeRange } from "$lib/types";
+  import { formatArtistsForDisplay, formatDuration } from "$lib/utils";
   import {
     Play,
     Pause,
@@ -18,124 +19,98 @@
     Repeat1,
   } from "@lucide/svelte";
   import { browser } from "$app/environment";
-  import { onMount, onDestroy } from "svelte";
 
-  // Accept AudioService as a prop using Svelte 5 syntax
   let { audioService }: { audioService?: AudioService } = $props();
-
-  function formatTime(seconds: number): string {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-  }
-
-  // Volume hover and drag state
   let isVolumeHovered = $state(false);
-  let isVolumeDragging = $state(false);
-
-  // Local slider state for two-way binding - use AudioService if available
   let progressValue = $state(0);
   let volumeValue = $state(1);
 
-  // Track if user is currently interacting with sliders
-  let isUserDraggingProgress = $state(false);
-
-  // Reactive state from AudioService stores
   let isPlaying = $state(false);
   let isMuted = $state(false);
   let currentTime = $state(0);
   let duration = $state(0);
   let isRepeat = $state(false);
   let bufferedRanges = $state<TimeRange[]>([]);
-
-  // Reactive volume feedback value
   let volumeFeedbackValue = $derived(
     isMuted ? 0 : Math.round(volumeValue * 100),
   );
 
-  // Sync local state with AudioService stores when they change
   $effect(() => {
-    if (audioService?.isPlayingStore) {
-      const unsubscribe = audioService.isPlayingStore.subscribe((playing) => {
-        isPlaying = playing;
-      });
-      return unsubscribe;
-    }
-  });
-
-  $effect(() => {
-    if (audioService?.isMutedStore) {
-      const unsubscribe = audioService.isMutedStore.subscribe((muted) => {
-        isMuted = muted;
-      });
-      return unsubscribe;
-    }
-  });
-
-  $effect(() => {
-    if (audioService?.currentTimeStore) {
-      const unsubscribe = audioService.currentTimeStore.subscribe((time) => {
-        currentTime = time;
-        if (!isUserDraggingProgress) {
-          progressValue = time;
-        }
-      });
-      return unsubscribe;
-    }
-  });
-
-  $effect(() => {
-    if (audioService?.durationStore) {
-      const unsubscribe = audioService.durationStore.subscribe((dur) => {
-        duration = dur;
-      });
-      return unsubscribe;
-    }
-  });
-
-  $effect(() => {
-    if (audioService?.volumeStore) {
-      const unsubscribe = audioService.volumeStore.subscribe((volume) => {
-        if (!isVolumeDragging) {
-          volumeValue = volume;
-        }
-      });
-      return unsubscribe;
-    }
-  });
-
-  $effect(() => {
-    if (audioService?.isRepeatStore) {
-      const unsubscribe = audioService.isRepeatStore.subscribe((repeat) => {
-        isRepeat = repeat;
-      });
-      return unsubscribe;
-    }
-  });
-
-  $effect(() => {
-    if (audioService?.currentBufferedRangesStore) {
-      const unsubscribe = audioService.currentBufferedRangesStore.subscribe(
-        (ranges) => {
-          bufferedRanges = ranges;
-        },
-      );
-      return unsubscribe;
-    }
-  });
-
-  function handleProgressChange(value: number): void {
     if (audioService) {
-      audioService.setCurrentTime(value);
+      const unsubscribers: (() => void)[] = [];
+
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.isPlayingStore) {
+        unsubscribers.push(
+          audioService.isPlayingStore.subscribe((playing) => {
+            isPlaying = playing;
+          }),
+        );
+      }
+
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.isMutedStore) {
+        unsubscribers.push(
+          audioService.isMutedStore.subscribe((muted) => {
+            isMuted = muted;
+          }),
+        );
+      }
+
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.currentTimeStore) {
+        unsubscribers.push(
+          audioService.currentTimeStore.subscribe((time) => {
+            currentTime = time;
+            progressValue = time;
+          }),
+        );
+      }
+
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.durationStore) {
+        unsubscribers.push(
+          audioService.durationStore.subscribe((dur) => {
+            duration = dur;
+          }),
+        );
+      }
+
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.volumeStore) {
+        unsubscribers.push(
+          audioService.volumeStore.subscribe((volume) => {
+            volumeValue = volume;
+          }),
+        );
+      }
+
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.isRepeatStore) {
+        unsubscribers.push(
+          audioService.isRepeatStore.subscribe((repeat) => {
+            isRepeat = repeat;
+          }),
+        );
+      }
+
+      // eslint-disable-next-line svelte/require-store-reactive-access
+      if (audioService.currentBufferedRangesStore) {
+        unsubscribers.push(
+          audioService.currentBufferedRangesStore.subscribe((ranges) => {
+            bufferedRanges = ranges;
+          }),
+        );
+      }
+
+      return () => unsubscribers.forEach((unsub) => unsub());
     }
-  }
+  });
 
   function handleProgressCommit(): void {
-    isUserDraggingProgress = false;
-  }
-
-  function handleProgressInput(): void {
-    isUserDraggingProgress = true;
+    if (audioService) {
+      audioService.endSeeking(progressValue);
+    }
   }
 
   function handleVolumeChange(value: number): void {
@@ -144,32 +119,12 @@
     }
   }
 
-  // Create a function to dispatch a custom event to toggle the sidebar
   function toggleMenu() {
     if (browser) {
       const event = new CustomEvent("toggle-sheet");
       document.body.dispatchEvent(event);
     }
   }
-
-  function triggerManualScroll() {
-    if (browser) {
-      const event = new CustomEvent("force-scroll");
-      document.body.dispatchEvent(event);
-    }
-  }
-
-  // Global pointer event handler for drag end
-  onMount(() => {
-    const handlePointerUp = () => {
-      isVolumeDragging = false;
-    };
-    window.addEventListener("pointerup", handlePointerUp);
-
-    onDestroy(() => {
-      window.removeEventListener("pointerup", handlePointerUp);
-    });
-  });
 </script>
 
 <div
@@ -288,9 +243,7 @@
           {/if}
         </Button>
         <div
-          class="relative w-32 flex-shrink-0"
-          class:cursor-pointer={!isVolumeDragging}
-          class:cursor-grabbing={isVolumeDragging}
+          class="relative w-32 flex-shrink-0 cursor-pointer"
           role="slider"
           aria-label="Volume control"
           aria-valuenow={volumeFeedbackValue}
@@ -299,18 +252,15 @@
           tabindex="0"
           onmouseenter={() => (isVolumeHovered = true)}
           onmouseleave={() => (isVolumeHovered = false)}
-          onpointerdown={() => {
-            isVolumeDragging = true;
-          }}
         >
           <Slider
             bind:value={volumeValue}
-            onValueChange={handleVolumeChange}
+            onValueChange={(v: number[]) => handleVolumeChange(v[0])}
             max={1}
             step={0.01}
             class="w-full"
           />
-          {#if isVolumeHovered || isVolumeDragging}
+          {#if isVolumeHovered}
             <div
               class="bg-muted absolute -top-7 left-1/2 -translate-x-1/2 rounded px-2 py-1 text-xs font-medium text-white transition-opacity"
             >
@@ -323,13 +273,13 @@
       <!-- Row 3: Progress -->
       <div class="flex w-full items-center gap-3 px-4">
         <span class="text-muted-foreground w-10 text-right text-xs">
-          {formatTime(currentTime)}
+          {formatDuration(currentTime)}
         </span>
         <Slider
           bind:value={progressValue}
-          onValueChange={handleProgressChange}
           onValueCommit={handleProgressCommit}
-          onInput={handleProgressInput}
+          onpointerdown={() => audioService?.startSeeking()}
+          onValueChange={(v: number[]) => audioService?.seek(v[0])}
           max={duration || 100}
           step={1}
           class="flex-1 cursor-pointer"
@@ -337,7 +287,7 @@
           {bufferedRanges}
         />
         <span class="text-muted-foreground w-10 text-xs">
-          {formatTime(duration)}
+          {formatDuration(duration)}
         </span>
       </div>
 
@@ -345,7 +295,8 @@
       <div class="flex w-full items-center justify-center px-4 text-center">
         {#if $trackStore.currentTrack}
           <span class="text-muted-foreground truncate text-sm font-medium">
-            {$trackStore.currentTrack.artist} - {$trackStore.currentTrack.title}
+            {formatArtistsForDisplay($trackStore.currentTrack.artist)} - {$trackStore
+              .currentTrack.title}
           </span>
         {:else}
           <span class="text-muted-foreground text-sm">Not Playing</span>
@@ -361,12 +312,7 @@
       <div class="desktop:w-80 flex w-auto min-w-0 items-center">
         {#if $trackStore.currentTrack}
           <div
-            class="desktop:block desktop:h-24 desktop:w-24 desktop:my-5 desktop:ml-5 my-6 ml-6 hidden h-32 w-32 flex-shrink-0 cursor-pointer overflow-hidden rounded-md"
-            onclick={triggerManualScroll}
-            onkeydown={(e) => e.key === "Enter" && triggerManualScroll()}
-            role="button"
-            tabindex="0"
-            aria-label="Scroll to current track"
+            class="desktop:block desktop:h-24 desktop:w-24 desktop:my-5 desktop:ml-5 my-6 ml-6 hidden h-32 w-32 flex-shrink-0 overflow-hidden rounded-md"
           >
             {#if $trackStore.currentTrack.has_cover && $trackStore.currentTrack.cover_original_url}
               <img
@@ -383,17 +329,11 @@
             {/if}
           </div>
           <div class="sm700:flex ml-4 hidden min-w-0 flex-col overflow-hidden">
-            <span
-              class="cursor-pointer truncate text-base font-medium hover:underline"
-              onclick={triggerManualScroll}
-              onkeydown={(e) => e.key === "Enter" && triggerManualScroll()}
-              role="button"
-              tabindex="0"
-              aria-label="Scroll to current track"
+            <span class="truncate text-base font-medium"
               >{$trackStore.currentTrack.title}</span
             >
             <span class="text-muted-foreground truncate text-sm">
-              {$trackStore.currentTrack.artist}
+              {formatArtistsForDisplay($trackStore.currentTrack.artist)}
             </span>
           </div>
         {:else}
@@ -517,9 +457,7 @@
             {/if}
           </Button>
           <div
-            class="relative w-24"
-            class:cursor-pointer={!isVolumeDragging}
-            class:cursor-grabbing={isVolumeDragging}
+            class="relative w-24 cursor-pointer"
             role="slider"
             aria-label="Volume control"
             aria-valuenow={volumeFeedbackValue}
@@ -528,18 +466,15 @@
             tabindex="0"
             onmouseenter={() => (isVolumeHovered = true)}
             onmouseleave={() => (isVolumeHovered = false)}
-            onpointerdown={() => {
-              isVolumeDragging = true;
-            }}
           >
             <Slider
               bind:value={volumeValue}
-              onValueChange={handleVolumeChange}
+              onValueChange={(v: number[]) => handleVolumeChange(v[0])}
               max={1}
               step={0.01}
               class="w-full"
             />
-            {#if isVolumeHovered || isVolumeDragging}
+            {#if isVolumeHovered}
               <div
                 class="bg-muted absolute -top-7 left-1/2 -translate-x-1/2 rounded px-2 py-1 text-xs font-medium text-white transition-opacity"
               >
@@ -554,13 +489,13 @@
           class="desktop:mt-2 desktop:max-w-lg mb-2 flex w-full max-w-md items-center space-x-2"
         >
           <span class="text-muted-foreground w-10 text-right text-xs">
-            {formatTime(currentTime)}
+            {formatDuration(currentTime)}
           </span>
           <Slider
             bind:value={progressValue}
-            onValueChange={handleProgressChange}
             onValueCommit={handleProgressCommit}
-            onInput={handleProgressInput}
+            onpointerdown={() => audioService?.startSeeking()}
+            onValueChange={(v: number[]) => audioService?.seek(v[0])}
             max={duration || 100}
             step={1}
             class="flex-1 cursor-pointer"
@@ -568,7 +503,7 @@
             {bufferedRanges}
           />
           <span class="text-muted-foreground w-10 text-xs">
-            {formatTime(duration)}
+            {formatDuration(duration)}
           </span>
         </div>
       </div>
@@ -591,16 +526,3 @@
     </div>
   </Card>
 </div>
-
-<style>
-  :global(.icon-glow-effect svg) {
-    color: white;
-    transition: all 0.1s ease;
-  }
-
-  :global(.icon-glow-effect:hover svg) {
-    color: white;
-    filter: drop-shadow(0 0 8px hsl(var(--accent) / 0.8))
-      drop-shadow(0 0 4px hsl(var(--accent) / 1));
-  }
-</style>

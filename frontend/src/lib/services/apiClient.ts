@@ -1,11 +1,4 @@
-import type { Track, PlayerState } from "$lib/types";
-
-export interface MusEvent {
-  message_to_show: string | null;
-  message_level: "success" | "error" | "info" | "warning" | null;
-  action_key: string | null;
-  action_payload: Record<string, unknown> | null;
-}
+import type { Track, PlayerState, TrackHistory, MusEvent } from "$lib/types";
 
 const VITE_INTERNAL_API_HOST = import.meta.env.VITE_INTERNAL_API_HOST || "";
 const VITE_PUBLIC_API_HOST = import.meta.env.VITE_PUBLIC_API_HOST || "";
@@ -18,6 +11,21 @@ export function getStreamUrl(trackId: number): string {
   return `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}/stream`;
 }
 
+export function createTrackWithUrls(
+  trackData: Record<string, unknown> | Track,
+): Track {
+  const track = trackData as Track;
+  return {
+    ...track,
+    cover_small_url: track.cover_small_url
+      ? `${VITE_PUBLIC_API_HOST}${track.cover_small_url}`
+      : null,
+    cover_original_url: track.cover_original_url
+      ? `${VITE_PUBLIC_API_HOST}${track.cover_original_url}`
+      : null,
+  };
+}
+
 export async function fetchTracks(): Promise<Track[]> {
   try {
     const response = await fetch(`${API_PREFIX}${API_VERSION_PATH}/tracks`);
@@ -26,16 +34,7 @@ export async function fetchTracks(): Promise<Track[]> {
     }
     const tracks: Track[] = await response.json();
 
-    for (const track of tracks) {
-      if (track.cover_small_url) {
-        track.cover_small_url = `${VITE_PUBLIC_API_HOST}${track.cover_small_url}`;
-      }
-      if (track.cover_original_url) {
-        track.cover_original_url = `${VITE_PUBLIC_API_HOST}${track.cover_original_url}`;
-      }
-    }
-
-    return tracks;
+    return tracks.map((track) => createTrackWithUrls(track));
   } catch (error) {
     console.error("Error fetching tracks:", error);
     return [];
@@ -90,11 +89,67 @@ export function sendPlayerStateBeacon(state: PlayerState): void {
  * @param onMessageCallback Callback function to handle incoming SSE events
  * @returns The EventSource instance
  */
+export async function updateTrack(
+  trackId: number,
+  updateData: {
+    title?: string;
+    artist?: string;
+    rename_file?: boolean;
+  },
+): Promise<{ status: string; track?: Track }> {
+  try {
+    const response = await fetch(
+      `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updateData),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating track:", error);
+    throw error;
+  }
+}
+
+export async function fetchTrackHistory(
+  trackId: number,
+): Promise<TrackHistory[]> {
+  try {
+    const response = await fetch(
+      `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}/history`,
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching track history:", error);
+    return [];
+  }
+}
+
+let globalEventSource: EventSource | null = null;
+
 export function connectTrackUpdateEvents(
   onMessageCallback: (eventData: MusEvent) => void,
 ): EventSource {
+  // Close existing connection if any
+  if (globalEventSource) {
+    globalEventSource.close();
+  }
+
   const url = `${API_PREFIX}${API_VERSION_PATH}/events/track-updates`;
   const eventSource = new EventSource(url);
+  globalEventSource = eventSource;
 
   eventSource.onmessage = (event) => {
     try {
@@ -105,18 +160,33 @@ export function connectTrackUpdateEvents(
     }
   };
 
-  eventSource.onerror = (error) => {
-    console.error("SSE connection error:", error);
-
-    setTimeout(() => {
-      console.log("Attempting to reconnect to SSE...");
-      connectTrackUpdateEvents(onMessageCallback);
-    }, 5000);
-
-    eventSource.close();
+  eventSource.onerror = () => {
+    // Only attempt reconnection if this is still the active connection
+    if (eventSource === globalEventSource) {
+      setTimeout(() => {
+        connectTrackUpdateEvents(onMessageCallback);
+      }, 5000);
+    }
   };
 
   return eventSource;
+}
+
+export async function fetchPermissions(): Promise<{
+  can_write_files: boolean;
+}> {
+  try {
+    const response = await fetch(
+      `${API_PREFIX}${API_VERSION_PATH}/system/permissions`,
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching permissions:", error);
+    return { can_write_files: false };
+  }
 }
 
 export async function fetchMagicLinkUrl(): Promise<string> {

@@ -23,8 +23,6 @@ vi.mock("$lib/stores/playerStore", () => ({
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/svelte";
 import type { Track, TimeRange } from "$lib/types";
-import type { AudioService } from "$lib/services/AudioService";
-import { writable } from "svelte/store";
 import "@testing-library/jest-dom/vitest";
 import TrackItem from "./TrackItem.svelte";
 import { trackStore } from "$lib/stores/trackStore";
@@ -38,9 +36,11 @@ describe("TrackItem component", () => {
       title: "Test Song",
       artist: "Test Artist",
       duration: 180,
+      file_path: "/music/test-track.mp3",
       has_cover: true,
       cover_small_url: "/api/v1/tracks/1/covers/small.webp",
       cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+      updated_at: 1640995200,
     };
 
     // Clear the mocks
@@ -115,7 +115,8 @@ describe("TrackItem component", () => {
     render(TrackItem, { track: mockTrack, index: 2, isSelected: false });
 
     const trackItemElement = screen.getByTestId("track-item");
-    await fireEvent.click(trackItemElement);
+    await fireEvent.mouseDown(trackItemElement, { button: 0 });
+    await fireEvent.mouseUp(trackItemElement, { button: 0 });
 
     expect(vi.mocked(trackStore.playTrack)).toHaveBeenCalledWith(2);
   });
@@ -139,45 +140,37 @@ describe("TrackItem component", () => {
   });
 
   describe("buffered ranges integration", () => {
-    it("should subscribe to buffered ranges store when isSelected and audioService is provided", () => {
-      const mockBufferedRangesStore = writable<TimeRange[]>([]);
-      const mockAudioService = {
-        currentBufferedRangesStore: mockBufferedRangesStore,
-      } as unknown as AudioService;
-
-      render(TrackItem, {
-        track: mockTrack,
-        index: 0,
-        isSelected: true,
-        audioService: mockAudioService,
-      });
-
-      expect(mockBufferedRangesStore.subscribe).toBeDefined();
-    });
-
-    it("should pass buffered ranges to slider when isSelected and audioService is provided", () => {
-      const bufferedRanges: TimeRange[] = [
-        { start: 10, end: 50 },
-        { start: 80, end: 120 },
-      ];
-
-      const mockBufferedRangesStore = writable(bufferedRanges);
-      const mockDurationStore = writable(180);
-      const mockCurrentTimeStore = writable(30);
-      const mockIsPlayingStore = writable(false);
-
-      const mockAudioService = {
-        currentBufferedRangesStore: mockBufferedRangesStore,
-        durationStore: mockDurationStore,
-        currentTimeStore: mockCurrentTimeStore,
-        isPlayingStore: mockIsPlayingStore,
-      } as unknown as AudioService;
+    it("should render buffered ranges when provided as props", () => {
+      const bufferedRanges: TimeRange[] = [{ start: 10, end: 50 }];
 
       const { container } = render(TrackItem, {
         track: mockTrack,
         index: 0,
         isSelected: true,
-        audioService: mockAudioService,
+        bufferedRanges,
+        duration: 180,
+        currentTime: 30,
+        isPlaying: false,
+      });
+
+      const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");
+      expect(bufferedSegments).toHaveLength(1);
+    });
+
+    it("should pass buffered ranges to slider when isSelected and bufferedRanges prop is provided", () => {
+      const bufferedRanges: TimeRange[] = [
+        { start: 10, end: 50 },
+        { start: 80, end: 120 },
+      ];
+
+      const { container } = render(TrackItem, {
+        track: mockTrack,
+        index: 0,
+        isSelected: true,
+        bufferedRanges,
+        duration: 180,
+        currentTime: 30,
+        isPlaying: false,
       });
 
       const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");
@@ -187,28 +180,29 @@ describe("TrackItem component", () => {
     it("should not pass buffered ranges when isSelected is false", () => {
       const bufferedRanges: TimeRange[] = [{ start: 10, end: 50 }];
 
-      const mockBufferedRangesStore = writable(bufferedRanges);
-      const mockAudioService = {
-        currentBufferedRangesStore: mockBufferedRangesStore,
-      } as unknown as AudioService;
-
       const { container } = render(TrackItem, {
         track: mockTrack,
         index: 0,
         isSelected: false,
-        audioService: mockAudioService,
+        bufferedRanges,
+        duration: 180,
+        currentTime: 30,
+        isPlaying: false,
       });
 
       const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");
       expect(bufferedSegments).toHaveLength(0);
     });
 
-    it("should not pass buffered ranges when audioService is undefined", () => {
+    it("should not show buffered ranges when bufferedRanges prop is undefined", () => {
       const { container } = render(TrackItem, {
         track: mockTrack,
         index: 0,
         isSelected: true,
         audioService: undefined,
+        duration: 180,
+        currentTime: 30,
+        isPlaying: false,
       });
 
       const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");
@@ -216,68 +210,43 @@ describe("TrackItem component", () => {
     });
 
     it("should handle empty buffered ranges when isSelected", () => {
-      const mockBufferedRangesStore = writable<TimeRange[]>([]);
-      const mockDurationStore = writable(180);
-      const mockCurrentTimeStore = writable(30);
-      const mockIsPlayingStore = writable(false);
-
-      const mockAudioService = {
-        currentBufferedRangesStore: mockBufferedRangesStore,
-        durationStore: mockDurationStore,
-        currentTimeStore: mockCurrentTimeStore,
-        isPlayingStore: mockIsPlayingStore,
-      } as unknown as AudioService;
-
       const { container } = render(TrackItem, {
         track: mockTrack,
         index: 0,
         isSelected: true,
-        audioService: mockAudioService,
+        bufferedRanges: [],
+        duration: 180,
+        currentTime: 30,
+        isPlaying: false,
       });
 
       const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");
       expect(bufferedSegments).toHaveLength(0);
     });
 
-    it("should update buffered ranges when store changes", async () => {
-      const mockBufferedRangesStore = writable<TimeRange[]>([]);
-      const mockDurationStore = writable(180);
-      const mockCurrentTimeStore = writable(30);
-      const mockIsPlayingStore = writable(false);
-
-      const mockAudioService = {
-        currentBufferedRangesStore: mockBufferedRangesStore,
-        durationStore: mockDurationStore,
-        currentTimeStore: mockCurrentTimeStore,
-        isPlayingStore: mockIsPlayingStore,
-      } as unknown as AudioService;
-
+    it("should render buffered ranges correctly", () => {
+      // Test with buffered ranges provided
       const { container } = render(TrackItem, {
         track: mockTrack,
         index: 0,
         isSelected: true,
-        audioService: mockAudioService,
+        bufferedRanges: [{ start: 0, end: 60 }],
+        duration: 180,
+        currentTime: 30,
+        isPlaying: false,
       });
-
-      expect(container.querySelectorAll(".bg-accent\\/20")).toHaveLength(0);
-
-      mockBufferedRangesStore.set([{ start: 0, end: 60 }]);
-
-      await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(container.querySelectorAll(".bg-accent\\/20")).toHaveLength(1);
     });
 
-    it("should work when currentBufferedRangesStore is undefined", () => {
-      const mockAudioService = {
-        currentBufferedRangesStore: undefined,
-      } as unknown as AudioService;
-
+    it("should work when bufferedRanges prop is undefined", () => {
       const { container } = render(TrackItem, {
         track: mockTrack,
         index: 0,
         isSelected: true,
-        audioService: mockAudioService,
+        duration: 180,
+        currentTime: 30,
+        isPlaying: false,
       });
 
       const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");

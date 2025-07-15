@@ -10,10 +10,15 @@ vi.mock("@sveltejs/kit", () => ({
 vi.mock("$lib/services/apiClient", () => ({
   fetchTracks: vi.fn(),
   fetchPlayerState: vi.fn(),
+  fetchPermissions: vi.fn(),
 }));
 
 import { error } from "@sveltejs/kit";
-import { fetchTracks, fetchPlayerState } from "$lib/services/apiClient";
+import {
+  fetchTracks,
+  fetchPlayerState,
+  fetchPermissions,
+} from "$lib/services/apiClient";
 
 describe("+layout.server.ts", () => {
   const mockTracks = [
@@ -22,9 +27,11 @@ describe("+layout.server.ts", () => {
       title: "Test Track",
       artist: "Test Artist",
       duration: 180,
+      file_path: "/music/test-track.mp3",
       has_cover: true,
       cover_small_url: "/api/v1/tracks/1/covers/small.webp",
       cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+      updated_at: 1640995200,
     },
   ];
 
@@ -35,6 +42,10 @@ describe("+layout.server.ts", () => {
     is_muted: false,
     is_shuffle: false,
     is_repeat: false,
+  };
+
+  const mockPermissions = {
+    can_write_files: true,
   };
 
   // Mock event object required by the load function
@@ -51,14 +62,17 @@ describe("+layout.server.ts", () => {
   it("loads tracks and player state successfully", async () => {
     vi.mocked(fetchTracks).mockResolvedValue(mockTracks);
     vi.mocked(fetchPlayerState).mockResolvedValue(mockPlayerState);
+    vi.mocked(fetchPermissions).mockResolvedValue(mockPermissions);
 
     const result = await load(mockEvent);
 
     expect(fetchTracks).toHaveBeenCalled();
     expect(fetchPlayerState).toHaveBeenCalled();
+    expect(fetchPermissions).toHaveBeenCalled();
     expect(result).toEqual({
       tracks: mockTracks,
       playerState: mockPlayerState,
+      permissions: mockPermissions,
     });
   });
 
@@ -74,28 +88,34 @@ describe("+layout.server.ts", () => {
 
     vi.mocked(fetchTracks).mockResolvedValue(mockTracks);
     vi.mocked(fetchPlayerState).mockResolvedValue(defaultPlayerState);
+    vi.mocked(fetchPermissions).mockResolvedValue(mockPermissions);
 
     const result = await load(mockEvent);
 
     expect(fetchTracks).toHaveBeenCalled();
     expect(fetchPlayerState).toHaveBeenCalled();
+    expect(fetchPermissions).toHaveBeenCalled();
     expect(result).toEqual({
       tracks: mockTracks,
       playerState: defaultPlayerState,
+      permissions: mockPermissions,
     });
   });
 
   it("handles empty tracks array", async () => {
     vi.mocked(fetchTracks).mockResolvedValue([]);
     vi.mocked(fetchPlayerState).mockResolvedValue(mockPlayerState);
+    vi.mocked(fetchPermissions).mockResolvedValue(mockPermissions);
 
     const result = await load(mockEvent);
 
     expect(fetchTracks).toHaveBeenCalled();
     expect(fetchPlayerState).toHaveBeenCalled();
+    expect(fetchPermissions).toHaveBeenCalled();
     expect(result).toEqual({
       tracks: [],
       playerState: mockPlayerState,
+      permissions: mockPermissions,
     });
   });
 
@@ -103,6 +123,7 @@ describe("+layout.server.ts", () => {
     const testError = new Error("API failure");
     vi.mocked(fetchTracks).mockRejectedValue(testError);
     vi.mocked(fetchPlayerState).mockResolvedValue(mockPlayerState);
+    vi.mocked(fetchPermissions).mockResolvedValue(mockPermissions);
 
     await expect(() => load(mockEvent)).rejects.toThrow();
     expect(error).toHaveBeenCalledWith(500, {
@@ -114,6 +135,7 @@ describe("+layout.server.ts", () => {
     const testError = new Error("API failure");
     vi.mocked(fetchTracks).mockResolvedValue(mockTracks);
     vi.mocked(fetchPlayerState).mockRejectedValue(testError);
+    vi.mocked(fetchPermissions).mockResolvedValue(mockPermissions);
 
     await expect(() => load(mockEvent)).rejects.toThrow();
     expect(error).toHaveBeenCalledWith(500, {

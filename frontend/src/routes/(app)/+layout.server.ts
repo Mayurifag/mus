@@ -1,17 +1,23 @@
 import { error } from "@sveltejs/kit";
 import type { LayoutServerLoad } from "./$types";
-import { fetchTracks, fetchPlayerState } from "$lib/services/apiClient";
+import {
+  fetchTracks,
+  fetchPlayerState,
+  fetchPermissions,
+} from "$lib/services/apiClient";
 
 export const load: LayoutServerLoad = async () => {
   try {
-    const [tracks, playerState] = await Promise.all([
+    const [tracks, playerState, permissions] = await Promise.all([
       fetchTracks(),
       fetchPlayerState(),
+      fetchPermissions(),
     ]);
 
     return {
       tracks,
       playerState,
+      permissions,
     };
   } catch (err: unknown) {
     console.error("Error in load function (Promise.all or unexpected):", err);

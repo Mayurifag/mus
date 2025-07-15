@@ -1,84 +1,129 @@
 <script lang="ts">
   import type { AudioService } from "$lib/services/AudioService";
+  import type { TimeRange } from "$lib/types";
   import TrackItem from "./TrackItem.svelte";
   import { trackStore } from "$lib/stores/trackStore";
+  import { createWindowVirtualizer } from "@tanstack/svelte-virtual";
   import { browser } from "$app/environment";
-  import { tick, onMount } from "svelte";
 
   let { audioService }: { audioService?: AudioService } = $props();
 
   const tracks = $derived($trackStore.tracks);
-  let isCurrentTrackVisible = $state(false);
-  let observer: IntersectionObserver;
 
-  function scrollToCurrentTrack({ force = false } = {}) {
-    if (!browser || !$trackStore.currentTrack) return;
+  // Audio playback state variables
+  let isPlaying = $state(false);
+  let currentTime = $state(0);
+  let duration = $state(0);
+  let bufferedRanges = $state<TimeRange[]>([]);
 
-    const element = document.getElementById(
-      `track-item-${$trackStore.currentTrack.id}`,
-    );
-    if (element && (force || !isCurrentTrackVisible)) {
-      element.scrollIntoView({ behavior: "auto", block: "center" });
+  let virtualizer = $state<ReturnType<typeof createWindowVirtualizer> | null>(
+    null,
+  );
+  let initialScrollDone = $state(false);
+
+  // Subscribe to audio service stores
+  $effect(() => {
+    if (audioService) {
+      const unsubscribers: (() => void)[] = [];
+
+      unsubscribers.push(
+        audioService.isPlayingStore.subscribe((playing) => {
+          isPlaying = playing;
+        }),
+      );
+
+      unsubscribers.push(
+        audioService.currentTimeStore.subscribe((time) => {
+          currentTime = time;
+        }),
+      );
+
+      unsubscribers.push(
+        audioService.durationStore.subscribe((value) => {
+          duration = value;
+        }),
+      );
+
+      unsubscribers.push(
+        audioService.currentBufferedRangesStore.subscribe((ranges) => {
+          bufferedRanges = ranges;
+        }),
+      );
+
+      return () => unsubscribers.forEach((unsub) => unsub());
     }
-  }
-
-  onMount(() => {
-    if (!browser) return;
-
-    observer = new IntersectionObserver(
-      (entries) => {
-        isCurrentTrackVisible = entries[0].isIntersecting;
-      },
-      {
-        rootMargin: "-15% 0px -30% 0px",
-      },
-    );
-
-    const handleForceScroll = () => {
-      scrollToCurrentTrack({ force: true });
-    };
-
-    document.body.addEventListener("force-scroll", handleForceScroll);
-
-    return () => {
-      observer?.disconnect();
-      document.body.removeEventListener("force-scroll", handleForceScroll);
-    };
   });
 
   $effect(() => {
-    if (!browser || !observer || $trackStore.currentTrackIndex === null) return;
-
-    observer.disconnect();
-
-    if ($trackStore.currentTrack) {
-      const element = document.getElementById(
-        `track-item-${$trackStore.currentTrack.id}`,
-      );
-      if (element) {
-        observer.observe(element);
-        tick().then(() => {
-          scrollToCurrentTrack();
-        });
-      }
+    if (browser) {
+      virtualizer = createWindowVirtualizer({
+        count: tracks.length,
+        estimateSize: () => 72,
+        overscan: 15,
+        getScrollElement: () => window,
+      });
     }
   });
+
+  $effect(() => {
+    if (
+      !initialScrollDone &&
+      virtualizer &&
+      $trackStore.currentTrackIndex !== null
+    ) {
+      setTimeout(() => {
+        if (virtualizer && $trackStore.currentTrackIndex !== null) {
+          $virtualizer!.scrollToIndex($trackStore.currentTrackIndex, {
+            align: "center",
+          });
+        }
+      }, 50);
+      initialScrollDone = true;
+    }
+  });
+
+  function measureElement(node: HTMLElement) {
+    if (virtualizer) {
+      $virtualizer!.measureElement(node);
+    }
+  }
 </script>
 
-<div class="flex flex-col space-y-1" data-testid="track-list">
+<div class="flex flex-col" data-testid="track-list">
   {#if tracks.length === 0}
     <div class="flex h-32 w-full flex-col items-center justify-center">
-      <p class="text-muted-foreground mb-2 text-center">No tracks available</p>
+      <p class="text-muted-foreground mb-2 text-center">
+        No tracks available. Wait a second, we are scanning your music library.
+      </p>
     </div>
-  {:else}
-    <div class="space-y-1">
-      {#each tracks as track, i (track.id)}
-        <TrackItem
-          {track}
-          index={i}
-          isSelected={$trackStore.currentTrackIndex === i}
-          {audioService}
-        />
+  {:else if virtualizer}
+    <div class="relative" style="height: {$virtualizer!.getTotalSize()}px">
+      {#each $virtualizer!.getVirtualItems() as item (tracks[item.index].id)}
+        <div
+          style="position: absolute; width: 100%; transform: translateY({item.start}px)"
+          data-index={item.index}
+          use:measureElement
+        >
+          {#if $trackStore.currentTrackIndex === item.index}
+            <TrackItem
+              track={tracks[item.index]}
+              index={item.index}
+              isSelected={true}
+              {audioService}
+              {currentTime}
+              {duration}
+              {isPlaying}
+              {bufferedRanges}
+            />
+          {:else}
+            <TrackItem
+              track={tracks[item.index]}
+              index={item.index}
+              isSelected={false}
+              {audioService}
+            />
+          {/if}
+        </div>
       {/each}
     </div>
   {/if}

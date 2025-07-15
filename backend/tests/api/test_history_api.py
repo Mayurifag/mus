@@ -19,6 +19,8 @@ async def test_get_track_history():
         artist="Old Artist",
         duration=120,
         changed_at=1609459100,
+        filename="test.mp3",
+        event_type="test",
     )
 
     with patch(
@@ -63,6 +65,8 @@ async def test_rollback_track_history():
         artist="Old Artist",
         duration=120,
         changed_at=1609459100,
+        filename="test.mp3",
+        event_type="test",
     )
 
     track = Track(

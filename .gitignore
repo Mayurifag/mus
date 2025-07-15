@@ -65,6 +65,7 @@ $RECYCLE.BIN/
 *.log
 *.sqlite3
 *.db
+*.db-journal
 *.pid
 *.seed
 *.cover

@@ -79,6 +79,8 @@ async def test_get_tracks(client, sample_tracks):
         mock_row.artist = track.artist
         mock_row.duration = track.duration
         mock_row.has_cover = track.has_cover
+        mock_row.file_path = track.file_path
+        mock_row.updated_at = track.updated_at
         mock_rows.append(mock_row)
 
     with patch(
@@ -95,10 +97,10 @@ async def test_get_tracks(client, sample_tracks):
         assert data[0]["title"] == "Test Track 1"
         assert data[1]["id"] == 2
         assert data[1]["title"] == "Test Track 2"
-        # Ensure file_path and added_at are not in the response
-        assert "file_path" not in data[0]
+        # Ensure file_path is in the response but added_at is not
+        assert "file_path" in data[0]
         assert "added_at" not in data[0]
-        assert "file_path" not in data[1]
+        assert "file_path" in data[1]
         assert "added_at" not in data[1]
 
 

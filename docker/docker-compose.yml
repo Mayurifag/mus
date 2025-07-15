@@ -4,6 +4,12 @@ services:
       context: ..
       dockerfile: docker/backend.Dockerfile
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/healthcheck.json"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
 
   frontend:
     build:
@@ -29,3 +35,9 @@ services:
     depends_on:
       - backend
       - dragonfly
+    healthcheck:
+      test: ["CMD", "python", "-c", "import redis; r = redis.Redis(host='dragonfly', port=6379); r.ping()"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3

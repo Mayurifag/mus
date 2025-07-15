@@ -3,6 +3,8 @@ export interface Track {
   title: string;
   artist: string;
   duration: number;
+  file_path: string;
+  updated_at: number;
   has_cover: boolean;
   cover_small_url: string | null;
   cover_original_url: string | null;
@@ -20,4 +22,24 @@ export interface PlayerState {
   is_muted: boolean;
   is_shuffle: boolean;
   is_repeat: boolean;
+}
+
+export interface TrackHistory {
+  id: number;
+  track_id: number;
+  title: string;
+  artist: string;
+  duration: number;
+  changed_at: number;
+  event_type: string;
+  filename: string;
+  changes?: Record<string, unknown> | null;
+  full_snapshot?: Record<string, unknown> | null;
+}
+
+export interface MusEvent {
+  message_to_show: string | null;
+  message_level: "success" | "error" | "info" | "warning" | null;
+  action_key: string | null;
+  action_payload: Record<string, unknown> | null;
 }

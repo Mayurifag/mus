@@ -2,12 +2,13 @@ import type { Track, TimeRange } from "$lib/types";
 import { getStreamUrl } from "$lib/services/apiClient";
 import { writable } from "svelte/store";
 import { trackStore } from "$lib/stores/trackStore";
+import { formatArtistsForDisplay } from "$lib/utils";
 
 export class AudioService {
   private audio: HTMLAudioElement;
   private onPlaybackFinishedCallback: () => void;
   private shouldAutoPlay = false;
-  private lastAudioProgressSyncTime = 0;
+  private isSeeking = false;
 
   // Convert internal state to reactive stores
   private _volume = writable(1.0);
@@ -80,6 +81,8 @@ export class AudioService {
   };
 
   private handleTimeUpdate = (): void => {
+    if (this.isSeeking) return;
+
     if (this.audio && !isNaN(this.audio.currentTime)) {
       this._currentTime.set(this.audio.currentTime);
     }
@@ -149,7 +152,7 @@ export class AudioService {
       this.audio.src = streamUrl;
       this.audio.load();
       if (typeof document !== "undefined") {
-        document.title = `${track.artist} - ${track.title}`;
+        document.title = `${formatArtistsForDisplay(track.artist)} - ${track.title}`;
       }
       this._currentTime.set(0);
       this._currentBufferedRanges.set([]);
@@ -184,14 +187,22 @@ export class AudioService {
     });
   }
 
-  setCurrentTime(time: number): void {
-    const now = Date.now();
-    const timeDiff = Math.abs(this.audio.currentTime - time);
-    if (timeDiff > 1 && now - this.lastAudioProgressSyncTime > 100) {
-      this._currentTime.set(time);
-      this.audio.currentTime = time;
-      this.lastAudioProgressSyncTime = now;
-    }
+  setTime(time: number): void {
+    this._currentTime.set(time);
+    this.audio.currentTime = time;
+  }
+
+  startSeeking(): void {
+    this.isSeeking = true;
+  }
+
+  seek(time: number): void {
+    this._currentTime.set(time);
+  }
+
+  endSeeking(time: number): void {
+    this.setTime(time);
+    this.isSeeking = false;
   }
 
   get volume(): number {
@@ -289,7 +300,7 @@ export class AudioService {
 
     navigator.mediaSession.setActionHandler("seekto", (details) => {
       if (details.seekTime !== undefined) {
-        this.setCurrentTime(details.seekTime);
+        this.setTime(details.seekTime);
       }
     });
 
@@ -311,7 +322,7 @@ export class AudioService {
 
     const metadata: MediaMetadataInit = {
       title: track.title,
-      artist: track.artist,
+      artist: formatArtistsForDisplay(track.artist),
     };
 
     if (artwork.length > 0) {

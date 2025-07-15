@@ -6,6 +6,7 @@ from src.mus.config import settings
 from src.mus.domain.entities.track import ProcessingStatus, Track
 from src.mus.domain.entities.track_history import TrackHistory
 from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
+from src.mus.util.track_dto_utils import create_track_dto_with_covers
 
 from src.mus.util.ffprobe_analyzer import get_accurate_duration
 from src.mus.util.metadata_extractor import extract_fast_metadata
@@ -37,20 +38,37 @@ async def process_slow_metadata(track_id: int):
 
     accurate_duration, cover_data = await asyncio.gather(duration_task, cover_task)
 
+    track_updated = False
+
     if accurate_duration > 0 and accurate_duration != track.duration:
         track.duration = accurate_duration
+        track_updated = True
 
-    track.has_cover = bool(
+    new_has_cover = bool(
         cover_data
         and await cover_processor.process_and_save_cover(
             track_id, cover_data, file_path
         )
     )
 
+    if track.has_cover != new_has_cover:
+        track.has_cover = new_has_cover
+        track_updated = True
+
+    if track_updated:
+        track.updated_at = int(time.time())
+
     track.processing_status = ProcessingStatus.COMPLETE
     await update_track(track)
+
+    # Create TrackListDTO with proper cover URLs for SSE event
+    track_dto = create_track_dto_with_covers(track)
+
     await notify_sse_from_worker(
-        "reload_tracks", f"Processed metadata for '{track.title}'", "success"
+        action_key="track_updated",
+        message=f"Processed metadata for '{track.title}'",
+        level="success",
+        payload=track_dto.model_dump(),
     )
 
 
@@ -70,7 +88,10 @@ async def process_file_deletion(file_path_str: str):
             await asyncio.to_thread(cover_path.unlink)
 
     await notify_sse_from_worker(
-        "reload_tracks", f"Deleted track '{track_title}'", "info"
+        action_key="track_deleted",
+        message=f"Deleted track '{track_title}'",
+        level="info",
+        payload={"id": track_id},
     )
 
 
@@ -78,10 +99,13 @@ async def process_file_move(src_path: str, dest_path: str):
     track = await get_track_by_path(src_path)
     if track:
         track_title = track.title
-        success = await update_track_path(src_path, dest_path)
-        if success:
+        updated_track = await update_track_path(src_path, dest_path)
+        if updated_track is not None:
             await notify_sse_from_worker(
-                "reload_tracks", f"Moved track '{track_title}'", "info"
+                action_key="track_updated",
+                message=f"Moved track '{track_title}'",
+                level="info",
+                payload=updated_track.model_dump(),
             )
 
 
@@ -106,33 +130,85 @@ async def process_file_upsert(file_path_str: str, is_creation: bool = False):
         duration=metadata["duration"],
         file_path=str(file_path),
         added_at=metadata["added_at"],
+        updated_at=metadata["added_at"],  # Set initial updated_at to added_at
         inode=metadata["inode"],
         processing_status=ProcessingStatus.METADATA_DONE,
     )
     upserted_track = await upsert_track(track)
 
+    if not existing_track and upserted_track and upserted_track.id:
+        history_entry = TrackHistory(
+            track_id=upserted_track.id,
+            event_type="initial_scan",
+            changes=None,
+            filename=Path(upserted_track.file_path).name,
+            title=upserted_track.title,
+            artist=upserted_track.artist,
+            duration=upserted_track.duration,
+            changed_at=int(time.time()),
+            full_snapshot={
+                "title": upserted_track.title,
+                "artist": upserted_track.artist,
+                "duration": upserted_track.duration,
+                "file_path": upserted_track.file_path,
+                "has_cover": upserted_track.has_cover,
+            },
+        )
+        await add_track_history(history_entry)
+
     if existing_track and upserted_track and upserted_track.id:
-        if (
-            existing_track.title != upserted_track.title
-            or existing_track.artist != upserted_track.artist
-            or existing_track.duration != upserted_track.duration
-        ):
+        changes_dict = {}
+        if existing_track.title != upserted_track.title:
+            changes_dict["title"] = {
+                "old": existing_track.title,
+                "new": upserted_track.title,
+            }
+        if existing_track.artist != upserted_track.artist:
+            changes_dict["artist"] = {
+                "old": existing_track.artist,
+                "new": upserted_track.artist,
+            }
+        if existing_track.duration != upserted_track.duration:
+            changes_dict["duration"] = {
+                "old": existing_track.duration,
+                "new": upserted_track.duration,
+            }
+
+        if changes_dict:
             history_entry = TrackHistory(
                 track_id=upserted_track.id,
                 title=existing_track.title,
                 artist=existing_track.artist,
                 duration=existing_track.duration,
                 changed_at=int(time.time()),
+                event_type="metadata_update",
+                filename=Path(upserted_track.file_path).name,
+                changes=changes_dict,
+                full_snapshot={
+                    "title": upserted_track.title,
+                    "artist": upserted_track.artist,
+                    "duration": upserted_track.duration,
+                    "file_path": upserted_track.file_path,
+                    "has_cover": upserted_track.has_cover,
+                },
             )
             await add_track_history(history_entry)
             await prune_track_history(upserted_track.id, 5)
 
     if upserted_track and upserted_track.id:
         enqueue_slow_metadata(upserted_track.id)
-        action = "Added" if is_creation else "Updated"
+        action_key = "track_added" if is_creation else "track_updated"
+        action_message = "Added" if is_creation else "Updated"
         level = "success" if is_creation else "info"
+
+        # Create TrackListDTO with proper cover URLs for SSE event
+        track_dto = create_track_dto_with_covers(upserted_track)
+
         await notify_sse_from_worker(
-            "reload_tracks", f"{action} track '{track.title}'", level
+            action_key=action_key,
+            message=f"{action_message} track '{track.title}'",
+            level=level,
+            payload=track_dto.model_dump(),
         )
 
 

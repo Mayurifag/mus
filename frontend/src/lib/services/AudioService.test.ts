@@ -20,9 +20,11 @@ describe("AudioService", () => {
     title: "Test Track",
     artist: "Test Artist",
     duration: 180,
+    file_path: "/music/test-track.mp3",
     has_cover: true,
     cover_small_url: "/api/v1/tracks/1/covers/small.webp",
     cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+    updated_at: 1640995200,
   };
 
   beforeEach(() => {
@@ -117,16 +119,57 @@ describe("AudioService", () => {
     expect(mockAudio.volume).toBe(0.8);
   });
 
-  it("should set current time with debouncing", () => {
+  it("should set time immediately", () => {
     mockAudio.currentTime = 0;
 
-    // First call should work
-    audioService.setCurrentTime(10);
+    audioService.setTime(10);
     expect(mockAudio.currentTime).toBe(10);
 
-    // Immediate second call should be debounced
-    audioService.setCurrentTime(20);
-    expect(mockAudio.currentTime).toBe(10); // Should not change due to debouncing
+    audioService.setTime(20);
+    expect(mockAudio.currentTime).toBe(20);
+  });
+
+  it("should handle seeking operations", () => {
+    mockAudio.currentTime = 0;
+
+    // Start seeking
+    audioService.startSeeking();
+
+    // Seek to a new time (should update store but not audio element)
+    audioService.seek(15);
+    expect(audioService.currentTime).toBe(15);
+    expect(mockAudio.currentTime).toBe(0);
+
+    // End seeking (should update audio element)
+    audioService.endSeeking(30);
+    expect(audioService.currentTime).toBe(30);
+    expect(mockAudio.currentTime).toBe(30);
+  });
+
+  it("should ignore timeupdate events during seeking", () => {
+    // Set initial time
+    audioService.setTime(10);
+    expect(audioService.currentTime).toBe(10);
+
+    // Start seeking
+    audioService.startSeeking();
+
+    // Seek to a new time
+    audioService.seek(20);
+    expect(audioService.currentTime).toBe(20);
+
+    // Simulate timeupdate event during seeking
+    mockAudio.currentTime = 15;
+    const addEventListenerMock =
+      mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
+    const timeUpdateHandler = addEventListenerMock.mock.calls.find(
+      (call: unknown[]) => call[0] === "timeupdate",
+    )?.[1] as () => void;
+
+    timeUpdateHandler();
+
+    // Current time should still be the seek value, not the audio element's time
+    expect(audioService.currentTime).toBe(20);
   });
 
   it("should toggle repeat state", () => {
@@ -247,6 +290,25 @@ describe("AudioService", () => {
     expect(() => {
       audioService.updateAudioSource(mockTrack, true);
     }).not.toThrow();
+  });
+
+  it("should format artists correctly in document.title with semicolon-separated artists", () => {
+    const mockDocument = {
+      title: "",
+    };
+    (globalThis as unknown as { document: typeof mockDocument }).document =
+      mockDocument;
+
+    const trackWithMultipleArtists: Track = {
+      ...mockTrack,
+      artist: "Artist One;Artist Two;Artist Three",
+    };
+
+    audioService.updateAudioSource(trackWithMultipleArtists, true);
+
+    expect(mockDocument.title).toBe(
+      "Artist One, Artist Two, Artist Three - Test Track",
+    );
   });
 
   it("should auto-play when updateAudioSource is called with isPlaying=true", () => {

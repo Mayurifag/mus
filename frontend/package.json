@@ -59,6 +59,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@tanstack/svelte-virtual": "^3.13.12",
     "svelte-gestures": "^5.1.4"
   }
 }

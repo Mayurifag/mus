@@ -376,6 +376,97 @@ function createTrackStore() {
         ...state,
         ...clearShuffleHistory(state, is_shuffle),
       })),
+    addTrack: (track: Track) =>
+      update((state) => {
+        const newTracks = [track, ...state.tracks];
+        const newCurrentTrackIndex =
+          state.currentTrackIndex !== null ? state.currentTrackIndex + 1 : null;
+        return {
+          ...state,
+          tracks: newTracks,
+          currentTrackIndex: newCurrentTrackIndex,
+        };
+      }),
+    updateTrack: (updatedTrack: Track) =>
+      update((state) => {
+        const trackIndex = state.tracks.findIndex(
+          (t) => t.id === updatedTrack.id,
+        );
+        if (trackIndex === -1) return state;
+
+        const newTracks = [...state.tracks];
+        newTracks[trackIndex] = updatedTrack;
+
+        const newCurrentTrack =
+          state.currentTrack?.id === updatedTrack.id
+            ? updatedTrack
+            : state.currentTrack;
+
+        const newPlayHistory = state.playHistory.map((t) =>
+          t.id === updatedTrack.id ? updatedTrack : t,
+        );
+
+        return {
+          ...state,
+          tracks: newTracks,
+          currentTrack: newCurrentTrack,
+          playHistory: newPlayHistory,
+        };
+      }),
+    deleteTrack: (trackId: number) =>
+      update((state) => {
+        const trackIndex = state.tracks.findIndex((t) => t.id === trackId);
+        if (trackIndex === -1) return state;
+
+        const newTracks = state.tracks.filter((t) => t.id !== trackId);
+        let newCurrentTrackIndex = state.currentTrackIndex;
+        let newCurrentTrack = state.currentTrack;
+
+        if (state.currentTrackIndex !== null) {
+          if (trackIndex < state.currentTrackIndex) {
+            newCurrentTrackIndex = state.currentTrackIndex - 1;
+          } else if (trackIndex === state.currentTrackIndex) {
+            if (newTracks.length === 0) {
+              newCurrentTrackIndex = null;
+              newCurrentTrack = null;
+            } else if (trackIndex < newTracks.length) {
+              newCurrentTrack = newTracks[trackIndex];
+            } else {
+              newCurrentTrackIndex = newTracks.length - 1;
+              newCurrentTrack = newTracks[newCurrentTrackIndex];
+            }
+          }
+        }
+
+        const deletedTrackHistoryIndex = state.playHistory.findIndex(
+          (t) => t.id === trackId,
+        );
+        const newPlayHistory = state.playHistory.filter(
+          (t) => t.id !== trackId,
+        );
+        let newHistoryPosition = state.historyPosition;
+
+        if (
+          deletedTrackHistoryIndex !== -1 &&
+          deletedTrackHistoryIndex < state.historyPosition
+        ) {
+          newHistoryPosition--;
+        } else if (
+          deletedTrackHistoryIndex !== -1 &&
+          deletedTrackHistoryIndex === state.historyPosition
+        ) {
+          newHistoryPosition = newPlayHistory.length - 1;
+        }
+
+        return {
+          ...state,
+          tracks: newTracks,
+          currentTrackIndex: newCurrentTrackIndex,
+          currentTrack: newCurrentTrack,
+          playHistory: newPlayHistory,
+          historyPosition: newHistoryPosition,
+        };
+      }),
     reset: () => set(initialState),
   };
 }

@@ -26,7 +26,7 @@
           >Login on Mobile</Dialog.Title
         >
         <Dialog.Close
-          class="hover:bg-accent hover:text-accent-foreground rounded-sm p-1.5 transition-colors"
+          class="hover:bg-accent hover:text-accent-foreground cursor-pointer rounded-sm p-1.5 transition-colors"
         >
           <X class="h-4 w-4" />
         </Dialog.Close>

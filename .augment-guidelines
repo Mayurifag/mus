@@ -71,7 +71,6 @@
 - Frontend class composition: `clsx` and `tailwind-merge` (often via `cn` utility from `shadcn-svelte`).
 - Linting/Formatting: Adhere to project's ESLint (JS/TS/Svelte) and Prettier configurations.
 
-
 // AGENT_TASKS Framework - Task Execution
 - When working on a task defined in `AGENT_TASKS/`, you will follow these execution rules.
 - **Refer to `AGENT_TASKS/.rules.md` to understand the task file structure you will be consuming.**
@@ -84,3 +83,4 @@
     4.  Wait for user feedback or approval before moving to the next subtask.
 - Always ensure your proposed code changes are complete for the subtask at hand.
 - If you encounter an issue or realize a subtask needs refinement (e.g., different file paths, more details, or splitting into smaller sub-subtasks), communicate this clearly when you propose the updated task file after completing the current subtask.
+- For `playwright` mcp server you can go to frontend (i.e. `localhost:5173`) and see that there are no tracks. Just refresh page and do not wait 3 seconds in such cases, that is just javascript not loaded.
