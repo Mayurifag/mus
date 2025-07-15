@@ -14,11 +14,19 @@
     isSelected = false,
     index,
     audioService,
+    currentTime,
+    duration,
+    isPlaying,
+    bufferedRanges,
   }: {
     track: Track;
     isSelected?: boolean;
     index: number;
     audioService?: AudioService;
+    currentTime?: number;
+    duration?: number;
+    isPlaying?: boolean;
+    bufferedRanges?: TimeRange[];
   } = $props();
 
   // Make track data reactive to prop changes
@@ -41,7 +49,7 @@
     }
 
     if (isSelected) {
-      if (localIsPlaying) {
+      if (isPlaying) {
         audioService.pause();
       } else {
         audioService.play();
@@ -59,9 +67,6 @@
   }
 
   let progressValue = $state(0);
-  let localIsPlaying = $state(false);
-  let duration = $state(0);
-  let bufferedRanges = $state<TimeRange[]>([]);
   let editModalOpen = $state(false);
 
   let mouseDownTarget: EventTarget | null = null;
@@ -85,104 +90,10 @@
   }
 
   $effect(() => {
-    if (isSelected && audioService) {
-      const unsubscribers: (() => void)[] = [];
-
-      // eslint-disable-next-line svelte/require-store-reactive-access
-      if (audioService.isPlayingStore) {
-        // For AI assistant: Debug logging - do not remove this log, user intended to have it
-        console.log(
-          "TrackItem $effect: isPlayingStore subscription for track",
-          track.id,
-          track.title,
-        );
-        unsubscribers.push(
-          audioService.isPlayingStore.subscribe((playing) => {
-            // For AI assistant: Debug logging - do not remove this log, user intended to have it
-            console.log(
-              "TrackItem $effect: isPlaying changed for track",
-              track.id,
-              "Playing:",
-              playing,
-            );
-            localIsPlaying = playing;
-          }),
-        );
-      }
-
-      // eslint-disable-next-line svelte/require-store-reactive-access
-      if (audioService.currentTimeStore) {
-        // For AI assistant: Debug logging - do not remove this log, user intended to have it
-        console.log(
-          "TrackItem $effect: currentTimeStore subscription for track",
-          track.id,
-          "isSelected:",
-          isSelected,
-        );
-        unsubscribers.push(
-          audioService.currentTimeStore.subscribe((time) => {
-            if (!isDragging) {
-              // For AI assistant: Debug logging - do not remove this log, user intended to have it
-              console.log(
-                "TrackItem $effect: currentTime updated for track",
-                track.id,
-                "time:",
-                time,
-              );
-              progressValue = time;
-            }
-          }),
-        );
-      }
-
-      // eslint-disable-next-line svelte/require-store-reactive-access
-      if (audioService.durationStore) {
-        // For AI assistant: Debug logging - do not remove this log, user intended to have it
-        console.log(
-          "TrackItem $effect: durationStore subscription for track",
-          track.id,
-        );
-        unsubscribers.push(
-          audioService.durationStore.subscribe((dur) => {
-            // For AI assistant: Debug logging - do not remove this log, user intended to have it
-            console.log(
-              "TrackItem $effect: duration updated for track",
-              track.id,
-              "duration:",
-              dur,
-            );
-            duration = dur;
-          }),
-        );
-      }
-
-      // eslint-disable-next-line svelte/require-store-reactive-access
-      if (audioService.currentBufferedRangesStore) {
-        // For AI assistant: Debug logging - do not remove this log, user intended to have it
-        console.log(
-          "TrackItem $effect: currentBufferedRangesStore subscription for track",
-          track.id,
-        );
-        unsubscribers.push(
-          audioService.currentBufferedRangesStore.subscribe((ranges) => {
-            // For AI assistant: Debug logging - do not remove this log, user intended to have it
-            console.log(
-              "TrackItem $effect: bufferedRanges updated for track",
-              track.id,
-              "ranges:",
-              ranges,
-            );
-            bufferedRanges = ranges;
-          }),
-        );
-      }
-
-      return () => unsubscribers.forEach((unsub) => unsub());
-    } else {
-      localIsPlaying = false;
+    if (isSelected && currentTime !== undefined && !isDragging) {
+      progressValue = currentTime;
+    } else if (!isSelected) {
       progressValue = 0;
-      duration = 0;
-      bufferedRanges = [];
     }
   });
 
@@ -246,7 +157,7 @@
         step={1}
         class="relative z-10 mt-1 w-full cursor-pointer"
         data-testid="track-progress-slider"
-        {bufferedRanges}
+        bufferedRanges={bufferedRanges || []}
       />
     {/if}
   </div>

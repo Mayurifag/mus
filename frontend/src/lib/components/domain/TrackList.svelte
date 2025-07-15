@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { AudioService } from "$lib/services/AudioService";
+  import type { TimeRange } from "$lib/types";
   import TrackItem from "./TrackItem.svelte";
   import { trackStore } from "$lib/stores/trackStore";
   import { createWindowVirtualizer } from "@tanstack/svelte-virtual";
@@ -9,10 +10,49 @@
 
   const tracks = $derived($trackStore.tracks);
 
+  // Audio playback state variables
+  let isPlaying = $state(false);
+  let currentTime = $state(0);
+  let duration = $state(0);
+  let bufferedRanges = $state<TimeRange[]>([]);
+
   let virtualizer = $state<ReturnType<typeof createWindowVirtualizer> | null>(
     null,
   );
   let initialScrollDone = $state(false);
+
+  // Subscribe to audio service stores
+  $effect(() => {
+    if (audioService) {
+      const unsubscribers: (() => void)[] = [];
+
+      unsubscribers.push(
+        audioService.isPlayingStore.subscribe((playing) => {
+          isPlaying = playing;
+        }),
+      );
+
+      unsubscribers.push(
+        audioService.currentTimeStore.subscribe((time) => {
+          currentTime = time;
+        }),
+      );
+
+      unsubscribers.push(
+        audioService.durationStore.subscribe((value) => {
+          duration = value;
+        }),
+      );
+
+      unsubscribers.push(
+        audioService.currentBufferedRangesStore.subscribe((ranges) => {
+          bufferedRanges = ranges;
+        }),
+      );
+
+      return () => unsubscribers.forEach((unsub) => unsub());
+    }
+  });
 
   $effect(() => {
     if (browser) {
@@ -64,12 +104,25 @@
           data-index={item.index}
           use:measureElement
         >
-          <TrackItem
-            track={tracks[item.index]}
-            index={item.index}
-            isSelected={$trackStore.currentTrackIndex === item.index}
-            {audioService}
-          />
+          {#if $trackStore.currentTrackIndex === item.index}
+            <TrackItem
+              track={tracks[item.index]}
+              index={item.index}
+              isSelected={true}
+              {audioService}
+              {currentTime}
+              {duration}
+              {isPlaying}
+              {bufferedRanges}
+            />
+          {:else}
+            <TrackItem
+              track={tracks[item.index]}
+              index={item.index}
+              isSelected={false}
+              {audioService}
+            />
+          {/if}
         </div>
       {/each}
     </div>
