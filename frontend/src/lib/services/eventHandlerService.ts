@@ -1,6 +1,7 @@
 import { toast } from "svelte-sonner";
 import * as apiClient from "./apiClient";
 import { trackStore } from "$lib/stores/trackStore";
+import { recentEventsStore } from "$lib/stores/recentEventsStore";
 import type { MusEvent } from "$lib/types";
 
 /**
@@ -8,6 +9,9 @@ import type { MusEvent } from "$lib/types";
  * @param payload The event payload from the SSE stream
  */
 export function handleMusEvent(payload: MusEvent): void {
+  // Store event in recent events store
+  recentEventsStore.addEvent(payload);
+
   // Show toast message if provided
   if (payload.message_to_show) {
     const toastType = payload.message_level || "info";

@@ -37,8 +37,8 @@
   );
 
   $effect(() => {
+    updateEffectStats("PlayerFooter_SubscriptionManager");
     if (audioService) {
-      updateEffectStats("PlayerFooter_SubscriptionManager");
       const unsubscribers: (() => void)[] = [];
 
       // eslint-disable-next-line svelte/require-store-reactive-access

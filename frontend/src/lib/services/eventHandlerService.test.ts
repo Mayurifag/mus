@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { initEventHandlerService, handleMusEvent } from "./eventHandlerService";
 import * as apiClient from "./apiClient";
 import { trackStore } from "$lib/stores/trackStore";
+import { recentEventsStore } from "$lib/stores/recentEventsStore";
 import type { MusEvent, Track } from "$lib/types";
 
 // Mock dependencies
@@ -15,6 +16,12 @@ vi.mock("$lib/stores/trackStore", () => ({
     addTrack: vi.fn(),
     updateTrack: vi.fn(),
     deleteTrack: vi.fn(),
+  },
+}));
+
+vi.mock("$lib/stores/recentEventsStore", () => ({
+  recentEventsStore: {
+    addEvent: vi.fn(),
   },
 }));
 
@@ -57,6 +64,7 @@ describe("eventHandlerService", () => {
       handleMusEvent(payload);
 
       expect(toast.success).toHaveBeenCalledWith("Test message");
+      expect(recentEventsStore.addEvent).toHaveBeenCalledWith(payload);
     });
 
     it("should default to info level when message_level is null", async () => {
@@ -72,6 +80,20 @@ describe("eventHandlerService", () => {
       handleMusEvent(payload);
 
       expect(toast.info).toHaveBeenCalledWith("Test message");
+      expect(recentEventsStore.addEvent).toHaveBeenCalledWith(payload);
+    });
+
+    it("should add event to recent events store even without message", () => {
+      const payload: MusEvent = {
+        message_to_show: null,
+        message_level: null,
+        action_key: "track_updated",
+        action_payload: null,
+      };
+
+      handleMusEvent(payload);
+
+      expect(recentEventsStore.addEvent).toHaveBeenCalledWith(payload);
     });
 
     it("should handle track_added event", () => {

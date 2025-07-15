@@ -1,10 +1,11 @@
 import os
 import re
 import time
+import asyncio
 from pathlib import Path
 from typing import Dict, Any
 
-import mutagen
+from mutagen._file import File as MutagenFile
 from fastapi import HTTPException
 
 from src.mus.application.dtos.track import TrackUpdateDTO
@@ -44,8 +45,13 @@ class EditTrackUseCase:
         if not changes_delta and not update_data.rename_file:
             return {"status": "no_changes"}
 
+        # Store original file timestamps before modifying
+        original_stat = await asyncio.to_thread(os.stat, track.file_path)
+        original_atime = original_stat.st_atime
+        original_mtime = original_stat.st_mtime
+
         try:
-            audio = mutagen.File(track.file_path, easy=True)
+            audio = MutagenFile(track.file_path, easy=True)
             if not audio:
                 raise HTTPException(status_code=400, detail="Unable to read audio file")
         except FileNotFoundError:
@@ -59,6 +65,10 @@ class EditTrackUseCase:
 
         if changes_delta:
             audio.save()
+            # Restore original file timestamps to prevent watchdog from detecting this as an external change
+            await asyncio.to_thread(
+                os.utime, track.file_path, (original_atime, original_mtime)
+            )
 
         new_file_path = track.file_path
         if update_data.rename_file:
@@ -100,6 +110,12 @@ class EditTrackUseCase:
 
         await self.track_repo.session.commit()
         await self.track_repo.session.refresh(track)
+
+        # Ensure track has an ID after refresh
+        if track.id is None:
+            raise HTTPException(
+                status_code=500, detail="Track ID is missing after save"
+            )
 
         # Create history entry
         history_entry = TrackHistory(
