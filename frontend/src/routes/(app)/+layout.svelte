@@ -11,6 +11,7 @@
   import { authConfigStore } from "$lib/stores/authConfigStore";
   import { initEventHandlerService } from "$lib/services/eventHandlerService";
   import { AudioService } from "$lib/services/AudioService";
+  import { updateEffectStats } from "$lib/utils/monitoredEffect";
   import * as Sheet from "$lib/components/ui/sheet";
   import type { Track } from "$lib/types";
   import { browser } from "$app/environment";
@@ -29,7 +30,6 @@
   let audioService = $state<AudioService | undefined>(undefined);
   let eventSource = $state<EventSource | null>(null);
   let sheetOpen = $state(false);
-  let lastPlayerStateSaveTime = $state(0);
   let lastCurrentTrackId = $state<number | null>(null);
   let isInitializing = $state(true);
 
@@ -133,20 +133,12 @@
   }
 
   $effect(() => {
+    updateEffectStats("Layout_TrackChangeHandler");
     if (
       audioService &&
       $trackStore.currentTrack &&
       $trackStore.currentTrack.id !== lastCurrentTrackId
     ) {
-      // For AI assistant: Debug logging - do not remove this log, user intended to have it
-      console.log(
-        "Layout $effect: Track changed - updating audio source. Track ID:",
-        $trackStore.currentTrack.id,
-        "Previous ID:",
-        lastCurrentTrackId,
-        "Is initializing:",
-        isInitializing,
-      );
       const shouldAutoPlay = audioService.isPlaying || !isInitializing;
       audioService.updateAudioSource($trackStore.currentTrack, shouldAutoPlay);
       lastCurrentTrackId = $trackStore.currentTrack.id;
@@ -154,21 +146,12 @@
   });
 
   $effect(() => {
+    updateEffectStats("Layout_PeriodicStateSave");
     if ($trackStore.currentTrack && audioService && audioService.isPlaying) {
-      // For AI assistant: Debug logging - do not remove this log, user intended to have it
-      console.log(
-        "Layout $effect: Saving player state. Track ID:",
-        $trackStore.currentTrack.id,
-        "Is playing:",
-        audioService.isPlaying,
-        "Last save time:",
-        lastPlayerStateSaveTime,
-      );
-      const now = Date.now();
-      if (now - lastPlayerStateSaveTime > 5000) {
+      const interval = setInterval(() => {
         savePlayerState();
-        lastPlayerStateSaveTime = now;
-      }
+      }, 5000);
+      return () => clearInterval(interval);
     }
   });
 
@@ -213,7 +196,7 @@
 <Sheet.Root bind:open={sheetOpen}>
   <!-- Main content area that uses full viewport scrolling -->
   <main
-    class="desktop:pr-64 min-h-screen overflow-x-hidden pr-0 pb-4"
+    class="desktop:pr-64 min-h-screen overflow-x-hidden pb-4 pr-0"
     style="overscroll-behavior-y: contain;"
     ontouchstart={handleTouchStart}
     ontouchend={handleTouchEnd}
@@ -226,7 +209,7 @@
   <Toaster position="top-left" />
 
   <!-- Desktop Sidebar - positioned fixed on the right -->
-  <aside class="desktop:block fixed top-0 right-0 bottom-20 hidden w-64">
+  <aside class="desktop:block fixed bottom-20 right-0 top-0 hidden w-64">
     <RightSidebar />
   </aside>
 

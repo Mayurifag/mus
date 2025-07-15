@@ -3,7 +3,6 @@
   import type { AudioService } from "$lib/services/AudioService";
   import { trackStore } from "$lib/stores/trackStore";
   import { permissionsStore } from "$lib/stores/permissionsStore";
-
   import { Slider } from "$lib/components/ui/slider";
   import { Pencil } from "@lucide/svelte";
   import EditTrackModal from "./EditTrackModal.svelte";
@@ -60,7 +59,9 @@
     }
   }
 
-  let progressValue = $state(0);
+  let progressValue = $derived(
+    isSelected && currentTime !== undefined ? currentTime : 0,
+  );
   let editModalOpen = $state(false);
 
   let mouseDownTarget: EventTarget | null = null;
@@ -80,14 +81,6 @@
       playTrack();
     }
   }
-
-  $effect(() => {
-    if (isSelected && currentTime !== undefined) {
-      progressValue = currentTime;
-    } else if (!isSelected) {
-      progressValue = 0;
-    }
-  });
 
   function handleProgressCommit(): void {
     if (audioService) {

@@ -3,6 +3,7 @@
 
   import { QrCode } from "@lucide/svelte";
   import QRLoginModal from "$lib/components/auth/QRLoginModal.svelte";
+  import EffectMonitor from "$lib/components/debug/EffectMonitor.svelte";
   import { authConfigStore } from "$lib/stores/authConfigStore";
   import type { Track } from "$lib/types";
   import { formatArtistsForDisplay } from "$lib/utils";
@@ -132,6 +133,9 @@
       </div>
     </div>
   {/if}
+
+  <!-- Effect Monitor -->
+  <EffectMonitor />
 
   <!-- QR Login Modal -->
   <QRLoginModal bind:open={isQrModalOpen} />

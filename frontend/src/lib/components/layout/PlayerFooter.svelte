@@ -6,6 +6,7 @@
   import type { AudioService } from "$lib/services/AudioService";
   import type { TimeRange } from "$lib/types";
   import { formatArtistsForDisplay, formatDuration } from "$lib/utils";
+  import { updateEffectStats } from "$lib/utils/monitoredEffect";
   import {
     Play,
     Pause,
@@ -37,6 +38,7 @@
 
   $effect(() => {
     if (audioService) {
+      updateEffectStats("PlayerFooter_SubscriptionManager");
       const unsubscribers: (() => void)[] = [];
 
       // eslint-disable-next-line svelte/require-store-reactive-access

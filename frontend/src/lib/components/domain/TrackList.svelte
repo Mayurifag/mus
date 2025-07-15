@@ -1,10 +1,12 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import type { AudioService } from "$lib/services/AudioService";
   import type { TimeRange } from "$lib/types";
   import TrackItem from "./TrackItem.svelte";
   import { trackStore } from "$lib/stores/trackStore";
   import { createWindowVirtualizer } from "@tanstack/svelte-virtual";
   import { browser } from "$app/environment";
+  import { updateEffectStats } from "$lib/utils/monitoredEffect";
 
   let { audioService }: { audioService?: AudioService } = $props();
 
@@ -19,10 +21,12 @@
   let virtualizer = $state<ReturnType<typeof createWindowVirtualizer> | null>(
     null,
   );
-  let initialScrollDone = $state(false);
+  let initialScrollDone = false;
 
   // Subscribe to audio service stores
   $effect(() => {
+    updateEffectStats("TrackList_AudioServiceSubscriptions");
+
     if (audioService) {
       const unsubscribers: (() => void)[] = [];
 
@@ -55,6 +59,8 @@
   });
 
   $effect(() => {
+    updateEffectStats("TrackList_VirtualizerSetup");
+
     if (browser) {
       virtualizer = createWindowVirtualizer({
         count: tracks.length,
@@ -66,18 +72,20 @@
   });
 
   $effect(() => {
+    updateEffectStats("TrackList_InitialScroll");
+
     if (
       !initialScrollDone &&
       virtualizer &&
       $trackStore.currentTrackIndex !== null
     ) {
-      setTimeout(() => {
+      tick().then(() => {
         if (virtualizer && $trackStore.currentTrackIndex !== null) {
           $virtualizer!.scrollToIndex($trackStore.currentTrackIndex, {
             align: "center",
           });
         }
-      }, 50);
+      });
       initialScrollDone = true;
     }
   });

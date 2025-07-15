@@ -48,11 +48,12 @@
     resetState();
   });
 
-  $effect(() => {
-    if (open) {
+  function handleOpenChange(newOpen: boolean) {
+    open = newOpen;
+    if (newOpen) {
       resetState();
     }
-  });
+  }
 
   const currentArtistString = $derived(
     artists
@@ -154,7 +155,7 @@
   }
 </script>
 
-<Dialog.Root bind:open>
+<Dialog.Root {open} onOpenChange={handleOpenChange}>
   <Dialog.Content
     class="max-h-[95vh] overflow-y-auto sm:max-w-[600px] lg:max-w-[900px]"
   >
@@ -182,7 +183,7 @@
 
             <!-- Filename tooltip on hover -->
             <div
-              class="absolute right-0 bottom-0 left-0 bg-black/75 p-2 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+              class="absolute bottom-0 left-0 right-0 bg-black/75 p-2 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100"
             >
               {originalFilename}
             </div>
@@ -283,7 +284,7 @@
                 <div class="rounded-md border bg-white p-3 dark:bg-slate-800">
                   {#if newFilenamePreview && changes.isFormValid}
                     <code
-                      class="text-sm break-all text-slate-800 dark:text-slate-200"
+                      class="break-all text-sm text-slate-800 dark:text-slate-200"
                     >
                       {newFilenamePreview}
                     </code>
@@ -296,7 +297,7 @@
                     </span>
                   {:else}
                     <span
-                      class="text-sm text-slate-500 italic dark:text-slate-400"
+                      class="text-sm italic text-slate-500 dark:text-slate-400"
                     >
                       Enter title and artist to see filename preview
                     </span>

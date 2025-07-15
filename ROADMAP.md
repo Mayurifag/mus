@@ -139,18 +139,17 @@
 
 ## Phase debugging, make whistles and blows
 
-- [ ] Effects refactoring
-  - [ ] Use app a little bit and see if there are much effects used to prevent cascade of them. Are there any ready solutions for that?
-  - [ ] derived.by - maybe use gemini to see what can be done better
-  - [ ] some util log
-  - [ ] 2 effects on filling slider - maybe it fills both sliders so 2 effects?
-  - [ ] Embrace $derived to make your components more readable, maintainable, and performant.
-  - [ ] Refactor side effects ($effect) to be more focused and to implement more robust application logic (like the player state saving).
+- [x] Effects refactoring
+  - [x] Use app a little bit and see if there are much effects used to prevent cascade of them. Are there any ready solutions for that?
+  - [x] derived.by - maybe use gemini to see what can be done better
+  - [x] some util log
+  - [x] 2 effects on filling slider - maybe it fills both sliders so 2 effects?
+  - [x] Embrace $derived to make your components more readable, maintainable, and performant.
+  - [x] Refactor side effects ($effect) to be more focused and to implement more robust application logic (like the player state saving).
 - [ ] Add rq-dashboard
 - [ ] Add watchdog events monitoring
-  - [ ] It seems, app changes are triggering watchdog - not sure! App changes should not update mtime
-- [ ] Inconsistent Album Art Display in Player Footer
-The album art in the desktop version of the player footer is only visible on screens wider than 1000px, while the rest of the desktop layout appears at 700px. This creates a broken UI state for screen widths between 700px and 999px, where the track's title and artist are visible, but the corresponding cover art is missing. This is caused by an inconsistent use of sm700: and desktop: utility classes.
+  - [ ] It seems, app changes are triggering watchdog - not sure! App changes should not update mtime! It updates now
+- [ ] Inconsistent Album Art Display in Player Footer. The album art in the desktop version of the player footer is only visible on screens wider than 1000px, while the rest of the desktop layout appears at 700px. This creates a broken UI state for screen widths between 700px and 999px, where the track's title and artist are visible, but the corresponding cover art is missing. This is caused by an inconsistent use of sm700: and desktop: utility classes.
 - [x] init scan - doesnt update covers
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while.
 - [ ] Mobile - make footer upper. PWA instructions in QR code add. Process anything not working.
