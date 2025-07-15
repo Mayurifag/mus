@@ -22,7 +22,7 @@ services:
       - backend
 
   dragonfly:
-    image: docker.dragonflydb.io/dragonflydb/dragonfly:v1.31.0
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:v1.31.1
     restart: unless-stopped
     ulimits:
       memlock: -1

@@ -136,6 +136,9 @@
   - [x] After edit track we have to scroll to the same place where scrolling was
   - [o] ~~During testing check console log for effects~~
 - [x] Fix progress clicking on slider sometimes
+
+## Phase debugging, make whistles and blows
+
 - [ ] Effects refactoring
   - [ ] Use app a little bit and see if there are much effects used to prevent cascade of them. Are there any ready solutions for that?
   - [ ] derived.by - maybe use gemini to see what can be done better
@@ -170,7 +173,7 @@ The album art in the desktop version of the player footer is only visible on scr
 - [ ] Complex e2e test: some file has to be flac with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
 - [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401
 
-## Phase 3
+## Phase non needed features
 
 - [ ] Sort tracks by different fields and ways
 - [ ] fast search - has to be server side to look vk/yt - and download in future!

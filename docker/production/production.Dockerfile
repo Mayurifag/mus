@@ -30,6 +30,7 @@ ENV PYTHONUNBUFFERED=1 \
     DATA_DIR_PATH=/app_data \
     BACKEND_URL=http://127.0.0.1:8001 \
     VIRTUAL_ENV=/opt/venv \
+    DRAGONFLY_VERSION=1.31.1 \
     PATH="/opt/venv/bin:$PATH"
 
 RUN apt-get update && \
@@ -43,13 +44,17 @@ RUN apt-get update && \
         curl \
         gettext-base \
         ffmpeg \
-    && ARCHITECTURE="amd64" && \
+    && ARCHITECTURE="x86_64" && \
     if [ "$TARGETARCH" = "arm64" ]; then ARCHITECTURE="aarch64"; fi && \
-    curl -L "https://github.com/dragonflydb/dragonfly/releases/download/v1.31.0/dragonfly-${ARCHITECTURE}.tar.gz" -o dragonfly.tar.gz && \
-    tar -xvzf dragonfly.tar.gz && \
-    find . -name "dragonfly*" -type f -executable -exec mv {} /usr/local/bin/dragonfly \; && \
-    rm dragonfly.tar.gz \
-    && rm -rf /var/lib/apt/lists/*
+    mkdir -p /tmp/dragonfly && \
+    curl -fL "https://github.com/dragonflydb/dragonfly/releases/download/v${DRAGONFLY_VERSION}/dragonfly-${ARCHITECTURE}.tar.gz" -o /tmp/dragonfly/dragonfly.tar.gz && \
+    cd /tmp/dragonfly && \
+    tar -xzf dragonfly.tar.gz && \
+    mv "dragonfly-${ARCHITECTURE}" /usr/local/bin/dragonfly && \
+    chmod +x /usr/local/bin/dragonfly && \
+    cd / && \
+    rm -rf /tmp/dragonfly && \
+    rm -rf /var/lib/apt/lists/*
 
 ARG UID=10001
 ARG GID=10001
