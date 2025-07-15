@@ -7,7 +7,7 @@
   import { Slider } from "$lib/components/ui/slider";
   import { Pencil } from "@lucide/svelte";
   import EditTrackModal from "./EditTrackModal.svelte";
-  import { formatArtistsForDisplay } from "$lib/utils";
+  import { formatArtistsForDisplay, formatDuration } from "$lib/utils";
 
   let {
     track,
@@ -35,12 +35,6 @@
   const trackDuration = $derived(track.duration);
   const trackHasCover = $derived(track.has_cover);
   const trackCoverSmallUrl = $derived(track.cover_small_url);
-
-  function formatDuration(seconds: number): string {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-  }
 
   function playTrack() {
     if (!audioService) {

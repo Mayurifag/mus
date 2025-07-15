@@ -5,7 +5,7 @@
   import { trackStore } from "$lib/stores/trackStore";
   import type { AudioService } from "$lib/services/AudioService";
   import type { TimeRange } from "$lib/types";
-  import { formatArtistsForDisplay } from "$lib/utils";
+  import { formatArtistsForDisplay, formatDuration } from "$lib/utils";
   import {
     Play,
     Pause,
@@ -22,12 +22,6 @@
 
   // Accept AudioService as a prop using Svelte 5 syntax
   let { audioService }: { audioService?: AudioService } = $props();
-
-  function formatTime(seconds: number): string {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-  }
 
   let isVolumeHovered = $state(false);
   let progressValue = $state(0);
@@ -287,7 +281,7 @@
       <!-- Row 3: Progress -->
       <div class="flex w-full items-center gap-3 px-4">
         <span class="text-muted-foreground w-10 text-right text-xs">
-          {formatTime(currentTime)}
+          {formatDuration(currentTime)}
         </span>
         <Slider
           bind:value={progressValue}
@@ -300,7 +294,7 @@
           {bufferedRanges}
         />
         <span class="text-muted-foreground w-10 text-xs">
-          {formatTime(duration)}
+          {formatDuration(duration)}
         </span>
       </div>
 
@@ -502,7 +496,7 @@
           class="desktop:mt-2 desktop:max-w-lg mb-2 flex w-full max-w-md items-center space-x-2"
         >
           <span class="text-muted-foreground w-10 text-right text-xs">
-            {formatTime(currentTime)}
+            {formatDuration(currentTime)}
           </span>
           <Slider
             bind:value={progressValue}
@@ -515,7 +509,7 @@
             {bufferedRanges}
           />
           <span class="text-muted-foreground w-10 text-xs">
-            {formatTime(duration)}
+            {formatDuration(duration)}
           </span>
         </div>
       </div>
