@@ -48,11 +48,12 @@
     resetState();
   });
 
-  $effect(() => {
-    if (open) {
+  function handleOpenChange(newOpen: boolean) {
+    open = newOpen;
+    if (newOpen) {
       resetState();
     }
-  });
+  }
 
   const currentArtistString = $derived(
     artists
@@ -154,7 +155,7 @@
   }
 </script>
 
-<Dialog.Root bind:open>
+<Dialog.Root {open} onOpenChange={handleOpenChange}>
   <Dialog.Content
     class="max-h-[95vh] overflow-y-auto sm:max-w-[600px] lg:max-w-[900px]"
   >

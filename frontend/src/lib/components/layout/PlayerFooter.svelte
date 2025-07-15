@@ -6,6 +6,7 @@
   import type { AudioService } from "$lib/services/AudioService";
   import type { TimeRange } from "$lib/types";
   import { formatArtistsForDisplay, formatDuration } from "$lib/utils";
+  import { updateEffectStats } from "$lib/utils/monitoredEffect";
   import {
     Play,
     Pause,
@@ -36,6 +37,7 @@
   );
 
   $effect(() => {
+    updateEffectStats("PlayerFooter_SubscriptionManager");
     if (audioService) {
       const unsubscribers: (() => void)[] = [];
 
@@ -129,6 +131,7 @@
 
 <div
   class="bg-card sm700:h-[var(--footer-height-desktop)] fixed right-0 bottom-0 left-0 z-50 h-[var(--footer-height-mobile)] border-t"
+  style="padding-bottom: env(safe-area-inset-bottom);"
 >
   <Card class="h-full rounded-none border-0 shadow-none">
     <!-- Mobile Layout (< 700px) -->

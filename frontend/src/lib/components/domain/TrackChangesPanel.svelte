@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { TrackHistory } from "$lib/types";
   import { fetchTrackHistory } from "$lib/services/apiClient";
+  import { updateEffectStats } from "$lib/utils/monitoredEffect";
   import { Clock } from "@lucide/svelte";
 
   let {
@@ -31,6 +32,8 @@
   }
 
   $effect(() => {
+    updateEffectStats("TrackChangesPanel_BindingSync");
+
     hasChanges = history.length > 0;
     changesCount = history.length;
   });
@@ -38,6 +41,8 @@
   let currentTrackId = $state<number | null>(null);
 
   $effect(() => {
+    updateEffectStats("TrackChangesPanel_HistoryFetch");
+
     if (trackId && trackId !== currentTrackId) {
       currentTrackId = trackId;
       loadHistory();

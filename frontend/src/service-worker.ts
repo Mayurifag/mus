@@ -9,12 +9,17 @@ const CACHE_NAME = `mus-cache-${version}`;
 const ASSETS_TO_CACHE = [...build, ...files, ...prerendered];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(ASSETS_TO_CACHE))
-      .then(() => self.skipWaiting()),
-  );
+  async function addAllToCache() {
+    const cache = await caches.open(CACHE_NAME);
+    const cachePromises = ASSETS_TO_CACHE.map((assetUrl) => {
+      return cache.add(assetUrl).catch((reason) => {
+        console.error(`[SW] Failed to cache ${assetUrl}:`, reason);
+      });
+    });
+    await Promise.all(cachePromises);
+  }
+
+  event.waitUntil(addAllToCache().then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {
@@ -32,9 +37,25 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  const url = new URL(request.url);
 
   if (request.method !== "GET") {
+    return;
+  }
+
+  const url = new URL(request.url);
+  const isStaticAsset = ASSETS_TO_CACHE.includes(url.pathname);
+
+  if (isStaticAsset) {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        return (
+          cachedResponse ||
+          fetch(request).then((networkResponse) => {
+            return networkResponse;
+          })
+        );
+      }),
+    );
     return;
   }
 
@@ -42,35 +63,12 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request).catch(async () => {
         const cachedResponse = await caches.match("/");
-        return cachedResponse || new Response("Offline", { status: 503 });
+        return (
+          cachedResponse ||
+          new Response("You are currently offline.", { status: 503 })
+        );
       }),
     );
     return;
-  }
-
-  if (
-    url.pathname.includes("/api/v1/tracks/") &&
-    url.pathname.includes("/stream")
-  ) {
-    return;
-  }
-
-  if (ASSETS_TO_CACHE.includes(url.pathname)) {
-    event.respondWith(
-      caches.match(request).then((response) => {
-        if (response) {
-          return response;
-        }
-        return fetch(request).then((fetchResponse) => {
-          if (fetchResponse.ok) {
-            const responseClone = fetchResponse.clone();
-            caches
-              .open(CACHE_NAME)
-              .then((cache) => cache.put(request, responseClone));
-          }
-          return fetchResponse;
-        });
-      }),
-    );
   }
 });

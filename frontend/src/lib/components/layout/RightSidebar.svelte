@@ -3,7 +3,8 @@
 
   import { QrCode } from "@lucide/svelte";
   import QRLoginModal from "$lib/components/auth/QRLoginModal.svelte";
-  import { authConfigStore } from "$lib/stores/authConfigStore";
+  import EffectMonitor from "$lib/components/debug/EffectMonitor.svelte";
+  import RecentEvents from "$lib/components/debug/RecentEvents.svelte";
   import type { Track } from "$lib/types";
   import { formatArtistsForDisplay } from "$lib/utils";
 
@@ -80,18 +81,16 @@
 
 <div class="h-full w-full">
   <!-- QR Login Button - Top Right -->
-  {#if $authConfigStore.isAuthEnabled}
-    <div class="mb-6 flex justify-end">
-      <button
-        class="icon-glow-effect relative rounded-md p-2 transition-all duration-200"
-        onclick={() => (isQrModalOpen = true)}
-        title="Open QR code for mobile login"
-        aria-label="Open QR code for mobile login"
-      >
-        <QrCode class="h-8 w-8" />
-      </button>
-    </div>
-  {/if}
+  <div class="mb-6 flex justify-end">
+    <button
+      class="icon-glow-effect relative rounded-md p-2 transition-all duration-200"
+      onclick={() => (isQrModalOpen = true)}
+      title="Open QR code for mobile access"
+      aria-label="Open QR code for mobile access"
+    >
+      <QrCode class="h-8 w-8" />
+    </button>
+  </div>
 
   <!-- Playback Debug Section -->
   {#if shouldShowDebugTimeline}
@@ -132,6 +131,12 @@
       </div>
     </div>
   {/if}
+
+  <!-- Recent Events -->
+  <RecentEvents />
+
+  <!-- Effect Monitor -->
+  <EffectMonitor />
 
   <!-- QR Login Modal -->
   <QRLoginModal bind:open={isQrModalOpen} />
