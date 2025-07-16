@@ -102,7 +102,7 @@ http {
             if ($arg_token = "${SECRET_KEY}") {
                 add_header Set-Cookie "auth_token=${SECRET_KEY}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=31536000";
                 add_header Content-Type "text/html";
-                return 200 '<html><head><script>window.location.replace("/");</script></head><body>Redirecting...</body></html>';
+                return 200 '<html><head><script>window.location.replace("/" + window.location.search);</script></head><body>Redirecting...</body></html>';
             }
             return 401;
         }
@@ -126,7 +126,7 @@ http {
 
         # Public static files (robots.txt, favicon, manifest, images)
         location ~* ^/(robots\.txt|favicon\.svg|manifest\.json|images/.*)$ {
-            root /app/frontend/build;
+            root /app/frontend/build/client;
             try_files $uri =404;
             expires 1d;
             add_header Cache-Control "public, max-age=86400";
