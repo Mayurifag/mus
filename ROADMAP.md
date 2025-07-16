@@ -153,6 +153,7 @@
 - [x] Mobile - make footer upper. PWA instructions in QR code add. Process anything not working.
 - [x] service worker broken /images/no-cover.svg for production
 - [x] token login should not redirect and contain link as is - to be saved for pwa - fix nginx conf. For PWA - check image for app added, I want icon. Other params?
+- [x] fix long token visual - make it with x-scrolling in qr modal
 - [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
 - [ ] Edit track functionality enhancements
   - [ ] Revert functionality UI
