@@ -36,6 +36,12 @@
     --radius: 0.5rem;
     --footer-height-mobile: 12rem;
     --footer-height-desktop: 8rem;
+
+    /* Safe area insets for mobile devices */
+    --safe-area-inset-top: env(safe-area-inset-top, 0px);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-inset-left: env(safe-area-inset-left, 0px);
+    --safe-area-inset-right: env(safe-area-inset-right, 0px);
   }
 
   .dark {
@@ -82,7 +88,9 @@
   html {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--muted-foreground) / 0.3) hsl(var(--muted));
-    scroll-padding-bottom: var(--footer-height-mobile);
+    scroll-padding-bottom: calc(
+      var(--footer-height-mobile) + var(--safe-area-inset-bottom)
+    );
   }
 
   html::-webkit-scrollbar {
@@ -106,7 +114,9 @@
 
   @media (min-width: 1000px) {
     html {
-      scroll-padding-bottom: var(--footer-height-desktop);
+      scroll-padding-bottom: calc(
+        var(--footer-height-desktop) + var(--safe-area-inset-bottom)
+      );
     }
   }
 

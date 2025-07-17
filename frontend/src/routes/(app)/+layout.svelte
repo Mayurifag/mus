@@ -197,7 +197,7 @@
   <!-- Main content area that uses full viewport scrolling -->
   <main
     class="desktop:pr-64 min-h-screen overflow-x-hidden pr-0 pb-4"
-    style="overscroll-behavior-y: contain;"
+    style="overscroll-behavior-y: contain; padding-top: var(--safe-area-inset-top);"
     ontouchstart={handleTouchStart}
     ontouchend={handleTouchEnd}
   >
@@ -209,7 +209,10 @@
   <Toaster position="top-left" />
 
   <!-- Desktop Sidebar - positioned fixed on the right -->
-  <aside class="desktop:block fixed top-0 right-0 hidden w-64">
+  <aside
+    class="desktop:block fixed top-0 right-0 hidden w-64"
+    style="padding-top: var(--safe-area-inset-top); padding-right: var(--safe-area-inset-right);"
+  >
     <RightSidebar />
   </aside>
 

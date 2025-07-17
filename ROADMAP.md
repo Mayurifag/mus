@@ -154,7 +154,7 @@
 - [x] service worker broken /images/no-cover.svg for production
 - [x] token login should not redirect and contain link as is - to be saved for pwa - fix nginx conf. For PWA - check image for app added, I want icon. Other params?
 - [x] fix long token visual - make it with x-scrolling in qr modal
-- [ ] nginx.conf - wrong redirect. I think that just has to reload page so app will load so no changes to URL
+- [o] ~~nginx.conf - wrong redirect. I think that just has to reload page so app will load so no changes to URL~~
 - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
 - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
 - [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
