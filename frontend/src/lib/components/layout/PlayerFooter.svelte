@@ -131,12 +131,12 @@
 
 <div
   class="bg-card sm700:h-[var(--footer-height-desktop)] fixed right-0 bottom-0 left-0 z-50 h-[var(--footer-height-mobile)] border-t"
-  style="padding-bottom: env(safe-area-inset-bottom);"
+  style="padding-bottom: var(--safe-area-inset-bottom); padding-left: var(--safe-area-inset-left); padding-right: var(--safe-area-inset-right);"
 >
   <Card class="h-full rounded-none border-0 shadow-none">
     <!-- Mobile Layout (< 700px) -->
     <div
-      class="sm700:hidden flex h-[var(--footer-height-mobile)] flex-col justify-between p-3"
+      class="sm700:hidden flex h-[var(--footer-height-mobile)] flex-col gap-2 p-3"
     >
       <!-- Row 1: Controls -->
       <div class="flex w-full items-center justify-center gap-4">
@@ -295,7 +295,9 @@
       </div>
 
       <!-- Row 4: Track Info -->
-      <div class="flex w-full items-center justify-center px-4 text-center">
+      <div
+        class="-mt-1 flex w-full items-center justify-center px-4 text-center"
+      >
         {#if $trackStore.currentTrack}
           <span class="text-muted-foreground truncate text-sm font-medium">
             {formatArtistsForDisplay($trackStore.currentTrack.artist)} - {$trackStore
@@ -305,6 +307,9 @@
           <span class="text-muted-foreground text-sm">Not Playing</span>
         {/if}
       </div>
+
+      <!-- Spacer to push content up -->
+      <div class="flex-1"></div>
     </div>
 
     <!-- Desktop Layout (>= 700px) -->

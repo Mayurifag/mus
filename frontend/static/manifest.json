@@ -39,7 +39,7 @@
   ],
   "start_url": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone"],
+  "display_override": ["fullscreen", "standalone"],
   "background_color": "#020817",
   "theme_color": "#020817",
   "orientation": "portrait-primary",

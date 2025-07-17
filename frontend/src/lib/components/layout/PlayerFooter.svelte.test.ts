@@ -85,13 +85,13 @@ describe("PlayerFooter component", () => {
     expect(desktopContainer?.classList.contains("sm700:flex")).toBe(true);
   });
 
-  it("should have four distinct rows in mobile layout", () => {
+  it("should have five distinct rows in mobile layout", () => {
     const { container } = render(PlayerFooter);
     const mobileContainer = container.querySelector(".sm700\\:hidden");
     expect(mobileContainer).toBeTruthy();
 
     const rows = mobileContainer?.children;
-    expect(rows?.length).toBe(4);
+    expect(rows?.length).toBe(5);
 
     // Row 1: Controls
     const controlsRow = rows?.[0];
@@ -108,6 +108,10 @@ describe("PlayerFooter component", () => {
     // Row 4: Track Info
     const trackInfoRow = rows?.[3];
     expect(trackInfoRow?.classList.contains("justify-center")).toBe(true);
+
+    // Row 5: Spacer
+    const spacerRow = rows?.[4];
+    expect(spacerRow?.classList.contains("flex-1")).toBe(true);
   });
 
   it("should show mobile track info in row 4 with artist - title format", () => {
