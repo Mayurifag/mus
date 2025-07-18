@@ -132,6 +132,7 @@
     }
   }
 
+  // TODO: maybe we should do that inside audio service idk
   $effect(() => {
     updateEffectStats("Layout_TrackChangeHandler");
     if (
@@ -196,7 +197,7 @@
 <Sheet.Root bind:open={sheetOpen}>
   <!-- Main content area that uses full viewport scrolling -->
   <main
-    class="desktop:pr-64 min-h-screen overflow-x-hidden pr-0 pb-4"
+    class="desktop:pr-64 sm700:pb-[calc(var(--footer-height-desktop)+1rem)] min-h-screen overflow-x-hidden pr-0 pb-[calc(var(--footer-height-mobile)+1rem)]"
     style="overscroll-behavior-y: contain; padding-top: var(--safe-area-inset-top);"
     ontouchstart={handleTouchStart}
     ontouchend={handleTouchEnd}
