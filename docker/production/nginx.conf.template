@@ -125,7 +125,7 @@ http {
         }
 
         # Public static files (robots.txt, favicon, manifest, images)
-        location ~* ^/(robots\.txt|favicon\.svg|manifest\.json|images/.*)$ {
+        location ~* ^/(robots\.txt|favicon\.(svg|ico)|manifest\.json|images/.*)$ {
             root /app/frontend/build/client;
             try_files $uri =404;
             expires 1d;
