@@ -3,19 +3,6 @@
   import { audioServiceStore } from "$lib/stores/audioServiceStore";
 </script>
 
-<div
-  class="container mx-auto"
-  style="padding-bottom: calc(var(--footer-height-mobile) + var(--safe-area-inset-bottom) + 1rem);"
->
+<div class="container mx-auto">
   <TrackList audioService={$audioServiceStore} />
 </div>
-
-<style>
-  @media (min-width: 700px) {
-    div {
-      padding-bottom: calc(
-        var(--footer-height-desktop) + var(--safe-area-inset-bottom) + 1rem
-      ) !important;
-    }
-  }
-</style>
