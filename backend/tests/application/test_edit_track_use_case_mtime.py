@@ -4,7 +4,6 @@ import pytest
 import pytest_asyncio
 from pathlib import Path
 from unittest.mock import patch, AsyncMock, Mock
-
 from src.mus.application.use_cases.edit_track_use_case import EditTrackUseCase
 from src.mus.application.dtos.track import TrackUpdateDTO
 from src.mus.domain.entities.track import Track
@@ -62,7 +61,7 @@ async def sample_track(tmp_path: Path):
 
 
 @pytest.mark.asyncio
-async def test_edit_track_preserves_mtime(mock_track_repo, sample_track):
+async def test_edit_track_preserves_mtime(mock_track_repo, sample_track, fake_redis):
     track, _ = sample_track
     mock_track_repo._get_by_id_return_value = track
 
@@ -116,7 +115,7 @@ async def test_edit_track_preserves_mtime(mock_track_repo, sample_track):
 
 
 @pytest.mark.asyncio
-async def test_edit_track_no_changes_no_mtime_operation(mock_track_repo, sample_track):
+async def test_edit_track_no_changes_no_mtime_operation(mock_track_repo, sample_track, fake_redis):
     track, _ = sample_track
     mock_track_repo._get_by_id_return_value = track
 

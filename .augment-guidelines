@@ -33,7 +33,6 @@ Styling (Tailwind CSS / Svelte)
 * Never manually reorder Tailwind CSS classes. Adhere to the order enforced by the project's Prettier configuration (`prettier-plugin-tailwindcss`).
 * Minimize <style> blocks in Svelte components.
 * CSS rules:
-
   * Indent with 2 spaces.
   * Quote strings with special characters or starting with numbers.
   * Use blank lines between logical blocks.
@@ -42,7 +41,7 @@ Styling (Tailwind CSS / Svelte)
 Python / FastAPI
 
 * Follow PEP 8, with 88 char max line length.
-* Use type hints everywhere practical.
+* Use type hints everywhere.
 * Use `async def` for FastAPI endpoints and I/O-bound operations. Run blocking, CPU-bound operations in a separate thread (e.g., using `asyncio.to_thread`) to avoid blocking the event loop.
 * Use async with / with for managing resources.
 * Do not use # type: ignore.
@@ -53,21 +52,23 @@ Python / FastAPI
 
 Svelte + TypeScript
 
-* Use <script lang="ts">. Order sections: script -> style (if needed) -> template.
-* Import at the top of <script>.
+* Use `<script lang="ts">`.
+* Order sections within `.svelte` files as follows:
+  1. `<script>` (logic)
+  2. `<style>` (styles, if necessary)
+  3. Template (HTML markup)
+* Place all imports at the top of the `<script>` tag.
 * Use Svelte 5 runes:
-
-  * \$state() for local state.
-  * \$derived() for computed.
-  * \$effect() for side effects.
-  * \$props() and \$bindable() for props.
-  * \$: syntax is strictly forbidden.
+  * $state() for local state.
+  * $derived() for computed.
+  * $effect() for side effects.
+  * $props() and $bindable() for props.
+  * `$: ` syntax is strictly forbidden.
 * Use semantic HTML and ARIA attributes.
 * Use keyed #each for list iteration.
 * Use Svelte stores:
-
   * Shared: define in src/lib/stores/.
-  * Localized: use \$state() in components.
+  * Localized: use $state() in components.
 * Avoid any. Define strict types in src/lib/types/.
 * Organize TS modules under src/lib/:
   * services/, stores/, types/, utils/
@@ -79,7 +80,7 @@ Testing
 * Write tests before or alongside code.
 * Python: use pytest, pytest-asyncio. High coverage required.
 * Svelte/TS: use Vitest + @testing-library/svelte.
-  * Use msw to mock API requests.
+  * Mock API requests. The current project mocks API responses for tests in `src/hooks.server.ts`. This is an acceptable approach. Using `msw` is also a valid strategy for client-side request mocking.
 * Prefer logic in stores/services/utilities over components.
 * Component logic should be UI-focused and testable.
 
@@ -108,7 +109,6 @@ YAML (CI/CD & Docker Compose)
 * Use lowercase true / false booleans.
 * Do not hardcode secrets. Use env vars or secret stores.
 * GitHub Actions:
-
   * Define minimal triggers and permissions.
   * Use versioned actions (e.g., actions/checkout\@v4).
 
@@ -121,7 +121,7 @@ Libraries / Tools
 * Linting/Formatting: obey ESLint and Prettier in project config.
 
 
-AGENT\_TASKS Execution Rules
+AGENT_TASKS Execution Rules
 
 1. For each subtask:
    * Complete the implementation and its tests.
