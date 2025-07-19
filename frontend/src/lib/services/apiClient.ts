@@ -1,4 +1,5 @@
 import type { Track, PlayerState, TrackHistory, MusEvent } from "$lib/types";
+import { handleApiResponse, createFormData } from "$lib/utils/apiErrorHandler";
 
 const VITE_INTERNAL_API_HOST = import.meta.env.VITE_INTERNAL_API_HOST || "";
 const VITE_PUBLIC_API_HOST = import.meta.env.VITE_PUBLIC_API_HOST || "";
@@ -203,4 +204,37 @@ export async function fetchMagicLinkUrl(): Promise<string> {
     console.error("Error fetching magic link URL:", error);
     return "";
   }
+}
+
+export async function uploadTrack(
+  file: File,
+  title: string,
+  artist: string,
+  options?: {
+    saveOnlyEssentials?: boolean;
+    rawTags?: string;
+  },
+): Promise<{ success: boolean; message: string }> {
+  const formData = createFormData({
+    file,
+    title,
+    artist,
+    ...(options?.saveOnlyEssentials !== undefined && {
+      save_only_essentials: options.saveOnlyEssentials,
+    }),
+    ...(options?.rawTags && { raw_tags: options.rawTags }),
+  });
+
+  const response = await fetch(
+    `${API_PREFIX}${API_VERSION_PATH}/tracks/upload`,
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
+
+  return await handleApiResponse(response, {
+    logError: true,
+    context: "uploading track",
+  });
 }

@@ -17,6 +17,12 @@
   import { browser } from "$app/environment";
   import { Toaster } from "$lib/components/ui/sonner";
   import type { LayoutData } from "./$types";
+  import DropzoneOverlay from "$lib/components/domain/DropzoneOverlay.svelte";
+  import TrackMetadataModal from "$lib/components/domain/TrackMetadataModal.svelte";
+  import {
+    DragDropService,
+    type ParsedFileInfo,
+  } from "$lib/services/dragDropService";
 
   // Touch handling for swipe gestures
   let startX = $state<number | null>(null);
@@ -32,6 +38,13 @@
   let sheetOpen = $state(false);
   let lastCurrentTrackId = $state<number | null>(null);
   let isInitializing = $state(true);
+
+  // Drag and drop state
+  let isDraggingFile = $state(false);
+  let uploadModalOpen = $state(false);
+  let fileToUpload = $state<File | null>(null);
+  let parsedFileInfo = $state<ParsedFileInfo | null>(null);
+  let dragDropService: DragDropService;
 
   function initializeAudioService() {
     if (audio) {
@@ -73,12 +86,30 @@
     }
   }
 
+  // Initialize drag and drop service
+  function initializeDragDropService() {
+    dragDropService = new DragDropService({
+      onDragStateChange: (isDragging: boolean) => {
+        isDraggingFile = isDragging;
+      },
+      onFileReady: (fileInfo: ParsedFileInfo) => {
+        fileToUpload = fileInfo.file;
+        parsedFileInfo = fileInfo;
+        uploadModalOpen = true;
+      },
+    });
+  }
+
   function setupEventListeners() {
     eventSource = initEventHandlerService();
 
     if (browser) {
       document.body.addEventListener("toggle-sheet", handleToggleMenu);
       document.addEventListener("visibilitychange", handleVisibilityChange);
+
+      // Setup drag and drop service
+      initializeDragDropService();
+      dragDropService.setupEventListeners();
     }
   }
 
@@ -108,6 +139,11 @@
     if (browser && document) {
       document.body.removeEventListener("toggle-sheet", handleToggleMenu);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+
+      // Remove drag and drop event listeners
+      if (dragDropService) {
+        dragDropService.removeEventListeners();
+      }
     }
   });
 
@@ -228,3 +264,20 @@
   <audio bind:this={audio} preload="auto" id="mus-audio-element" class="hidden"
   ></audio>
 </Sheet.Root>
+
+<!-- Drag and drop overlay -->
+<DropzoneOverlay visible={isDraggingFile} />
+
+<!-- Upload modal -->
+{#if fileToUpload && parsedFileInfo}
+  <TrackMetadataModal
+    bind:open={uploadModalOpen}
+    mode="create"
+    file={fileToUpload}
+    suggestedTitle={parsedFileInfo.suggestedTitle}
+    suggestedArtist={parsedFileInfo.suggestedArtist}
+    coverDataUrl={parsedFileInfo.coverInfo?.dataUrl}
+    metadata={parsedFileInfo.metadata}
+    allTags={parsedFileInfo.allTags}
+  />
+{/if}

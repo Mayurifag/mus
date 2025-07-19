@@ -155,15 +155,16 @@
 - [x] token login should not redirect and contain link as is - to be saved for pwa - fix nginx conf. For PWA - check image for app added, I want icon. Other params?
 - [x] fix long token visual - make it with x-scrolling in qr modal
 - [o] ~~nginx.conf - wrong redirect. I think that just has to reload page so app will load so no changes to URL~~
-- [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
-- [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
-- [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
+- [x] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
 - [ ] Edit track functionality enhancements
   - [ ] Revert functionality UI
   - [ ] Show exact changes will be done - for example if we change encoding it also has to be shown
   - [ ] Check that wrong tags could be fixed in UI - wrong encoding, wrong fields filled
   - [ ] check long filenames on edit - add warning
   - [ ] Remove files in editing file dialog - with confirmation. It may be not files but just entries in db.
+- [ ] Recurring task with PWA / iphone bugs
+  - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
+  - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
 - [x] Setup playwright mcp. Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
 - [ ] Work on snippets for LLM
   - [ ] https://x.com/steipete/status/1940314756705132683
@@ -179,7 +180,7 @@
 
 ## Phase non needed features
 
-- [ ] Remove non-docker development - not sure if thats needed
+- [ ] Remove non-docker development - not sure if thats needed - actually needed because AI doesnt understand what env im working in currently. Less commands is better
 - [ ] Sort tracks by different fields and ways
 - [ ] Continue refactoring effects
 - [ ] fast search - has to be server side to look vk/yt - and download in future!

@@ -32,13 +32,13 @@ def enqueue_slow_metadata(track_id: int):
 
 
 def enqueue_file_created(file_path: str):
-    get_low_priority_queue().enqueue(
+    get_high_priority_queue().enqueue(
         "src.mus.service.worker_tasks.process_file_upsert", file_path, True
     )
 
 
 def enqueue_file_modified(file_path: str):
-    get_low_priority_queue().enqueue(
+    get_high_priority_queue().enqueue(
         "src.mus.service.worker_tasks.process_file_upsert", file_path, False
     )
 

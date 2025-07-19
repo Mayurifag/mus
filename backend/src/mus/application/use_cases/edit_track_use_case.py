@@ -1,5 +1,4 @@
 import os
-import re
 import time
 import asyncio
 from pathlib import Path
@@ -16,6 +15,7 @@ from src.mus.infrastructure.persistence.sqlite_track_repository import (
 from src.mus.util.db_utils import add_track_history
 from src.mus.infrastructure.api.sse_handler import broadcast_sse_event
 from src.mus.util.track_dto_utils import create_track_dto_with_covers
+from src.mus.util.filename_utils import generate_track_filename
 
 
 class EditTrackUseCase:
@@ -72,10 +72,6 @@ class EditTrackUseCase:
 
         new_file_path = track.file_path
         if update_data.rename_file:
-
-            def sanitize(name: str) -> str:
-                return re.sub(r'[<>:"/\\|?*]', "", name)
-
             new_title = (
                 update_data.title if update_data.title is not None else track.title
             )
@@ -83,11 +79,12 @@ class EditTrackUseCase:
                 update_data.artist if update_data.artist is not None else track.artist
             )
 
-            formatted_artists = ", ".join(new_artist.split(";"))
-            new_name = f"{sanitize(formatted_artists)} - {sanitize(new_title)}{Path(track.file_path).suffix}"
-
-            if len(new_name) > 255:
-                raise HTTPException(status_code=400, detail="Filename too long")
+            try:
+                new_name = generate_track_filename(
+                    new_artist, new_title, Path(track.file_path).suffix
+                )
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
 
             new_file_path = str(Path(track.file_path).parent / new_name)
             os.rename(track.file_path, new_file_path)

@@ -24,6 +24,7 @@ dependencies = [
   "ffmpeg-python>=0.2.0",
   "vulture>=2.14",
   "bandit>=1.8.5",
+  "python-multipart>=0.0.20",
 ]
 
 [build-system]
