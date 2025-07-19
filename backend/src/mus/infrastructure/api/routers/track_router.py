@@ -24,6 +24,8 @@ from src.mus.infrastructure.api.dependencies import get_track_repository
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
 )
+from src.mus.util.redis_utils import set_app_write_lock
+from src.mus.util.queue_utils import enqueue_file_created_from_upload
 from src.mus.util.filename_utils import generate_track_filename
 from src.mus.util.file_validation import validate_upload_file
 from src.mus.config import settings
@@ -255,11 +257,14 @@ async def upload_track(
 
     file_path = settings.MUSIC_DIR_PATH / filename
 
-    # Save file to music directory
+    await set_app_write_lock(str(file_path))
+
     try:
         with open(file_path, "wb") as f:
             f.write(buffer.getvalue())
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+
+    enqueue_file_created_from_upload(str(file_path))
 
     return {"success": True, "message": "File uploaded and queued for processing."}

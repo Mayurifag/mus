@@ -1,14 +1,16 @@
+import asyncio
 from pathlib import Path
 
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
 from src.mus.util.queue_utils import (
-    enqueue_file_created,
+    enqueue_file_created_from_watchdog,
     enqueue_file_modified,
     enqueue_file_deletion,
     enqueue_file_move,
 )
+from src.mus.util.redis_utils import check_and_clear_app_write_lock
 
 AUDIO_EXTENSIONS = {".mp3", ".flac", ".m4a", ".ogg", ".wav"}
 
@@ -19,10 +21,14 @@ class MusicFileEventHandler(FileSystemEventHandler):
 
     def on_created(self, event: FileSystemEvent):
         if not event.is_directory and self._is_audio_file(str(event.src_path)):
-            enqueue_file_created(str(event.src_path))
+            if asyncio.run(check_and_clear_app_write_lock(str(event.src_path))):
+                return
+            enqueue_file_created_from_watchdog(str(event.src_path))
 
     def on_modified(self, event: FileSystemEvent):
         if not event.is_directory and self._is_audio_file(str(event.src_path)):
+            if asyncio.run(check_and_clear_app_write_lock(str(event.src_path))):
+                return
             enqueue_file_modified(str(event.src_path))
 
     def on_deleted(self, event: FileSystemEvent):

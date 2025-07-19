@@ -1,6 +1,5 @@
 import os
 import time
-import asyncio
 from pathlib import Path
 from typing import Dict, Any
 
@@ -16,6 +15,7 @@ from src.mus.util.db_utils import add_track_history
 from src.mus.infrastructure.api.sse_handler import broadcast_sse_event
 from src.mus.util.track_dto_utils import create_track_dto_with_covers
 from src.mus.util.filename_utils import generate_track_filename
+from src.mus.util.redis_utils import set_app_write_lock
 
 
 class EditTrackUseCase:
@@ -45,11 +45,6 @@ class EditTrackUseCase:
         if not changes_delta and not update_data.rename_file:
             return {"status": "no_changes"}
 
-        # Store original file timestamps before modifying
-        original_stat = await asyncio.to_thread(os.stat, track.file_path)
-        original_atime = original_stat.st_atime
-        original_mtime = original_stat.st_mtime
-
         try:
             audio = MutagenFile(track.file_path, easy=True)
             if not audio:
@@ -64,11 +59,8 @@ class EditTrackUseCase:
             audio["artist"] = update_data.artist
 
         if changes_delta:
+            await set_app_write_lock(track.file_path)
             audio.save()
-            # Restore original file timestamps to prevent watchdog from detecting this as an external change
-            await asyncio.to_thread(
-                os.utime, track.file_path, (original_atime, original_mtime)
-            )
 
         new_file_path = track.file_path
         if update_data.rename_file:
@@ -87,6 +79,8 @@ class EditTrackUseCase:
                 raise HTTPException(status_code=400, detail=str(e))
 
             new_file_path = str(Path(track.file_path).parent / new_name)
+            await set_app_write_lock(track.file_path)
+            await set_app_write_lock(new_file_path)
             os.rename(track.file_path, new_file_path)
 
         # Store original values before updating

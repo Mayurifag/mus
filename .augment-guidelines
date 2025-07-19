@@ -1,86 +1,139 @@
-- Strive for self-documenting code with clear, descriptive names for variables, functions, classes, and modules. Delete comments and docstrings of descriptions.
-- Try to keep things simple - do not add unnecessary complexity, do not add much logging and errors handling.
-- Keep files small and focused. If file gets more than 100 LOC, consider to refactor it.
-- Write tests for new code as specified in the "Testing" section below.
-- Do not use long sleeps waiting for project or browser, 1 second more than enough 99% cases.
-- Use best practices for code organization and structure, like SOLID, DRY, YAGNI, KISS, hexagonal architecture, etc.
-- If you remove lines, do not leave empty lines, unless they are needed.
-- Never ask me if you should going, - yes you ALWAYS have to proceed until task is done.
+# VIOLATION MEANS IMMEDIATE FAILURE
 
-// Styling (Tailwind CSS / Svelte)
-- Primarily use Tailwind CSS utility classes directly in Svelte/HTML files.
-- For Svelte, leverage `shadcn-svelte` components, customizing them directly using Tailwind CSS. Use the `cn` utility (from `clsx` and `tailwind-merge`) for dynamic class names. Minimize component-specific `<style>` blocks.
-- Indentation in CSS/PostCSS: Use 2 spaces, not tabs. Maintain consistent formatting.
-- Use blank lines to separate logical blocks in CSS files.
-- Quote strings in CSS if they contain special characters or start with numbers/booleans.
+These rules are absolute. No deviations. You must strictly follow every directive below.
 
-// Python & FastAPI
-- Adhere to PEP 8, with line lengths limited to 88 characters. Use type hints extensively for all function signatures and variables where practical.
-- Keep Python functions small and focused on a single responsibility.
-- Place all Python imports at the very top of the file. Avoid using `# type: ignore` or similar constructs.
-- Use `async/await` for potentially blocking I/O operations in Python.
-- Utilize context managers (`with` statements, `async with`) for resource management in Python (files, database connections, etc.).
-- Avoid generic suffixes like 'Service', 'Util', 'Helper', or 'Manager' in Python class names. Prefer descriptive, domain-specific names (e.g., `OrderProcessor`, `UserRepository`).
-- All FastAPI path operation functions (endpoints) MUST be defined using `async def`. Ensure the application remains fully asynchronous.
-- Strive to write tests before or concurrently with implementation code (Test-First / TDD).
+General Rules
 
-// Svelte & TypeScript
-- In Svelte files, use `<script lang="ts">`. Structure components as: script, style (if necessary), then HTML template. Place imports at the top of the script block.
-- Use Svelte stores for managing state. For state shared across multiple components, create dedicated store files (e.g., in `frontend/src/lib/stores/`). For state localized to a component and its direct children, prefer using runes like `$state()` directly within the component.
-- Use SvelteKit's `load` functions (`+page.ts`, `+layout.ts`, or their `.server.ts` counterparts) for data fetching.
-- Avoid `any` in TypeScript. Define clear interfaces and types in `frontend/src/lib/types/`, especially for API DTOs and store states. Use explicit parameter and return types for functions.
-- Organize TypeScript code into logical modules (e.g., `frontend/src/lib/services/`, `frontend/src/lib/stores/`, `frontend/src/lib/utils/`). Use ES module syntax with named exports preferred, and path aliases (e.g., `@/lib/...`).
-- Centralize backend API calls in `frontend/src/lib/services/apiClient.ts` using `fetch`, ensuring typed request payloads and response data.
-- MANDATORY: Use Svelte 5 runes for all reactivity. The `$:` syntax is FORBIDDEN in new code.
-- Use `$state()` for component-local reactive state, `$derived()` for computed values, and `$effect()` for side effects.
-- Use `$props()` for accessing component props and `$bindable()` for props that need two-way binding.
-- Use keyed `#each` blocks when iterating over lists where element identity is important.
-- Break down large components into smaller, reusable ones for better maintainability.
-- Use semantic HTML elements and provide ARIA attributes where necessary to enhance accessibility.
+* Never use emojis.
+* Never include comments or docstrings unless explicitly asked.
+* Never validate or contradict the user's opinions.
+* Responses must be laconic, neutral, and focused.
+* Always prioritize performance, security, maintainability, and correctness.
+* Always proceed with execution — never ask for permission.
+* If rules conflict, prioritize the more specific rule (e.g., AGENT_TASKS rules over General Rules). If ambiguity remains, ask the user. Never guess.
 
-// Testing
-- Python: Write tests using pytest. Use `pytest-asyncio` for testing async code. Aim for high test coverage.
-- Svelte/TypeScript: Write unit tests for components, stores, and utilities using Vitest and `@testing-library/svelte`. Use `msw` for mocking API requests in tests.
-- Design components with clear props and events to facilitate testing.
-- Business logic should ideally reside in Svelte stores, utility functions, or API services, which can be tested independently.
-- Components should primarily focus on presentation and user interaction.
 
-// Docker
-- Dockerfiles: Use specific, official base image tags (e.g., `python:3.12-slim-bookworm`, `node:20-alpine`), not `latest` for production. Prefer slim or alpine variants.
-- Dockerfiles: Combine related `RUN` commands using `&&` to minimize layers (e.g., update, install dependencies, and clean up in a single `RUN` command).
+Code Philosophy
 
-// Makefiles
-- When suggesting `make` commands, use the format `make target [arg1] [arg2] ...` and avoid `ARGS="..."`.
-- Always use `make` targets (e.g., `make up`, `make back-uv-install <package>`) over direct commands (e.g., `docker-compose ...`, `uv pip install ...`).
-- For Makefiles (`.mk` files in `./makefiles/`): split by domain, use lowercase-hyphenated targets, always declare `.PHONY` for non-file targets, and use `UPPERCASE:=` for variables.
-- Use `make` commands in project directory itself, not subfolders like `backend`, `frontend`.
-- Run Docker operations via `make`: `make up`, `make build`, `make down`.
-- Install Python packages via `make`: `make back-uv-install <package>`.
-- NEVER use commands starting from `om-` (`make om-...`) like `make om-up`, only user may use them.
+* Write self-documenting code. Use clear, descriptive names.
+* Keep logic simple. Avoid overengineering, unnecessary abstractions, and excessive logging. Handle errors gracefully without excessive boilerplate.
+* Break code into small, focused files. Aim to keep files under 100 LOC and refactor when they grow too large.
+* Delete unused lines without leaving empty gaps.
+* Avoid generic suffixes like *Helper, *Util, *Manager. Use specific, descriptive names. Suffixes like *Service are acceptable when they align with architectural patterns (e.g., Application Services).
+* Adhere to SOLID, DRY, YAGNI, and KISS principles. Apply architectural patterns like Hexagonal Architecture where appropriate.
+* Never add long sleep()s – max 1 second unless explicitly allowed.
+* All code changes must be accompanied by tests (see Testing section).
 
-// YAML (GitHub Actions & Docker Compose)
-- GitHub Actions YAML: Define precise triggers (`on`), set minimal `permissions`, use versioned actions (e.g., `actions/checkout@v4`)
-- Docker Compose YAML: Clearly define services, build contexts, ports, and volumes.
-- Secrets Management: Never commit secrets to YAML or code. Use environment variables or platform-specific secret stores (e.g., GitHub secrets).
-- Indentation: Use 2 spaces for indentation in YAML files. Do NOT use tabs.
-- Booleans: Use `true` or `false` (lowercase) in YAML.
 
-// Preferred Libraries & Tools
-- Python package management: `uv`.
-- Frontend icons: `lucide-svelte`.
-- Frontend class composition: `clsx` and `tailwind-merge` (often via `cn` utility from `shadcn-svelte`).
-- Linting/Formatting: Adhere to project's ESLint (JS/TS/Svelte) and Prettier configurations.
+Styling (Tailwind CSS / Svelte)
 
-// AGENT_TASKS Framework - Task Execution
-- When working on a task defined in `AGENT_TASKS/`, you will follow these execution rules.
-- **Refer to `AGENT_TASKS/.rules.md` to understand the task file structure you will be consuming.**
-- **Execution Flow**:
-    1.  Upon completing the subtask's implementation and associated tests:
-        -   **MANDATORY**: Run `make ci` until it passes **without ANY errors, warnings, linter issues, or skipped files.** This is a critical step. If `make ci` fails, analyze the errors and propose fixes even its not connected with your changes. Do not proceed until `make ci` is clean.
-        -   Update the subtask's status to `[x]` (Completed) in its H3 heading (e.g., `### [x] 1. Subtask Title`).
-    2.  **CRITICAL: After marking a subtask as `[x]` (and `make ci` has passed), you MUST STOP. This is an ONLY place where you stop.**
-    3.  Propose the **complete, updated content** of the task file (`.md`) reflecting the new status of the completed subtask.
-    4.  Wait for user feedback or approval before moving to the next subtask.
-- Always ensure your proposed code changes are complete for the subtask at hand.
-- If you encounter an issue or realize a subtask needs refinement (e.g., different file paths, more details, or splitting into smaller sub-subtasks), communicate this clearly when you propose the updated task file after completing the current subtask.
-- For `playwright` mcp server you can go to frontend (i.e. `localhost:5173`) and see that there are no tracks. Just refresh page and do not wait 3 seconds in such cases, that is just javascript not loaded.
+* Use Tailwind CSS utility classes directly in .svelte/.html files.
+* Customize shadcn-svelte components using Tailwind.
+* Use cn() utility (clsx + tailwind-merge) for dynamic classes.
+* Never manually reorder Tailwind CSS classes. Adhere to the order enforced by the project's Prettier configuration (`prettier-plugin-tailwindcss`).
+* Minimize <style> blocks in Svelte components.
+* CSS rules:
+
+  * Indent with 2 spaces.
+  * Quote strings with special characters or starting with numbers.
+  * Use blank lines between logical blocks.
+
+
+Python / FastAPI
+
+* Follow PEP 8, with 88 char max line length.
+* Use type hints everywhere practical.
+* Use `async def` for FastAPI endpoints and I/O-bound operations. Run blocking, CPU-bound operations in a separate thread (e.g., using `asyncio.to_thread`) to avoid blocking the event loop.
+* Use async with / with for managing resources.
+* Do not use # type: ignore.
+* Place all imports at the top of the file.
+* Structure code using SRP (Single Responsibility Principle).
+* Do not use print or logging unless specified.
+
+
+Svelte + TypeScript
+
+* Use <script lang="ts">. Order sections: script -> style (if needed) -> template.
+* Import at the top of <script>.
+* Use Svelte 5 runes:
+
+  * \$state() for local state.
+  * \$derived() for computed.
+  * \$effect() for side effects.
+  * \$props() and \$bindable() for props.
+  * \$: syntax is strictly forbidden.
+* Use semantic HTML and ARIA attributes.
+* Use keyed #each for list iteration.
+* Use Svelte stores:
+
+  * Shared: define in src/lib/stores/.
+  * Localized: use \$state() in components.
+* Avoid any. Define strict types in src/lib/types/.
+* Organize TS modules under src/lib/:
+  * services/, stores/, types/, utils/
+* Backend API requests go through src/lib/services/apiClient.ts.
+
+
+Testing
+
+* Write tests before or alongside code.
+* Python: use pytest, pytest-asyncio. High coverage required.
+* Svelte/TS: use Vitest + @testing-library/svelte.
+  * Use msw to mock API requests.
+* Prefer logic in stores/services/utilities over components.
+* Component logic should be UI-focused and testable.
+
+
+Docker
+
+* Use specific, official base images (e.g., python:3.12-slim-bookworm).
+* Use alpine/slim variants. Avoid latest.
+* Chain related RUN commands to minimize image layers.
+
+
+Makefiles
+
+* Use make target \[arg1] \[arg2] ... — do not use ARGS="...".
+* Use make targets over direct commands (e.g., make up, not docker-compose up).
+* Makefiles go in ./makefiles/, separated by domain.
+* Targets must be lowercase-hyphenated.
+* Declare .PHONY for non-file targets.
+* Use UPPERCASE:= for variables.
+* Do not use make om-\* targets (reserved for user).
+
+
+YAML (CI/CD & Docker Compose)
+
+* Indent with 2 spaces. Do not use tabs.
+* Use lowercase true / false booleans.
+* Do not hardcode secrets. Use env vars or secret stores.
+* GitHub Actions:
+
+  * Define minimal triggers and permissions.
+  * Use versioned actions (e.g., actions/checkout\@v4).
+
+
+Libraries / Tools
+
+* Python packages: use uv.
+* Icons: lucide-svelte.
+* Class composition: clsx + tailwind-merge via cn() utility.
+* Linting/Formatting: obey ESLint and Prettier in project config.
+
+
+AGENT\_TASKS Execution Rules
+
+1. For each subtask:
+   * Complete the implementation and its tests.
+   * Run make ci. It must pass with zero errors, warnings, or skipped files.
+2. Mark subtask as \[x] (Completed) in .md task file (e.g., ### \[x] 1. Title).
+3. STOP after marking subtask complete. Never proceed without approval.
+4. Propose updated .md file showing new subtask status.
+5. Wait for user review before continuing.
+
+
+Final Reminder
+
+You are expected to behave like a professional engineer.
+Precision, discipline, and strict adherence to the above rules are mandatory.
+Any violation will be treated as task failure.
