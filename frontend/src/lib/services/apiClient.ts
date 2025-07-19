@@ -41,7 +41,7 @@ export async function fetchTracks(): Promise<Track[]> {
     { context: "fetchTracks" },
   );
 
-  return result || [];
+  return result ?? [];
 }
 
 export async function fetchPlayerState(): Promise<PlayerState> {
@@ -67,7 +67,7 @@ export async function fetchPlayerState(): Promise<PlayerState> {
     { context: "fetchPlayerState" },
   );
 
-  return result || defaultState;
+  return result ?? defaultState;
 }
 
 export function sendPlayerStateBeacon(state: PlayerState): void {

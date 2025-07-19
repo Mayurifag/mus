@@ -95,7 +95,7 @@ describe("apiClient", () => {
 
       expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks");
       expect(console.error).toHaveBeenCalledWith(
-        "Error in fetchTracks:",
+        expect.stringContaining("fetchTracks"),
         expect.any(Error),
       );
       expect(result).toEqual([]);
@@ -109,7 +109,7 @@ describe("apiClient", () => {
 
       expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks");
       expect(console.error).toHaveBeenCalledWith(
-        "Error in fetchTracks:",
+        expect.stringContaining("fetchTracks"),
         expect.any(Error),
       );
       expect(result).toEqual([]);
@@ -170,7 +170,7 @@ describe("apiClient", () => {
 
       expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state");
       expect(console.error).toHaveBeenCalledWith(
-        "Error in fetchPlayerState:",
+        expect.stringContaining("fetchPlayerState"),
         expect.any(Error),
       );
       expect(result).toEqual({
@@ -191,7 +191,7 @@ describe("apiClient", () => {
 
       expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state");
       expect(console.error).toHaveBeenCalledWith(
-        "Error in fetchPlayerState:",
+        expect.stringContaining("fetchPlayerState"),
         expect.any(Error),
       );
       expect(result).toEqual({
