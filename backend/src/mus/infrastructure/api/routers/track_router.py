@@ -43,14 +43,6 @@ AUDIO_CONTENT_TYPES: Final = {
     ".wav": "audio/wav",
 }
 
-V1_TO_EASY_MAPPING: Final = {
-    "title": "title",
-    "artist": "artist",
-    "album": "album",
-    "year": "date",
-    "genre": "genre",
-    "comment": "comment",
-}
 
 router = APIRouter(prefix="/api/v1/tracks", tags=["tracks"])
 
@@ -224,12 +216,6 @@ async def upload_track(
                                     audio[key] = value[0]
                                 elif not isinstance(value, list):
                                     audio[key] = value
-
-                    # Apply v1 tags if present and no v2 equivalent
-                    if "v1" in tags_data and isinstance(tags_data["v1"], dict):
-                        for v1_key, easy_key in V1_TO_EASY_MAPPING.items():
-                            if v1_key in tags_data["v1"] and easy_key not in audio:
-                                audio[easy_key] = tags_data["v1"][v1_key]
 
                 except (json.JSONDecodeError, KeyError, TypeError) as e:
                     raise HTTPException(

@@ -158,11 +158,12 @@
 - [x] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
 - [ ] Codereview drag and drop feature:
   - [ ] frontendCoverExtractor.ts is total bullshit now
-  - [ ] Rename apiErrorHandler and see if we can reuse some code from there anywhere else
+  - [ ] Rename apiErrorHandler and see if we can reuse some code from there anywhere else for api frontend calls - fine if not
   - [ ] too much comments/descriptions (backend/src/mus/util/filename_utils.py etc)
   - [ ] V1_TO_EASY_MAPPING wtf is this. Do I need it? Can we just ignore nonv2 tags? We can use newer ones later
   - [ ] all effects have been logged?
   - [ ] Layout_TrackChangeHandler - executes twice - why?
+  - [ ] code review + check
 - [ ] Edit track functionality enhancements
   - [ ] Revert functionality UI
   - [ ] Show exact changes will be done - for example if we change encoding it also has to be shown
@@ -179,6 +180,8 @@
   - [x] Update mr alias to include full text from snippet
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
 - [x] ~~Celery and async tasks~~
+- [ ] Change mp3tag.js to something else. It doesnt support typescript + i might need something else..
+  - [ ] Full tests cover on audioFileAnalyzer.ts first!
 - [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
 - [ ] e2e in CI before deployment after linters. Complex github actions flow.
 - [ ] Complex e2e test: some file has to be flac with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.

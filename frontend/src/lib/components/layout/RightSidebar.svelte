@@ -6,7 +6,7 @@
   import EffectMonitor from "$lib/components/debug/EffectMonitor.svelte";
   import RecentEvents from "$lib/components/debug/RecentEvents.svelte";
   import type { Track } from "$lib/types";
-  import { formatArtistsForDisplay } from "$lib/utils";
+  import { formatArtistsForDisplay } from "$lib/utils/formatters";
 
   const MIN_HISTORY_FOR_DEBUG = 2;
 

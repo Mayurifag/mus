@@ -1,5 +1,9 @@
 import type { Track, PlayerState, TrackHistory, MusEvent } from "$lib/types";
-import { handleApiResponse, createFormData } from "$lib/utils/apiErrorHandler";
+import {
+  handleApiResponse,
+  createFormData,
+  safeApiCall,
+} from "$lib/utils/apiUtils";
 
 const VITE_INTERNAL_API_HOST = import.meta.env.VITE_INTERNAL_API_HOST || "";
 const VITE_PUBLIC_API_HOST = import.meta.env.VITE_PUBLIC_API_HOST || "";
@@ -28,51 +32,42 @@ export function createTrackWithUrls(
 }
 
 export async function fetchTracks(): Promise<Track[]> {
-  try {
-    const response = await fetch(`${API_PREFIX}${API_VERSION_PATH}/tracks`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const tracks: Track[] = await response.json();
+  const result = await safeApiCall(
+    async () => {
+      const response = await fetch(`${API_PREFIX}${API_VERSION_PATH}/tracks`);
+      const tracks: Track[] = await handleApiResponse(response);
+      return tracks.map((track) => createTrackWithUrls(track));
+    },
+    { context: "fetchTracks" },
+  );
 
-    return tracks.map((track) => createTrackWithUrls(track));
-  } catch (error) {
-    console.error("Error fetching tracks:", error);
-    return [];
-  }
+  return result || [];
 }
 
 export async function fetchPlayerState(): Promise<PlayerState> {
-  try {
-    const response = await fetch(
-      `${API_PREFIX}${API_VERSION_PATH}/player/state`,
-    );
-    if (response.status === 404) {
-      // Return default player state if none exists
-      return {
-        current_track_id: null,
-        progress_seconds: 0.0,
-        volume_level: 1.0,
-        is_muted: false,
-        is_shuffle: false,
-        is_repeat: false,
-      };
-    }
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching player state:", error);
-    return {
-      current_track_id: null,
-      progress_seconds: 0.0,
-      volume_level: 1.0,
-      is_muted: false,
-      is_shuffle: false,
-      is_repeat: false,
-    };
-  }
+  const defaultState: PlayerState = {
+    current_track_id: null,
+    progress_seconds: 0.0,
+    volume_level: 1.0,
+    is_muted: false,
+    is_shuffle: false,
+    is_repeat: false,
+  };
+
+  const result = await safeApiCall(
+    async () => {
+      const response = await fetch(
+        `${API_PREFIX}${API_VERSION_PATH}/player/state`,
+      );
+      if (response.status === 404) {
+        return defaultState;
+      }
+      return await handleApiResponse<PlayerState>(response);
+    },
+    { context: "fetchPlayerState" },
+  );
+
+  return result || defaultState;
 }
 
 export function sendPlayerStateBeacon(state: PlayerState): void {

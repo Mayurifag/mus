@@ -11,8 +11,9 @@
 
   import TrackChangesPanel from "./TrackChangesPanel.svelte";
   import FilenameDisplay from "./FilenameDisplay.svelte";
+  import { updateEffectStats } from "$lib/utils/monitoredEffect";
 
-  import type { AudioMetadata } from "$lib/utils/frontendCoverExtractor";
+  import type { AudioMetadata } from "$lib/utils/audioFileAnalyzer";
 
   let {
     open = $bindable(),
@@ -133,9 +134,8 @@
     resetState();
   });
 
-  // Update editable tags when form values change
   $effect(() => {
-    // Only update if user hasn't manually edited the JSON
+    updateEffectStats("TrackMetadataModal_EditableTagsSync");
     const expectedEditableTags = JSON.stringify(buildEditableTags(), null, 2);
     if (!editableAllTags || editableAllTags === expectedEditableTags) {
       editableAllTags = expectedEditableTags;
@@ -201,6 +201,7 @@
   });
 
   $effect(() => {
+    updateEffectStats("TrackMetadataModal_ChangesSync");
     if (mode === "edit" && track) {
       hasTrackChanges = changes.hasSavableChanges;
     }

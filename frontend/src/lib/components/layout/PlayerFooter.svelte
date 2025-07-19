@@ -5,7 +5,10 @@
   import { trackStore } from "$lib/stores/trackStore";
   import type { AudioService } from "$lib/services/AudioService";
   import type { TimeRange } from "$lib/types";
-  import { formatArtistsForDisplay, formatDuration } from "$lib/utils";
+  import {
+    formatArtistsForDisplay,
+    formatDuration,
+  } from "$lib/utils/formatters";
   import { updateEffectStats } from "$lib/utils/monitoredEffect";
   import {
     Play,
