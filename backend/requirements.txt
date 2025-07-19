@@ -82,6 +82,8 @@ python-dotenv==1.1.0
     # via
     #   mus (pyproject.toml)
     #   uvicorn
+python-multipart==0.0.20
+    # via mus (pyproject.toml)
 pyvips==3.0.0
     # via mus (pyproject.toml)
 pyyaml==6.0.2

@@ -155,20 +155,28 @@
 - [x] token login should not redirect and contain link as is - to be saved for pwa - fix nginx conf. For PWA - check image for app added, I want icon. Other params?
 - [x] fix long token visual - make it with x-scrolling in qr modal
 - [o] ~~nginx.conf - wrong redirect. I think that just has to reload page so app will load so no changes to URL~~
-- [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
-- [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
-- [ ] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
+- [x] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
+- [ ] Codereview drag and drop feature:
+  - [ ] frontendCoverExtractor.ts is total bullshit now
+  - [ ] Rename apiErrorHandler and see if we can reuse some code from there anywhere else
+  - [ ] too much comments/descriptions (backend/src/mus/util/filename_utils.py etc)
+  - [ ] V1_TO_EASY_MAPPING wtf is this. Do I need it? Can we just ignore nonv2 tags? We can use newer ones later
+  - [ ] all effects have been logged?
+  - [ ] Layout_TrackChangeHandler - executes twice - why?
 - [ ] Edit track functionality enhancements
   - [ ] Revert functionality UI
   - [ ] Show exact changes will be done - for example if we change encoding it also has to be shown
   - [ ] Check that wrong tags could be fixed in UI - wrong encoding, wrong fields filled
   - [ ] check long filenames on edit - add warning
   - [ ] Remove files in editing file dialog - with confirmation. It may be not files but just entries in db.
+- [ ] Recurring task with PWA / iphone bugs
+  - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
+  - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
 - [x] Setup playwright mcp. Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
-- [ ] Work on snippets for LLM
-  - [ ] https://x.com/steipete/status/1940314756705132683
-  - [ ] https://x.com/robzolkos/status/1940462968593875060
-  - [ ] Update mr alias to include full text from snippet
+- [x] Work on snippets for LLM
+  - [x] https://x.com/steipete/status/1940314756705132683
+  - [x] https://x.com/robzolkos/status/1940462968593875060
+  - [x] Update mr alias to include full text from snippet
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
 - [x] ~~Celery and async tasks~~
 - [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
@@ -179,7 +187,7 @@
 
 ## Phase non needed features
 
-- [ ] Remove non-docker development - not sure if thats needed
+- [ ] Remove non-docker development - not sure if thats needed - actually needed because AI doesnt understand what env im working in currently. Less commands is better
 - [ ] Sort tracks by different fields and ways
 - [ ] Continue refactoring effects
 - [ ] fast search - has to be server side to look vk/yt - and download in future!
@@ -198,6 +206,7 @@
 - [ ] Parse artists, make them unique, add to db. Make functionality to set artist for track. Remove artist from db if no tracks with this artist. Multiple artists for track.
 - [ ] Artist page with all their tracks
 - [ ] Artist can have many similar names (Тату = t.A.T.u.) - get from internet their possible titles for automatical matching later? AI?
+- [ ] "Play next" functionality
 
 ## Phase yt
 

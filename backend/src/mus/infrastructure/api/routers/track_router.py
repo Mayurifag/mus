@@ -1,15 +1,33 @@
 from enum import Enum
-from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Path,
+    Request,
+    status,
+    UploadFile,
+    File,
+    Form,
+)
 from fastapi.responses import FileResponse, Response
 from typing import List, Final, Dict, Any
 import os
 import hashlib
+import io
+import json
+
+from mutagen._file import File as MutagenFile
 from src.mus.application.dtos.track import TrackListDTO, TrackUpdateDTO
 from src.mus.application.use_cases.edit_track_use_case import EditTrackUseCase
 from src.mus.infrastructure.api.dependencies import get_track_repository
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
 )
+from src.mus.util.redis_utils import set_app_write_lock
+from src.mus.util.queue_utils import enqueue_file_created_from_upload
+from src.mus.util.filename_utils import generate_track_filename
+from src.mus.util.file_validation import validate_upload_file
 from src.mus.config import settings
 import asyncio
 
@@ -25,6 +43,14 @@ AUDIO_CONTENT_TYPES: Final = {
     ".wav": "audio/wav",
 }
 
+V1_TO_EASY_MAPPING: Final = {
+    "title": "title",
+    "artist": "artist",
+    "album": "album",
+    "year": "date",
+    "genre": "genre",
+    "comment": "comment",
+}
 
 router = APIRouter(prefix="/api/v1/tracks", tags=["tracks"])
 
@@ -156,3 +182,89 @@ async def update_track(
 ) -> Dict[str, Any]:
     use_case = EditTrackUseCase(track_repository)
     return await use_case.execute(track_id, update_data)
+
+
+@router.post("/upload")
+async def upload_track(
+    title: str = Form(...),
+    artist: str = Form(...),
+    file: UploadFile = File(...),
+    save_only_essentials: bool = Form(True),
+    raw_tags: str = Form(None),
+) -> Dict[str, Any]:
+    # Validate file using shared utility
+    extension = validate_upload_file(file)
+
+    # Read file content into buffer
+    file_content = await file.read()
+    buffer = io.BytesIO(file_content)
+
+    # Use mutagen to update metadata
+    try:
+        audio = MutagenFile(buffer, easy=True)
+        if not audio:
+            raise HTTPException(status_code=400, detail="Invalid audio file format")
+
+        if save_only_essentials:
+            # Clear all existing tags and set only essentials
+            audio.clear()
+            audio["title"] = title
+            audio["artist"] = artist
+        else:
+            # Apply raw tags if provided
+            if raw_tags:
+                try:
+                    tags_data = json.loads(raw_tags)
+
+                    # Apply v2 tags if present
+                    if "v2" in tags_data and isinstance(tags_data["v2"], dict):
+                        for key, value in tags_data["v2"].items():
+                            if key != "APIC":  # Skip picture data
+                                if isinstance(value, list) and len(value) > 0:
+                                    audio[key] = value[0]
+                                elif not isinstance(value, list):
+                                    audio[key] = value
+
+                    # Apply v1 tags if present and no v2 equivalent
+                    if "v1" in tags_data and isinstance(tags_data["v1"], dict):
+                        for v1_key, easy_key in V1_TO_EASY_MAPPING.items():
+                            if v1_key in tags_data["v1"] and easy_key not in audio:
+                                audio[easy_key] = tags_data["v1"][v1_key]
+
+                except (json.JSONDecodeError, KeyError, TypeError) as e:
+                    raise HTTPException(
+                        status_code=400, detail=f"Invalid raw tags format: {str(e)}"
+                    )
+
+            # Always ensure title and artist are set from form
+            audio["title"] = title
+            audio["artist"] = artist
+
+        # Save changes back to buffer
+        buffer.seek(0)
+        audio.save(buffer)
+        buffer.seek(0)
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"Failed to process audio file: {str(e)}"
+        )
+
+    # Generate filename using the same format as edit track functionality
+    try:
+        filename = generate_track_filename(artist, title, extension)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    file_path = settings.MUSIC_DIR_PATH / filename
+
+    await set_app_write_lock(str(file_path))
+
+    try:
+        with open(file_path, "wb") as f:
+            f.write(buffer.getvalue())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+
+    enqueue_file_created_from_upload(str(file_path))
+
+    return {"success": True, "message": "File uploaded and queued for processing."}

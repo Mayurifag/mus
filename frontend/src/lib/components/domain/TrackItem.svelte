@@ -5,7 +5,7 @@
   import { permissionsStore } from "$lib/stores/permissionsStore";
   import { Slider } from "$lib/components/ui/slider";
   import { Pencil } from "@lucide/svelte";
-  import EditTrackModal from "./EditTrackModal.svelte";
+  import TrackMetadataModal from "./TrackMetadataModal.svelte";
   import { formatArtistsForDisplay, formatDuration } from "$lib/utils";
 
   let {
@@ -169,4 +169,4 @@
   </div>
 </div>
 
-<EditTrackModal bind:open={editModalOpen} {track} />
+<TrackMetadataModal bind:open={editModalOpen} mode="edit" {track} />

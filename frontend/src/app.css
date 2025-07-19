@@ -88,9 +88,6 @@
   html {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--muted-foreground) / 0.3) hsl(var(--muted));
-    scroll-padding-bottom: calc(
-      var(--footer-height-mobile) + var(--safe-area-inset-bottom)
-    );
   }
 
   html::-webkit-scrollbar {
@@ -110,14 +107,6 @@
 
   html::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground) / 0.5);
-  }
-
-  @media (min-width: 1000px) {
-    html {
-      scroll-padding-bottom: calc(
-        var(--footer-height-desktop) + var(--safe-area-inset-bottom)
-      );
-    }
   }
 
   /* Icon glow effect for interactive elements */

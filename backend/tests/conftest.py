@@ -2,10 +2,13 @@ import os
 import pytest
 import pytest_asyncio
 from typing import AsyncGenerator
+from unittest.mock import patch
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
+import fakeredis.aioredis
+import fakeredis
 from src.mus.domain.entities.track import Track
 from src.mus.domain.entities.player_state import PlayerState
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
@@ -92,3 +95,15 @@ async def app():
     fastapi_app.dependency_overrides[get_session_generator] = _get_session_override
     yield fastapi_app
     fastapi_app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def fake_redis():
+    fake_redis_instance = fakeredis.aioredis.FakeRedis()
+    with (
+        patch("src.mus.util.redis_utils.redis.Redis.from_pool") as mock_async_from_pool,
+        patch("src.mus.util.redis_utils.Redis.from_url") as mock_sync_from_url,
+    ):
+        mock_async_from_pool.return_value = fake_redis_instance
+        mock_sync_from_url.return_value = fakeredis.FakeRedis()
+        yield fake_redis_instance

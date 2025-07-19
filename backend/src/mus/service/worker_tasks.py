@@ -109,7 +109,7 @@ async def process_file_move(src_path: str, dest_path: str):
             )
 
 
-async def process_file_upsert(file_path_str: str, is_creation: bool = False):
+async def _process_file_upsert(file_path_str: str, is_creation: bool = False):
     file_path = Path(file_path_str)
     metadata = extract_fast_metadata(file_path)
     if not metadata:
@@ -213,8 +213,8 @@ async def process_file_upsert(file_path_str: str, is_creation: bool = False):
 
 
 async def process_file_created(file_path_str: str):
-    await process_file_upsert(file_path_str, is_creation=True)
+    await _process_file_upsert(file_path_str, is_creation=True)
 
 
 async def process_file_modified(file_path_str: str):
-    await process_file_upsert(file_path_str, is_creation=False)
+    await _process_file_upsert(file_path_str, is_creation=False)
