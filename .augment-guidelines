@@ -83,6 +83,8 @@ Testing
   * Mock API requests. The current project mocks API responses for tests in `src/hooks.server.ts`. This is an acceptable approach. Using `msw` is also a valid strategy for client-side request mocking.
 * Prefer logic in stores/services/utilities over components.
 * Component logic should be UI-focused and testable.
+* Use fakeredis-py for Redis testing instead of mocking Redis calls. Set up global fixtures that can be explicitly required rather than auto-used.
+* Focus tests on core business logic rather than complex integration scenarios. Simple, direct tests of utilities often provide better value than elaborate mocking setups.
 
 
 Docker
@@ -119,6 +121,14 @@ Libraries / Tools
 * Icons: lucide-svelte.
 * Class composition: clsx + tailwind-merge via cn() utility.
 * Linting/Formatting: obey ESLint and Prettier in project config.
+
+
+Process & Quality Assurance
+
+* Always run `make ci` before considering any task complete. Individual test passes do not guarantee CI success.
+* Established processes exist for good reasons - follow them even when they seem redundant.
+* Run tests frequently during development, but treat CI as the final authority.
+* When setting up global test infrastructure, prefer explicit fixture requirements over auto-use to prevent hidden dependencies.
 
 
 AGENT_TASKS Execution Rules

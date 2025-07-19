@@ -115,7 +115,9 @@ async def test_edit_track_preserves_mtime(mock_track_repo, sample_track, fake_re
 
 
 @pytest.mark.asyncio
-async def test_edit_track_no_changes_no_mtime_operation(mock_track_repo, sample_track, fake_redis):
+async def test_edit_track_no_changes_no_mtime_operation(
+    mock_track_repo, sample_track, fake_redis
+):
     track, _ = sample_track
     mock_track_repo._get_by_id_return_value = track
 
