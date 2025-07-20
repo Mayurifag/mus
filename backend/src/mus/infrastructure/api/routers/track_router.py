@@ -15,7 +15,6 @@ from typing import List, Final, Dict, Any
 import os
 import hashlib
 import io
-import json
 
 from mutagen._file import File as MutagenFile
 from src.mus.application.dtos.track import TrackListDTO, TrackUpdateDTO
@@ -192,8 +191,6 @@ async def upload_track(
     title: str = Form(...),
     artist: str = Form(...),
     file: UploadFile = File(...),
-    save_only_essentials: bool = Form(True),
-    raw_tags: str = Form(None),
 ) -> Dict[str, Any]:
     # Validate file using shared utility
     extension = validate_upload_file(file)
@@ -208,34 +205,9 @@ async def upload_track(
         if not audio:
             raise HTTPException(status_code=400, detail="Invalid audio file format")
 
-        if save_only_essentials:
-            # Clear all existing tags and set only essentials
-            audio.clear()
-            audio["title"] = title
-            audio["artist"] = artist
-        else:
-            # Apply raw tags if provided
-            if raw_tags:
-                try:
-                    tags_data = json.loads(raw_tags)
-
-                    # Apply v2 tags if present
-                    if "v2" in tags_data and isinstance(tags_data["v2"], dict):
-                        for key, value in tags_data["v2"].items():
-                            if key != "APIC":  # Skip picture data
-                                if isinstance(value, list) and len(value) > 0:
-                                    audio[key] = value[0]
-                                elif not isinstance(value, list):
-                                    audio[key] = value
-
-                except (json.JSONDecodeError, KeyError, TypeError) as e:
-                    raise HTTPException(
-                        status_code=400, detail=f"Invalid raw tags format: {str(e)}"
-                    )
-
-            # Always ensure title and artist are set from form
-            audio["title"] = title
-            audio["artist"] = artist
+        # Preserve all existing tags and only update title and artist
+        audio["title"] = title
+        audio["artist"] = artist
 
         # Save changes back to buffer
         buffer.seek(0)

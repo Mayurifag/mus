@@ -227,19 +227,11 @@ export async function uploadTrack(
   file: File,
   title: string,
   artist: string,
-  options?: {
-    saveOnlyEssentials?: boolean;
-    rawTags?: string;
-  },
 ): Promise<{ success: boolean; message: string }> {
   const formData = createFormData({
     file,
     title,
     artist,
-    ...(options?.saveOnlyEssentials !== undefined && {
-      save_only_essentials: options.saveOnlyEssentials,
-    }),
-    ...(options?.rawTags && { raw_tags: options.rawTags }),
   });
 
   const response = await fetch(

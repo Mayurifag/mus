@@ -164,18 +164,20 @@
   - [x] all effects have been logged?
   - [x] Layout_TrackChangeHandler - executes twice - why?
   - [x] check effects + check draganddrop
-- [ ] Edit track functionality enhancements
-  - [ ] Revert functionality UI
-  - [ ] Show exact changes will be done - for example if we change encoding it also has to be shown
-  - [ ] Check that wrong tags could be fixed in UI - wrong encoding, wrong fields filled
-  - [ ] check long filenames on edit - add warning
+- [x] Edit track functionality enhancements
+  - [ ] ~~Show exact changes will be done - for example if we change encoding it also has to be shown~~
+  - [ ] ~~Check that wrong tags could be fixed in UI - wrong encoding, wrong fields filled~~
+  - [x] check long filenames on edit - add warning
   - [x] Remove files in editing file dialog - with confirmation. It may be not files but just entries in db.
+  - [x] Ignore all tags on creation except author/trackname. We will use it and/or overwrite just them. Others will be ignored (not deleted).
 - [ ] Recurring task with PWA / iphone bugs
   - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
   - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
 - [ ] Events refactoring
-  - [ ] On adding file on drag and drop - it produces too many events.. Should it? Maybe no need to produce events on file creation from upload?
+  - [x] On adding file on drag and drop - it produces too many events.. Should it? Maybe no need to produce events on file creation from upload?
   - [ ] On app launch too many slow metadata going on.. I think need something new. Now its slow and spamming noise
+  - [ ] slow metadata - convert automatically to UTF-8 id2V2.3
+  - [ ] whats slowing there - i think we might do things faster
 - [x] Setup playwright mcp. Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
 - [x] Work on snippets for LLM
   - [x] https://x.com/steipete/status/1940314756705132683
@@ -194,6 +196,7 @@
 
 ## Phase non needed features
 
+- [ ] Revert functionality UI
 - [ ] Remove non-docker development - not sure if thats needed - actually needed because AI doesnt understand what env im working in currently. Less commands is better
 - [ ] Sort tracks by different fields and ways
 - [ ] Continue refactoring effects

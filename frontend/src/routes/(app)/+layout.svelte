@@ -279,6 +279,5 @@
     suggestedArtist={parsedFileInfo.suggestedArtist}
     coverDataUrl={parsedFileInfo.coverInfo?.dataUrl}
     metadata={parsedFileInfo.metadata}
-    allTags={parsedFileInfo.allTags}
   />
 {/if}

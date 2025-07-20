@@ -11,11 +11,10 @@
     deleteTrack,
   } from "$lib/services/apiClient";
   import { toast } from "svelte-sonner";
-  import { Plus, X, HelpCircle } from "@lucide/svelte";
+  import { Plus, X, HelpCircle, Save, Trash2 } from "@lucide/svelte";
 
   import TrackChangesPanel from "./TrackChangesPanel.svelte";
   import FilenameDisplay from "./FilenameDisplay.svelte";
-  import { updateEffectStats } from "$lib/utils/monitoredEffect";
 
   import type { AudioMetadata } from "$lib/utils/audioFileAnalyzer";
 
@@ -28,7 +27,6 @@
     suggestedArtist,
     coverDataUrl,
     metadata,
-    allTags,
   }: {
     open: boolean;
     mode: "edit" | "create";
@@ -38,44 +36,10 @@
     suggestedArtist?: string;
     coverDataUrl?: string | null;
     metadata?: AudioMetadata;
-    allTags?: Record<string, unknown>;
   } = $props();
 
   let trackChangesCount = $state(0);
-  let saveOnlyEssentials = $state(true);
-  let editableAllTags = $state("");
   let confirmDeleteOpen = $state(false);
-
-  function buildDisplayTags(): Record<string, string[]> {
-    const baseTags: Record<string, string[]> = { ...(allTags?.v2 || {}) };
-
-    // Add title if available
-    if (formState.title.trim()) {
-      baseTags.TIT2 = [formState.title.trim()];
-    }
-
-    // Add artists if available
-    const currentArtistString = artists
-      .map((a) => a.value.trim())
-      .filter((v) => v)
-      .join(", ");
-    if (currentArtistString) {
-      baseTags.TPE1 = [currentArtistString];
-    }
-
-    return baseTags;
-  }
-
-  function buildEditableTags(): Record<string, string[]> {
-    const baseTags: Record<string, string[]> = { ...(allTags?.v2 || {}) };
-
-    // Remove fields that should only be managed by the system or form fields
-    delete baseTags.TIT2; // Title - managed by form
-    delete baseTags.TPE1; // Artists - managed by form
-    delete baseTags.TLEN; // Length/Duration - managed by system
-
-    return baseTags;
-  }
   let isUploading = $state(false);
 
   let formState = $state({
@@ -87,12 +51,12 @@
   let artists = $state<{ id: number; value: string }[]>([]);
 
   // Generate filename based on artists and title
-  const generatedFilename = $derived(() => {
-    const artistNames = artists
+  const generatedFilename = $derived.by(() => {
+    const artistNames = sanitizedArtists
       .filter((a) => a.value.trim())
       .map((a) => a.value.trim())
       .join(", ");
-    const title = formState.title.trim();
+    const title = sanitizedTitle.trim();
 
     if (!artistNames && !title) return file?.name || "untitled.mp3";
     if (!artistNames) return `${title}.mp3`;
@@ -100,6 +64,25 @@
 
     return `${artistNames} - ${title}.mp3`;
   });
+
+  // Check if filename is too long
+  const isFilenameTooLong = $derived.by(() => {
+    return generatedFilename.length > 255;
+  });
+
+  // Sanitize input by removing invalid filename characters
+  function sanitizeInput(value: string): string {
+    return value.replace(/[<>:"/\\|?*]/g, "");
+  }
+
+  // Sanitized versions for filename generation
+  const sanitizedTitle = $derived(sanitizeInput(formState.title));
+  const sanitizedArtists = $derived(
+    artists.map((artist) => ({
+      ...artist,
+      value: sanitizeInput(artist.value),
+    })),
+  );
 
   function resetState() {
     if (mode === "edit" && track) {
@@ -129,24 +112,10 @@
         artists = [{ id: artistIdCounter++, value: "" }];
       }
     }
-
-    // Update editable tags when allTags changes (excluding TIT2/TPE1)
-    editableAllTags = JSON.stringify(buildEditableTags(), null, 2);
   }
 
   onMount(() => {
     resetState();
-  });
-
-  const editableTagsJson = $derived(
-    JSON.stringify(buildEditableTags(), null, 2),
-  );
-
-  $effect(() => {
-    updateEffectStats("TrackMetadataModal_EditableTagsSync");
-    if (!editableAllTags || editableAllTags === editableTagsJson) {
-      editableAllTags = editableTagsJson;
-    }
   });
 
   function handleOpenChange(newOpen: boolean) {
@@ -165,15 +134,8 @@
     }
   }
 
-  function updateArtist(id: number, value: string) {
-    const artist = artists.find((a) => a.id === id);
-    if (artist) {
-      artist.value = value;
-    }
-  }
-
   const currentArtistString = $derived(
-    artists
+    sanitizedArtists
       .map((a) => a.value.trim())
       .filter(Boolean)
       .join("; "),
@@ -181,29 +143,34 @@
 
   const changes = $derived.by(() => {
     if (mode === "create") {
-      const hasTitle = formState.title.trim().length > 0;
+      const hasTitle = sanitizedTitle.trim().length > 0;
       const hasPrimaryArtist =
-        artists.length > 0 && artists[0].value.trim().length > 0;
+        sanitizedArtists.length > 0 &&
+        sanitizedArtists[0].value.trim().length > 0;
+      const filenameValid = !isFilenameTooLong;
       return {
-        isFormValid: hasTitle && hasPrimaryArtist,
-        hasSavableChanges: hasTitle && hasPrimaryArtist,
+        isFormValid: hasTitle && hasPrimaryArtist && filenameValid,
+        hasSavableChanges: hasTitle && hasPrimaryArtist && filenameValid,
       };
     }
 
     if (!track) return { isFormValid: false, hasSavableChanges: false };
 
-    const titleChanged = formState.title !== track.title;
+    const titleChanged = sanitizedTitle !== track.title;
     const artistChanged = currentArtistString !== track.artist;
-    const hasTitle = formState.title.trim().length > 0;
+    const hasTitle = sanitizedTitle.trim().length > 0;
     const hasPrimaryArtist =
-      artists.length > 0 && artists[0].value.trim().length > 0;
+      sanitizedArtists.length > 0 &&
+      sanitizedArtists[0].value.trim().length > 0;
+    const filenameValid = !formState.renameFile || !isFilenameTooLong;
 
     return {
-      isFormValid: hasTitle && hasPrimaryArtist,
+      isFormValid: hasTitle && hasPrimaryArtist && filenameValid,
       hasSavableChanges:
-        (titleChanged || artistChanged || formState.renameFile) &&
+        (titleChanged || artistChanged) &&
         hasTitle &&
-        hasPrimaryArtist,
+        hasPrimaryArtist &&
+        filenameValid,
     };
   });
 
@@ -222,36 +189,7 @@
 
     isUploading = true;
     try {
-      // Parse edited raw tags if provided
-      let parsedRawTags = undefined;
-      if (!saveOnlyEssentials) {
-        try {
-          // Start with form-derived tags (including TIT2/TPE1)
-          const finalTags = buildDisplayTags();
-
-          // Merge user's editable tags if provided
-          if (editableAllTags.trim()) {
-            const userTags = JSON.parse(editableAllTags);
-            Object.assign(finalTags, userTags);
-          }
-
-          // Reconstruct the full structure with v2 container
-          const fullStructure = {
-            v2: finalTags,
-            raw: { v2: finalTags },
-          };
-          parsedRawTags = JSON.stringify(fullStructure);
-        } catch {
-          toast.error("Invalid JSON in raw tags");
-          isUploading = false;
-          return;
-        }
-      }
-
-      await uploadTrack(file, formState.title, currentArtistString, {
-        saveOnlyEssentials,
-        rawTags: parsedRawTags,
-      });
+      await uploadTrack(file, sanitizedTitle, currentArtistString);
       toast.success("File uploaded successfully");
       open = false;
     } catch (error) {
@@ -268,8 +206,8 @@
     const payload: { title?: string; artist?: string; rename_file?: boolean } =
       {};
 
-    if (formState.title !== track.title) {
-      payload.title = formState.title;
+    if (sanitizedTitle !== track.title) {
+      payload.title = sanitizedTitle;
     }
     if (currentArtistString !== track.artist) {
       payload.artist = currentArtistString;
@@ -348,12 +286,29 @@
         <div class="space-y-6">
           <!-- Title field -->
           <div class="space-y-2">
-            <label for="title" class="text-sm font-medium">Title</label>
+            <div class="flex items-center gap-2">
+              <label for="title" class="text-sm font-medium">Title</label>
+              <div class="group relative">
+                <HelpCircle
+                  class="text-muted-foreground hover:text-foreground h-4 w-4 cursor-help transition-colors"
+                />
+                <div
+                  class="absolute left-6 top-0 z-50 hidden group-hover:block"
+                >
+                  <div
+                    class="bg-popover text-popover-foreground w-64 rounded-md border p-2 text-xs shadow-md"
+                  >
+                    Invalid characters for filenames (&lt;, &gt;, :, ", /, \, |,
+                    ?, *) are automatically removed.
+                  </div>
+                </div>
+              </div>
+            </div>
             <Input
               id="title"
               bind:value={formState.title}
               placeholder="Enter track title"
-              class={!changes.isFormValid && formState.title.trim() === ""
+              class={!changes.isFormValid && sanitizedTitle.trim() === ""
                 ? "border-red-500"
                 : ""}
             />
@@ -362,7 +317,24 @@
           <!-- Artists section -->
           <div class="space-y-3">
             <div class="flex items-center justify-between">
-              <span class="text-sm font-medium">Artists</span>
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium">Artists</span>
+                <div class="group relative">
+                  <HelpCircle
+                    class="text-muted-foreground hover:text-foreground h-4 w-4 cursor-help transition-colors"
+                  />
+                  <div
+                    class="absolute left-6 top-0 z-50 hidden group-hover:block"
+                  >
+                    <div
+                      class="bg-popover text-popover-foreground w-64 rounded-md border p-2 text-xs shadow-md"
+                    >
+                      Invalid characters for filenames (&lt;, &gt;, :, ", /, \,
+                      |, ?, *) are automatically removed.
+                    </div>
+                  </div>
+                </div>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -378,17 +350,12 @@
                 <div class="flex gap-2">
                   <Input
                     bind:value={artist.value}
-                    onchange={(e) =>
-                      updateArtist(
-                        artist.id,
-                        (e.target as HTMLInputElement).value,
-                      )}
                     placeholder={index === 0
                       ? "Primary artist (required)"
                       : "Additional artist"}
                     class={!changes.isFormValid &&
                     index === 0 &&
-                    artist.value.trim() === ""
+                    sanitizedArtists[index]?.value.trim() === ""
                       ? "border-red-500"
                       : ""}
                   />
@@ -410,74 +377,26 @@
           <!-- Filename display -->
           <FilenameDisplay
             filename={mode === "create"
-              ? generatedFilename()
-              : track?.file_path.split("/").pop() || ""}
+              ? generatedFilename
+              : formState.renameFile
+                ? generatedFilename
+                : track?.file_path.split("/").pop() || ""}
             fileSize={mode === "create" ? file?.size : undefined}
             duration={mode === "create"
               ? (metadata?.duration as number | undefined)
               : track?.duration}
           />
 
-          {#if mode === "create"}
-            <!-- Save only essentials checkbox -->
-            <div class="flex items-center space-x-2">
-              <Checkbox
-                id="save-essentials"
-                bind:checked={saveOnlyEssentials}
-              />
-              <label for="save-essentials" class="text-sm">
-                Save only essential metadata (artists, title, cover)
-              </label>
-            </div>
-
-            <!-- All tags -->
-            {#if !saveOnlyEssentials}
-              <div class="bg-muted rounded-lg p-4">
-                <div class="mb-2 flex items-center gap-2">
-                  <h3 class="font-medium">All tags</h3>
-                  <div class="group relative">
-                    <button
-                      type="button"
-                      class="text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <HelpCircle class="h-4 w-4" />
-                    </button>
-                    <div
-                      class="absolute top-0 left-6 z-50 hidden group-hover:block"
-                    >
-                      <div
-                        class="bg-popover text-popover-foreground w-80 rounded-md border p-3 text-sm shadow-md"
-                      >
-                        <div class="space-y-2">
-                          <div class="font-medium">Raw metadata tags</div>
-                          <div class="text-xs">
-                            ID3v2 metadata tags in JSON format. Edit directly to
-                            modify any field not available in the form above.
-                            TIT2 (title), TPE1 (artists), and TLEN (duration)
-                            are managed automatically.
-                          </div>
-                          <div class="text-xs">
-                            <div class="mb-1 font-medium">Examples:</div>
-                            <div class="space-y-1 font-mono text-[10px]">
-                              <div>"TALB": ["My Album"]</div>
-                              <div>"TYER": ["2024"]</div>
-                              <div>"TCOM": ["John Doe"]</div>
-                              <div>"TBPM": ["120"]</div>
-                              <div>"COMM": ["Live recording"]</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <textarea
-                  bind:value={editableAllTags}
-                  class="bg-background h-40 w-full resize-y rounded border p-2 font-mono text-xs"
-                  placeholder="Raw metadata JSON..."
-                ></textarea>
+          <!-- Filename length warning -->
+          {#if isFilenameTooLong}
+            <div class="rounded-lg border border-red-200 bg-red-50 p-3">
+              <div class="text-sm font-medium text-red-800">
+                Filename is too long (max 255 characters)
               </div>
-            {/if}
+              <div class="mt-1 text-xs text-red-600">
+                Current length: {generatedFilename.length} characters
+              </div>
+            </div>
           {/if}
 
           {#if mode === "edit"}
@@ -506,12 +425,13 @@
       <div class="mr-auto">
         {#if mode === "edit"}
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onclick={() => (confirmDeleteOpen = true)}
             disabled={isUploading}
-            class="text-muted-foreground hover:text-destructive"
+            class="border-destructive/20 text-destructive hover:bg-destructive hover:text-destructive-foreground"
           >
+            <Trash2 class="mr-2 h-4 w-4" />
             Delete
           </Button>
         {/if}
@@ -534,16 +454,13 @@
             ? "Please fill in required fields (title and primary artist)"
             : !changes.hasSavableChanges
               ? "No changes to save"
-              : mode === "create"
-                ? "Upload and save file"
-                : "Save changes"}
+              : "Save"}
         >
           {#if isUploading}
-            Uploading...
-          {:else if mode === "create"}
-            Upload and Save
+            Saving...
           {:else}
-            Save changes
+            <Save class="mr-2 h-4 w-4" />
+            Save
           {/if}
         </Button>
       </div>
