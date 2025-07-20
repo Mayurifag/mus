@@ -41,6 +41,7 @@
   let trackChangesCount = $state(0);
   let saveOnlyEssentials = $state(true);
   let editableAllTags = $state("");
+  let isInitialized = $state(false);
 
   function buildDisplayTags(): Record<string, string[]> {
     const baseTags: Record<string, string[]> = { ...(allTags?.v2 || {}) };
@@ -132,13 +133,17 @@
 
   onMount(() => {
     resetState();
+    isInitialized = true;
   });
+
+  const editableTagsJson = $derived(
+    JSON.stringify(buildEditableTags(), null, 2),
+  );
 
   $effect(() => {
     updateEffectStats("TrackMetadataModal_EditableTagsSync");
-    const expectedEditableTags = JSON.stringify(buildEditableTags(), null, 2);
-    if (!editableAllTags || editableAllTags === expectedEditableTags) {
-      editableAllTags = expectedEditableTags;
+    if (!editableAllTags || editableAllTags === editableTagsJson) {
+      editableAllTags = editableTagsJson;
     }
   });
 
@@ -202,7 +207,7 @@
 
   $effect(() => {
     updateEffectStats("TrackMetadataModal_ChangesSync");
-    if (mode === "edit" && track) {
+    if (isInitialized && mode === "edit" && track) {
       hasTrackChanges = changes.hasSavableChanges;
     }
   });
@@ -398,7 +403,9 @@
               ? generatedFilename()
               : track?.file_path.split("/").pop() || ""}
             fileSize={mode === "create" ? file?.size : undefined}
-            duration={mode === "create" ? metadata?.duration : track?.duration}
+            duration={mode === "create"
+              ? (metadata?.duration as number | undefined)
+              : track?.duration}
           />
 
           {#if mode === "create"}

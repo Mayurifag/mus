@@ -31,7 +31,9 @@ export function createTrackWithUrls(
   };
 }
 
-export async function fetchTracks(fetchFn: typeof fetch = fetch): Promise<Track[]> {
+export async function fetchTracks(
+  fetchFn: typeof fetch = fetch,
+): Promise<Track[]> {
   const result = await safeApiCall(
     async () => {
       const response = await fetchFn(`${API_PREFIX}${API_VERSION_PATH}/tracks`);
@@ -44,7 +46,9 @@ export async function fetchTracks(fetchFn: typeof fetch = fetch): Promise<Track[
   return result ?? [];
 }
 
-export async function fetchPlayerState(fetchFn: typeof fetch = fetch): Promise<PlayerState> {
+export async function fetchPlayerState(
+  fetchFn: typeof fetch = fetch,
+): Promise<PlayerState> {
   const defaultState: PlayerState = {
     current_track_id: null,
     progress_seconds: 0.0,

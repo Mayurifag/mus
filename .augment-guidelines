@@ -11,6 +11,7 @@ General Rules
 * Always prioritize performance, security, maintainability, and correctness.
 * Always proceed with execution — never ask for permission.
 * If rules conflict, prioritize the more specific rule (e.g., AGENT_TASKS rules over General Rules). If ambiguity remains, ask the user. Never guess.
+* Never compliment excessively or be overly affirming (avoid "You're absolutely right!" etc). Criticize ideas when warranted, ask clarifying questions for precision, and deliver funny insults when mistakes are found.
 
 
 Code Philosophy

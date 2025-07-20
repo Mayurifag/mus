@@ -78,8 +78,6 @@ function getTagValue(
   return undefined;
 }
 
-
-
 export async function analyzeAudioFile(
   file: File,
 ): Promise<FileAnalysisResult> {
@@ -97,7 +95,9 @@ export async function analyzeAudioFile(
     const commonMetadata: AudioMetadata = {
       title: getTagValue(v2, v1, "TIT2", "title")?.toString(),
       // Uses TPE1 (main artist) first, falls back to TPE2 (album artist) if not available
-      artist: getTagValue(v2, v1, "TPE1", "artist")?.toString() || getTagValue(v2, v1, "TPE2")?.toString(),
+      artist:
+        getTagValue(v2, v1, "TPE1", "artist")?.toString() ||
+        getTagValue(v2, v1, "TPE2")?.toString(),
       album: getTagValue(v2, v1, "TALB", "album")?.toString(),
     };
 
