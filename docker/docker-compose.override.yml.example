@@ -4,7 +4,7 @@ services:
       - "8000:8000"
     volumes:
       - ../backend:/app
-      - backend_venv:/opt/venv
+      - app_backend_venv:/opt/venv
       - /path/to/your/music:/app_data/music
       - app_data_database:/app_data/database
       - app_data_covers:/app_data/covers
@@ -20,7 +20,7 @@ services:
       - "5173:5173"
     volumes:
       - ../frontend:/app
-      - node_modules:/app/node_modules
+      - app_node_modules:/app/node_modules
     environment:
       - SECRET_KEY=dev_secret_key_please_change_in_production
       - VITE_INTERNAL_API_HOST=http://backend:8000
@@ -34,7 +34,7 @@ services:
   rq-worker:
     volumes:
       - ../backend:/app
-      - backend_venv:/opt/venv
+      - app_backend_venv:/opt/venv
       - /path/to/your/music:/app_data/music
       - app_data_database:/app_data/database
       - app_data_covers:/app_data/covers
@@ -45,7 +45,7 @@ services:
     command: sh -c "[ -f /app/requirements.txt ] && uv pip sync /app/requirements.txt; rq worker high_priority low_priority --url redis://dragonfly:6379"
 
 volumes:
-  node_modules:
-  backend_venv:
+  app_node_modules:
+  app_backend_venv:
   app_data_database:
   app_data_covers:

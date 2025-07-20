@@ -4,16 +4,10 @@ import {
   extractCoverFromFile,
   releaseCoverDataUrl,
 } from "./audioFileAnalyzer";
+import type { IAudioMetadata, IPicture } from "music-metadata";
 
-// Mock MP3Tag
-const mockMP3Tag = {
-  read: vi.fn(),
-  tags: {},
-};
-
-vi.mock("mp3tag.js", () => ({
-  default: vi.fn(() => mockMP3Tag),
-}));
+// Mock music-metadata
+vi.mock("music-metadata");
 
 // Mock URL.createObjectURL and URL.revokeObjectURL
 const mockCreateObjectURL = vi.fn();
@@ -33,16 +27,35 @@ global.Blob = vi.fn().mockImplementation((data, options) => ({
   type: options?.type || "application/octet-stream",
 })) as unknown as typeof Blob;
 
-// Mock Uint8Array
-global.Uint8Array = vi
-  .fn()
-  .mockImplementation((data) => data) as unknown as typeof Uint8Array;
-
 describe("audioFileAnalyzer", () => {
   const mockFile = new File(["test content"], "test.mp3", {
     type: "audio/mpeg",
   });
   const originalConsoleWarn = console.warn;
+
+  const getMockParseBlob = async () => {
+    const { parseBlob } = await import("music-metadata");
+    return vi.mocked(parseBlob);
+  };
+
+  const createMockMetadata = (
+    common: Partial<IAudioMetadata["common"]> = {},
+  ): IAudioMetadata => ({
+    common: {
+      track: { no: null, of: null },
+      disk: { no: null, of: null },
+      movementIndex: { no: null, of: null },
+      ...common,
+    },
+    format: {
+      trackInfo: [],
+      tagTypes: [],
+    },
+    native: {},
+    quality: {
+      warnings: [],
+    },
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -56,192 +69,170 @@ describe("audioFileAnalyzer", () => {
 
   describe("analyzeAudioFile", () => {
     it("should analyze file with complete metadata and cover", async () => {
-      const mockTags = {
-        v1: {
-          title: "V1 Title",
-          artist: "V1 Artist",
-          album: "V1 Album",
-        },
-        v2: {
-          TIT2: "V2 Title",
-          TPE1: "V2 Artist",
-          TALB: "V2 Album",
-          APIC: [
-            {
-              data: [1, 2, 3, 4],
-              format: "image/jpeg",
-              description: "Front Cover",
-            },
-          ],
-          version: "2.4",
-          flags: { unsynchronisation: false },
-        },
+      const mockParseBlob = await getMockParseBlob();
+
+      const mockPicture: IPicture = {
+        format: "image/jpeg",
+        data: Buffer.from([1, 2, 3, 4]),
+        description: "Front Cover",
+        type: "Cover (front)",
       };
 
-      mockMP3Tag.tags = mockTags;
-      mockFile.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(8));
+      const mockMetadata = createMockMetadata({
+        title: "Test Title",
+        artist: "Test Artist",
+        album: "Test Album",
+        picture: [mockPicture],
+      });
+
+      mockParseBlob.mockResolvedValue(mockMetadata);
 
       const result = await analyzeAudioFile(mockFile);
 
-      expect(result.metadata.title).toBe("V2 Title");
-      expect(result.metadata.artist).toBe("V2 Artist");
-      expect(result.metadata.album).toBe("V2 Album");
+      expect(result.metadata.title).toBe("Test Title");
+      expect(result.metadata.artist).toBe("Test Artist");
+      expect(result.metadata.album).toBe("Test Album");
       expect(result.coverInfo).toEqual({
         dataUrl: "blob:test-url",
         format: "image/jpeg",
         description: "Front Cover",
       });
-      expect(result.allTags.v1).toEqual(mockTags.v1);
-      expect(result.allTags.v2).not.toHaveProperty("version");
-      expect(result.allTags.v2).not.toHaveProperty("flags");
-    });
-
-    it("should fallback to v1 tags when v2 tags are missing", async () => {
-      const mockTags = {
-        v1: {
-          title: "V1 Title",
-          artist: "V1 Artist",
-          album: "V1 Album",
-        },
-        v2: {},
-      };
-
-      mockMP3Tag.tags = mockTags;
-      mockFile.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(8));
-
-      const result = await analyzeAudioFile(mockFile);
-
-      expect(result.metadata.title).toBe("V1 Title");
-      expect(result.metadata.artist).toBe("V1 Artist");
-      expect(result.metadata.album).toBe("V1 Album");
-      expect(result.coverInfo).toBeNull();
-    });
-
-    it("should handle TPE2 fallback for artist when TPE1 is missing", async () => {
-      const mockTags = {
-        v1: {},
-        v2: {
-          TIT2: "Title",
-          TPE2: "Album Artist",
-          TALB: "Album",
-        },
-      };
-
-      mockMP3Tag.tags = mockTags;
-      mockFile.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(8));
-
-      const result = await analyzeAudioFile(mockFile);
-
-      expect(result.metadata.artist).toBe("Album Artist");
-    });
-
-    it("should handle array values in v2 tags", async () => {
-      const mockTags = {
-        v1: {},
-        v2: {
-          TIT2: ["Array Title", "Second Title"],
-          TPE1: ["Array Artist"],
-          TALB: ["Array Album"],
-        },
-      };
-
-      mockMP3Tag.tags = mockTags;
-      mockFile.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(8));
-
-      const result = await analyzeAudioFile(mockFile);
-
-      expect(result.metadata.title).toBe("Array Title");
-      expect(result.metadata.artist).toBe("Array Artist");
-      expect(result.metadata.album).toBe("Array Album");
-    });
-
-    it("should filter technical metadata from allTags", async () => {
-      const mockTags = {
-        v1: {},
-        v2: {
-          TIT2: "Title",
-          version: "2.4",
-          flags: { unsynchronisation: false },
-          size: 1024,
-          v2Details: { header: "info" },
-          unsynchronisation: false,
-          extendedHeader: true,
-          experimentalIndicator: false,
-          keepThis: "should remain",
-        },
-      };
-
-      mockMP3Tag.tags = mockTags;
-      mockFile.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(8));
-
-      const result = await analyzeAudioFile(mockFile);
-
-      expect(result.allTags.v2).toHaveProperty("TIT2");
-      expect(result.allTags.v2).toHaveProperty("keepThis");
-      expect(result.allTags.v2).not.toHaveProperty("version");
-      expect(result.allTags.v2).not.toHaveProperty("flags");
-      expect(result.allTags.v2).not.toHaveProperty("size");
-      expect(result.allTags.v2).not.toHaveProperty("v2Details");
-    });
-
-    it("should handle APIC data in allTags by replacing with byte count", async () => {
-      const mockTags = {
-        v1: {},
-        v2: {
-          APIC: [
-            {
-              data: [1, 2, 3, 4, 5],
-              format: "image/jpeg",
-              description: "Cover",
-            },
-            {
-              data: [6, 7, 8],
-              format: "image/png",
-            },
-          ],
-        },
-      };
-
-      mockMP3Tag.tags = mockTags;
-      mockFile.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(8));
-
-      const result = await analyzeAudioFile(mockFile);
-
-      expect((result.allTags.v2 as Record<string, unknown>).APIC).toEqual([
+      expect(result.allTags.picture).toEqual([
         {
-          data: "[5 bytes]",
           format: "image/jpeg",
-          description: "Cover",
-        },
-        {
-          data: "[3 bytes]",
-          format: "image/png",
+          data: "[4 bytes]",
+          description: "Front Cover",
+          type: "Cover (front)",
         },
       ]);
     });
 
-    it("should handle missing v1 and v2 tags gracefully", async () => {
-      const mockTags = {};
+    it("should fallback to albumartist when artist is missing", async () => {
+      const mockParseBlob = await getMockParseBlob();
 
-      mockMP3Tag.tags = mockTags;
-      mockFile.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(8));
+      const mockMetadata = createMockMetadata({
+        title: "Test Title",
+        albumartist: "Album Artist",
+        album: "Test Album",
+      });
+
+      mockParseBlob.mockResolvedValue(mockMetadata);
 
       const result = await analyzeAudioFile(mockFile);
 
-      expect(result.metadata).toEqual({
-        title: undefined,
-        artist: undefined,
-        album: undefined,
-      });
+      expect(result.metadata.title).toBe("Test Title");
+      expect(result.metadata.artist).toBe("Album Artist");
+      expect(result.metadata.album).toBe("Test Album");
       expect(result.coverInfo).toBeNull();
-      expect(result.allTags.v1).toBeUndefined();
-      expect(result.allTags.v2).toEqual({});
+    });
+
+    it("should parse artist and title from filename when tags are missing", async () => {
+      const mockParseBlob = await getMockParseBlob();
+
+      const fileWithName = new File(
+        ["test content"],
+        "Artist One, Artist Two - Song Title.mp3",
+        {
+          type: "audio/mpeg",
+        },
+      );
+
+      const mockMetadata = createMockMetadata({});
+
+      mockParseBlob.mockResolvedValue(mockMetadata);
+
+      const result = await analyzeAudioFile(fileWithName);
+
+      expect(result.metadata.title).toBe("Song Title");
+      expect(result.metadata.artist).toBe("Artist One, Artist Two");
+      expect(result.coverInfo).toBeNull();
+    });
+
+    it("should parse title from filename when only title tag is missing", async () => {
+      const mockParseBlob = await getMockParseBlob();
+
+      const fileWithName = new File(
+        ["test content"],
+        "Some Artist - Great Song.flac",
+        {
+          type: "audio/flac",
+        },
+      );
+
+      const mockMetadata = createMockMetadata({
+        artist: "Tagged Artist",
+        album: "Tagged Album",
+      });
+
+      mockParseBlob.mockResolvedValue(mockMetadata);
+
+      const result = await analyzeAudioFile(fileWithName);
+
+      expect(result.metadata.title).toBe("Great Song");
+      expect(result.metadata.artist).toBe("Tagged Artist");
+      expect(result.metadata.album).toBe("Tagged Album");
+    });
+
+    it("should handle picture data in allTags by replacing with byte count", async () => {
+      const mockParseBlob = await getMockParseBlob();
+
+      const mockPictures: IPicture[] = [
+        {
+          format: "image/jpeg",
+          data: Buffer.from([1, 2, 3, 4, 5]),
+          description: "Cover",
+          type: "Cover (front)",
+        },
+        {
+          format: "image/png",
+          data: Buffer.from([6, 7, 8]),
+          type: "Cover (back)",
+        },
+      ];
+
+      const mockMetadata = createMockMetadata({
+        title: "Test Title",
+        picture: mockPictures,
+      });
+
+      mockParseBlob.mockResolvedValue(mockMetadata);
+
+      const result = await analyzeAudioFile(mockFile);
+
+      expect(result.allTags.picture).toEqual([
+        {
+          format: "image/jpeg",
+          data: "[5 bytes]",
+          description: "Cover",
+          type: "Cover (front)",
+        },
+        {
+          format: "image/png",
+          data: "[3 bytes]",
+          type: "Cover (back)",
+        },
+      ]);
+    });
+
+    it("should handle missing metadata gracefully", async () => {
+      const mockParseBlob = await getMockParseBlob();
+
+      const mockMetadata = createMockMetadata({});
+
+      mockParseBlob.mockResolvedValue(mockMetadata);
+
+      const result = await analyzeAudioFile(mockFile);
+
+      expect(result.metadata.title).toBe("test");
+      expect(result.metadata.artist).toBeUndefined();
+      expect(result.metadata.album).toBeUndefined();
+      expect(result.coverInfo).toBeNull();
     });
 
     it("should handle errors gracefully and return empty result", async () => {
-      mockFile.arrayBuffer = vi
-        .fn()
-        .mockRejectedValue(new Error("File read error"));
+      const mockParseBlob = await getMockParseBlob();
+
+      mockParseBlob.mockRejectedValue(new Error("Parse error"));
 
       const result = await analyzeAudioFile(mockFile);
 
@@ -257,20 +248,19 @@ describe("audioFileAnalyzer", () => {
     });
 
     it("should handle cover without format", async () => {
-      const mockTags = {
-        v1: {},
-        v2: {
-          APIC: [
-            {
-              data: [1, 2, 3, 4],
-              description: "Cover without format",
-            },
-          ],
-        },
+      const mockParseBlob = await getMockParseBlob();
+
+      const mockPicture: IPicture = {
+        format: "",
+        data: Buffer.from([1, 2, 3, 4]),
+        description: "Cover without format",
       };
 
-      mockMP3Tag.tags = mockTags;
-      mockFile.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(8));
+      const mockMetadata = createMockMetadata({
+        picture: [mockPicture],
+      });
+
+      mockParseBlob.mockResolvedValue(mockMetadata);
 
       const result = await analyzeAudioFile(mockFile);
 
@@ -281,40 +271,56 @@ describe("audioFileAnalyzer", () => {
       });
     });
 
-    it("should handle empty APIC array", async () => {
-      const mockTags = {
-        v1: {},
-        v2: {
-          APIC: [],
-        },
-      };
+    it("should handle empty picture array", async () => {
+      const mockParseBlob = await getMockParseBlob();
 
-      mockMP3Tag.tags = mockTags;
-      mockFile.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(8));
+      const mockMetadata = createMockMetadata({
+        picture: [],
+      });
+
+      mockParseBlob.mockResolvedValue(mockMetadata);
 
       const result = await analyzeAudioFile(mockFile);
 
       expect(result.coverInfo).toBeNull();
     });
+
+    it("should test different audio formats", async () => {
+      const mockParseBlob = await getMockParseBlob();
+
+      const flacFile = new File(["test content"], "test.flac", {
+        type: "audio/flac",
+      });
+
+      const mockMetadata = createMockMetadata({
+        title: "FLAC Title",
+        artist: "FLAC Artist",
+      });
+
+      mockParseBlob.mockResolvedValue(mockMetadata);
+
+      const result = await analyzeAudioFile(flacFile);
+
+      expect(result.metadata.title).toBe("FLAC Title");
+      expect(result.metadata.artist).toBe("FLAC Artist");
+    });
   });
 
   describe("extractCoverFromFile", () => {
     it("should extract cover info from file", async () => {
-      const mockTags = {
-        v1: {},
-        v2: {
-          APIC: [
-            {
-              data: [1, 2, 3, 4],
-              format: "image/png",
-              description: "Album Cover",
-            },
-          ],
-        },
+      const mockParseBlob = await getMockParseBlob();
+
+      const mockPicture: IPicture = {
+        format: "image/png",
+        data: Buffer.from([1, 2, 3, 4]),
+        description: "Album Cover",
       };
 
-      mockMP3Tag.tags = mockTags;
-      mockFile.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(8));
+      const mockMetadata = createMockMetadata({
+        picture: [mockPicture],
+      });
+
+      mockParseBlob.mockResolvedValue(mockMetadata);
 
       const result = await extractCoverFromFile(mockFile);
 
@@ -326,13 +332,11 @@ describe("audioFileAnalyzer", () => {
     });
 
     it("should return null when no cover exists", async () => {
-      const mockTags = {
-        v1: {},
-        v2: {},
-      };
+      const mockParseBlob = await getMockParseBlob();
 
-      mockMP3Tag.tags = mockTags;
-      mockFile.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(8));
+      const mockMetadata = createMockMetadata({});
+
+      mockParseBlob.mockResolvedValue(mockMetadata);
 
       const result = await extractCoverFromFile(mockFile);
 

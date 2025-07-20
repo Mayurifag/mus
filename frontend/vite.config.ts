@@ -26,6 +26,15 @@ export default defineConfig({
     viteCompression({ algorithm: "gzip" }),
     viteCompression({ algorithm: "brotliCompress", ext: ".br" }),
   ],
+  optimizeDeps: {
+    include: [
+      "music-metadata",
+      "@lucide/svelte",
+      "@tanstack/svelte-virtual",
+      "bits-ui",
+      "@castlenine/svelte-qrcode",
+    ],
+  },
   test: {
     coverage: {
       provider: "v8",

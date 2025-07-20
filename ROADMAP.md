@@ -196,6 +196,7 @@
 
 ## Phase non needed features
 
+- [ ] Slider has to be smaller by default and on hover it has to be bigger in size like now
 - [ ] Revert functionality UI
 - [ ] Remove non-docker development - not sure if thats needed - actually needed because AI doesnt understand what env im working in currently. Less commands is better
 - [ ] Sort tracks by different fields and ways

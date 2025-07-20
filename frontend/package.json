@@ -60,7 +60,7 @@
   },
   "dependencies": {
     "@tanstack/svelte-virtual": "^3.13.12",
-    "mp3tag.js": "^3.14.1",
+    "music-metadata": "^11.7.1",
     "svelte-gestures": "^5.1.4"
   }
 }

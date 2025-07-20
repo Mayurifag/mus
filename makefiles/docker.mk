@@ -11,7 +11,7 @@ build:
 
 .PHONY: down
 down:
-	@$(DOCKER_COMPOSE_CMD) down
+	@$(DOCKER_COMPOSE_CMD) down --remove-orphans
 
 .PHONY: logs
 logs:
