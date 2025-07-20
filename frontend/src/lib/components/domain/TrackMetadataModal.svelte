@@ -5,9 +5,13 @@
   import { Input } from "$lib/components/ui/input";
   import { Checkbox } from "$lib/components/ui/checkbox";
   import { Button } from "$lib/components/ui/button";
-  import { updateTrack, uploadTrack } from "$lib/services/apiClient";
+  import {
+    updateTrack,
+    uploadTrack,
+    deleteTrack,
+  } from "$lib/services/apiClient";
   import { toast } from "svelte-sonner";
-  import { Plus, X, Clock, HelpCircle } from "@lucide/svelte";
+  import { Plus, X, HelpCircle } from "@lucide/svelte";
 
   import TrackChangesPanel from "./TrackChangesPanel.svelte";
   import FilenameDisplay from "./FilenameDisplay.svelte";
@@ -37,11 +41,10 @@
     allTags?: Record<string, unknown>;
   } = $props();
 
-  let hasTrackChanges = $state(false);
   let trackChangesCount = $state(0);
   let saveOnlyEssentials = $state(true);
   let editableAllTags = $state("");
-  let isInitialized = $state(false);
+  let confirmDeleteOpen = $state(false);
 
   function buildDisplayTags(): Record<string, string[]> {
     const baseTags: Record<string, string[]> = { ...(allTags?.v2 || {}) };
@@ -133,7 +136,6 @@
 
   onMount(() => {
     resetState();
-    isInitialized = true;
   });
 
   const editableTagsJson = $derived(
@@ -205,12 +207,7 @@
     };
   });
 
-  $effect(() => {
-    updateEffectStats("TrackMetadataModal_ChangesSync");
-    if (isInitialized && mode === "edit" && track) {
-      hasTrackChanges = changes.hasSavableChanges;
-    }
-  });
+  let hasTrackHistory = $state(false);
 
   async function handleSave() {
     if (mode === "create" && file) {
@@ -287,6 +284,19 @@
     } catch (error) {
       console.error("Error updating track:", error);
       toast.error("Failed to update track");
+    }
+  }
+
+  async function handleDelete() {
+    if (!track) return;
+
+    try {
+      await deleteTrack(track.id);
+      confirmDeleteOpen = false;
+      open = false;
+    } catch (error) {
+      console.error("Error deleting track:", error);
+      toast.error("Failed to delete track");
     }
   }
 </script>
@@ -482,25 +492,30 @@
         </div>
       </div>
 
-      {#if mode === "edit" && track && hasTrackChanges}
+      {#if mode === "edit" && track && hasTrackHistory}
         <!-- Track changes panel (only in edit mode) -->
         <TrackChangesPanel
           trackId={track.id}
-          bind:hasChanges={hasTrackChanges}
+          bind:hasChanges={hasTrackHistory}
           bind:changesCount={trackChangesCount}
         />
       {/if}
     </div>
 
     <Dialog.Footer class="!justify-between">
-      {#if mode === "edit" && !hasTrackChanges}
-        <div class="flex items-center gap-2">
-          <Clock class="text-muted-foreground h-4 w-4" />
-          <span class="text-muted-foreground text-sm"> 0 changes </span>
-        </div>
-      {:else}
-        <div></div>
-      {/if}
+      <div class="mr-auto">
+        {#if mode === "edit"}
+          <Button
+            variant="ghost"
+            size="sm"
+            onclick={() => (confirmDeleteOpen = true)}
+            disabled={isUploading}
+            class="text-muted-foreground hover:text-destructive"
+          >
+            Delete
+          </Button>
+        {/if}
+      </div>
 
       <div class="flex gap-2">
         <Button
@@ -532,6 +547,25 @@
           {/if}
         </Button>
       </div>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>
+
+<!-- Delete confirmation dialog -->
+<Dialog.Root bind:open={confirmDeleteOpen}>
+  <Dialog.Content class="sm:max-w-[425px]">
+    <Dialog.Header>
+      <Dialog.Title>Are you sure?</Dialog.Title>
+      <Dialog.Description>
+        This action cannot be undone. This will permanently delete the track
+        from your library and remove the associated files from your system.
+      </Dialog.Description>
+    </Dialog.Header>
+    <Dialog.Footer>
+      <Button variant="outline" onclick={() => (confirmDeleteOpen = false)}>
+        Cancel
+      </Button>
+      <Button variant="destructive" onclick={handleDelete}>Delete</Button>
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>

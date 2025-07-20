@@ -25,7 +25,10 @@ from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
 )
 from src.mus.util.redis_utils import set_app_write_lock
-from src.mus.util.queue_utils import enqueue_file_created_from_upload
+from src.mus.util.queue_utils import (
+    enqueue_file_created_from_upload,
+    enqueue_track_deletion,
+)
 from src.mus.util.filename_utils import generate_track_filename
 from src.mus.util.file_validation import validate_upload_file
 from src.mus.config import settings
@@ -174,6 +177,14 @@ async def update_track(
 ) -> Dict[str, Any]:
     use_case = EditTrackUseCase(track_repository)
     return await use_case.execute(track_id, update_data)
+
+
+@router.delete("/{track_id}", status_code=status.HTTP_202_ACCEPTED)
+async def delete_track(
+    track_id: int = Path(..., gt=0),
+) -> Response:
+    enqueue_track_deletion(track_id)
+    return Response(status_code=status.HTTP_202_ACCEPTED)
 
 
 @router.post("/upload")

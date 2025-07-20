@@ -120,6 +120,24 @@ export async function updateTrack(
   }
 }
 
+export async function deleteTrack(trackId: number): Promise<void> {
+  try {
+    const response = await fetch(
+      `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}`,
+      {
+        method: "DELETE",
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+  } catch (error) {
+    console.error("Error deleting track:", error);
+    throw error;
+  }
+}
+
 export async function fetchTrackHistory(
   trackId: number,
 ): Promise<TrackHistory[]> {

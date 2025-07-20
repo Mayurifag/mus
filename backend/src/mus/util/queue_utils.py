@@ -15,7 +15,7 @@ def enqueue_file_created_from_watchdog(file_path: str):
 
 def enqueue_file_created_from_upload(file_path: str):
     get_high_priority_queue().enqueue(
-        "src.mus.service.worker_tasks.process_file_created", file_path
+        "src.mus.service.worker_tasks.process_file_created", file_path, True
     )
 
 
@@ -34,4 +34,10 @@ def enqueue_file_deletion(file_path: str):
 def enqueue_file_move(src_path: str, dest_path: str):
     get_high_priority_queue().enqueue(
         "src.mus.service.worker_tasks.process_file_move", src_path, dest_path
+    )
+
+
+def enqueue_track_deletion(track_id: int):
+    get_high_priority_queue().enqueue(
+        "src.mus.service.worker_tasks.delete_track_by_id", track_id
     )

@@ -1,6 +1,7 @@
 import asyncio
 from pathlib import Path
 import time
+from typing import Optional
 
 from src.mus.config import settings
 from src.mus.domain.entities.track import ProcessingStatus, Track
@@ -17,7 +18,7 @@ from src.mus.util.db_utils import (
     get_track_by_inode,
     upsert_track,
     update_track,
-    delete_track_by_path,
+    delete_track_from_db_by_id,
     update_track_path,
     add_track_history,
     prune_track_history,
@@ -72,20 +73,20 @@ async def process_slow_metadata(track_id: int):
     )
 
 
-async def process_file_deletion(file_path_str: str):
-    track = await get_track_by_path(file_path_str)
-    if not track:
-        return
-
-    track_title = track.title
-    track_id = await delete_track_by_path(file_path_str)
-    if not track_id:
-        return
-
+async def _delete_track_files_and_notify(
+    track_id: int, track_title: str, file_path: Optional[str] = None
+):
+    # Delete cover files
     for suffix in ["_original.webp", "_small.webp"]:
         cover_path = settings.COVERS_DIR_PATH / f"{track_id}{suffix}"
         if await asyncio.to_thread(cover_path.exists):
             await asyncio.to_thread(cover_path.unlink)
+
+    # Delete audio file if path provided
+    if file_path:
+        audio_path = Path(file_path)
+        if await asyncio.to_thread(audio_path.exists):
+            await asyncio.to_thread(audio_path.unlink)
 
     await notify_sse_from_worker(
         action_key="track_deleted",
@@ -93,6 +94,26 @@ async def process_file_deletion(file_path_str: str):
         level="info",
         payload={"id": track_id},
     )
+
+
+async def delete_track_by_id(track_id: int):
+    track = await get_track_by_id(track_id)
+    if not track:
+        return
+
+    track_title = track.title
+    file_path = track.file_path
+    success = await delete_track_from_db_by_id(track_id)
+    if success:
+        await _delete_track_files_and_notify(track_id, track_title, file_path)
+
+
+async def process_file_deletion(file_path_str: str):
+    track = await get_track_by_path(file_path_str)
+    if not track or track.id is None:
+        return
+
+    await delete_track_by_id(track.id)
 
 
 async def process_file_move(src_path: str, dest_path: str):
@@ -109,7 +130,9 @@ async def process_file_move(src_path: str, dest_path: str):
             )
 
 
-async def _process_file_upsert(file_path_str: str, is_creation: bool = False):
+async def _process_file_upsert(
+    file_path_str: str, is_creation: bool = False, skip_slow_metadata: bool = False
+):
     file_path = Path(file_path_str)
     metadata = extract_fast_metadata(file_path)
     if not metadata:
@@ -196,7 +219,9 @@ async def _process_file_upsert(file_path_str: str, is_creation: bool = False):
             await prune_track_history(upserted_track.id, 5)
 
     if upserted_track and upserted_track.id:
-        enqueue_slow_metadata(upserted_track.id)
+        if not skip_slow_metadata:
+            enqueue_slow_metadata(upserted_track.id)
+
         action_key = "track_added" if is_creation else "track_updated"
         action_message = "Added" if is_creation else "Updated"
         level = "success" if is_creation else "info"
@@ -212,8 +237,10 @@ async def _process_file_upsert(file_path_str: str, is_creation: bool = False):
         )
 
 
-async def process_file_created(file_path_str: str):
-    await _process_file_upsert(file_path_str, is_creation=True)
+async def process_file_created(file_path_str: str, skip_slow_metadata: bool = False):
+    await _process_file_upsert(
+        file_path_str, is_creation=True, skip_slow_metadata=skip_slow_metadata
+    )
 
 
 async def process_file_modified(file_path_str: str):

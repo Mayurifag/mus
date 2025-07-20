@@ -156,23 +156,26 @@
 - [x] fix long token visual - make it with x-scrolling in qr modal
 - [o] ~~nginx.conf - wrong redirect. I think that just has to reload page so app will load so no changes to URL~~
 - [x] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
-- [ ] Codereview drag and drop feature:
+- [x] Codereview drag and drop feature:
   - [x] frontendCoverExtractor.ts is total bullshit now
   - [x] Rename apiErrorHandler and see if we can reuse some code from there anywhere else for api frontend calls - fine if not
   - [x] too much comments/descriptions (backend/src/mus/util/filename_utils.py etc)
   - [x] V1_TO_EASY_MAPPING wtf is this. Do I need it? Can we just ignore nonv2 tags? We can use newer ones later
   - [x] all effects have been logged?
   - [x] Layout_TrackChangeHandler - executes twice - why?
-  - [ ] check effects + check draganddrop
+  - [x] check effects + check draganddrop
 - [ ] Edit track functionality enhancements
   - [ ] Revert functionality UI
   - [ ] Show exact changes will be done - for example if we change encoding it also has to be shown
   - [ ] Check that wrong tags could be fixed in UI - wrong encoding, wrong fields filled
   - [ ] check long filenames on edit - add warning
-  - [ ] Remove files in editing file dialog - with confirmation. It may be not files but just entries in db.
+  - [x] Remove files in editing file dialog - with confirmation. It may be not files but just entries in db.
 - [ ] Recurring task with PWA / iphone bugs
   - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
   - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
+- [ ] Events refactoring
+  - [ ] On adding file on drag and drop - it produces too many events.. Should it? Maybe no need to produce events on file creation from upload?
+  - [ ] On app launch too many slow metadata going on.. I think need something new. Now its slow and spamming noise
 - [x] Setup playwright mcp. Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
 - [x] Work on snippets for LLM
   - [x] https://x.com/steipete/status/1940314756705132683
