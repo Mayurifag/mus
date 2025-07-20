@@ -157,13 +157,13 @@
 - [o] ~~nginx.conf - wrong redirect. I think that just has to reload page so app will load so no changes to URL~~
 - [x] If user moves file on opened page, we should upload it to the server, but first show the dialog with filename and tags
 - [ ] Codereview drag and drop feature:
-  - [ ] frontendCoverExtractor.ts is total bullshit now
-  - [ ] Rename apiErrorHandler and see if we can reuse some code from there anywhere else for api frontend calls - fine if not
-  - [ ] too much comments/descriptions (backend/src/mus/util/filename_utils.py etc)
-  - [ ] V1_TO_EASY_MAPPING wtf is this. Do I need it? Can we just ignore nonv2 tags? We can use newer ones later
-  - [ ] all effects have been logged?
-  - [ ] Layout_TrackChangeHandler - executes twice - why?
-  - [ ] code review + check
+  - [x] frontendCoverExtractor.ts is total bullshit now
+  - [x] Rename apiErrorHandler and see if we can reuse some code from there anywhere else for api frontend calls - fine if not
+  - [x] too much comments/descriptions (backend/src/mus/util/filename_utils.py etc)
+  - [x] V1_TO_EASY_MAPPING wtf is this. Do I need it? Can we just ignore nonv2 tags? We can use newer ones later
+  - [x] all effects have been logged?
+  - [x] Layout_TrackChangeHandler - executes twice - why?
+  - [ ] check effects + check draganddrop
 - [ ] Edit track functionality enhancements
   - [ ] Revert functionality UI
   - [ ] Show exact changes will be done - for example if we change encoding it also has to be shown
@@ -182,6 +182,7 @@
 - [x] ~~Celery and async tasks~~
 - [ ] Change mp3tag.js to something else. It doesnt support typescript + i might need something else..
   - [ ] Full tests cover on audioFileAnalyzer.ts first!
+  - [ ] refactor with another library - i do not think we need all those fields
 - [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
 - [ ] e2e in CI before deployment after linters. Complex github actions flow.
 - [ ] Complex e2e test: some file has to be flac with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.

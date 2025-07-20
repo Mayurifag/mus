@@ -13,21 +13,6 @@ export interface AudioMetadata {
   title?: string;
   artist?: string;
   album?: string;
-  albumartist?: string;
-  date?: string;
-  year?: number;
-  track?: { no: number; of?: number };
-  disk?: { no: number; of?: number };
-  genre?: string[];
-  comment?: string[];
-  duration?: number;
-  bitrate?: number;
-  sampleRate?: number;
-  bitsPerSample?: number;
-  codec?: string;
-  container?: string;
-  tool?: string;
-  encoder?: string;
   [key: string]: unknown;
 }
 
@@ -93,28 +78,7 @@ function getTagValue(
   return undefined;
 }
 
-function parseTrackNumber(
-  trackString: unknown,
-): { no: number; of?: number } | undefined {
-  if (!trackString) return undefined;
-  const trackParts = trackString.toString().split("/");
-  return {
-    no: parseInt(trackParts[0]) || 0,
-    of: trackParts[1] ? parseInt(trackParts[1]) : undefined,
-  };
-}
 
-function parseYear(yearString: unknown): number | undefined {
-  if (!yearString) return undefined;
-  const parsed = parseInt(yearString.toString());
-  return !isNaN(parsed) ? parsed : undefined;
-}
-
-function parseDuration(tlenTag: unknown): number | undefined {
-  if (!tlenTag) return undefined;
-  const tlenMs = parseInt(tlenTag.toString());
-  return !isNaN(tlenMs) ? Math.round(tlenMs / 1000) : undefined;
-}
 
 export async function analyzeAudioFile(
   file: File,
@@ -130,30 +94,11 @@ export async function analyzeAudioFile(
     const v1 = (tags.v1 || {}) as Record<string, unknown>;
     const v2 = (tags.v2 || {}) as Record<string, unknown>;
 
-    const track = parseTrackNumber(getTagValue(v2, v1, "TRCK", "track"));
-    const year = parseYear(
-      getTagValue(v2, v1, "TYER") ||
-      getTagValue(v2, v1, "TDRC") ||
-      getTagValue(v2, v1, "TDAT", "year"),
-    );
-    const genre = getTagValue(v2, v1, "TCON", "genre")
-      ? [getTagValue(v2, v1, "TCON", "genre")!.toString()]
-      : undefined;
-    const comment = getTagValue(v2, v1, "COMM", "comment")
-      ? [getTagValue(v2, v1, "COMM", "comment")!.toString()]
-      : undefined;
-    const duration = parseDuration(getTagValue(v2, v1, "TLEN"));
-
     const commonMetadata: AudioMetadata = {
       title: getTagValue(v2, v1, "TIT2", "title")?.toString(),
-      artist: getTagValue(v2, v1, "TPE1", "artist")?.toString(),
+      // Uses TPE1 (main artist) first, falls back to TPE2 (album artist) if not available
+      artist: getTagValue(v2, v1, "TPE1", "artist")?.toString() || getTagValue(v2, v1, "TPE2")?.toString(),
       album: getTagValue(v2, v1, "TALB", "album")?.toString(),
-      albumartist: getTagValue(v2, v1, "TPE2")?.toString(),
-      year,
-      track,
-      genre,
-      comment,
-      duration,
     };
 
     const cleanV2: Record<string, unknown> = tags.v2 ? { ...tags.v2 } : {};
