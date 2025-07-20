@@ -6,7 +6,7 @@
     type Side,
     sheetVariants,
   } from "./index.js";
-  import { cn } from "$lib/utils.js";
+  import { cn } from "$lib/utils/ui.js";
 
   type $$Props = SheetPrimitive.ContentProps & {
     side?: Side;

@@ -6,7 +6,10 @@
   import { Slider } from "$lib/components/ui/slider";
   import { Pencil } from "@lucide/svelte";
   import TrackMetadataModal from "./TrackMetadataModal.svelte";
-  import { formatArtistsForDisplay, formatDuration } from "$lib/utils";
+  import {
+    formatArtistsForDisplay,
+    formatDuration,
+  } from "$lib/utils/formatters";
 
   let {
     track,

@@ -36,7 +36,7 @@
   let audioService = $state<AudioService | undefined>(undefined);
   let eventSource = $state<EventSource | null>(null);
   let sheetOpen = $state(false);
-  let lastCurrentTrackId = $state<number | null>(null);
+  let lastCurrentTrackId: number | null = null;
   let isInitializing = $state(true);
 
   // Drag and drop state
@@ -121,6 +121,7 @@
     restorePlayerState();
     setupEventListeners();
 
+    lastCurrentTrackId = data.playerState.current_track_id;
     isInitializing = false;
   });
 
@@ -278,6 +279,5 @@
     suggestedArtist={parsedFileInfo.suggestedArtist}
     coverDataUrl={parsedFileInfo.coverInfo?.dataUrl}
     metadata={parsedFileInfo.metadata}
-    allTags={parsedFileInfo.allTags}
   />
 {/if}

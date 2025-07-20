@@ -1,5 +1,9 @@
 import type { Track, PlayerState, TrackHistory, MusEvent } from "$lib/types";
-import { handleApiResponse, createFormData } from "$lib/utils/apiErrorHandler";
+import {
+  handleApiResponse,
+  createFormData,
+  safeApiCall,
+} from "$lib/utils/apiUtils";
 
 const VITE_INTERNAL_API_HOST = import.meta.env.VITE_INTERNAL_API_HOST || "";
 const VITE_PUBLIC_API_HOST = import.meta.env.VITE_PUBLIC_API_HOST || "";
@@ -27,52 +31,47 @@ export function createTrackWithUrls(
   };
 }
 
-export async function fetchTracks(): Promise<Track[]> {
-  try {
-    const response = await fetch(`${API_PREFIX}${API_VERSION_PATH}/tracks`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const tracks: Track[] = await response.json();
+export async function fetchTracks(
+  fetchFn: typeof fetch = fetch,
+): Promise<Track[]> {
+  const result = await safeApiCall(
+    async () => {
+      const response = await fetchFn(`${API_PREFIX}${API_VERSION_PATH}/tracks`);
+      const tracks: Track[] = await handleApiResponse(response);
+      return tracks.map((track) => createTrackWithUrls(track));
+    },
+    { context: "fetchTracks" },
+  );
 
-    return tracks.map((track) => createTrackWithUrls(track));
-  } catch (error) {
-    console.error("Error fetching tracks:", error);
-    return [];
-  }
+  return result ?? [];
 }
 
-export async function fetchPlayerState(): Promise<PlayerState> {
-  try {
-    const response = await fetch(
-      `${API_PREFIX}${API_VERSION_PATH}/player/state`,
-    );
-    if (response.status === 404) {
-      // Return default player state if none exists
-      return {
-        current_track_id: null,
-        progress_seconds: 0.0,
-        volume_level: 1.0,
-        is_muted: false,
-        is_shuffle: false,
-        is_repeat: false,
-      };
-    }
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching player state:", error);
-    return {
-      current_track_id: null,
-      progress_seconds: 0.0,
-      volume_level: 1.0,
-      is_muted: false,
-      is_shuffle: false,
-      is_repeat: false,
-    };
-  }
+export async function fetchPlayerState(
+  fetchFn: typeof fetch = fetch,
+): Promise<PlayerState> {
+  const defaultState: PlayerState = {
+    current_track_id: null,
+    progress_seconds: 0.0,
+    volume_level: 1.0,
+    is_muted: false,
+    is_shuffle: false,
+    is_repeat: false,
+  };
+
+  const result = await safeApiCall(
+    async () => {
+      const response = await fetchFn(
+        `${API_PREFIX}${API_VERSION_PATH}/player/state`,
+      );
+      if (response.status === 404) {
+        return defaultState;
+      }
+      return await handleApiResponse<PlayerState>(response);
+    },
+    { context: "fetchPlayerState" },
+  );
+
+  return result ?? defaultState;
 }
 
 export function sendPlayerStateBeacon(state: PlayerState): void {
@@ -117,6 +116,24 @@ export async function updateTrack(
     return await response.json();
   } catch (error) {
     console.error("Error updating track:", error);
+    throw error;
+  }
+}
+
+export async function deleteTrack(trackId: number): Promise<void> {
+  try {
+    const response = await fetch(
+      `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}`,
+      {
+        method: "DELETE",
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+  } catch (error) {
+    console.error("Error deleting track:", error);
     throw error;
   }
 }
@@ -173,11 +190,11 @@ export function connectTrackUpdateEvents(
   return eventSource;
 }
 
-export async function fetchPermissions(): Promise<{
+export async function fetchPermissions(fetchFn: typeof fetch = fetch): Promise<{
   can_write_files: boolean;
 }> {
   try {
-    const response = await fetch(
+    const response = await fetchFn(
       `${API_PREFIX}${API_VERSION_PATH}/system/permissions`,
     );
     if (!response.ok) {
@@ -210,19 +227,11 @@ export async function uploadTrack(
   file: File,
   title: string,
   artist: string,
-  options?: {
-    saveOnlyEssentials?: boolean;
-    rawTags?: string;
-  },
 ): Promise<{ success: boolean; message: string }> {
   const formData = createFormData({
     file,
     title,
     artist,
-    ...(options?.saveOnlyEssentials !== undefined && {
-      save_only_essentials: options.saveOnlyEssentials,
-    }),
-    ...(options?.rawTags && { raw_tags: options.rawTags }),
   });
 
   const response = await fetch(

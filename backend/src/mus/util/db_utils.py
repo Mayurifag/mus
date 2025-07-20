@@ -54,7 +54,7 @@ async def update_track(track: Track):
         await session.commit()
 
 
-async def delete_track_by_path(file_path: str) -> Optional[int]:
+async def delete_track_from_db_by_path(file_path: str) -> Optional[int]:
     async with get_track_repo() as (_, session):
         result = await session.exec(select(Track).where(Track.file_path == file_path))
         track = result.first()
@@ -64,6 +64,17 @@ async def delete_track_by_path(file_path: str) -> Optional[int]:
             await session.commit()
             return track_id
         return None
+
+
+async def delete_track_from_db_by_id(track_id: int) -> bool:
+    async with get_track_repo() as (_, session):
+        result = await session.exec(select(Track).where(Track.id == track_id))
+        track = result.first()
+        if track:
+            await session.delete(track)
+            await session.commit()
+            return True
+        return False
 
 
 async def update_track_path(src_path: str, dest_path: str) -> Optional[Track]:

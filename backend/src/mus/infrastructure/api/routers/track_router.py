@@ -15,7 +15,6 @@ from typing import List, Final, Dict, Any
 import os
 import hashlib
 import io
-import json
 
 from mutagen._file import File as MutagenFile
 from src.mus.application.dtos.track import TrackListDTO, TrackUpdateDTO
@@ -25,7 +24,10 @@ from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
 )
 from src.mus.util.redis_utils import set_app_write_lock
-from src.mus.util.queue_utils import enqueue_file_created_from_upload
+from src.mus.util.queue_utils import (
+    enqueue_file_created_from_upload,
+    enqueue_track_deletion,
+)
 from src.mus.util.filename_utils import generate_track_filename
 from src.mus.util.file_validation import validate_upload_file
 from src.mus.config import settings
@@ -43,14 +45,6 @@ AUDIO_CONTENT_TYPES: Final = {
     ".wav": "audio/wav",
 }
 
-V1_TO_EASY_MAPPING: Final = {
-    "title": "title",
-    "artist": "artist",
-    "album": "album",
-    "year": "date",
-    "genre": "genre",
-    "comment": "comment",
-}
 
 router = APIRouter(prefix="/api/v1/tracks", tags=["tracks"])
 
@@ -184,13 +178,19 @@ async def update_track(
     return await use_case.execute(track_id, update_data)
 
 
+@router.delete("/{track_id}", status_code=status.HTTP_202_ACCEPTED)
+async def delete_track(
+    track_id: int = Path(..., gt=0),
+) -> Response:
+    enqueue_track_deletion(track_id)
+    return Response(status_code=status.HTTP_202_ACCEPTED)
+
+
 @router.post("/upload")
 async def upload_track(
     title: str = Form(...),
     artist: str = Form(...),
     file: UploadFile = File(...),
-    save_only_essentials: bool = Form(True),
-    raw_tags: str = Form(None),
 ) -> Dict[str, Any]:
     # Validate file using shared utility
     extension = validate_upload_file(file)
@@ -205,40 +205,9 @@ async def upload_track(
         if not audio:
             raise HTTPException(status_code=400, detail="Invalid audio file format")
 
-        if save_only_essentials:
-            # Clear all existing tags and set only essentials
-            audio.clear()
-            audio["title"] = title
-            audio["artist"] = artist
-        else:
-            # Apply raw tags if provided
-            if raw_tags:
-                try:
-                    tags_data = json.loads(raw_tags)
-
-                    # Apply v2 tags if present
-                    if "v2" in tags_data and isinstance(tags_data["v2"], dict):
-                        for key, value in tags_data["v2"].items():
-                            if key != "APIC":  # Skip picture data
-                                if isinstance(value, list) and len(value) > 0:
-                                    audio[key] = value[0]
-                                elif not isinstance(value, list):
-                                    audio[key] = value
-
-                    # Apply v1 tags if present and no v2 equivalent
-                    if "v1" in tags_data and isinstance(tags_data["v1"], dict):
-                        for v1_key, easy_key in V1_TO_EASY_MAPPING.items():
-                            if v1_key in tags_data["v1"] and easy_key not in audio:
-                                audio[easy_key] = tags_data["v1"][v1_key]
-
-                except (json.JSONDecodeError, KeyError, TypeError) as e:
-                    raise HTTPException(
-                        status_code=400, detail=f"Invalid raw tags format: {str(e)}"
-                    )
-
-            # Always ensure title and artist are set from form
-            audio["title"] = title
-            audio["artist"] = artist
+        # Preserve all existing tags and only update title and artist
+        audio["title"] = title
+        audio["artist"] = artist
 
         # Save changes back to buffer
         buffer.seek(0)

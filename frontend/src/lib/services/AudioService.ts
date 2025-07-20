@@ -2,7 +2,7 @@ import type { Track, TimeRange } from "$lib/types";
 import { getStreamUrl } from "$lib/services/apiClient";
 import { writable } from "svelte/store";
 import { trackStore } from "$lib/stores/trackStore";
-import { formatArtistsForDisplay } from "$lib/utils";
+import { formatArtistsForDisplay } from "$lib/utils/formatters";
 
 export class AudioService {
   private audio: HTMLAudioElement;

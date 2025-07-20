@@ -1,7 +1,7 @@
 import { toast } from "svelte-sonner";
 import { permissionsStore } from "$lib/stores/permissionsStore";
 import { get } from "svelte/store";
-import { analyzeAudioFile } from "$lib/utils/frontendCoverExtractor";
+import { analyzeAudioFile } from "$lib/utils/audioFileAnalyzer";
 import {
   validateAudioFile,
   validateFileCount,
@@ -13,10 +13,7 @@ export interface DragDropState {
   uploadModalOpen: boolean;
 }
 
-import type {
-  CoverInfo,
-  AudioMetadata,
-} from "$lib/utils/frontendCoverExtractor";
+import type { CoverInfo, AudioMetadata } from "$lib/utils/audioFileAnalyzer";
 
 export interface ParsedFileInfo {
   file: File;
@@ -46,10 +43,8 @@ export class DragDropService {
   }
 
   private parseFilename(filename: string): { title: string; artist: string } {
-    // Remove file extension
     const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
 
-    // Try to parse "Artist - Title" format
     const dashMatch = nameWithoutExt.match(/^(.+?)\s*-\s*(.+)$/);
     if (dashMatch) {
       return {
@@ -58,7 +53,6 @@ export class DragDropService {
       };
     }
 
-    // Try to parse "Artist_Title" format
     const underscoreMatch = nameWithoutExt.match(/^(.+?)_(.+)$/);
     if (underscoreMatch) {
       return {
@@ -67,7 +61,6 @@ export class DragDropService {
       };
     }
 
-    // If no pattern matches, use filename as title with empty artist
     return {
       artist: "",
       title: nameWithoutExt.trim(),
@@ -87,7 +80,6 @@ export class DragDropService {
   };
 
   private handleDragLeave = (event: DragEvent): void => {
-    // Only hide overlay if leaving the window entirely
     if (event.clientX === 0 && event.clientY === 0) {
       this.state.isDraggingFile = false;
       this.callbacks.onDragStateChange(false);
@@ -118,17 +110,13 @@ export class DragDropService {
       return;
     }
 
-    // Parse filename for artist and title suggestions
     const parsed = this.parseFilename(file.name);
 
-    // Analyze audio file to extract comprehensive metadata and cover
     analyzeAudioFile(file)
       .then((analysis) => {
-        // Use metadata from file if available, otherwise fall back to filename parsing
         const suggestedTitle = analysis.metadata.title || parsed.title;
         const suggestedArtist = analysis.metadata.artist || parsed.artist;
 
-        // All checks passed, notify callback with parsed info
         this.callbacks.onFileReady({
           file,
           suggestedTitle,
@@ -143,7 +131,6 @@ export class DragDropService {
           "Error analyzing audio file, proceeding with filename parsing:",
           error,
         );
-        // Proceed with filename parsing if analysis fails
         this.callbacks.onFileReady({
           file,
           suggestedTitle: parsed.title,

@@ -41,3 +41,13 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 3
+
+  # This has to be changed/moved after merging PR at author's gh
+  rq-dashboard:
+    image: mayurifag/rq-dashboard-fast:104-add-gh-actions-docker-platforms
+    ports:
+      - '8001:8000'
+    depends_on:
+      - rq-worker
+    environment:
+      - REDIS_URL=redis://dragonfly:6379
