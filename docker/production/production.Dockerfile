@@ -31,13 +31,13 @@ ENV PYTHONUNBUFFERED=1 \
     BACKEND_URL=http://127.0.0.1:8001 \
     VIRTUAL_ENV=/opt/venv \
     DRAGONFLY_VERSION=1.31.1 \
+    NODE_VERSION=24 \
     PATH="/opt/venv/bin:$PATH"
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         nginx \
         supervisor \
-        nodejs \
         libnginx-mod-http-brotli-filter \
         libnginx-mod-http-brotli-static \
         libvips42 \
@@ -54,6 +54,8 @@ RUN apt-get update && \
     chmod +x /usr/local/bin/dragonfly && \
     cd / && \
     rm -rf /tmp/dragonfly && \
+    curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
+    apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 
 ARG UID=10001
@@ -65,10 +67,10 @@ WORKDIR /app
 
 COPY --from=backend-builder /opt/venv /opt/venv
 COPY --chown=appuser:appgroup backend/src /app/src
-COPY --from=frontend-builder --chown=appuser:appgroup /app/frontend/build /app/frontend/build
 
-RUN echo '{"type": "module"}' > /app/frontend/build/package.json && \
-    chown appuser:appgroup /app/frontend/build/package.json
+COPY --from=frontend-builder --chown=appuser:appgroup /app/frontend/build /app/frontend/build
+COPY --from=frontend-builder --chown=appuser:appgroup /app/frontend/node_modules /app/frontend/node_modules
+COPY --from=frontend-builder --chown=appuser:appgroup /app/frontend/package.json /app/frontend/package.json
 
 COPY docker/production/login.html /app/docker/production/login.html
 COPY docker/production/nginx.conf.template /app/docker/production/nginx.conf.template
@@ -82,7 +84,8 @@ RUN chmod +x /app/start.sh && \
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:8000/api/healthcheck.json || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:8000/api/healthcheck.json && \
+      curl -f http://localhost:8000/ -o /dev/null || exit 1
 
 CMD ["/app/start.sh"]

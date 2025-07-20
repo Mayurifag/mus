@@ -170,6 +170,9 @@
   - [x] check long filenames on edit - add warning
   - [x] Remove files in editing file dialog - with confirmation. It may be not files but just entries in db.
   - [x] Ignore all tags on creation except author/trackname. We will use it and/or overwrite just them. Others will be ignored (not deleted).
+- [ ] Change mp3tag.js to something else. It doesnt support typescript + i might need something else.. hopefully installing in devdependencies..
+  - [x] Full tests cover on audioFileAnalyzer.ts first!
+  - [ ] refactor with another library - i do not think we need all those fields. Maybe vibecode.
 - [ ] Recurring task with PWA / iphone bugs
   - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
   - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
@@ -185,9 +188,6 @@
   - [x] Update mr alias to include full text from snippet
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
 - [x] ~~Celery and async tasks~~
-- [ ] Change mp3tag.js to something else. It doesnt support typescript + i might need something else..
-  - [ ] Full tests cover on audioFileAnalyzer.ts first!
-  - [ ] refactor with another library - i do not think we need all those fields
 - [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
 - [ ] e2e in CI before deployment after linters. Complex github actions flow.
 - [ ] Complex e2e test: some file has to be flac with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
