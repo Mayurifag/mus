@@ -293,7 +293,7 @@
                   class="text-muted-foreground hover:text-foreground h-4 w-4 cursor-help transition-colors"
                 />
                 <div
-                  class="absolute left-6 top-0 z-50 hidden group-hover:block"
+                  class="absolute top-0 left-6 z-50 hidden group-hover:block"
                 >
                   <div
                     class="bg-popover text-popover-foreground w-64 rounded-md border p-2 text-xs shadow-md"
@@ -324,7 +324,7 @@
                     class="text-muted-foreground hover:text-foreground h-4 w-4 cursor-help transition-colors"
                   />
                   <div
-                    class="absolute left-6 top-0 z-50 hidden group-hover:block"
+                    class="absolute top-0 left-6 z-50 hidden group-hover:block"
                   >
                     <div
                       class="bg-popover text-popover-foreground w-64 rounded-md border p-2 text-xs shadow-md"
