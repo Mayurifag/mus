@@ -31,10 +31,10 @@ export function createTrackWithUrls(
   };
 }
 
-export async function fetchTracks(): Promise<Track[]> {
+export async function fetchTracks(fetchFn: typeof fetch = fetch): Promise<Track[]> {
   const result = await safeApiCall(
     async () => {
-      const response = await fetch(`${API_PREFIX}${API_VERSION_PATH}/tracks`);
+      const response = await fetchFn(`${API_PREFIX}${API_VERSION_PATH}/tracks`);
       const tracks: Track[] = await handleApiResponse(response);
       return tracks.map((track) => createTrackWithUrls(track));
     },
@@ -44,7 +44,7 @@ export async function fetchTracks(): Promise<Track[]> {
   return result ?? [];
 }
 
-export async function fetchPlayerState(): Promise<PlayerState> {
+export async function fetchPlayerState(fetchFn: typeof fetch = fetch): Promise<PlayerState> {
   const defaultState: PlayerState = {
     current_track_id: null,
     progress_seconds: 0.0,
@@ -56,7 +56,7 @@ export async function fetchPlayerState(): Promise<PlayerState> {
 
   const result = await safeApiCall(
     async () => {
-      const response = await fetch(
+      const response = await fetchFn(
         `${API_PREFIX}${API_VERSION_PATH}/player/state`,
       );
       if (response.status === 404) {
@@ -168,11 +168,11 @@ export function connectTrackUpdateEvents(
   return eventSource;
 }
 
-export async function fetchPermissions(): Promise<{
+export async function fetchPermissions(fetchFn: typeof fetch = fetch): Promise<{
   can_write_files: boolean;
 }> {
   try {
-    const response = await fetch(
+    const response = await fetchFn(
       `${API_PREFIX}${API_VERSION_PATH}/system/permissions`,
     );
     if (!response.ok) {

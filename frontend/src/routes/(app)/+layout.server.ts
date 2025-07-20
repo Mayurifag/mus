@@ -6,12 +6,12 @@ import {
   fetchPermissions,
 } from "$lib/services/apiClient";
 
-export const load: LayoutServerLoad = async () => {
+export const load: LayoutServerLoad = async ({ fetch }) => {
   try {
     const [tracks, playerState, permissions] = await Promise.all([
-      fetchTracks(),
-      fetchPlayerState(),
-      fetchPermissions(),
+      fetchTracks(fetch),
+      fetchPlayerState(fetch),
+      fetchPermissions(fetch),
     ]);
 
     return {
