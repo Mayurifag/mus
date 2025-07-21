@@ -63,6 +63,9 @@ http {
     gzip_static on;
     brotli_static on;
 
+    # Proxy cache for track covers
+    proxy_cache_path /var/cache/nginx/covers_cache levels=1:2 keys_zone=covers_cache:10m max_size=1g inactive=60d use_temp_path=off;
+
     # Common proxy settings
     upstream backend {
         server 127.0.0.1:8001;
@@ -127,6 +130,19 @@ http {
             proxy_http_version 1.1;
             proxy_read_timeout 300s;
             proxy_cache off;
+        }
+
+        # Track covers (public, no auth needed, cached)
+        location ~ ^/api/v1/tracks/\d+/covers/(small|original)\.webp(\?.*)?$ {
+            proxy_pass http://backend;
+            proxy_cache covers_cache;
+            proxy_cache_valid 200 365d;
+            proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+            # Browser caching
+            expires 365d;
+            add_header Cache-Control "public, immutable";
+            # For debugging
+            add_header X-Proxy-Cache $upstream_cache_status;
         }
 
         # All other API endpoints
