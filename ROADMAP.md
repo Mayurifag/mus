@@ -177,13 +177,19 @@
   - [x] Update GitHub Actions workflow to push to both registries
   - [x] Update production deployment to use GHCR instead of Docker Hub
 - [x] fix album covers nginx config for things like production.com/api/v1/tracks/17/covers/small.webp?v=1753112348
-- [ ] Recurring task with PWA / iphone bugs
-  - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
-  - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
-- [ ] Events refactoring ideas
-  - [x] On adding file on drag and drop - it produces too many events.. Should it? Maybe no need to produce events on file creation from upload?
-  - [ ] On app launch too many slow metadata going on.. I think need something new. Now its slow and spamming noise
-  - [ ] slow metadata - convert automatically to UTF-8 id2V2.3
+- [x] On adding file on drag and drop - it produces too many events.. Should it? Maybe no need to produce events on file creation from upload?
+- [x] Setup playwright mcp. Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
+- [x] Work on snippets for LLM
+  - [x] https://x.com/steipete/status/1940314756705132683
+  - [x] https://x.com/robzolkos/status/1940462968593875060
+  - [x] Update mr alias to include full text from snippet
+- [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
+- [x] ~~Celery and async tasks~~
+- [ ] Wipe out history changes completely I do not need them - at least now and they make code messy.
+- [ ] Events refactoring ideas - On app launch too many slow metadata going on.
+  - [**x**] As a beginning I need to document for now how it works and how should it work. External/internal changes all types of events. Maybe some kind of flowchart -> in future to transform onto finite state machine
+  - [ ] Change from rq to arq and to async code here and there
+  - [x] slow metadata - convert automatically to UTF-8 id2V2.3
   - [ ] whats slowing there - i think we might do things faster
   - [ ] We should have different code for when event is from EXTERNAL file changes and from app. That would be much easier to maintain.
   - [ ] When initial scan is going on: we might have "loading covers" based on metadata not done status in db on frontend. We might fire events without notification to change files. We might go one by one in single task and fire event on each cover processing and other metadata. We still need to save the state to continue on failures - or just dont give a fuck about that? because we will each time just might select files without processed metadata.
@@ -192,13 +198,9 @@
   - [ ] Is that a bad thing to show just really original image with real extension and so on? We will parse less
   - [ ] Maximum parallelism (Use a ProcessPoolExecutor for CPU-Bound Code) - only applicable for first scan
   - [ ] I have to refactor first for a single track and for batch
-- [x] Setup playwright mcp. Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
-- [x] Work on snippets for LLM
-  - [x] https://x.com/steipete/status/1940314756705132683
-  - [x] https://x.com/robzolkos/status/1940462968593875060
-  - [x] Update mr alias to include full text from snippet
-- [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
-- [x] ~~Celery and async tasks~~
+- [ ] Recurring task with PWA / iphone bugs
+  - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
+  - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
 - [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
 - [ ] e2e in CI before deployment after linters. Complex github actions flow.
 - [ ] Complex e2e test: some file has to be flac with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
@@ -208,7 +210,7 @@
 ## Phase non needed features
 
 - [ ] Slider has to be smaller by default and on hover it has to be bigger in size like now
-- [ ] Revert functionality UI
+- [ ] ~~Revert functionality UI~~
 - [ ] Remove non-docker development - not sure if thats needed - actually needed because AI doesnt understand what env im working in currently. Less commands is better
 - [ ] Sort tracks by different fields and ways
 - [ ] Continue refactoring effects

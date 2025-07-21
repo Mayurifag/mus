@@ -3,6 +3,8 @@ from pathlib import Path
 import time
 from typing import Optional
 
+from mutagen._file import File as MutagenFile
+
 from src.mus.config import settings
 from src.mus.domain.entities.track import ProcessingStatus, Track
 from src.mus.domain.entities.track_history import TrackHistory
@@ -24,6 +26,8 @@ from src.mus.util.db_utils import (
     prune_track_history,
 )
 from src.mus.util.queue_utils import enqueue_slow_metadata
+from src.mus.service.id3_tag_service import ID3TagService
+from src.mus.util.redis_utils import set_app_write_lock
 
 
 async def process_slow_metadata(track_id: int):
@@ -32,6 +36,16 @@ async def process_slow_metadata(track_id: int):
         return
 
     file_path = Path(track.file_path)
+
+    id3_service = ID3TagService()
+    audio = MutagenFile(file_path, easy=False)
+    id3_result = id3_service.analyze_file(audio)
+
+    if id3_result.was_standardized and audio:
+        await set_app_write_lock(str(file_path))
+        audio.save(v2_version=3)
+        await id3_service.create_history_entry(track_id, id3_result, file_path)
+
     cover_processor = CoverProcessor(settings.COVERS_DIR_PATH)
 
     duration_task = asyncio.to_thread(get_accurate_duration, file_path)
@@ -61,8 +75,6 @@ async def process_slow_metadata(track_id: int):
 
     track.processing_status = ProcessingStatus.COMPLETE
     await update_track(track)
-
-    # Create TrackListDTO with proper cover URLs for SSE event
     track_dto = create_track_dto_with_covers(track)
 
     await notify_sse_from_worker(
@@ -225,8 +237,6 @@ async def _process_file_upsert(
         action_key = "track_added" if is_creation else "track_updated"
         action_message = "Added" if is_creation else "Updated"
         level = "success" if is_creation else "info"
-
-        # Create TrackListDTO with proper cover URLs for SSE event
         track_dto = create_track_dto_with_covers(upserted_track)
 
         await notify_sse_from_worker(
