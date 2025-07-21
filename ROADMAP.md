@@ -170,17 +170,21 @@
   - [x] check long filenames on edit - add warning
   - [x] Remove files in editing file dialog - with confirmation. It may be not files but just entries in db.
   - [x] Ignore all tags on creation except author/trackname. We will use it and/or overwrite just them. Others will be ignored (not deleted).
-- [ ] Change mp3tag.js to something else. It doesnt support typescript + i might need something else.. hopefully installing in devdependencies..
+- [x] Change mp3tag.js to something else. It doesnt support typescript + i might need something else.. hopefully installing in devdependencies..
   - [x] Full tests cover on audioFileAnalyzer.ts first!
-  - [ ] refactor with another library - i do not think we need all those fields. Maybe vibecode.
+  - [x] refactor with another library - i do not think we need all those fields. Maybe vibecode.
 - [ ] Recurring task with PWA / iphone bugs
   - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
   - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
-- [ ] Events refactoring
+- [ ] Events refactoring ideas
   - [x] On adding file on drag and drop - it produces too many events.. Should it? Maybe no need to produce events on file creation from upload?
   - [ ] On app launch too many slow metadata going on.. I think need something new. Now its slow and spamming noise
   - [ ] slow metadata - convert automatically to UTF-8 id2V2.3
   - [ ] whats slowing there - i think we might do things faster
+  - [ ] We should have different code for when event is from EXTERNAL file changes and from app. That would be much easier to maintain.
+  - [ ] When initial scan is going on: we might have "loading covers" based on metadata not done status in db on frontend. We might fire events without notification to change files. We might go one by one in single task and fire event on each cover processing and other metadata. We still need to save the state to continue on failures - or just dont give a fuck about that? because we will each time just might select files without processed metadata.
+  - [ ] I do not really use processing_status'es. I should leave just 2 of them. Pending and done. Or anything else? might also have "error" status to have junkyard for files with errors to not reprocess them.
+  - [ ] Refactor slow metadata - have service with each step in its own service. It has to extract cover, process duration, change encoding and save to db that file is processed.
 - [x] Setup playwright mcp. Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
 - [x] Work on snippets for LLM
   - [x] https://x.com/steipete/status/1940314756705132683

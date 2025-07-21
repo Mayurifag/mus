@@ -102,7 +102,7 @@ http {
             if ($arg_token = "${SECRET_KEY}") {
                 add_header Set-Cookie "auth_token=${SECRET_KEY}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=31536000";
                 add_header Content-Type "text/html";
-                return 200 '<html><head><script>window.location.replace("/" + window.location.search);</script></head><body>Redirecting...</body></html>';
+                return 200 '<html><head><script>window.location.replace("/");</script></head><body>Redirecting...</body></html>';
             }
             return 401;
         }
@@ -111,28 +111,6 @@ http {
         location = /login.html {
             root /app/docker/production;
             try_files /login.html =404;
-            expires 1h;
-            add_header Cache-Control "public, max-age=3600";
-        }
-
-        # Public static assets (no auth required) - exclude API paths
-        location ~* ^(?!/api/).*\.(css|js|map)$ {
-            root /app/frontend/build/client;
-            expires 1y;
-            add_header Cache-Control "public, immutable, max-age=31536000";
-            add_header Vary "Accept-Encoding";
-            gzip_static on;
-        }
-
-        # Public static files (robots.txt, favicon, manifest, images)
-        location ~* ^/(robots\.txt|favicon\.(svg|ico)|manifest\.json|images/.*)$ {
-            root /app/frontend/build/client;
-            try_files $uri =404;
-            expires 1d;
-            add_header Cache-Control "public, max-age=86400";
-            add_header Vary "Accept-Encoding";
-            gzip_static on;
-            brotli_static on;
         }
 
         # Health check endpoint (public, no auth required)
@@ -161,6 +139,22 @@ http {
         # Auth required redirect handler
         location @auth_required {
             return 302 $scheme://$http_host/login.html;
+        }
+
+        # SvelteKit immutable assets (hashed filenames) - cache forever
+        location /_app/immutable/ {
+            root /app/frontend/build/client;
+            expires 1y;
+            add_header Cache-Control "public, immutable, max-age=31536000";
+            gzip_static on;
+            brotli_static on;
+        }
+
+        # All other static files - no cache
+        location ~* \.(css|js|mjs|map|ico|svg|png|json|txt|webp)$ {
+            root /app/frontend/build/client;
+            gzip_static on;
+            brotli_static on;
         }
 
         # Protected main application

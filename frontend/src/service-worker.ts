@@ -11,64 +11,68 @@ const ASSETS_TO_CACHE = [...build, ...files, ...prerendered];
 self.addEventListener("install", (event) => {
   async function addAllToCache() {
     const cache = await caches.open(CACHE_NAME);
-    const cachePromises = ASSETS_TO_CACHE.map((assetUrl) => {
-      return cache.add(assetUrl).catch((reason) => {
-        console.error(`[SW] Failed to cache ${assetUrl}:`, reason);
-      });
+    await cache.addAll(ASSETS_TO_CACHE).catch((reason) => {
+      console.error(`[SW] Failed to cache assets:`, reason);
     });
-    await Promise.all(cachePromises);
   }
 
   event.waitUntil(addAllToCache().then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then(async (keys) => {
-      for (const key of keys) {
-        if (key !== CACHE_NAME) {
-          await caches.delete(key);
-        }
+  async function deleteOldCaches() {
+    const keys = await caches.keys();
+    for (const key of keys) {
+      if (key !== CACHE_NAME) {
+        await caches.delete(key);
       }
-      self.clients.claim();
-    }),
-  );
+    }
+  }
+
+  event.waitUntil(deleteOldCaches().then(() => self.clients.claim()));
 });
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
-  if (request.method !== "GET") {
+  if (request.method !== "GET" || request.url.startsWith("chrome-extension://")) {
     return;
   }
 
   const url = new URL(request.url);
-  const isStaticAsset = ASSETS_TO_CACHE.includes(url.pathname);
 
-  if (isStaticAsset) {
+  if (url.pathname.startsWith("/_app/immutable/")) {
     event.respondWith(
-      caches.match(request).then((cachedResponse) => {
-        return (
-          cachedResponse ||
-          fetch(request).then((networkResponse) => {
-            return networkResponse;
-          })
-        );
-      }),
+      caches.match(request).then(async (cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        const networkResponse = await fetch(request);
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(request, networkResponse.clone());
+        return networkResponse;
+      })
     );
     return;
   }
 
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request).catch(async () => {
-        const cachedResponse = await caches.match("/");
-        return (
-          cachedResponse ||
-          new Response("You are currently offline.", { status: 503 })
-        );
-      }),
-    );
-    return;
-  }
+  event.respondWith(
+    fetch(request)
+      .then(async (networkResponse) => {
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(request, networkResponse.clone());
+        return networkResponse;
+      })
+      .catch(async () => {
+        const cachedResponse = await caches.match(request);
+        if (request.mode === 'navigate' && !cachedResponse) {
+          const rootResponse = await caches.match('/');
+          return rootResponse ?? new Response("You are currently offline.", {
+            status: 503,
+            headers: { "Content-Type": "text/plain" }
+          });
+        }
+        return cachedResponse ?? new Response(null, { status: 404 });
+      })
+  );
 });
