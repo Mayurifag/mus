@@ -35,7 +35,10 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
-  if (request.method !== "GET" || request.url.startsWith("chrome-extension://")) {
+  if (
+    request.method !== "GET" ||
+    request.url.startsWith("chrome-extension://")
+  ) {
     return;
   }
 
@@ -51,7 +54,7 @@ self.addEventListener("fetch", (event) => {
         const cache = await caches.open(CACHE_NAME);
         cache.put(request, networkResponse.clone());
         return networkResponse;
-      })
+      }),
     );
     return;
   }
@@ -65,14 +68,17 @@ self.addEventListener("fetch", (event) => {
       })
       .catch(async () => {
         const cachedResponse = await caches.match(request);
-        if (request.mode === 'navigate' && !cachedResponse) {
-          const rootResponse = await caches.match('/');
-          return rootResponse ?? new Response("You are currently offline.", {
-            status: 503,
-            headers: { "Content-Type": "text/plain" }
-          });
+        if (request.mode === "navigate" && !cachedResponse) {
+          const rootResponse = await caches.match("/");
+          return (
+            rootResponse ??
+            new Response("You are currently offline.", {
+              status: 503,
+              headers: { "Content-Type": "text/plain" },
+            })
+          );
         }
         return cachedResponse ?? new Response(null, { status: 404 });
-      })
+      }),
   );
 });
