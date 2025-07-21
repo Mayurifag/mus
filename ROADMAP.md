@@ -173,6 +173,9 @@
 - [x] Change mp3tag.js to something else. It doesnt support typescript + i might need something else.. hopefully installing in devdependencies..
   - [x] Full tests cover on audioFileAnalyzer.ts first!
   - [x] refactor with another library - i do not think we need all those fields. Maybe vibecode.
+- [x] Deploy to GHCR in addition to Docker Hub to avoid Watchtower authentication issues
+  - [x] Update GitHub Actions workflow to push to both registries
+  - [ ] Update production deployment to use GHCR instead of Docker Hub
 - [ ] Recurring task with PWA / iphone bugs
   - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
   - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
