@@ -1,5 +1,6 @@
 import time
-from typing import Dict, Any
+
+from streaq import TaskContext
 
 from src.mus.application.use_cases.process_track_metadata import (
     process_slow_metadata_for_track,
@@ -8,9 +9,11 @@ from src.mus.domain.entities.track import ProcessingStatus
 from src.mus.util.db_utils import get_track_by_id, update_track
 from src.mus.infrastructure.api.sse_handler import notify_sse_from_worker
 from src.mus.util.track_dto_utils import create_track_dto_with_covers
+from src.mus.core.streaq_broker import worker
 
 
-async def process_slow_metadata(_ctx: Dict[str, Any], track_id: int):
+@worker.task()
+async def process_slow_metadata(_: TaskContext, track_id: int):
     try:
         track = await process_slow_metadata_for_track(track_id)
 

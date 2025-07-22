@@ -1,5 +1,6 @@
 from pathlib import Path
-from typing import Dict, Any
+
+from streaq import TaskContext
 
 from src.mus.core.redis import check_app_write_lock
 from src.mus.domain.entities.track import ProcessingStatus, Track
@@ -14,19 +15,22 @@ from src.mus.util.db_utils import (
     update_track_path,
 )
 from src.mus.infrastructure.api.sse_handler import notify_sse_from_worker
+from src.mus.infrastructure.jobs.metadata_jobs import process_slow_metadata
 from src.mus.util.track_dto_utils import create_track_dto_with_covers
-from src.mus.core.arq_pool import get_arq_pool
+from src.mus.core.streaq_broker import worker
 
 
+@worker.task()
 async def handle_file_created(
-    _ctx: Dict[str, Any], file_path_str: str, skip_slow_metadata: bool = False
+    _: TaskContext, file_path_str: str, skip_slow_metadata: bool = False
 ):
     await _process_file_upsert(
         file_path_str, is_creation=True, skip_slow_metadata=skip_slow_metadata
     )
 
 
-async def handle_file_modified(_ctx: Dict[str, Any], file_path_str: str):
+@worker.task()
+async def handle_file_modified(_: TaskContext, file_path_str: str):
     if await check_app_write_lock(file_path_str):
         return
 
@@ -35,31 +39,58 @@ async def handle_file_modified(_ctx: Dict[str, Any], file_path_str: str):
     )
 
 
-async def handle_file_deleted(_ctx: Dict[str, Any], file_path_str: str):
+@worker.task()
+async def handle_file_deleted(_: TaskContext, file_path_str: str):
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"ARQ: Processing file deletion for: {file_path_str}")
+
     track = await get_track_by_path(file_path_str)
     if track and track.id is not None:
-        await delete_track_from_db_by_id(track.id)
+        logger.info(f"Found track {track.id} '{track.title}' for deletion")
+        async with worker:
+            await delete_track_by_id_internal.enqueue(
+                track_id=track.id,
+                track_title=track.title,
+            )
+        logger.info(f"Enqueued delete_track_by_id_internal job for track {track.id}")
+    else:
+        logger.warning(f"No track found for file path: {file_path_str}")
 
-        await notify_sse_from_worker(
-            action_key="track_deleted",
-            message=f"Deleted track '{track.title}'",
-            level="info",
-            payload={"track_id": track.id},
-        )
 
-
-async def handle_file_moved(_ctx: Dict[str, Any], old_path: str, new_path: str):
+@worker.task()
+async def handle_file_moved(_: TaskContext, old_path: str, new_path: str):
     track = await get_track_by_path(old_path)
     if track and track.id is not None:
-        arq_pool = await get_arq_pool()
-        await arq_pool.enqueue_job(
-            "update_track_path_by_id",
-            track_id=track.id,
-            new_path=new_path,
-        )
+        async with worker:
+            await update_track_path_by_id.enqueue(
+                track_id=track.id,
+                new_path=new_path,
+            )
 
 
-async def delete_track_with_files(_ctx: Dict[str, Any], track_id: int):
+@worker.task()
+async def delete_track_by_id_internal(_: TaskContext, track_id: int, track_title: str):
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"ARQ: Deleting track {track_id} '{track_title}' from database")
+
+    await delete_track_from_db_by_id(track_id)
+    logger.info(f"ARQ: Track {track_id} deleted from database")
+
+    await notify_sse_from_worker(
+        action_key="track_deleted",
+        message=f"Deleted track '{track_title}'",
+        level="info",
+        payload={"track_id": track_id},
+    )
+    logger.info(f"SSE notification sent for track {track_id} deletion")
+
+
+@worker.task()
+async def delete_track_with_files(_: TaskContext, track_id: int):
     track = await get_track_by_id(track_id)
     if not track:
         return
@@ -78,7 +109,8 @@ async def delete_track_with_files(_ctx: Dict[str, Any], track_id: int):
     )
 
 
-async def update_track_path_by_id(_ctx: Dict[str, Any], track_id: int, new_path: str):
+@worker.task()
+async def update_track_path_by_id(_: TaskContext, track_id: int, new_path: str):
     await update_track_path(track_id, new_path)
 
     updated_track = await get_track_by_id(track_id)
@@ -123,11 +155,10 @@ async def _process_file_upsert(
 
     if upserted_track and upserted_track.id:
         if not skip_slow_metadata:
-            arq_pool = await get_arq_pool()
-            await arq_pool.enqueue_job(
-                "process_slow_metadata",
-                track_id=upserted_track.id,
-            )
+            async with worker:
+                await process_slow_metadata.enqueue(
+                    track_id=upserted_track.id,
+                )
 
         action_key = "track_added" if is_creation else "track_updated"
         action_message = "Added" if is_creation else "Updated"

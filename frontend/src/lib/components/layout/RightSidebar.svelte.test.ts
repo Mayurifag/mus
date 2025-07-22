@@ -1,6 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render } from "@testing-library/svelte";
 import RightSidebar from "./RightSidebar.svelte";
+
+// Mock the API client
+vi.mock("$lib/services/apiClient", () => ({
+  fetchErroredTracks: vi.fn().mockResolvedValue([]),
+}));
 
 describe("RightSidebar", () => {
   it("should be defined", () => {

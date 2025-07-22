@@ -6,7 +6,7 @@ from src.mus.infrastructure.database import async_session_factory
 from src.mus.domain.entities.track import Track, ProcessingStatus
 from src.mus.application.dtos.track import TrackDTO
 from src.mus.util.track_dto_utils import create_track_dto_with_covers
-from src.mus.core.arq_pool import get_arq_pool
+from src.mus.core.streaq_broker import worker
 from src.mus.util.db_utils import get_track_by_id, update_track
 
 router = APIRouter(prefix="/api/v1/errors", tags=["errors"])
@@ -45,17 +45,15 @@ async def requeue_track(track_id: int):
     await update_track(track)
 
     # Re-enqueue the job
-    arq_pool = await get_arq_pool()
+    from src.mus.infrastructure.jobs.metadata_jobs import process_slow_metadata
 
     if job_name == "process_slow_metadata":
-        await arq_pool.enqueue_job(
-            "process_slow_metadata", track_id=track_id, _queue_name="low_priority"
-        )
+        async with worker:
+            await process_slow_metadata.enqueue(track_id=track_id)
     else:
         # For other job types, we might need to handle them differently
         # For now, default to slow metadata processing
-        await arq_pool.enqueue_job(
-            "process_slow_metadata", track_id=track_id, _queue_name="low_priority"
-        )
+        async with worker:
+            await process_slow_metadata.enqueue(track_id=track_id)
 
     return {"message": f"Track '{track.title}' re-queued for processing"}

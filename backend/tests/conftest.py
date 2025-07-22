@@ -100,10 +100,33 @@ async def app():
 @pytest_asyncio.fixture
 async def fake_redis():
     fake_redis_instance = fakeredis.aioredis.FakeRedis()
+
+    # Create a fake coredis instance that mimics the interface
+    class FakeCoredis:
+        def __init__(self):
+            self._fake_redis = fake_redis_instance
+
+        async def execute_command(self, *_args, **_kwargs):
+            # Mock the execute_command method that coredis uses
+            return True
+
+        async def publish_task(self, *_args, **_kwargs):
+            # Mock the publish_task method
+            return True
+
+        def __getattr__(self, name):
+            # Delegate other attributes to the fake redis instance
+            return getattr(self._fake_redis, name)
+
+    fake_coredis = FakeCoredis()
+
     with (
         patch("redis.asyncio.from_url") as mock_async_from_url,
         patch("redis.from_url") as mock_sync_from_url,
+        patch("coredis.Redis.from_url") as mock_coredis_from_url,
+        patch("src.mus.core.streaq_broker.worker.redis", fake_coredis),
     ):
         mock_async_from_url.return_value = fake_redis_instance
         mock_sync_from_url.return_value = fakeredis.FakeRedis()
+        mock_coredis_from_url.return_value = fake_coredis
         yield fake_redis_instance

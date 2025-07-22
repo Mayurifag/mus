@@ -4,7 +4,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.mus.domain.entities.track import Track
-from src.mus.core.arq_pool import get_arq_pool
+from src.mus.core.streaq_broker import worker
 
 
 async def batch_upsert_tracks(session: AsyncSession, tracks: List[Track]) -> int:
@@ -33,10 +33,10 @@ async def batch_upsert_tracks(session: AsyncSession, tracks: List[Track]) -> int
     await session.commit()
 
     if track_ids:
-        arq_pool = await get_arq_pool()
-        for track_id in track_ids:
-            await arq_pool.enqueue_job(
-                "process_slow_metadata", track_id=track_id, _queue_name="low_priority"
-            )
+        from src.mus.infrastructure.jobs.metadata_jobs import process_slow_metadata
+
+        async with worker:
+            for track_id in track_ids:
+                await process_slow_metadata.enqueue(track_id=track_id)
 
     return len(track_ids)
