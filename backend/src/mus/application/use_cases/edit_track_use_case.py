@@ -13,7 +13,7 @@ from src.mus.infrastructure.persistence.sqlite_track_repository import (
 from src.mus.infrastructure.api.sse_handler import broadcast_sse_event
 from src.mus.util.track_dto_utils import create_track_dto_with_covers
 from src.mus.util.filename_utils import generate_track_filename
-from src.mus.util.redis_utils import set_app_write_lock
+from src.mus.core.redis import set_app_write_lock
 
 
 class EditTrackUseCase:
@@ -34,7 +34,6 @@ class EditTrackUseCase:
             exclude_unset=True, exclude={"rename_file"}
         )
 
-        # Remove fields that haven't actually changed
         if "title" in changes_delta and changes_delta["title"] == track.title:
             del changes_delta["title"]
         if "artist" in changes_delta and changes_delta["artist"] == track.artist:
@@ -50,7 +49,6 @@ class EditTrackUseCase:
         except FileNotFoundError:
             raise HTTPException(status_code=404, detail="Audio file not found")
 
-        # Update tags if changes exist
         if "title" in changes_delta:
             audio["title"] = update_data.title
         if "artist" in changes_delta:
@@ -81,7 +79,6 @@ class EditTrackUseCase:
             await set_app_write_lock(new_file_path)
             os.rename(track.file_path, new_file_path)
 
-        # Update track object
         if "title" in changes_delta and update_data.title is not None:
             track.title = update_data.title
         if "artist" in changes_delta and update_data.artist is not None:
@@ -89,13 +86,11 @@ class EditTrackUseCase:
         if new_file_path != track.file_path:
             track.file_path = new_file_path
 
-        # Set updated timestamp if any changes were made
         if changes_delta or new_file_path != track.file_path:
             track.updated_at = int(time.time())
 
         await self.track_repo.session.commit()
         await self.track_repo.session.refresh(track)
-        # Create TrackListDTO with proper cover URLs for SSE event
         track_dto = create_track_dto_with_covers(track)
 
         await broadcast_sse_event(

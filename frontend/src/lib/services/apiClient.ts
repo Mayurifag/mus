@@ -138,6 +138,38 @@ export async function deleteTrack(trackId: number): Promise<void> {
   }
 }
 
+export async function fetchErroredTracks(): Promise<Track[]> {
+  try {
+    const response = await fetch(
+      `${API_PREFIX}${API_VERSION_PATH}/errors/tracks`,
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching errored tracks:", error);
+    return [];
+  }
+}
+
+export async function requeueTrack(trackId: number): Promise<void> {
+  try {
+    const response = await fetch(
+      `${API_PREFIX}${API_VERSION_PATH}/errors/tracks/${trackId}/requeue`,
+      {
+        method: "POST",
+      },
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+  } catch (error) {
+    console.error("Error requeuing track:", error);
+    throw error;
+  }
+}
+
 let globalEventSource: EventSource | null = null;
 
 export function connectTrackUpdateEvents(

@@ -1,7 +1,7 @@
 from enum import Enum
 from sqlmodel import Field, SQLModel
-from sqlalchemy import Column, String
-from typing import Optional
+from sqlalchemy import Column, String, JSON
+from typing import Optional, Dict, Any
 
 
 class ProcessingStatus(str, Enum):
@@ -25,4 +25,4 @@ class Track(SQLModel, table=True):
     processing_status: ProcessingStatus = Field(
         default=ProcessingStatus.PENDING, sa_column=Column(String(20), nullable=False)
     )
-    last_error_message: Optional[str] = Field(default=None)
+    last_error: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))

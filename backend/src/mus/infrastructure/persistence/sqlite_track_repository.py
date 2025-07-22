@@ -62,7 +62,7 @@ class SQLiteTrackRepository:
             inode=track_data.inode,
             content_hash=track_data.content_hash,
             processing_status=track_data.processing_status,
-            last_error_message=track_data.last_error_message,
+            last_error=track_data.last_error,
         )
         stmt = stmt.on_conflict_do_update(
             index_elements=["file_path"],
@@ -75,7 +75,7 @@ class SQLiteTrackRepository:
                 "inode": stmt.excluded.inode,
                 "content_hash": stmt.excluded.content_hash,
                 "processing_status": stmt.excluded.processing_status,
-                "last_error_message": stmt.excluded.last_error_message,
+                "last_error": stmt.excluded.last_error,
             },
         )
         await self.session.execute(stmt)

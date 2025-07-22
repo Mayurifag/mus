@@ -13,13 +13,13 @@ from src.mus.infrastructure.api.routers import (
     track_router,
 )
 from src.mus.infrastructure.api.routers import (
-    monitoring_router,
     permissions_router,
+    errors_router,
 )
 from src.mus.infrastructure.api.sse_handler import router as sse_router
-from src.mus.service.file_watcher_manager import FileWatcherManager
-from src.mus.service.scanner_service import InitialScanner
-from src.mus.service.permissions_service import PermissionsService
+from src.mus.application.use_cases.initial_scan import InitialScanUseCase
+from src.mus.application.services.permissions_service import PermissionsService
+from src.mus.infrastructure.file_watcher.watcher import watch_music_directory
 
 logging.basicConfig(
     level=settings.LOG_LEVEL.upper(), format="%(levelname)s:     %(name)s - %(message)s"
@@ -32,15 +32,19 @@ async def lifespan(_: FastAPI):
     permissions_service = PermissionsService()
     await asyncio.to_thread(permissions_service.check_write_permissions)
 
-    await (await InitialScanner.create_default()).scan()
+    initial_scanner = await InitialScanUseCase.create_default()
+    await initial_scanner.execute()
 
-    file_watcher_manager = FileWatcherManager()
-    await file_watcher_manager.start()
+    watcher_task = asyncio.create_task(watch_music_directory())
 
     try:
         yield
     finally:
-        file_watcher_manager.stop()
+        watcher_task.cancel()
+        try:
+            await watcher_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(
@@ -61,8 +65,8 @@ if settings.APP_ENV != "production":
 app.include_router(auth_router.router)
 app.include_router(player_router.router)
 app.include_router(track_router.router)
-app.include_router(monitoring_router.router)
 app.include_router(permissions_router.router)
+app.include_router(errors_router.router)
 app.include_router(sse_router)
 
 

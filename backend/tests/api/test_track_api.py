@@ -317,24 +317,30 @@ async def test_get_track_cover_304_not_modified(client, sample_tracks):
 @pytest.mark.asyncio
 async def test_delete_track_success(client):
     with patch(
-        "src.mus.infrastructure.api.routers.track_router.enqueue_track_deletion"
-    ) as mock_enqueue:
-        mock_enqueue.return_value = None
+        "src.mus.infrastructure.api.routers.track_router.get_arq_pool"
+    ) as mock_get_pool:
+        mock_pool = AsyncMock()
+        mock_get_pool.return_value = mock_pool
 
         response = client.delete("/api/v1/tracks/1")
 
         assert response.status_code == 202
-        mock_enqueue.assert_called_once_with(1)
+        mock_pool.enqueue_job.assert_called_once_with(
+            "delete_track_with_files", track_id=1, _queue_name="high_priority"
+        )
 
 
 @pytest.mark.asyncio
 async def test_delete_track_not_found(client):
     with patch(
-        "src.mus.infrastructure.api.routers.track_router.enqueue_track_deletion"
-    ) as mock_enqueue:
-        mock_enqueue.return_value = None
+        "src.mus.infrastructure.api.routers.track_router.get_arq_pool"
+    ) as mock_get_pool:
+        mock_pool = AsyncMock()
+        mock_get_pool.return_value = mock_pool
 
         response = client.delete("/api/v1/tracks/999")
 
         assert response.status_code == 202
-        mock_enqueue.assert_called_once_with(999)
+        mock_pool.enqueue_job.assert_called_once_with(
+            "delete_track_with_files", track_id=999, _queue_name="high_priority"
+        )

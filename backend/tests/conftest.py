@@ -101,9 +101,9 @@ async def app():
 async def fake_redis():
     fake_redis_instance = fakeredis.aioredis.FakeRedis()
     with (
-        patch("src.mus.util.redis_utils.redis.Redis.from_pool") as mock_async_from_pool,
-        patch("src.mus.util.redis_utils.Redis.from_url") as mock_sync_from_url,
+        patch("redis.asyncio.from_url") as mock_async_from_url,
+        patch("redis.from_url") as mock_sync_from_url,
     ):
-        mock_async_from_pool.return_value = fake_redis_instance
+        mock_async_from_url.return_value = fake_redis_instance
         mock_sync_from_url.return_value = fakeredis.FakeRedis()
         yield fake_redis_instance
