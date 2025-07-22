@@ -8,6 +8,7 @@ from src.mus.infrastructure.jobs.file_system_jobs import (
     handle_file_deleted,
     handle_file_moved,
     delete_track_with_files,
+    update_track_path_by_id,
 )
 
 
@@ -17,14 +18,15 @@ class WorkerSettings:
     redis_settings = RedisSettings.from_dsn(settings.DRAGONFLY_URL)
 
     functions = [
-        # High priority jobs (user actions, critical file events)
+        # File system event handlers (use file paths)
         handle_file_created,
-        handle_file_deleted,
-        delete_track_with_files,
-        # Medium priority jobs (file updates)
         handle_file_modified,
+        handle_file_deleted,
         handle_file_moved,
-        # Low priority jobs (background processing)
+        # ID-based job handlers (use track IDs for better serialization)
+        delete_track_with_files,
+        update_track_path_by_id,
+        # Background processing
         process_slow_metadata,
     ]
 

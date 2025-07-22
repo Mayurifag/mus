@@ -51,17 +51,12 @@ async def handle_file_deleted(_ctx: Dict[str, Any], file_path_str: str):
 async def handle_file_moved(_ctx: Dict[str, Any], old_path: str, new_path: str):
     track = await get_track_by_path(old_path)
     if track and track.id is not None:
-        await update_track_path(track.id, new_path)
-
-        updated_track = await get_track_by_id(track.id)
-        if updated_track:
-            track_dto = create_track_dto_with_covers(updated_track)
-            await notify_sse_from_worker(
-                action_key="track_updated",
-                message=f"Moved track '{track.title}'",
-                level="info",
-                payload=track_dto.model_dump(),
-            )
+        arq_pool = await get_arq_pool()
+        await arq_pool.enqueue_job(
+            "update_track_path_by_id",
+            track_id=track.id,
+            new_path=new_path,
+        )
 
 
 async def delete_track_with_files(_ctx: Dict[str, Any], track_id: int):
@@ -81,6 +76,20 @@ async def delete_track_with_files(_ctx: Dict[str, Any], track_id: int):
         level="success",
         payload={"track_id": track_id},
     )
+
+
+async def update_track_path_by_id(_ctx: Dict[str, Any], track_id: int, new_path: str):
+    await update_track_path(track_id, new_path)
+
+    updated_track = await get_track_by_id(track_id)
+    if updated_track:
+        track_dto = create_track_dto_with_covers(updated_track)
+        await notify_sse_from_worker(
+            action_key="track_updated",
+            message=f"Moved track '{updated_track.title}'",
+            level="info",
+            payload=track_dto.model_dump(),
+        )
 
 
 async def _process_file_upsert(
@@ -118,7 +127,6 @@ async def _process_file_upsert(
             await arq_pool.enqueue_job(
                 "process_slow_metadata",
                 track_id=upserted_track.id,
-                _queue_name="low_priority",
             )
 
         action_key = "track_added" if is_creation else "track_updated"

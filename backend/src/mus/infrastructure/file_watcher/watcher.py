@@ -48,7 +48,6 @@ async def _process_file_changes(changes: Set, arq_pool):
                 await arq_pool.enqueue_job(
                     "handle_file_created",
                     file_path_str=file_path_str,
-                    _queue_name="high_priority",
                 )
                 logger.debug(f"Enqueued file_created job for: {file_path}")
 
@@ -56,7 +55,6 @@ async def _process_file_changes(changes: Set, arq_pool):
                 await arq_pool.enqueue_job(
                     "handle_file_modified",
                     file_path_str=file_path_str,
-                    _queue_name="medium_priority",
                 )
                 logger.debug(f"Enqueued file_modified job for: {file_path}")
 
@@ -64,7 +62,6 @@ async def _process_file_changes(changes: Set, arq_pool):
                 await arq_pool.enqueue_job(
                     "handle_file_deleted",
                     file_path_str=file_path_str,
-                    _queue_name="high_priority",
                 )
                 logger.debug(f"Enqueued file_deleted job for: {file_path}")
 

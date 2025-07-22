@@ -18,6 +18,7 @@ from src.mus.infrastructure.api.routers import (
     track_router,
 )
 from src.mus.infrastructure.api.sse_handler import router as sse_router
+from src.mus.infrastructure.database import create_db_and_tables
 from src.mus.infrastructure.file_watcher.watcher import watch_music_directory
 
 logging.basicConfig(
@@ -28,6 +29,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    await create_db_and_tables()
+
     permissions_service = PermissionsService()
     await asyncio.to_thread(permissions_service.check_write_permissions)
 
