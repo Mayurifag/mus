@@ -1,5 +1,7 @@
+import logging
 from contextlib import asynccontextmanager
-from typing import TypeVar, Callable, Any, Optional
+from typing import Any, Callable, Optional, TypeVar
+
 from src.mus.infrastructure.database import async_session_factory
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
@@ -41,7 +43,5 @@ async def safe_db_operation(
         return await operation()
     except Exception as e:
         if log_errors:
-            import logging
-
             logging.error(f"Database operation failed: {e}")
         return default_value

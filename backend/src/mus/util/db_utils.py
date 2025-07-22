@@ -1,12 +1,14 @@
 from contextlib import asynccontextmanager
-from typing import Optional, List
-from sqlmodel import select, col
+from typing import List, Optional
 
+from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
+from sqlmodel import col, select
+
+from src.mus.domain.entities.track import ProcessingStatus, Track
 from src.mus.infrastructure.database import async_session_factory
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
 )
-from src.mus.domain.entities.track import Track, ProcessingStatus
 
 
 @asynccontextmanager
@@ -92,8 +94,6 @@ async def upsert_tracks_batch(tracks: List[Track]) -> List[Track]:
         return []
 
     async with get_track_repo() as (_, session):
-        from sqlalchemy.dialects.sqlite import insert as sqlite_upsert
-
         # Prepare track data for bulk insert
         track_values = [track.model_dump(exclude={"id"}) for track in tracks]
 

@@ -2,10 +2,15 @@ import logging
 from pathlib import Path
 from typing import Set
 
-from watchfiles import awatch, Change
+from watchfiles import Change, awatch
 
 from src.mus.config import settings
 from src.mus.core.streaq_broker import worker
+from src.mus.infrastructure.jobs.file_system_jobs import (
+    handle_file_created,
+    handle_file_deleted,
+    handle_file_modified,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +40,6 @@ async def watch_music_directory():
 
 async def _process_file_changes(changes: Set):
     """Process a set of file system changes."""
-    from src.mus.infrastructure.jobs.file_system_jobs import (
-        handle_file_created,
-        handle_file_modified,
-        handle_file_deleted,
-    )
-
     logger.info(f"Processing {len(changes)} file changes")
     for change_type, file_path_str in changes:
         file_path = Path(file_path_str)

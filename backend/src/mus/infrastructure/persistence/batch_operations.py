@@ -5,6 +5,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.mus.domain.entities.track import Track
 from src.mus.core.streaq_broker import worker
+from src.mus.infrastructure.jobs.metadata_jobs import process_slow_metadata
 
 
 async def batch_upsert_tracks(session: AsyncSession, tracks: List[Track]) -> int:
@@ -33,8 +34,6 @@ async def batch_upsert_tracks(session: AsyncSession, tracks: List[Track]) -> int
     await session.commit()
 
     if track_ids:
-        from src.mus.infrastructure.jobs.metadata_jobs import process_slow_metadata
-
         async with worker:
             for track_id in track_ids:
                 await process_slow_metadata.enqueue(track_id=track_id)

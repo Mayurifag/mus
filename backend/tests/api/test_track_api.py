@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
+from sqlalchemy.engine import Row
 from sqlmodel import select, text
 
 from src.mus.config import settings
@@ -68,9 +69,6 @@ async def sample_tracks(track_repository):
 @pytest.mark.asyncio
 async def test_get_tracks(client, sample_tracks):
     # Create mock Row objects that match what the repository now returns
-    from sqlalchemy.engine import Row
-    from unittest.mock import MagicMock
-
     mock_rows = []
     for track in sample_tracks:
         mock_row = MagicMock(spec=Row)

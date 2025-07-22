@@ -1,13 +1,15 @@
 from typing import List
+
 from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
-from src.mus.infrastructure.database import async_session_factory
-from src.mus.domain.entities.track import Track, ProcessingStatus
 from src.mus.application.dtos.track import TrackDTO
-from src.mus.util.track_dto_utils import create_track_dto_with_covers
 from src.mus.core.streaq_broker import worker
+from src.mus.domain.entities.track import ProcessingStatus, Track
+from src.mus.infrastructure.database import async_session_factory
+from src.mus.infrastructure.jobs.metadata_jobs import process_slow_metadata
 from src.mus.util.db_utils import get_track_by_id, update_track
+from src.mus.util.track_dto_utils import create_track_dto_with_covers
 
 router = APIRouter(prefix="/api/v1/errors", tags=["errors"])
 
@@ -45,8 +47,6 @@ async def requeue_track(track_id: int):
     await update_track(track)
 
     # Re-enqueue the job
-    from src.mus.infrastructure.jobs.metadata_jobs import process_slow_metadata
-
     if job_name == "process_slow_metadata":
         async with worker:
             await process_slow_metadata.enqueue(track_id=track_id)

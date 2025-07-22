@@ -1,34 +1,39 @@
+import asyncio
+import hashlib
+import io
+import os
 from enum import Enum
+from typing import Any, Dict, Final, List
+
 from fastapi import (
     APIRouter,
     Depends,
+    File,
+    Form,
     HTTPException,
     Path,
     Request,
-    status,
     UploadFile,
-    File,
-    Form,
+    status,
 )
 from fastapi.responses import FileResponse, Response
-from typing import List, Final, Dict, Any
-import os
-import hashlib
-import io
-
 from mutagen._file import File as MutagenFile
+
 from src.mus.application.dtos.track import TrackListDTO, TrackUpdateDTO
 from src.mus.application.use_cases.edit_track_use_case import EditTrackUseCase
+from src.mus.config import settings
+from src.mus.core.redis import set_app_write_lock
+from src.mus.core.streaq_broker import worker
 from src.mus.infrastructure.api.dependencies import get_track_repository
+from src.mus.infrastructure.jobs.file_system_jobs import (
+    delete_track_with_files,
+    handle_file_created,
+)
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
 )
-from src.mus.core.streaq_broker import worker
-from src.mus.core.redis import set_app_write_lock
-from src.mus.util.filename_utils import generate_track_filename
 from src.mus.util.file_validation import validate_upload_file
-from src.mus.config import settings
-import asyncio
+from src.mus.util.filename_utils import generate_track_filename
 
 
 class CoverSize(str, Enum):
@@ -179,8 +184,6 @@ async def update_track(
 async def delete_track(
     track_id: int = Path(..., gt=0),
 ) -> Response:
-    from src.mus.infrastructure.jobs.file_system_jobs import delete_track_with_files
-
     async with worker:
         await delete_track_with_files.enqueue(track_id=track_id)
     return Response(status_code=status.HTTP_202_ACCEPTED)
@@ -227,8 +230,6 @@ async def upload_track(
             f.write(buffer.getvalue())
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
-
-    from src.mus.infrastructure.jobs.file_system_jobs import handle_file_created
 
     async with worker:
         await handle_file_created.enqueue(

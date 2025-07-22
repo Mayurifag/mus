@@ -1,12 +1,14 @@
 import os
-from fastapi.testclient import TestClient
+import time
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.testclient import TestClient
 
-from src.mus.main import lifespan
 from src.mus.infrastructure.api.routers.auth_router import router as auth_router
 from src.mus.infrastructure.api.routers.player_router import router as player_router
 from src.mus.infrastructure.api.routers.track_router import router as track_router
+from src.mus.main import lifespan
 
 
 def create_app_with_env(env_value=None):
@@ -39,7 +41,7 @@ def create_app_with_env(env_value=None):
 
     @app.get("/api/healthcheck.json")
     async def healthcheck():
-        return {"status": "healthy", "timestamp": int(__import__("time").time())}
+        return {"status": "healthy", "timestamp": int(time.time())}
 
     return app
 

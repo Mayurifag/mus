@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from contextlib import asynccontextmanager
 from typing import Any, Dict
 
@@ -82,4 +83,4 @@ app.include_router(sse_router)
 
 @app.get("/api/healthcheck.json", response_model=Dict[str, Any])
 async def healthcheck() -> Dict[str, Any]:
-    return {"status": "healthy", "timestamp": int(__import__("time").time())}
+    return {"status": "healthy", "timestamp": int(time.time())}

@@ -1,23 +1,24 @@
+import logging
 from pathlib import Path
 
 from streaq import TaskContext
 
 from src.mus.core.redis import check_app_write_lock
+from src.mus.core.streaq_broker import worker
 from src.mus.domain.entities.track import ProcessingStatus, Track
-from src.mus.util.metadata_extractor import extract_fast_metadata
-from src.mus.util.db_utils import (
-    get_track_by_path,
-    get_track_by_inode,
-    get_track_by_id,
-    upsert_track,
-    update_track,
-    delete_track_from_db_by_id,
-    update_track_path,
-)
 from src.mus.infrastructure.api.sse_handler import notify_sse_from_worker
 from src.mus.infrastructure.jobs.metadata_jobs import process_slow_metadata
+from src.mus.util.db_utils import (
+    delete_track_from_db_by_id,
+    get_track_by_id,
+    get_track_by_inode,
+    get_track_by_path,
+    update_track,
+    update_track_path,
+    upsert_track,
+)
+from src.mus.util.metadata_extractor import extract_fast_metadata
 from src.mus.util.track_dto_utils import create_track_dto_with_covers
-from src.mus.core.streaq_broker import worker
 
 
 @worker.task()
@@ -41,8 +42,6 @@ async def handle_file_modified(_: TaskContext, file_path_str: str):
 
 @worker.task()
 async def handle_file_deleted(_: TaskContext, file_path_str: str):
-    import logging
-
     logger = logging.getLogger(__name__)
     logger.info(f"ARQ: Processing file deletion for: {file_path_str}")
 
@@ -72,8 +71,6 @@ async def handle_file_moved(_: TaskContext, old_path: str, new_path: str):
 
 @worker.task()
 async def delete_track_by_id_internal(_: TaskContext, track_id: int, track_title: str):
-    import logging
-
     logger = logging.getLogger(__name__)
     logger.info(f"ARQ: Deleting track {track_id} '{track_title}' from database")
 
