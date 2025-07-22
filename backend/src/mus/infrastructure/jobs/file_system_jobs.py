@@ -1,6 +1,5 @@
 from pathlib import Path
-
-from arq import Ctx
+from typing import Dict, Any
 
 from src.mus.core.redis import check_app_write_lock
 from src.mus.domain.entities.track import ProcessingStatus, Track
@@ -20,14 +19,14 @@ from src.mus.core.arq_pool import get_arq_pool
 
 
 async def handle_file_created(
-    _ctx: Ctx, file_path_str: str, skip_slow_metadata: bool = False
+    _ctx: Dict[str, Any], file_path_str: str, skip_slow_metadata: bool = False
 ):
     await _process_file_upsert(
         file_path_str, is_creation=True, skip_slow_metadata=skip_slow_metadata
     )
 
 
-async def handle_file_modified(_ctx: Ctx, file_path_str: str):
+async def handle_file_modified(_ctx: Dict[str, Any], file_path_str: str):
     if await check_app_write_lock(file_path_str):
         return
 
@@ -36,7 +35,7 @@ async def handle_file_modified(_ctx: Ctx, file_path_str: str):
     )
 
 
-async def handle_file_deleted(_ctx: Ctx, file_path_str: str):
+async def handle_file_deleted(_ctx: Dict[str, Any], file_path_str: str):
     track = await get_track_by_path(file_path_str)
     if track and track.id is not None:
         await delete_track_from_db_by_id(track.id)
@@ -49,7 +48,7 @@ async def handle_file_deleted(_ctx: Ctx, file_path_str: str):
         )
 
 
-async def handle_file_moved(_ctx: Ctx, old_path: str, new_path: str):
+async def handle_file_moved(_ctx: Dict[str, Any], old_path: str, new_path: str):
     track = await get_track_by_path(old_path)
     if track and track.id is not None:
         await update_track_path(track.id, new_path)
@@ -65,7 +64,7 @@ async def handle_file_moved(_ctx: Ctx, old_path: str, new_path: str):
             )
 
 
-async def delete_track_with_files(_ctx: Ctx, track_id: int):
+async def delete_track_with_files(_ctx: Dict[str, Any], track_id: int):
     track = await get_track_by_id(track_id)
     if not track:
         return

@@ -6,19 +6,18 @@ from typing import Any, Dict
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.mus.application.services.permissions_service import PermissionsService
+from src.mus.application.use_cases.fast_initial_scan import FastInitialScanUseCase
+from src.mus.application.use_cases.slow_initial_scan import SlowInitialScanUseCase
 from src.mus.config import settings
 from src.mus.infrastructure.api.routers import (
     auth_router,
+    errors_router,
+    permissions_router,
     player_router,
     track_router,
 )
-from src.mus.infrastructure.api.routers import (
-    permissions_router,
-    errors_router,
-)
 from src.mus.infrastructure.api.sse_handler import router as sse_router
-from src.mus.application.use_cases.initial_scan import InitialScanUseCase
-from src.mus.application.services.permissions_service import PermissionsService
 from src.mus.infrastructure.file_watcher.watcher import watch_music_directory
 
 logging.basicConfig(
@@ -32,8 +31,11 @@ async def lifespan(_: FastAPI):
     permissions_service = PermissionsService()
     await asyncio.to_thread(permissions_service.check_write_permissions)
 
-    initial_scanner = await InitialScanUseCase.create_default()
-    await initial_scanner.execute()
+    fast_scanner = await FastInitialScanUseCase.create_default()
+    await fast_scanner.execute()
+
+    slow_scanner = SlowInitialScanUseCase()
+    slow_scan_task = asyncio.create_task(slow_scanner.execute())
 
     watcher_task = asyncio.create_task(watch_music_directory())
 
@@ -41,8 +43,13 @@ async def lifespan(_: FastAPI):
         yield
     finally:
         watcher_task.cancel()
+        slow_scan_task.cancel()
         try:
             await watcher_task
+        except asyncio.CancelledError:
+            pass
+        try:
+            await slow_scan_task
         except asyncio.CancelledError:
             pass
 

@@ -16,28 +16,14 @@
   let isQrModalOpen = $state(false);
   let erroredTracks = $state<Track[]>([]);
 
-  // Load errored tracks on mount
   onMount(async () => {
     erroredTracks = await fetchErroredTracks();
   });
-
-  // Handle track error/update events from SSE
-  $effect(() => {
-    // Listen for SSE events to update errored tracks
-    // This would be connected to your SSE event handling
-  });
-
-  // Keep this function for potential SSE event handling in the future
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async function refreshErroredTracks() {
-    erroredTracks = await fetchErroredTracks();
-  }
 
   function removeErroredTrack(trackId: number) {
     erroredTracks = erroredTracks.filter((track) => track.id !== trackId);
   }
 
-  // Show debug timeline only when shuffle is active and there's meaningful navigation history
   const shouldShowDebugTimeline = $derived(
     $trackStore.is_shuffle &&
       $trackStore.playHistory.length >= MIN_HISTORY_FOR_DEBUG,

@@ -1,5 +1,5 @@
 import time
-from arq import Ctx
+from typing import Dict, Any
 
 from src.mus.application.use_cases.process_track_metadata import (
     process_slow_metadata_for_track,
@@ -10,7 +10,7 @@ from src.mus.infrastructure.api.sse_handler import notify_sse_from_worker
 from src.mus.util.track_dto_utils import create_track_dto_with_covers
 
 
-async def process_slow_metadata(_ctx: Ctx, track_id: int):
+async def process_slow_metadata(_ctx: Dict[str, Any], track_id: int):
     try:
         track = await process_slow_metadata_for_track(track_id)
 
