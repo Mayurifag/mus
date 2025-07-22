@@ -74,9 +74,6 @@ async def test_edit_track_preserves_mtime(mock_track_repo, sample_track, fake_re
             "src.mus.application.use_cases.edit_track_use_case.MutagenFile"
         ) as mock_mutagen,
         patch(
-            "src.mus.application.use_cases.edit_track_use_case.add_track_history"
-        ) as mock_add_history,
-        patch(
             "src.mus.application.use_cases.edit_track_use_case.broadcast_sse_event"
         ) as mock_broadcast,
         patch(
@@ -87,7 +84,6 @@ async def test_edit_track_preserves_mtime(mock_track_repo, sample_track, fake_re
         mock_audio = AsyncMock()
         mock_audio.save = Mock(return_value=None)  # Use Mock instead of AsyncMock
         mock_mutagen.return_value = mock_audio
-        mock_add_history.return_value = None
         mock_broadcast.return_value = None
         mock_dto = Mock()
         mock_dto.model_dump.return_value = {"id": 1, "title": "Test Track"}

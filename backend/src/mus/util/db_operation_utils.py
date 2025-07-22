@@ -4,9 +4,6 @@ from src.mus.infrastructure.database import async_session_factory
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
 )
-from src.mus.infrastructure.persistence.sqlite_track_history_repository import (
-    SQLiteTrackHistoryRepository,
-)
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -31,16 +28,6 @@ async def execute_with_track_repo(
     """Execute an operation with track repository."""
     async with db_operation(auto_commit) as session:
         repo = SQLiteTrackRepository(session)
-        return await operation(repo, session)
-
-
-async def execute_with_track_history_repo(
-    operation: Callable[[SQLiteTrackHistoryRepository, Any], Any],
-    auto_commit: bool = True,
-) -> Any:
-    """Execute an operation with track history repository."""
-    async with db_operation(auto_commit) as session:
-        repo = SQLiteTrackHistoryRepository(session)
         return await operation(repo, session)
 
 

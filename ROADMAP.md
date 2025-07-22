@@ -185,9 +185,9 @@
   - [x] Update mr alias to include full text from snippet
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
 - [x] ~~Celery and async tasks~~
-- [ ] Wipe out history changes completely I do not need them - at least now and they make code messy.
+- [x] Wipe out history changes completely I do not need them - at least now and they make code messy.
 - [ ] Events refactoring ideas - On app launch too many slow metadata going on.
-  - [**x**] As a beginning I need to document for now how it works and how should it work. External/internal changes all types of events. Maybe some kind of flowchart -> in future to transform onto finite state machine
+  - [x] As a beginning I need to document for now how it works and how should it work. External/internal changes all types of events. Maybe some kind of flowchart -> in future to transform onto finite state machine
   - [ ] Change from rq to arq and to async code here and there
   - [x] slow metadata - convert automatically to UTF-8 id2V2.3
   - [ ] whats slowing there - i think we might do things faster

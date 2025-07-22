@@ -7,7 +7,6 @@ from mutagen._file import File as MutagenFile
 
 from src.mus.config import settings
 from src.mus.domain.entities.track import ProcessingStatus, Track
-from src.mus.domain.entities.track_history import TrackHistory
 from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
 from src.mus.util.track_dto_utils import create_track_dto_with_covers
 
@@ -22,8 +21,6 @@ from src.mus.util.db_utils import (
     update_track,
     delete_track_from_db_by_id,
     update_track_path,
-    add_track_history,
-    prune_track_history,
 )
 from src.mus.util.queue_utils import enqueue_slow_metadata
 from src.mus.service.id3_tag_service import ID3TagService
@@ -170,65 +167,6 @@ async def _process_file_upsert(
         processing_status=ProcessingStatus.METADATA_DONE,
     )
     upserted_track = await upsert_track(track)
-
-    if not existing_track and upserted_track and upserted_track.id:
-        history_entry = TrackHistory(
-            track_id=upserted_track.id,
-            event_type="initial_scan",
-            changes=None,
-            filename=Path(upserted_track.file_path).name,
-            title=upserted_track.title,
-            artist=upserted_track.artist,
-            duration=upserted_track.duration,
-            changed_at=int(time.time()),
-            full_snapshot={
-                "title": upserted_track.title,
-                "artist": upserted_track.artist,
-                "duration": upserted_track.duration,
-                "file_path": upserted_track.file_path,
-                "has_cover": upserted_track.has_cover,
-            },
-        )
-        await add_track_history(history_entry)
-
-    if existing_track and upserted_track and upserted_track.id:
-        changes_dict = {}
-        if existing_track.title != upserted_track.title:
-            changes_dict["title"] = {
-                "old": existing_track.title,
-                "new": upserted_track.title,
-            }
-        if existing_track.artist != upserted_track.artist:
-            changes_dict["artist"] = {
-                "old": existing_track.artist,
-                "new": upserted_track.artist,
-            }
-        if existing_track.duration != upserted_track.duration:
-            changes_dict["duration"] = {
-                "old": existing_track.duration,
-                "new": upserted_track.duration,
-            }
-
-        if changes_dict:
-            history_entry = TrackHistory(
-                track_id=upserted_track.id,
-                title=existing_track.title,
-                artist=existing_track.artist,
-                duration=existing_track.duration,
-                changed_at=int(time.time()),
-                event_type="metadata_update",
-                filename=Path(upserted_track.file_path).name,
-                changes=changes_dict,
-                full_snapshot={
-                    "title": upserted_track.title,
-                    "artist": upserted_track.artist,
-                    "duration": upserted_track.duration,
-                    "file_path": upserted_track.file_path,
-                    "has_cover": upserted_track.has_cover,
-                },
-            )
-            await add_track_history(history_entry)
-            await prune_track_history(upserted_track.id, 5)
 
     if upserted_track and upserted_track.id:
         if not skip_slow_metadata:

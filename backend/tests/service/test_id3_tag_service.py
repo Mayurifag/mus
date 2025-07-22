@@ -44,9 +44,8 @@ def mock_mp3_file():
 @pytest.fixture
 def mock_non_mp3_file():
     """Create a mock non-MP3 file object."""
-    mock_audio = MagicMock()
-    # Make isinstance check return False for MP3
-    mock_audio.__class__ = object
+    # Create a mock that is not an instance of MP3
+    mock_audio = MagicMock(spec=object)
     return mock_audio
 
 
@@ -216,64 +215,3 @@ class TestID3TagService:
         assert needs_update is True
         assert old_version is None
         assert encoding_upgrade is True
-
-    @pytest.mark.asyncio
-    async def test_create_history_entry_success(self, service, sample_track):
-        """Test successful creation of history entry."""
-        result = ID3TagResult(
-            was_standardized=True, old_version=(2, 4, 0), encoding_upgraded=True
-        )
-        file_path = Path("/test/path.mp3")
-
-        with (
-            patch("src.mus.service.id3_tag_service.get_track_by_id") as mock_get_track,
-            patch(
-                "src.mus.service.id3_tag_service.add_track_history"
-            ) as mock_add_history,
-        ):
-            mock_get_track.return_value = sample_track
-
-            await service.create_history_entry(sample_track.id, result, file_path)
-
-            mock_get_track.assert_called_once_with(sample_track.id)
-            mock_add_history.assert_called_once()
-
-            # Check the history entry details
-            history_call = mock_add_history.call_args[0][0]
-            assert history_call.event_type == "metadata_fixup"
-            assert history_call.changes["id3_version"]["old"] == "(2, 4, 0)"
-            assert history_call.changes["id3_version"]["new"] == "2.3.0"
-            assert history_call.changes["encoding_upgraded"] is True
-
-    @pytest.mark.asyncio
-    async def test_create_history_entry_track_not_found(self, service):
-        """Test history entry creation when track is not found."""
-        result = ID3TagResult(was_standardized=True)
-        file_path = Path("/test/path.mp3")
-
-        with (
-            patch("src.mus.service.id3_tag_service.get_track_by_id") as mock_get_track,
-            patch(
-                "src.mus.service.id3_tag_service.add_track_history"
-            ) as mock_add_history,
-        ):
-            mock_get_track.return_value = None
-
-            await service.create_history_entry(999, result, file_path)
-
-            mock_get_track.assert_called_once_with(999)
-            mock_add_history.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_create_history_entry_with_exception(self, service, sample_track):
-        """Test history entry creation handles exceptions gracefully."""
-        result = ID3TagResult(was_standardized=True)
-        file_path = Path("/test/path.mp3")
-
-        with patch("src.mus.service.id3_tag_service.get_track_by_id") as mock_get_track:
-            mock_get_track.side_effect = Exception("Database error")
-
-            # Should not raise exception
-            await service.create_history_entry(sample_track.id, result, file_path)
-
-            mock_get_track.assert_called_once_with(sample_track.id)

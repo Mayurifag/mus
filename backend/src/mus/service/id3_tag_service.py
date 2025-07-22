@@ -1,12 +1,8 @@
-import time
 from pathlib import Path
 from typing import Optional
 
 from mutagen._file import File as MutagenFile
 from mutagen.mp3 import MP3
-
-from src.mus.domain.entities.track_history import TrackHistory
-from src.mus.util.db_utils import add_track_history, get_track_by_id
 
 
 class ID3TagResult:
@@ -101,38 +97,3 @@ class ID3TagService:
                     break
 
         return needs_update, old_version, encoding_needs_upgrade
-
-    async def create_history_entry(
-        self, track_id: int, result: ID3TagResult, file_path: Path
-    ) -> None:
-        try:
-            changes = {
-                "id3_version": {
-                    "old": str(result.old_version) if result.old_version else "unknown",
-                    "new": result.new_version,
-                },
-                "encoding_upgraded": result.encoding_upgraded,
-            }
-
-            track = await get_track_by_id(track_id)
-            if track:
-                history_entry = TrackHistory(
-                    track_id=track_id,
-                    event_type="metadata_fixup",
-                    changes=changes,
-                    filename=file_path.name,
-                    title=track.title,
-                    artist=track.artist,
-                    duration=track.duration,
-                    changed_at=int(time.time()),
-                    full_snapshot={
-                        "title": track.title,
-                        "artist": track.artist,
-                        "duration": track.duration,
-                        "file_path": track.file_path,
-                        "has_cover": track.has_cover,
-                    },
-                )
-                await add_track_history(history_entry)
-        except Exception:  # nosec
-            pass

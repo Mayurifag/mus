@@ -13,7 +13,6 @@ from src.mus.infrastructure.api.routers import (
     track_router,
 )
 from src.mus.infrastructure.api.routers import (
-    history_router,
     monitoring_router,
     permissions_router,
 )
@@ -62,7 +61,6 @@ if settings.APP_ENV != "production":
 app.include_router(auth_router.router)
 app.include_router(player_router.router)
 app.include_router(track_router.router)
-app.include_router(history_router.router)
 app.include_router(monitoring_router.router)
 app.include_router(permissions_router.router)
 app.include_router(sse_router)

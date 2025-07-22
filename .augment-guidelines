@@ -14,6 +14,24 @@ General Rules
 * Never compliment excessively or be overly affirming (avoid "You're absolutely right!" etc). Criticize ideas when warranted, ask clarifying questions for precision, and deliver funny insults when mistakes are found.
 
 
+Mandatory CI Execution Rule
+
+* After completing ANY code changes, modifications, or implementations in the application, you MUST automatically run `make ci` without being asked or reminded.
+* This applies to all changes regardless of scope: single file edits, multi-file changes, feature implementations, bug fixes, refactoring, etc.
+* The `make ci` command must pass with zero errors, warnings, or skipped files before considering any task complete.
+* If `make ci` fails, you must fix all issues and re-run until it passes completely.
+* This rule applies even when the user does not explicitly mention running CI checks.
+
+
+No Permission-Seeking Rule
+
+* NEVER ask "Would you like me to keep going?" or any similar permission-seeking questions during task execution.
+* Always proceed with the next logical step in completing the requested work.
+* Only stop when the task is fully complete or when you encounter a genuine blocker that requires user clarification about requirements.
+* Continue working through multi-step processes without interruption.
+* The user finds permission-seeking questions disruptive to workflow.
+
+
 Code Philosophy
 
 * Write self-documenting code. Use clear, descriptive names.
@@ -147,4 +165,4 @@ Final Reminder
 
 You are expected to behave like a professional engineer.
 Precision, discipline, and strict adherence to the above rules are mandatory.
-Any violation will be treated as task failure and hurt my feelings.
+ANY violation will be treated as task failure and hurt my feelings.

@@ -7,11 +7,9 @@ from mutagen._file import File as MutagenFile
 from fastapi import HTTPException
 
 from src.mus.application.dtos.track import TrackUpdateDTO
-from src.mus.domain.entities.track_history import TrackHistory
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
 )
-from src.mus.util.db_utils import add_track_history
 from src.mus.infrastructure.api.sse_handler import broadcast_sse_event
 from src.mus.util.track_dto_utils import create_track_dto_with_covers
 from src.mus.util.filename_utils import generate_track_filename
@@ -83,10 +81,6 @@ class EditTrackUseCase:
             await set_app_write_lock(new_file_path)
             os.rename(track.file_path, new_file_path)
 
-        # Store original values before updating
-        original_title = track.title
-        original_artist = track.artist
-
         # Update track object
         if "title" in changes_delta and update_data.title is not None:
             track.title = update_data.title
@@ -101,40 +95,6 @@ class EditTrackUseCase:
 
         await self.track_repo.session.commit()
         await self.track_repo.session.refresh(track)
-
-        # Ensure track has an ID after refresh
-        if track.id is None:
-            raise HTTPException(
-                status_code=500, detail="Track ID is missing after save"
-            )
-
-        # Create history entry
-        history_entry = TrackHistory(
-            track_id=track.id,
-            event_type="edit",
-            changes={
-                "title": {"old": original_title, "new": update_data.title}
-                if "title" in changes_delta
-                else None,
-                "artist": {"old": original_artist, "new": update_data.artist}
-                if "artist" in changes_delta
-                else None,
-                "file_renamed": update_data.rename_file,
-            },
-            filename=Path(new_file_path).name,
-            title=track.title,
-            artist=track.artist,
-            duration=track.duration,
-            changed_at=int(time.time()),
-            full_snapshot={
-                "title": track.title,
-                "artist": track.artist,
-                "duration": track.duration,
-                "file_path": track.file_path,
-                "has_cover": track.has_cover,
-            },
-        )
-        await add_track_history(history_entry)
         # Create TrackListDTO with proper cover URLs for SSE event
         track_dto = create_track_dto_with_covers(track)
 

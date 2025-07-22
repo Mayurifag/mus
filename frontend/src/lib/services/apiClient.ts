@@ -1,4 +1,4 @@
-import type { Track, PlayerState, TrackHistory, MusEvent } from "$lib/types";
+import type { Track, PlayerState, MusEvent } from "$lib/types";
 import {
   handleApiResponse,
   createFormData,
@@ -135,23 +135,6 @@ export async function deleteTrack(trackId: number): Promise<void> {
   } catch (error) {
     console.error("Error deleting track:", error);
     throw error;
-  }
-}
-
-export async function fetchTrackHistory(
-  trackId: number,
-): Promise<TrackHistory[]> {
-  try {
-    const response = await fetch(
-      `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}/history`,
-    );
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching track history:", error);
-    return [];
   }
 }
 
