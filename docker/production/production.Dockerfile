@@ -29,8 +29,8 @@ ENV PYTHONUNBUFFERED=1 \
     LOG_LEVEL=info \
     DATA_DIR_PATH=/app_data \
     BACKEND_URL=http://127.0.0.1:8001 \
+    REDIS_URL=redis://127.0.0.1:6379 \
     VIRTUAL_ENV=/opt/venv \
-    DRAGONFLY_VERSION=1.31.1 \
     NODE_VERSION=24 \
     PATH="/opt/venv/bin:$PATH"
 
@@ -44,17 +44,8 @@ RUN apt-get update && \
         curl \
         gettext-base \
         ffmpeg \
-    && ARCHITECTURE="x86_64" && \
-    if [ "$TARGETARCH" = "arm64" ]; then ARCHITECTURE="aarch64"; fi && \
-    mkdir -p /tmp/dragonfly && \
-    curl -fL "https://github.com/dragonflydb/dragonfly/releases/download/v${DRAGONFLY_VERSION}/dragonfly-${ARCHITECTURE}.tar.gz" -o /tmp/dragonfly/dragonfly.tar.gz && \
-    cd /tmp/dragonfly && \
-    tar -xzf dragonfly.tar.gz && \
-    mv "dragonfly-${ARCHITECTURE}" /usr/local/bin/dragonfly && \
-    chmod +x /usr/local/bin/dragonfly && \
-    cd / && \
-    rm -rf /tmp/dragonfly && \
-    curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
+        redis-server \
+    && curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 

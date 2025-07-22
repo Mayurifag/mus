@@ -9,7 +9,7 @@ async def get_redis_client() -> redis.Redis:
     """Get a Redis client from the shared connection pool."""
     global _redis_pool
     if _redis_pool is None:
-        _redis_pool = redis.ConnectionPool.from_url(settings.DRAGONFLY_URL)
+        _redis_pool = redis.ConnectionPool.from_url(settings.REDIS_URL)
     return redis.Redis(connection_pool=_redis_pool)
 
 

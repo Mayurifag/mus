@@ -1,7 +1,5 @@
 import time
 
-from streaq import TaskContext
-
 from src.mus.application.use_cases.process_track_metadata import (
     process_slow_metadata_for_track,
 )
@@ -13,7 +11,7 @@ from src.mus.core.streaq_broker import worker
 
 
 @worker.task()
-async def process_slow_metadata(_: TaskContext, track_id: int):
+async def process_slow_metadata(track_id: int):
     try:
         track = await process_slow_metadata_for_track(track_id)
 

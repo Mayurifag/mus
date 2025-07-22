@@ -12,7 +12,7 @@ services:
       - APP_ENV=development
       - FRONTEND_ORIGIN=http://localhost:5173
       - SECRET_KEY=dev_secret_key_please_change_in_production
-      - DRAGONFLY_URL=redis://dragonfly:6379
+      - REDIS_URL=redis://redis:6379
     restart: unless-stopped
 
   frontend:
@@ -27,7 +27,7 @@ services:
       - VITE_PUBLIC_API_HOST=http://localhost:8000
     restart: unless-stopped
 
-  dragonfly:
+  redis:
     ports:
       - "6379:6379"
 
@@ -40,9 +40,9 @@ services:
       - app_data_covers:/app_data/covers
     environment:
       - APP_ENV=development
-      - DRAGONFLY_URL=redis://dragonfly:6379
+      - REDIS_URL=redis://redis:6379
       - BACKEND_URL=http://backend:8000
-    command: sh -c "[ -f /app/requirements.txt ] && uv pip sync /app/requirements.txt; streaq worker src.mus.infrastructure.jobs.file_system_jobs src.mus.infrastructure.jobs.metadata_jobs --queue high_priority --queue medium_priority --queue low_priority"
+    command: sh -c "[ -f /app/requirements.txt ] && uv pip sync /app/requirements.txt; streaq src.mus.core.streaq_broker.worker"
 
 volumes:
   app_node_modules:

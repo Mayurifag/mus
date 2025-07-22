@@ -1,8 +1,6 @@
 import logging
 from pathlib import Path
 
-from streaq import TaskContext
-
 from src.mus.core.redis import check_app_write_lock
 from src.mus.core.streaq_broker import worker
 from src.mus.domain.entities.track import ProcessingStatus, Track
@@ -22,16 +20,14 @@ from src.mus.util.track_dto_utils import create_track_dto_with_covers
 
 
 @worker.task()
-async def handle_file_created(
-    _: TaskContext, file_path_str: str, skip_slow_metadata: bool = False
-):
+async def handle_file_created(file_path_str: str, skip_slow_metadata: bool = False):
     await _process_file_upsert(
         file_path_str, is_creation=True, skip_slow_metadata=skip_slow_metadata
     )
 
 
 @worker.task()
-async def handle_file_modified(_: TaskContext, file_path_str: str):
+async def handle_file_modified(file_path_str: str):
     if await check_app_write_lock(file_path_str):
         return
 
@@ -41,7 +37,7 @@ async def handle_file_modified(_: TaskContext, file_path_str: str):
 
 
 @worker.task()
-async def handle_file_deleted(_: TaskContext, file_path_str: str):
+async def handle_file_deleted(file_path_str: str):
     logger = logging.getLogger(__name__)
     logger.info(f"ARQ: Processing file deletion for: {file_path_str}")
 
@@ -59,7 +55,7 @@ async def handle_file_deleted(_: TaskContext, file_path_str: str):
 
 
 @worker.task()
-async def handle_file_moved(_: TaskContext, old_path: str, new_path: str):
+async def handle_file_moved(old_path: str, new_path: str):
     track = await get_track_by_path(old_path)
     if track and track.id is not None:
         async with worker:
@@ -70,7 +66,7 @@ async def handle_file_moved(_: TaskContext, old_path: str, new_path: str):
 
 
 @worker.task()
-async def delete_track_by_id_internal(_: TaskContext, track_id: int, track_title: str):
+async def delete_track_by_id_internal(track_id: int, track_title: str):
     logger = logging.getLogger(__name__)
     logger.info(f"ARQ: Deleting track {track_id} '{track_title}' from database")
 
@@ -81,13 +77,13 @@ async def delete_track_by_id_internal(_: TaskContext, track_id: int, track_title
         action_key="track_deleted",
         message=f"Deleted track '{track_title}'",
         level="info",
-        payload={"track_id": track_id},
+        payload={"id": track_id},
     )
     logger.info(f"SSE notification sent for track {track_id} deletion")
 
 
 @worker.task()
-async def delete_track_with_files(_: TaskContext, track_id: int):
+async def delete_track_with_files(track_id: int):
     track = await get_track_by_id(track_id)
     if not track:
         return
@@ -102,12 +98,12 @@ async def delete_track_with_files(_: TaskContext, track_id: int):
         action_key="track_deleted",
         message=f"Deleted track '{track.title}'",
         level="success",
-        payload={"track_id": track_id},
+        payload={"id": track_id},
     )
 
 
 @worker.task()
-async def update_track_path_by_id(_: TaskContext, track_id: int, new_path: str):
+async def update_track_path_by_id(track_id: int, new_path: str):
     await update_track_path(track_id, new_path)
 
     updated_track = await get_track_by_id(track_id)
