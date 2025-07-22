@@ -188,16 +188,19 @@
 - [x] Wipe out history changes completely I do not need them - at least now and they make code messy.
 - [ ] Events refactoring ideas - On app launch too many slow metadata going on.
   - [x] As a beginning I need to document for now how it works and how should it work. External/internal changes all types of events. Maybe some kind of flowchart -> in future to transform onto finite state machine
-  - [ ] Change from rq to arq and to async code here and there
+  - [x] Change from rq to arq and to async code here and there
   - [x] slow metadata - convert automatically to UTF-8 id2V2.3
-  - [ ] whats slowing there - i think we might do things faster
-  - [ ] We should have different code for when event is from EXTERNAL file changes and from app. That would be much easier to maintain.
-  - [ ] When initial scan is going on: we might have "loading covers" based on metadata not done status in db on frontend. We might fire events without notification to change files. We might go one by one in single task and fire event on each cover processing and other metadata. We still need to save the state to continue on failures - or just dont give a fuck about that? because we will each time just might select files without processed metadata.
-  - [ ] I do not really use processing_status'es. I should leave just 2 of them. Pending and done. Or anything else? might also have "error" status to have junkyard for files with errors to not reprocess them.
-  - [ ] Refactor slow metadata - have service with each step in its own service. It has to extract cover, process duration, change encoding and save to db that file is processed.
-  - [ ] Is that a bad thing to show just really original image with real extension and so on? We will parse less
-  - [ ] Maximum parallelism (Use a ProcessPoolExecutor for CPU-Bound Code) - only applicable for first scan
-  - [ ] I have to refactor first for a single track and for batch
+  - [x] whats slowing there - i think we might do things faster
+  - [x] We should have different code for when event is from EXTERNAL file changes and from app. That would be much easier to maintain.
+  - [x] When initial scan is going on: we might have "loading covers" based on metadata not done status in db on frontend. We might fire events without notification to change files. We might go one by one in single task and fire event on each cover processing and other metadata. We still need to save the state to continue on failures - or just dont give a fuck about that? because we will each time just might select files without processed metadata.
+  - [x] I do not really use processing_status'es. I should leave just 2 of them. Pending and done. Or anything else? might also have "error" status to have junkyard for files with errors to not reprocess them.
+  - [x] Refactor slow metadata - have service with each step in its own service. It has to extract cover, process duration, change encoding and save to db that file is processed.
+  - [ ] ~~Is that a bad thing to show just really original image with real extension and so on? We will parse less~~
+  - [x] Maximum parallelism (Use a ProcessPoolExecutor for CPU-Bound Code) - only applicable for first scan
+  - [x] I have to refactor first for a single track and for batch
+- [ ] e2e test for each scenario and fix each task / frontend.
+  - [ ] we will have to write at least successful flow for each event
+- [ ] Get back files from backup
 - [ ] Recurring task with PWA / iphone bugs
   - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
   - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
