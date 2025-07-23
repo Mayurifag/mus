@@ -1,4 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 test.describe('Authenticated User Flows', () => {
   test('playback controls work correctly', async ({ page }) => {
@@ -17,6 +21,23 @@ test.describe('Authenticated User Flows', () => {
     await expect(page.locator('audio')).toHaveJSProperty('paused', false);
     await expect(track2).toHaveClass(/bg-secondary/);
     await expect(track1).not.toHaveClass(/bg-secondary/);
+
+    // Test filesystem events before clicking Next Track
+    const containerName = 'mus-e2e-test';
+    const sourceFile = '/app_data/music/The Midnight Echoes - Digital Dreams.wav';
+    const tempFile = '/app_data/The Midnight Echoes - Digital Dreams.wav';
+
+    // Move file out of music directory using docker exec
+    await execAsync(`docker exec ${containerName} mv "${sourceFile}" "${tempFile}"`);
+
+    // Wait for file watcher to detect deletion and check track-item-1 is gone
+    await expect(track1).not.toBeVisible({ timeout: 10000 });
+
+    // Move file back to music directory using docker exec
+    await execAsync(`docker exec ${containerName} mv "${tempFile}" "${sourceFile}"`);
+
+    // Wait for file watcher to detect creation and check track-item-1 is back
+    await expect(track1).toBeVisible({ timeout: 10000 });
 
     await page.getByRole('button', { name: 'Next Track' }).click();
 

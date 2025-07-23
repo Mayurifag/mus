@@ -200,13 +200,14 @@
   - [x] I have to refactor first for a single track and for batch
 - [ ] e2e test for each scenario and fix each task / frontend.
   - [ ] we will have to write at least successful flow for each event
+  - [ ] Complex e2e test: some file has to be flac with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
+  - [ ] e2e in CI before deployment after linters. Complex github actions flow.
+- [ ] After changes read only filesystem won't work. We have to fix it and use flags on readonly
 - [ ] Get back files from backup
 - [ ] Recurring task with PWA / iphone bugs
   - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
   - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
 - [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
-- [ ] e2e in CI before deployment after linters. Complex github actions flow.
-- [ ] Complex e2e test: some file has to be flac with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
 - [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while.
 

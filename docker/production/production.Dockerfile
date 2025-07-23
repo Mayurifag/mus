@@ -69,13 +69,13 @@ COPY docker/production/start.sh /app/start.sh
 COPY docker/production/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 RUN chmod +x /app/start.sh && \
-    mkdir -p /app_data/database /app_data/covers /app_data/music /var/log/supervisor && \
+    mkdir -p /app_data/database /app_data/covers /app_data/music /var/log/supervisor /var/cache/nginx/covers_cache && \
     chown -R appuser:appgroup /app_data /app/frontend/build && \
     chown appuser:appgroup /app
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=5s --timeout=5s --start-period=1s --retries=33 \
   CMD curl -f http://localhost:8000/api/healthcheck.json || exit 1
 
 CMD ["/app/start.sh"]
