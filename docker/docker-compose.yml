@@ -7,9 +7,9 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/healthcheck.json"]
       interval: 30s
-      timeout: 5s
-      start_period: 10s
-      retries: 3
+      timeout: 3s
+      start_period: 3s
+      retries: 33
 
   frontend:
     build:
@@ -19,7 +19,8 @@ services:
     extra_hosts:
       - "localhost:host-gateway"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   redis:
     image: redis:7-alpine
@@ -36,6 +37,6 @@ services:
     healthcheck:
       test: ["CMD", "python", "-c", "import redis; r = redis.Redis(host='redis', port=6379); r.ping()"]
       interval: 30s
-      timeout: 5s
-      start_period: 10s
-      retries: 3
+      timeout: 3s
+      start_period: 3s
+      retries: 33

@@ -198,12 +198,16 @@
   - [ ] ~~Is that a bad thing to show just really original image with real extension and so on? We will parse less~~
   - [x] Maximum parallelism (Use a ProcessPoolExecutor for CPU-Bound Code) - only applicable for first scan
   - [x] I have to refactor first for a single track and for batch
+- [ ] wtf is "track updated" event on slow metadata after create? Nothing wrong just bad naming
 - [ ] e2e test for each scenario and fix each task / frontend.
+  - [ ] current state: track deletion fires but does not change frontend in playwright environment (?)
   - [ ] we will have to write at least successful flow for each event
   - [ ] Complex e2e test: some file has to be flac with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
   - [ ] e2e in CI before deployment after linters. Complex github actions flow.
 - [ ] After changes read only filesystem won't work. We have to fix it and use flags on readonly
 - [ ] Get back files from backup
+- [ ] ffs refactor docker-compose.override.yml.example shared envs and things + add context for AI to also change non example file
+- [ ] Make sure initial scan on startup is not blocking "healthy" status for backend docker container.
 - [ ] Recurring task with PWA / iphone bugs
   - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
   - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
@@ -221,7 +225,7 @@
 - [ ] fast search - has to be server side to look vk/yt - and download in future!
 - [ ] Download track functionality
 - [ ] docker-compose - i think we dont need separated volumes for cover/db, might be single
-- [ ] production image nginx better logging. Logging across app.
+- [ ] production image nginx better logging. Logging across app (!!!)
 - [ ] Hotkeys for player controls
 - [ ] Hover player controls should show what will be done + also hotkey for that
 - [ ] Marquee for long texts - all places - not sure where we exactly have to do that. Probably for player footer

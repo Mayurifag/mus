@@ -21,9 +21,6 @@ cleanup() {
     if docker ps -q -f name="$E2E_CONTAINER_NAME" | grep -q .; then
         docker stop "$E2E_CONTAINER_NAME" 2>/dev/null || true
     fi
-    if docker ps -aq -f name="$E2E_CONTAINER_NAME" | grep -q .; then
-        docker rm "$E2E_CONTAINER_NAME" 2>/dev/null || true
-    fi
 }
 
 trap cleanup EXIT INT TERM
@@ -42,6 +39,7 @@ echo "Starting container..."
 docker run -d --name "$E2E_CONTAINER_NAME" \
     -p "$E2E_HOST_PORT:8000" \
     -e SECRET_KEY="$E2E_SECRET_KEY" \
+    -e WATCHFILES_FORCE_POLLING=true \
     -v "$SCRIPT_DIR/music:/app_data/music:rw" \
     "$E2E_IMAGE_NAME"
 

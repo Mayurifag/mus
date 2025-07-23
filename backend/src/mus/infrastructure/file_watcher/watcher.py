@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from typing import Set
 
-from watchfiles import Change, awatch
+from watchfiles import Change, DefaultFilter, awatch
 
 from src.mus.config import settings
 from src.mus.core.streaq_broker import worker
@@ -15,6 +15,22 @@ from src.mus.infrastructure.jobs.file_system_jobs import (
 logger = logging.getLogger(__name__)
 
 AUDIO_EXTENSIONS = {".mp3", ".flac", ".m4a", ".ogg", ".wav"}
+
+
+class MusicDirectoryFilter(DefaultFilter):
+    """Custom filter that ignores changes in the music directory itself."""
+
+    def __call__(self, change: Change, path: str) -> bool:
+        # First apply the default filter logic
+        if not super().__call__(change, path):
+            return False
+
+        # Ignore changes to the music directory itself (not its contents)
+        music_dir_path = str(settings.MUSIC_DIR_PATH)
+        if path == music_dir_path:
+            return False
+
+        return True
 
 
 async def watch_music_directory():
@@ -31,7 +47,9 @@ async def watch_music_directory():
     logger.info(f"Starting file watcher for: {music_dir}")
 
     try:
-        async for changes in awatch(str(music_dir)):
+        async for changes in awatch(
+            str(music_dir), watch_filter=MusicDirectoryFilter()
+        ):
             await _process_file_changes(changes)
     except Exception as e:
         logger.error(f"File watcher error: {e}")
@@ -40,16 +58,21 @@ async def watch_music_directory():
 
 async def _process_file_changes(changes: Set):
     """Process a set of file system changes."""
-    logger.info(f"Processing {len(changes)} file changes")
+    audio_changes = []
+
     for change_type, file_path_str in changes:
         file_path = Path(file_path_str)
-        logger.info(f"Change detected: {change_type} for {file_path}")
 
         # Only process audio files
         if not _is_audio_file(file_path):
-            logger.debug(f"Skipping non-audio file: {file_path}")
             continue
 
+        audio_changes.append((change_type, file_path_str, file_path))
+
+    if not audio_changes:
+        return
+
+    for change_type, file_path_str, file_path in audio_changes:
         try:
             async with worker:
                 if change_type == Change.added:

@@ -32,6 +32,8 @@ ENV PYTHONUNBUFFERED=1 \
     REDIS_URL=redis://127.0.0.1:6379 \
     VIRTUAL_ENV=/opt/venv \
     NODE_VERSION=24 \
+    WATCHFILES_FORCE_POLLING=true \
+    WATCHFILES_POLL_DELAY_MS=2000 \
     PATH="/opt/venv/bin:$PATH"
 
 RUN apt-get update && \
