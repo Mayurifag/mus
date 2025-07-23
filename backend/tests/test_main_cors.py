@@ -1,5 +1,6 @@
 import os
 import time
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,7 +9,12 @@ from fastapi.testclient import TestClient
 from src.mus.infrastructure.api.routers.auth_router import router as auth_router
 from src.mus.infrastructure.api.routers.player_router import router as player_router
 from src.mus.infrastructure.api.routers.track_router import router as track_router
-from src.mus.main import lifespan
+
+
+@asynccontextmanager
+async def mock_lifespan(app: FastAPI):  # noqa: ARG001
+    """Mock lifespan that doesn't initialize database or file watchers"""
+    yield
 
 
 def create_app_with_env(env_value=None):
@@ -21,7 +27,7 @@ def create_app_with_env(env_value=None):
     app = FastAPI(
         title="Mus API",
         description="Music streaming API for Mus project",
-        lifespan=lifespan,
+        lifespan=mock_lifespan,
     )
 
     # Configure CORS only if not in production
