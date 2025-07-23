@@ -3,16 +3,52 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { parseFile } from 'music-metadata';
 
-async function getID3Version(filePath: string): Promise<string> {
+interface MetadataInfo {
+  id3Version: string;
+  duration: number;
+}
+
+async function getMetadataInfo(filePath: string): Promise<MetadataInfo> {
   try {
     const metadata = await parseFile(filePath);
     const format = metadata.format;
-    if (format.tagTypes?.includes('ID3v2.4')) return '2.4';
-    if (format.tagTypes?.includes('ID3v2.3')) return '2.3';
-    if (format.tagTypes?.includes('ID3v2.2')) return '2.2';
-    return 'none';
+
+    let id3Version = 'none';
+    if (format.tagTypes?.includes('ID3v2.4')) id3Version = '2.4';
+    else if (format.tagTypes?.includes('ID3v2.3')) id3Version = '2.3';
+    else if (format.tagTypes?.includes('ID3v2.2')) id3Version = '2.2';
+
+    const duration = format.duration ? Math.round(format.duration) : 0;
+
+    return { id3Version, duration };
   } catch {
-    return 'error';
+    return { id3Version: 'error', duration: 0 };
+  }
+}
+
+async function checkCoverFiles(trackId: number): Promise<{ hasSmall: boolean; hasOriginal: boolean }> {
+  try {
+    const coversDir = join(process.cwd(), '..', 'app_data', 'covers');
+    const smallPath = join(coversDir, `${trackId}_small.webp`);
+    const originalPath = join(coversDir, `${trackId}_original.webp`);
+
+    const [smallExists, originalExists] = await Promise.all([
+      fs.access(smallPath).then(() => true).catch(() => false),
+      fs.access(originalPath).then(() => true).catch(() => false)
+    ]);
+
+    return { hasSmall: smallExists, hasOriginal: originalExists };
+  } catch {
+    return { hasSmall: false, hasOriginal: false };
+  }
+}
+
+async function getFileStats(filePath: string): Promise<{ mtime: number; exists: boolean }> {
+  try {
+    const stats = await fs.stat(filePath);
+    return { mtime: stats.mtimeMs, exists: true };
+  } catch {
+    return { mtime: 0, exists: false };
   }
 }
 
@@ -38,18 +74,31 @@ test.describe('Authenticated User Flows', () => {
     const sourceFile = join(musicDir, 'The Midnight Echoes - Digital Dreams.wav');
     const originalFile = join(process.cwd(), 'original', 'The Midnight Echoes - Digital Dreams.wav');
 
-    const preVersion = await getID3Version(sourceFile);
-    expect(preVersion).toBe('2.4');
+    const preMetadata = await getMetadataInfo(sourceFile);
+    const preStats = await getFileStats(sourceFile);
+    expect(preMetadata.id3Version).toBe('2.4');
 
     await fs.unlink(sourceFile);
     await expect(midnightEchoesTrack).not.toBeVisible({ timeout: 10000 });
     await fs.copyFile(originalFile, sourceFile);
 
     await expect(midnightEchoesTrack).toBeVisible({ timeout: 10000 });
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(8000);
 
-    const postVersion = await getID3Version(sourceFile);
-    expect(postVersion).toBe('2.3');
+    const postMetadata = await getMetadataInfo(sourceFile);
+    const postStats = await getFileStats(sourceFile);
+
+    expect(postMetadata.id3Version).toBe('2.3');
+    expect(postStats.mtime).not.toBe(preStats.mtime);
+    expect(postMetadata.duration).toBeGreaterThan(0);
+    expect(postMetadata.duration).not.toBe(preMetadata.duration);
+
+    const trackId = await midnightEchoesTrack.getAttribute('id');
+    const trackIdNumber = parseInt(trackId?.replace('track-item-', '') || '1');
+
+    const coverFiles = await checkCoverFiles(trackIdNumber);
+    expect(coverFiles.hasSmall).toBe(true);
+    expect(coverFiles.hasOriginal).toBe(true);
 
     await page.getByRole('button', { name: 'Next Track' }).click();
 

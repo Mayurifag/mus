@@ -199,16 +199,16 @@
   - [x] Maximum parallelism (Use a ProcessPoolExecutor for CPU-Bound Code) - only applicable for first scan
   - [x] I have to refactor first for a single track and for batch
 - [ ] wtf is "track updated" event on slow metadata after create? Nothing wrong just bad naming
+- [ ] slow metadata on startup doesnt standartize id3 version and encoding + also doesnt save correct duration to file tags - this has to be single file save - so single job? I have to use different fields based on file for this length, so use library..
 - [ ] e2e test for each scenario and fix each task / frontend.
   - [x] current state: track deletion fires but does not change frontend in playwright environment (?)
   - [ ] we will have to write at least successful flow for each event
-  - [ ] Complex e2e test: some file has to be flac/wav with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
+  - [x] Complex e2e test: some file has to be flac/wav with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
   - [ ] e2e in CI before deployment after linters. Complex github actions flow.
 - [ ] After changes read only filesystem won't work. We have to fix it and use flags on readonly
 - [ ] Get back files from backup
 - [ ] ffs refactor docker-compose.override.yml.example shared envs and things + add context for AI to also change non example file
 - [ ] Make sure initial scan on startup is not blocking "healthy" status for backend docker container.
-- [ ] slow metadata on startup doesnt standartize id3 version and encoding
 - [ ] Recurring task with PWA / iphone bugs
   - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
   - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
