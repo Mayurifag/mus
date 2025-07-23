@@ -413,8 +413,8 @@ function createTrackStore() {
           playHistory: newPlayHistory,
         };
       }),
-    deleteTrack: (trackId: number) =>
-      update((state) => {
+    deleteTrack: (trackId: number) => {
+      return update((state) => {
         const trackIndex = state.tracks.findIndex((t) => t.id === trackId);
         if (trackIndex === -1) return state;
 
@@ -466,7 +466,8 @@ function createTrackStore() {
           playHistory: newPlayHistory,
           historyPosition: newHistoryPosition,
         };
-      }),
+      });
+    },
     reset: () => set(initialState),
   };
 }

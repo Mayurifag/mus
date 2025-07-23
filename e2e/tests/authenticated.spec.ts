@@ -1,8 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
+import { promises as fs } from 'fs';
+import { join } from 'path';
 
 test.describe('Authenticated User Flows', () => {
   test('playback controls work correctly', async ({ page }) => {
@@ -23,20 +21,33 @@ test.describe('Authenticated User Flows', () => {
     await expect(track1).not.toHaveClass(/bg-secondary/);
 
     // Test filesystem events before clicking Next Track
-    const containerName = 'mus-e2e-test';
-    const sourceFile = '/app_data/music/The Midnight Echoes - Digital Dreams.wav';
-    const tempFile = '/app_data/The Midnight Echoes - Digital Dreams.wav';
+    const musicDir = join(process.cwd(), 'music');
+    const sourceFile = join(musicDir, 'The Midnight Echoes - Digital Dreams.wav');
+    const tempFile = join(process.cwd(), 'The Midnight Echoes - Digital Dreams.wav');
 
-    // Move file out of music directory using docker exec
-    await execAsync(`docker exec ${containerName} mv "${sourceFile}" "${tempFile}"`);
+    let fileMoved = false;
+    try {
+      // Move file out of music directory
+      await fs.rename(sourceFile, tempFile);
+      fileMoved = true;
 
-    // Wait for file watcher to detect deletion and check track-item-1 is gone
-    await expect(track1).not.toBeVisible({ timeout: 10000 });
+      // Wait for file watcher to detect deletion and check track-item-1 is gone
+      await expect(track1).not.toBeVisible({ timeout: 10000 });
 
-    // Move file back to music directory using docker exec
-    await execAsync(`docker exec ${containerName} mv "${tempFile}" "${sourceFile}"`);
+      // Move file back to music directory
+      await fs.rename(tempFile, sourceFile);
+      fileMoved = false;
 
-    // Wait for file watcher to detect creation and check track-item-1 is back
+    } finally {
+      // Ensure file is always restored to music directory
+      if (fileMoved) {
+        try {
+          await fs.rename(tempFile, sourceFile);
+        } catch (error) {
+          console.error('Failed to restore file:', error);
+        }
+      }
+    }
     await expect(track1).toBeVisible({ timeout: 10000 });
 
     await page.getByRole('button', { name: 'Next Track' }).click();

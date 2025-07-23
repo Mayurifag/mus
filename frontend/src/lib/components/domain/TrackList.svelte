@@ -106,32 +106,34 @@
     </div>
   {:else if virtualizer}
     <div class="relative" style="height: {$virtualizer!.getTotalSize()}px">
-      {#each $virtualizer!.getVirtualItems() as item (tracks[item.index].id)}
-        <div
-          style="position: absolute; width: 100%; transform: translateY({item.start}px)"
-          data-index={item.index}
-          use:measureElement
-        >
-          {#if $trackStore.currentTrackIndex === item.index}
-            <TrackItem
-              track={tracks[item.index]}
-              index={item.index}
-              isSelected={true}
-              {audioService}
-              {currentTime}
-              {duration}
-              {isPlaying}
-              {bufferedRanges}
-            />
-          {:else}
-            <TrackItem
-              track={tracks[item.index]}
-              index={item.index}
-              isSelected={false}
-              {audioService}
-            />
-          {/if}
-        </div>
+      {#each $virtualizer!.getVirtualItems() as item (tracks[item.index]?.id || `missing-${item.index}`)}
+        {#if tracks[item.index]}
+          <div
+            style="position: absolute; width: 100%; transform: translateY({item.start}px)"
+            data-index={item.index}
+            use:measureElement
+          >
+            {#if $trackStore.currentTrackIndex === item.index}
+              <TrackItem
+                track={tracks[item.index]}
+                index={item.index}
+                isSelected={true}
+                {audioService}
+                {currentTime}
+                {duration}
+                {isPlaying}
+                {bufferedRanges}
+              />
+            {:else}
+              <TrackItem
+                track={tracks[item.index]}
+                index={item.index}
+                isSelected={false}
+                {audioService}
+              />
+            {/if}
+          </div>
+        {/if}
       {/each}
     </div>
   {/if}
