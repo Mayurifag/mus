@@ -202,7 +202,7 @@
 - [ ] e2e test for each scenario and fix each task / frontend.
   - [x] current state: track deletion fires but does not change frontend in playwright environment (?)
   - [ ] we will have to write at least successful flow for each event
-  - [ ] Complex e2e test: some file has to be flac with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
+  - [ ] Complex e2e test: some file has to be flac/wav with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
   - [ ] e2e in CI before deployment after linters. Complex github actions flow.
 - [ ] After changes read only filesystem won't work. We have to fix it and use flags on readonly
 - [ ] Get back files from backup
