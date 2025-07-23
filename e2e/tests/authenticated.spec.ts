@@ -1,12 +1,25 @@
 import { test, expect } from '@playwright/test';
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import { parseFile } from 'music-metadata';
+
+async function getID3Version(filePath: string): Promise<string> {
+  try {
+    const metadata = await parseFile(filePath);
+    const format = metadata.format;
+    if (format.tagTypes?.includes('ID3v2.4')) return '2.4';
+    if (format.tagTypes?.includes('ID3v2.3')) return '2.3';
+    if (format.tagTypes?.includes('ID3v2.2')) return '2.2';
+    return 'none';
+  } catch {
+    return 'error';
+  }
+}
 
 test.describe('Authenticated User Flows', () => {
   test('playback controls work correctly', async ({ page }) => {
     await page.goto('/');
 
-    // Use content-based selectors instead of hard-coded IDs
     const midnightEchoesTrack = page.locator('[data-testid="track-item"]').filter({ hasText: 'The Midnight Echoes' });
     const lunaTrack = page.locator('[data-testid="track-item"]').filter({ hasText: 'Luna Solaris' });
 
@@ -21,36 +34,22 @@ test.describe('Authenticated User Flows', () => {
     await expect(lunaTrack).toHaveClass(/bg-secondary/);
     await expect(midnightEchoesTrack).not.toHaveClass(/bg-secondary/);
 
-    // Test filesystem events before clicking Next Track
     const musicDir = join(process.cwd(), 'music');
     const sourceFile = join(musicDir, 'The Midnight Echoes - Digital Dreams.wav');
-    const tempFile = join(process.cwd(), 'The Midnight Echoes - Digital Dreams.wav');
+    const originalFile = join(process.cwd(), 'original', 'The Midnight Echoes - Digital Dreams.wav');
 
-    let fileMoved = false;
-    try {
-      // Move file out of music directory
-      await fs.rename(sourceFile, tempFile);
-      fileMoved = true;
+    const preVersion = await getID3Version(sourceFile);
+    expect(preVersion).toBe('2.4');
 
-      // Wait for file watcher to detect deletion and check Midnight Echoes track is gone
-      await expect(midnightEchoesTrack).not.toBeVisible({ timeout: 10000 });
+    await fs.unlink(sourceFile);
+    await expect(midnightEchoesTrack).not.toBeVisible({ timeout: 10000 });
+    await fs.copyFile(originalFile, sourceFile);
 
-      // Move file back to music directory
-      await fs.rename(tempFile, sourceFile);
-      fileMoved = false;
-
-    } finally {
-      // Ensure file is always restored to music directory
-      if (fileMoved) {
-        try {
-          await fs.rename(tempFile, sourceFile);
-        } catch (error) {
-          console.error('Failed to restore file:', error);
-        }
-      }
-    }
-    // Wait for file watcher to detect creation and check Midnight Echoes track is back
     await expect(midnightEchoesTrack).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(5000);
+
+    const postVersion = await getID3Version(sourceFile);
+    expect(postVersion).toBe('2.3');
 
     await page.getByRole('button', { name: 'Next Track' }).click();
 

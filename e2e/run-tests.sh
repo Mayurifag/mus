@@ -21,6 +21,12 @@ cleanup() {
     if docker ps -q -f name="$E2E_CONTAINER_NAME" | grep -q .; then
         docker stop "$E2E_CONTAINER_NAME" 2>/dev/null || true
     fi
+
+    # Restore original test file after tests complete
+    if [ -f "$SCRIPT_DIR/original/The Midnight Echoes - Digital Dreams.wav" ]; then
+        cp "$SCRIPT_DIR/original/The Midnight Echoes - Digital Dreams.wav" "$SCRIPT_DIR/music/The Midnight Echoes - Digital Dreams.wav" 2>/dev/null || true
+        echo "Restored original test file"
+    fi
 }
 
 trap cleanup EXIT INT TERM
