@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from src.mus.service.permissions_service import PermissionsService
+from src.mus.application.services.permissions_service import PermissionsService
 
 router = APIRouter(prefix="/api/v1/system", tags=["system"])
 

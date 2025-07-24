@@ -20,8 +20,11 @@ back-format-check:
 .PHONY: back-test
 back-test:
 	@echo "Running backend tests..."
-	cd $(BACKEND_DIR) && uv run pytest tests
-	cd $(BACKEND_DIR) && rm -rf MagicMock/
+	cd $(BACKEND_DIR) && rm -f test.db
+	cd $(BACKEND_DIR) && rm -rf test_data/
+	cd $(BACKEND_DIR) && mkdir -p test_data/database test_data/covers test_data/music
+	cd $(BACKEND_DIR) && uv run pytest tests --tb=short
+	cd $(BACKEND_DIR) && rm -rf MagicMock/ test.db test_data/
 
 .PHONY: back-dev
 back-dev:

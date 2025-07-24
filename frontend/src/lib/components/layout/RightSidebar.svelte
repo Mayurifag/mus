@@ -1,18 +1,29 @@
 <script lang="ts">
   import { trackStore } from "$lib/stores/trackStore";
 
-  import { QrCode } from "@lucide/svelte";
+  import { QrCode, AlertTriangle } from "@lucide/svelte";
   import QRLoginModal from "$lib/components/auth/QRLoginModal.svelte";
   import EffectMonitor from "$lib/components/debug/EffectMonitor.svelte";
   import RecentEvents from "$lib/components/debug/RecentEvents.svelte";
+  import ErrorItem from "$lib/components/domain/ErrorItem.svelte";
   import type { Track } from "$lib/types";
   import { formatArtistsForDisplay } from "$lib/utils/formatters";
+  import { fetchErroredTracks } from "$lib/services/apiClient";
+  import { onMount } from "svelte";
 
   const MIN_HISTORY_FOR_DEBUG = 2;
 
   let isQrModalOpen = $state(false);
+  let erroredTracks = $state<Track[]>([]);
 
-  // Show debug timeline only when shuffle is active and there's meaningful navigation history
+  onMount(async () => {
+    erroredTracks = await fetchErroredTracks();
+  });
+
+  function removeErroredTrack(trackId: number) {
+    erroredTracks = erroredTracks.filter((track) => track.id !== trackId);
+  }
+
   const shouldShowDebugTimeline = $derived(
     $trackStore.is_shuffle &&
       $trackStore.playHistory.length >= MIN_HISTORY_FOR_DEBUG,
@@ -91,6 +102,28 @@
       <QrCode class="h-8 w-8" />
     </button>
   </div>
+
+  <!-- Errors Section -->
+  {#if erroredTracks.length > 0}
+    <div class="mb-6 border-t pt-4">
+      <h4
+        class="text-muted-foreground mb-3 flex items-center gap-2 text-sm font-semibold"
+      >
+        <AlertTriangle size={16} class="text-red-500" />
+        Errors ({erroredTracks.length})
+      </h4>
+
+      <div class="space-y-2">
+        {#each erroredTracks as track (track.id)}
+          <ErrorItem
+            {track}
+            onRequeue={() => removeErroredTrack(track.id)}
+            onDelete={() => removeErroredTrack(track.id)}
+          />
+        {/each}
+      </div>
+    </div>
+  {/if}
 
   <!-- Playback Debug Section -->
   {#if shouldShowDebugTimeline}

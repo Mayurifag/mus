@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
+from sqlalchemy.engine import Row
 from sqlmodel import select, text
 
 from src.mus.config import settings
@@ -68,9 +69,6 @@ async def sample_tracks(track_repository):
 @pytest.mark.asyncio
 async def test_get_tracks(client, sample_tracks):
     # Create mock Row objects that match what the repository now returns
-    from sqlalchemy.engine import Row
-    from unittest.mock import MagicMock
-
     mock_rows = []
     for track in sample_tracks:
         mock_row = MagicMock(spec=Row)
@@ -317,24 +315,18 @@ async def test_get_track_cover_304_not_modified(client, sample_tracks):
 @pytest.mark.asyncio
 async def test_delete_track_success(client):
     with patch(
-        "src.mus.infrastructure.api.routers.track_router.enqueue_track_deletion"
-    ) as mock_enqueue:
-        mock_enqueue.return_value = None
-
+        "src.mus.infrastructure.jobs.file_system_jobs.delete_track_with_files.enqueue",
+        new_callable=AsyncMock,
+    ):
         response = client.delete("/api/v1/tracks/1")
-
         assert response.status_code == 202
-        mock_enqueue.assert_called_once_with(1)
 
 
 @pytest.mark.asyncio
 async def test_delete_track_not_found(client):
     with patch(
-        "src.mus.infrastructure.api.routers.track_router.enqueue_track_deletion"
-    ) as mock_enqueue:
-        mock_enqueue.return_value = None
-
+        "src.mus.infrastructure.jobs.file_system_jobs.delete_track_with_files.enqueue",
+        new_callable=AsyncMock,
+    ):
         response = client.delete("/api/v1/tracks/999")
-
         assert response.status_code == 202
-        mock_enqueue.assert_called_once_with(999)

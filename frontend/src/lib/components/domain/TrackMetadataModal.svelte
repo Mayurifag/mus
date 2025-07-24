@@ -13,7 +13,6 @@
   import { toast } from "svelte-sonner";
   import { Plus, X, HelpCircle, Save, Trash2 } from "@lucide/svelte";
 
-  import TrackChangesPanel from "./TrackChangesPanel.svelte";
   import FilenameDisplay from "./FilenameDisplay.svelte";
 
   import type { AudioMetadata } from "$lib/utils/audioFileAnalyzer";
@@ -38,7 +37,6 @@
     metadata?: AudioMetadata;
   } = $props();
 
-  let trackChangesCount = $state(0);
   let confirmDeleteOpen = $state(false);
   let isUploading = $state(false);
 
@@ -173,8 +171,6 @@
         filenameValid,
     };
   });
-
-  let hasTrackHistory = $state(false);
 
   async function handleSave() {
     if (mode === "create" && file) {
@@ -410,15 +406,6 @@
           {/if}
         </div>
       </div>
-
-      {#if mode === "edit" && track && hasTrackHistory}
-        <!-- Track changes panel (only in edit mode) -->
-        <TrackChangesPanel
-          trackId={track.id}
-          bind:hasChanges={hasTrackHistory}
-          bind:changesCount={trackChangesCount}
-        />
-      {/if}
     </div>
 
     <Dialog.Footer class="!justify-between">

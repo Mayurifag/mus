@@ -1,6 +1,8 @@
+import time
+from typing import Any, Dict
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from typing import Any, Dict
 
 
 def test_healthcheck_endpoint() -> None:
@@ -9,7 +11,7 @@ def test_healthcheck_endpoint() -> None:
 
     @app.get("/api/healthcheck.json", response_model=Dict[str, Any])
     async def healthcheck() -> Dict[str, Any]:
-        return {"status": "healthy", "timestamp": int(__import__("time").time())}
+        return {"status": "healthy", "timestamp": int(time.time())}
 
     with TestClient(app) as client:
         response = client.get("/api/healthcheck.json")

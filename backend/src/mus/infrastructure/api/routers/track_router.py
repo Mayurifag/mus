@@ -1,37 +1,39 @@
+import asyncio
+import hashlib
+import io
+import os
 from enum import Enum
+from typing import Any, Dict, Final, List
+
 from fastapi import (
     APIRouter,
     Depends,
+    File,
+    Form,
     HTTPException,
     Path,
     Request,
-    status,
     UploadFile,
-    File,
-    Form,
+    status,
 )
 from fastapi.responses import FileResponse, Response
-from typing import List, Final, Dict, Any
-import os
-import hashlib
-import io
-
 from mutagen._file import File as MutagenFile
+
 from src.mus.application.dtos.track import TrackListDTO, TrackUpdateDTO
 from src.mus.application.use_cases.edit_track_use_case import EditTrackUseCase
+from src.mus.config import settings
+from src.mus.core.redis import set_app_write_lock
+from src.mus.core.streaq_broker import worker
 from src.mus.infrastructure.api.dependencies import get_track_repository
+from src.mus.infrastructure.jobs.file_system_jobs import (
+    delete_track_with_files,
+    handle_file_created,
+)
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
 )
-from src.mus.util.redis_utils import set_app_write_lock
-from src.mus.util.queue_utils import (
-    enqueue_file_created_from_upload,
-    enqueue_track_deletion,
-)
-from src.mus.util.filename_utils import generate_track_filename
 from src.mus.util.file_validation import validate_upload_file
-from src.mus.config import settings
-import asyncio
+from src.mus.util.filename_utils import generate_track_filename
 
 
 class CoverSize(str, Enum):
@@ -182,7 +184,8 @@ async def update_track(
 async def delete_track(
     track_id: int = Path(..., gt=0),
 ) -> Response:
-    enqueue_track_deletion(track_id)
+    async with worker:
+        await delete_track_with_files.enqueue(track_id=track_id)
     return Response(status_code=status.HTTP_202_ACCEPTED)
 
 
@@ -192,24 +195,19 @@ async def upload_track(
     artist: str = Form(...),
     file: UploadFile = File(...),
 ) -> Dict[str, Any]:
-    # Validate file using shared utility
     extension = validate_upload_file(file)
 
-    # Read file content into buffer
     file_content = await file.read()
     buffer = io.BytesIO(file_content)
 
-    # Use mutagen to update metadata
     try:
         audio = MutagenFile(buffer, easy=True)
         if not audio:
             raise HTTPException(status_code=400, detail="Invalid audio file format")
 
-        # Preserve all existing tags and only update title and artist
         audio["title"] = title
         audio["artist"] = artist
 
-        # Save changes back to buffer
         buffer.seek(0)
         audio.save(buffer)
         buffer.seek(0)
@@ -218,7 +216,6 @@ async def upload_track(
             status_code=400, detail=f"Failed to process audio file: {str(e)}"
         )
 
-    # Generate filename using the same format as edit track functionality
     try:
         filename = generate_track_filename(artist, title, extension)
     except ValueError as e:
@@ -234,6 +231,10 @@ async def upload_track(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
 
-    enqueue_file_created_from_upload(str(file_path))
+    async with worker:
+        await handle_file_created.enqueue(
+            file_path_str=str(file_path),
+            skip_slow_metadata=True,
+        )
 
     return {"success": True, "message": "File uploaded and queued for processing."}

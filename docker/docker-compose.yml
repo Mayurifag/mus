@@ -4,12 +4,15 @@ services:
       context: ..
       dockerfile: docker/backend.Dockerfile
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/healthcheck.json"]
       interval: 30s
-      timeout: 5s
-      start_period: 10s
-      retries: 3
+      timeout: 3s
+      start_period: 3s
+      retries: 33
 
   frontend:
     build:
@@ -19,25 +22,26 @@ services:
     extra_hosts:
       - "localhost:host-gateway"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
-  dragonfly:
-    image: docker.dragonflydb.io/dragonflydb/dragonfly:v1.31.1
+  redis:
+    image: redis:7-alpine
     restart: unless-stopped
-    ulimits:
-      memlock: -1
-    command: ["dragonfly", "--cache_mode=true", "--maxmemory=512mb", "--save_schedule=", "--proactor_threads=2"]
 
-  rq-worker:
+  streaq-worker:
     build:
       context: ..
       dockerfile: docker/backend.Dockerfile
     depends_on:
-      - backend
-      - dragonfly
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh -c "[ -f /app/requirements.txt ] && uv pip sync /app/requirements.txt; streaq src.mus.core.streaq_broker.worker"
     healthcheck:
-      test: ["CMD", "python", "-c", "import redis; r = redis.Redis(host='dragonfly', port=6379); r.ping()"]
+      test: ["CMD", "python", "-c", "import redis; r = redis.Redis(host='redis', port=6379); r.ping()"]
       interval: 30s
-      timeout: 5s
-      start_period: 10s
-      retries: 3
+      timeout: 3s
+      start_period: 3s
+      retries: 33

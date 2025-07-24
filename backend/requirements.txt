@@ -8,9 +8,14 @@ anyio==4.9.0
     # via
     #   httpx
     #   starlette
+    #   streaq
     #   watchfiles
+async-timeout==5.0.1
+    # via coredis
 bandit==1.8.5
     # via mus (pyproject.toml)
+beartype==0.21.0
+    # via coredis
 certifi==2025.6.15
     # via
     #   httpcore
@@ -19,8 +24,16 @@ cffi==1.17.1
     # via pyvips
 click==8.2.1
     # via
-    #   rq
+    #   typer
     #   uvicorn
+coredis==5.0.1
+    # via streaq
+crontab==1.0.5
+    # via streaq
+deprecated==1.2.18
+    # via coredis
+fakeredis==2.30.1
+    # via mus (pyproject.toml)
 fastapi==0.115.13
     # via mus (pyproject.toml)
 ffmpeg-python==0.2.0
@@ -52,7 +65,9 @@ mdurl==0.1.2
 mutagen==1.47.0
     # via mus (pyproject.toml)
 packaging==25.0
-    # via pytest
+    # via
+    #   coredis
+    #   pytest
 pbr==6.1.1
     # via stevedore
 pluggy==1.6.0
@@ -69,6 +84,10 @@ pygments==2.19.1
     # via
     #   pytest
     #   rich
+pyjwt==2.9.0
+    # via redis
+pympler==1.1
+    # via coredis
 pytest==8.4.1
     # via
     #   mus (pyproject.toml)
@@ -90,20 +109,24 @@ pyyaml==6.0.2
     # via
     #   bandit
     #   uvicorn
-redis==6.2.0
+redis==5.3.0
     # via
     #   mus (pyproject.toml)
-    #   rq
+    #   fakeredis
 rich==14.0.0
-    # via bandit
-rq==2.4.0
-    # via mus (pyproject.toml)
+    # via
+    #   bandit
+    #   typer
 ruff==0.12.0
     # via mus (pyproject.toml)
 setuptools==80.9.0
     # via pbr
+shellingham==1.5.4
+    # via typer
 sniffio==1.3.1
     # via anyio
+sortedcontainers==2.4.0
+    # via fakeredis
 sqlalchemy==2.0.41
     # via sqlmodel
 sqlmodel==0.0.24
@@ -112,13 +135,19 @@ starlette==0.46.2
     # via fastapi
 stevedore==5.4.1
     # via bandit
+streaq==4.1.1
+    # via mus (pyproject.toml)
+typer==0.16.0
+    # via streaq
 typing-extensions==4.14.0
     # via
     #   aiosqlite
+    #   coredis
     #   fastapi
     #   pydantic
     #   pydantic-core
     #   sqlalchemy
+    #   typer
     #   typing-inspection
 typing-inspection==0.4.1
     # via pydantic
@@ -128,9 +157,12 @@ uvloop==0.21.0
     # via uvicorn
 vulture==2.14
     # via mus (pyproject.toml)
-watchdog==6.0.0
-    # via mus (pyproject.toml)
 watchfiles==1.1.0
-    # via uvicorn
+    # via
+    #   mus (pyproject.toml)
+    #   streaq
+    #   uvicorn
 websockets==15.0.1
     # via uvicorn
+wrapt==1.17.2
+    # via deprecated

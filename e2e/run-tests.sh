@@ -6,7 +6,7 @@ E2E_IMAGE_NAME="mus:e2e-test"
 E2E_CONTAINER_NAME="mus-e2e-test"
 E2E_HOST_PORT="4124"
 E2E_SECRET_KEY="e2e-secret-key"
-E2E_TIMEOUT=120
+E2E_TIMEOUT=12
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -21,8 +21,11 @@ cleanup() {
     if docker ps -q -f name="$E2E_CONTAINER_NAME" | grep -q .; then
         docker stop "$E2E_CONTAINER_NAME" 2>/dev/null || true
     fi
-    if docker ps -aq -f name="$E2E_CONTAINER_NAME" | grep -q .; then
-        docker rm "$E2E_CONTAINER_NAME" 2>/dev/null || true
+
+    # Restore original test file after tests complete
+    if [ -f "$SCRIPT_DIR/original/The Midnight Echoes - Digital Dreams.wav" ]; then
+        cp "$SCRIPT_DIR/original/The Midnight Echoes - Digital Dreams.wav" "$SCRIPT_DIR/music/The Midnight Echoes - Digital Dreams.wav" 2>/dev/null || true
+        echo "Restored original test file"
     fi
 }
 
@@ -42,7 +45,8 @@ echo "Starting container..."
 docker run -d --name "$E2E_CONTAINER_NAME" \
     -p "$E2E_HOST_PORT:8000" \
     -e SECRET_KEY="$E2E_SECRET_KEY" \
-    -v "$SCRIPT_DIR/music:/app_data/music:ro" \
+    -e WATCHFILES_FORCE_POLLING=true \
+    -v "$SCRIPT_DIR/music:/app_data/music:rw" \
     "$E2E_IMAGE_NAME"
 
 echo "Waiting for application to be ready..."

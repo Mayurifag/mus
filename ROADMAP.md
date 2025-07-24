@@ -177,21 +177,7 @@
   - [x] Update GitHub Actions workflow to push to both registries
   - [x] Update production deployment to use GHCR instead of Docker Hub
 - [x] fix album covers nginx config for things like production.com/api/v1/tracks/17/covers/small.webp?v=1753112348
-- [ ] Recurring task with PWA / iphone bugs
-  - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
-  - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
-- [ ] Events refactoring ideas
-  - [x] On adding file on drag and drop - it produces too many events.. Should it? Maybe no need to produce events on file creation from upload?
-  - [ ] On app launch too many slow metadata going on.. I think need something new. Now its slow and spamming noise
-  - [ ] slow metadata - convert automatically to UTF-8 id2V2.3
-  - [ ] whats slowing there - i think we might do things faster
-  - [ ] We should have different code for when event is from EXTERNAL file changes and from app. That would be much easier to maintain.
-  - [ ] When initial scan is going on: we might have "loading covers" based on metadata not done status in db on frontend. We might fire events without notification to change files. We might go one by one in single task and fire event on each cover processing and other metadata. We still need to save the state to continue on failures - or just dont give a fuck about that? because we will each time just might select files without processed metadata.
-  - [ ] I do not really use processing_status'es. I should leave just 2 of them. Pending and done. Or anything else? might also have "error" status to have junkyard for files with errors to not reprocess them.
-  - [ ] Refactor slow metadata - have service with each step in its own service. It has to extract cover, process duration, change encoding and save to db that file is processed.
-  - [ ] Is that a bad thing to show just really original image with real extension and so on? We will parse less
-  - [ ] Maximum parallelism (Use a ProcessPoolExecutor for CPU-Bound Code) - only applicable for first scan
-  - [ ] I have to refactor first for a single track and for batch
+- [x] On adding file on drag and drop - it produces too many events.. Should it? Maybe no need to produce events on file creation from upload?
 - [x] Setup playwright mcp. Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
 - [x] Work on snippets for LLM
   - [x] https://x.com/steipete/status/1940314756705132683
@@ -199,23 +185,50 @@
   - [x] Update mr alias to include full text from snippet
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
 - [x] ~~Celery and async tasks~~
-- [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
-- [ ] e2e in CI before deployment after linters. Complex github actions flow.
-- [ ] Complex e2e test: some file has to be flac with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
-- [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401
+- [x] Wipe out history changes completely I do not need them - at least now and they make code messy.
+- [ ] Events refactoring ideas - On app launch too many slow metadata going on.
+  - [x] As a beginning I need to document for now how it works and how should it work. External/internal changes all types of events. Maybe some kind of flowchart -> in future to transform onto finite state machine
+  - [x] Change from rq to arq and to async code here and there
+  - [x] slow metadata - convert automatically to UTF-8 id2V2.3
+  - [x] whats slowing there - i think we might do things faster
+  - [x] We should have different code for when event is from EXTERNAL file changes and from app. That would be much easier to maintain.
+  - [x] When initial scan is going on: we might have "loading covers" based on metadata not done status in db on frontend. We might fire events without notification to change files. We might go one by one in single task and fire event on each cover processing and other metadata. We still need to save the state to continue on failures - or just dont give a fuck about that? because we will each time just might select files without processed metadata.
+  - [x] I do not really use processing_status'es. I should leave just 2 of them. Pending and done. Or anything else? might also have "error" status to have junkyard for files with errors to not reprocess them.
+  - [x] Refactor slow metadata - have service with each step in its own service. It has to extract cover, process duration, change encoding and save to db that file is processed.
+  - [ ] ~~Is that a bad thing to show just really original image with real extension and so on? We will parse less~~
+  - [x] Maximum parallelism (Use a ProcessPoolExecutor for CPU-Bound Code) - only applicable for first scan
+  - [x] I have to refactor first for a single track and for batch
+- [x] e2e test for each scenario and fix each task / frontend.
+  - [x] current state: track deletion fires but does not change frontend in playwright environment (?)
+  - [ ] ~~we will have to write at least successful flow for each event~~
+  - [x] Complex e2e test: some file has to be flac/wav with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
+- [x] Get back files from backup
+- [x] ffs refactor docker-compose.override.yml.example shared envs and things + add context for AI to also change non example file
+- [ ] Recurring task with PWA / iphone bugs
+  - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
+  - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while.
+- [ ] After changes read only filesystem won't work. We have to fix it and use flags on readonly
 
 ## Phase non needed features
 
+- [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
+- [ ] e2e in CI before deployment after linters. Complex github actions flow.
+- [ ] Make sure initial scan on startup is not blocking "healthy" status for backend docker container.
+  - [ ] only fast one blocks. I have to refactor startup calls into its own non-blocking service. There will be fast/slow/watcher one by one launched
+- [ ] more e2e scenarios
+- [ ] wtf is "track updated" event on slow metadata after create? Nothing wrong just bad naming
+- [ ] slow metadata on startup doesnt standartize id3 version and encoding + also doesnt save correct duration to file tags - this has to be single file save - so single job? I have to use different fields based on file for this length, so use library..
 - [ ] Slider has to be smaller by default and on hover it has to be bigger in size like now
-- [ ] Revert functionality UI
+- [ ] ~~Revert functionality UI~~
 - [ ] Remove non-docker development - not sure if thats needed - actually needed because AI doesnt understand what env im working in currently. Less commands is better
+- [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401 - actually think to move everything in redis so there will be no sql db. But - think of relationships such model. Redis might have relationships or something.. I mean we can give up some consistency..
 - [ ] Sort tracks by different fields and ways
 - [ ] Continue refactoring effects
 - [ ] fast search - has to be server side to look vk/yt - and download in future!
 - [ ] Download track functionality
 - [ ] docker-compose - i think we dont need separated volumes for cover/db, might be single
-- [ ] production image nginx better logging. Logging across app.
+- [ ] production image nginx better logging. Logging across app (!!!)
 - [ ] Hotkeys for player controls
 - [ ] Hover player controls should show what will be done + also hotkey for that
 - [ ] Marquee for long texts - all places - not sure where we exactly have to do that. Probably for player footer

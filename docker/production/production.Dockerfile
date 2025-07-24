@@ -29,9 +29,11 @@ ENV PYTHONUNBUFFERED=1 \
     LOG_LEVEL=info \
     DATA_DIR_PATH=/app_data \
     BACKEND_URL=http://127.0.0.1:8001 \
+    REDIS_URL=redis://127.0.0.1:6379 \
     VIRTUAL_ENV=/opt/venv \
-    DRAGONFLY_VERSION=1.31.1 \
     NODE_VERSION=24 \
+    WATCHFILES_FORCE_POLLING=true \
+    WATCHFILES_POLL_DELAY_MS=2000 \
     PATH="/opt/venv/bin:$PATH"
 
 RUN apt-get update && \
@@ -44,17 +46,8 @@ RUN apt-get update && \
         curl \
         gettext-base \
         ffmpeg \
-    && ARCHITECTURE="x86_64" && \
-    if [ "$TARGETARCH" = "arm64" ]; then ARCHITECTURE="aarch64"; fi && \
-    mkdir -p /tmp/dragonfly && \
-    curl -fL "https://github.com/dragonflydb/dragonfly/releases/download/v${DRAGONFLY_VERSION}/dragonfly-${ARCHITECTURE}.tar.gz" -o /tmp/dragonfly/dragonfly.tar.gz && \
-    cd /tmp/dragonfly && \
-    tar -xzf dragonfly.tar.gz && \
-    mv "dragonfly-${ARCHITECTURE}" /usr/local/bin/dragonfly && \
-    chmod +x /usr/local/bin/dragonfly && \
-    cd / && \
-    rm -rf /tmp/dragonfly && \
-    curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
+        redis-server \
+    && curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 
@@ -78,13 +71,13 @@ COPY docker/production/start.sh /app/start.sh
 COPY docker/production/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 RUN chmod +x /app/start.sh && \
-    mkdir -p /app_data/database /app_data/covers /app_data/music /var/log/supervisor && \
+    mkdir -p /app_data/database /app_data/covers /app_data/music /var/log/supervisor /var/cache/nginx/covers_cache && \
     chown -R appuser:appgroup /app_data /app/frontend/build && \
     chown appuser:appgroup /app
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=5s --timeout=5s --start-period=1s --retries=33 \
   CMD curl -f http://localhost:8000/api/healthcheck.json || exit 1
 
 CMD ["/app/start.sh"]
