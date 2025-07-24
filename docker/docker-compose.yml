@@ -4,6 +4,9 @@ services:
       context: ..
       dockerfile: docker/backend.Dockerfile
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/healthcheck.json"]
       interval: 30s
@@ -31,8 +34,10 @@ services:
       context: ..
       dockerfile: docker/backend.Dockerfile
     depends_on:
-      - backend
-      - redis
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     command: sh -c "[ -f /app/requirements.txt ] && uv pip sync /app/requirements.txt; streaq src.mus.core.streaq_broker.worker"
     healthcheck:
       test: ["CMD", "python", "-c", "import redis; r = redis.Redis(host='redis', port=6379); r.ping()"]

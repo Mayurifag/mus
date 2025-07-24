@@ -198,26 +198,28 @@
   - [ ] ~~Is that a bad thing to show just really original image with real extension and so on? We will parse less~~
   - [x] Maximum parallelism (Use a ProcessPoolExecutor for CPU-Bound Code) - only applicable for first scan
   - [x] I have to refactor first for a single track and for batch
-- [ ] wtf is "track updated" event on slow metadata after create? Nothing wrong just bad naming
-- [ ] slow metadata on startup doesnt standartize id3 version and encoding + also doesnt save correct duration to file tags - this has to be single file save - so single job? I have to use different fields based on file for this length, so use library..
-- [ ] e2e test for each scenario and fix each task / frontend.
+- [x] e2e test for each scenario and fix each task / frontend.
   - [x] current state: track deletion fires but does not change frontend in playwright environment (?)
-  - [ ] we will have to write at least successful flow for each event
+  - [ ] ~~we will have to write at least successful flow for each event~~
   - [x] Complex e2e test: some file has to be flac/wav with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
-  - [ ] e2e in CI before deployment after linters. Complex github actions flow.
-- [ ] After changes read only filesystem won't work. We have to fix it and use flags on readonly
-- [ ] Get back files from backup
-- [ ] ffs refactor docker-compose.override.yml.example shared envs and things + add context for AI to also change non example file
+- [ ] e2e in CI before deployment after linters. Complex github actions flow.
+- [x] Get back files from backup
+- [x] ffs refactor docker-compose.override.yml.example shared envs and things + add context for AI to also change non example file
 - [ ] Make sure initial scan on startup is not blocking "healthy" status for backend docker container.
+  - [ ] only fast one blocks. I have to refactor startup calls into its own non-blocking service. There will be fast/slow/watcher one by one launched
 - [ ] Recurring task with PWA / iphone bugs
   - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
   - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
 - [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
 - [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while.
+- [ ] After changes read only filesystem won't work. We have to fix it and use flags on readonly
 
 ## Phase non needed features
 
+- [ ] more e2e scenarios
+- [ ] wtf is "track updated" event on slow metadata after create? Nothing wrong just bad naming
+- [ ] slow metadata on startup doesnt standartize id3 version and encoding + also doesnt save correct duration to file tags - this has to be single file save - so single job? I have to use different fields based on file for this length, so use library..
 - [ ] Slider has to be smaller by default and on hover it has to be bigger in size like now
 - [ ] ~~Revert functionality UI~~
 - [ ] Remove non-docker development - not sure if thats needed - actually needed because AI doesnt understand what env im working in currently. Less commands is better

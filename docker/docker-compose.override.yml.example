@@ -1,21 +1,29 @@
+---
+# Instruction for AI - if you change this file, you have also change ./docker-compose.override.yml.example file with same changes.
+
+x-backend-environment: &x-backend-environment
+  - APP_ENV=development
+  - FRONTEND_ORIGIN=http://localhost:5173
+  - SECRET_KEY=dev_secret_key_please_change_in_production
+  - REDIS_URL=redis://redis:6379
+  - WATCHFILES_FORCE_POLLING=true
+  - WATCHFILES_POLL_DELAY_MS=2000
+  - LOG_LEVEL=INFO
+
+x-volumes: &x-volumes
+  - ../backend:/app
+  - app_backend_venv:/opt/venv
+  - /path/to/your/music:/app_data/music
+  - app_data_database:/app_data/database
+  - app_data_covers:/app_data/covers
+
 services:
   backend:
     ports:
       - "8000:8000"
-    volumes:
-      - ../backend:/app
-      - app_backend_venv:/opt/venv
-      - /path/to/your/music:/app_data/music
-      - app_data_database:/app_data/database
-      - app_data_covers:/app_data/covers
+    volumes: *x-volumes
     environment:
-      - APP_ENV=development
-      - FRONTEND_ORIGIN=http://localhost:5173
-      - SECRET_KEY=dev_secret_key_please_change_in_production
-      - REDIS_URL=redis://redis:6379
-      - WATCHFILES_FORCE_POLLING=true
-      - WATCHFILES_POLL_DELAY_MS=2000
-      - LOG_LEVEL=INFO
+      <<: *x-backend-environment
     restart: unless-stopped
 
   frontend:
@@ -35,19 +43,9 @@ services:
       - "6379:6379"
 
   streaq-worker:
-    volumes:
-      - ../backend:/app
-      - app_backend_venv:/opt/venv
-      - /path/to/your/music:/app_data/music
-      - app_data_database:/app_data/database
-      - app_data_covers:/app_data/covers
+    volumes: *x-volumes
     environment:
-      - APP_ENV=development
-      - LOG_LEVEL=INFO
-      - REDIS_URL=redis://redis:6379
-      - BACKEND_URL=http://backend:8000
-      - WATCHFILES_FORCE_POLLING=true
-      - WATCHFILES_POLL_DELAY_MS=2000
+      <<: *x-backend-environment
     command: sh -c "[ -f /app/requirements.txt ] && uv pip sync /app/requirements.txt; streaq src.mus.core.streaq_broker.worker"
 
 volumes:
