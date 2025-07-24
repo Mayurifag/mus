@@ -202,27 +202,27 @@
   - [x] current state: track deletion fires but does not change frontend in playwright environment (?)
   - [ ] ~~we will have to write at least successful flow for each event~~
   - [x] Complex e2e test: some file has to be flac/wav with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
-- [ ] e2e in CI before deployment after linters. Complex github actions flow.
 - [x] Get back files from backup
 - [x] ffs refactor docker-compose.override.yml.example shared envs and things + add context for AI to also change non example file
-- [ ] Make sure initial scan on startup is not blocking "healthy" status for backend docker container.
-  - [ ] only fast one blocks. I have to refactor startup calls into its own non-blocking service. There will be fast/slow/watcher one by one launched
 - [ ] Recurring task with PWA / iphone bugs
   - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
   - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
-- [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
-- [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while.
 - [ ] After changes read only filesystem won't work. We have to fix it and use flags on readonly
 
 ## Phase non needed features
 
+- [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
+- [ ] e2e in CI before deployment after linters. Complex github actions flow.
+- [ ] Make sure initial scan on startup is not blocking "healthy" status for backend docker container.
+  - [ ] only fast one blocks. I have to refactor startup calls into its own non-blocking service. There will be fast/slow/watcher one by one launched
 - [ ] more e2e scenarios
 - [ ] wtf is "track updated" event on slow metadata after create? Nothing wrong just bad naming
 - [ ] slow metadata on startup doesnt standartize id3 version and encoding + also doesnt save correct duration to file tags - this has to be single file save - so single job? I have to use different fields based on file for this length, so use library..
 - [ ] Slider has to be smaller by default and on hover it has to be bigger in size like now
 - [ ] ~~Revert functionality UI~~
 - [ ] Remove non-docker development - not sure if thats needed - actually needed because AI doesnt understand what env im working in currently. Less commands is better
+- [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401 - actually think to move everything in redis so there will be no sql db. But - think of relationships such model. Redis might have relationships or something.. I mean we can give up some consistency..
 - [ ] Sort tracks by different fields and ways
 - [ ] Continue refactoring effects
 - [ ] fast search - has to be server side to look vk/yt - and download in future!
