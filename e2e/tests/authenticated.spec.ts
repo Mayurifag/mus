@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { parseFile } from 'music-metadata';
+import { execSync } from 'child_process';
 
 interface MetadataInfo {
   id3Version: string;
@@ -27,20 +28,23 @@ async function getMetadataInfo(filePath: string): Promise<MetadataInfo> {
 }
 
 async function checkCoverFiles(trackId: number): Promise<{ hasSmall: boolean; hasOriginal: boolean }> {
-  try {
-    const coversDir = join(process.cwd(), '..', 'app_data', 'covers');
-    const smallPath = join(coversDir, `${trackId}_small.webp`);
-    const originalPath = join(coversDir, `${trackId}_original.webp`);
+  const containerName = 'mus-e2e-test';
+  const smallPath = `/app_data/covers/${trackId}_small.webp`;
+  const originalPath = `/app_data/covers/${trackId}_original.webp`;
 
-    const [smallExists, originalExists] = await Promise.all([
-      fs.access(smallPath).then(() => true).catch(() => false),
-      fs.access(originalPath).then(() => true).catch(() => false)
-    ]);
+  const checkFileExists = (filePath: string): boolean => {
+    try {
+      execSync(`docker exec ${containerName} test -f "${filePath}"`, { stdio: 'ignore' });
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
 
-    return { hasSmall: smallExists, hasOriginal: originalExists };
-  } catch {
-    return { hasSmall: false, hasOriginal: false };
-  }
+  const hasSmall = checkFileExists(smallPath);
+  const hasOriginal = checkFileExists(originalPath);
+
+  return { hasSmall, hasOriginal };
 }
 
 async function getFileStats(filePath: string): Promise<{ mtime: number; exists: boolean }> {
