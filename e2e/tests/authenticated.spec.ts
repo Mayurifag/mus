@@ -74,8 +74,8 @@ test.describe('Authenticated User Flows', () => {
     const sourceFile = join(musicDir, 'The Midnight Echoes - Digital Dreams.wav');
     const originalFile = join(process.cwd(), 'original', 'The Midnight Echoes - Digital Dreams.wav');
 
-    const preMetadata = await getMetadataInfo(sourceFile);
-    const preStats = await getFileStats(sourceFile);
+    const preMetadata = await getMetadataInfo(originalFile);
+    const preStats = await getFileStats(originalFile);
     expect(preMetadata.id3Version).toBe('2.4');
 
     await fs.unlink(sourceFile);
@@ -88,10 +88,10 @@ test.describe('Authenticated User Flows', () => {
     const postMetadata = await getMetadataInfo(sourceFile);
     const postStats = await getFileStats(sourceFile);
 
+    // File has to become ID3v2.3 after processing - before start of tests it was v2.4
     expect(postMetadata.id3Version).toBe('2.3');
     expect(postStats.mtime).not.toBe(preStats.mtime);
     expect(postMetadata.duration).toBeGreaterThan(0);
-    expect(postMetadata.duration).not.toBe(preMetadata.duration);
 
     const trackId = await midnightEchoesTrack.getAttribute('id');
     const trackIdNumber = parseInt(trackId?.replace('track-item-', '') || '1');

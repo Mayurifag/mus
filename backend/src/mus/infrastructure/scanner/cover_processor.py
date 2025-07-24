@@ -7,6 +7,7 @@ from typing import Any, Optional, Dict, List, Tuple
 from mutagen.flac import FLAC
 from mutagen.id3 import ID3
 from mutagen.mp3 import MP3
+from mutagen.wave import WAVE
 import logging
 
 logger = logging.getLogger(__name__)
@@ -54,12 +55,12 @@ class CoverProcessor:
     ) -> bool:
         try:
             image: Any = VipsImage.new_from_buffer(cover_data_cleaned, "")
-            image.webpsave(str(original_path), Q=100)
+            image.webpsave(str(original_path), Q=90)
             # Using fixed 80x80 size for the small thumbnail
             thumbnail: Any = image.thumbnail_image(
                 80, height=80, crop=pyvips.Interesting.CENTRE
             )
-            thumbnail.webpsave(str(small_path), Q=90)
+            thumbnail.webpsave(str(small_path), Q=85)
             return True
         except Exception as e:
             error_msg = f"Error processing cover for track {track_id}"
@@ -73,12 +74,15 @@ class CoverProcessor:
         return await asyncio.to_thread(self._extract_cover_sync, file_path)
 
     def _extract_cover_sync(self, file_path: Path) -> Optional[bytes]:
+        # TODO: pattern matching refactoring
         try:
             file_ext = file_path.suffix.lower()
             if file_ext == ".mp3":
                 return self._extract_mp3_cover(file_path)
             elif file_ext == ".flac":
                 return self._extract_flac_cover(file_path)
+            elif file_ext == ".wav":
+                return self._extract_wav_cover(file_path)
             return None
         except Exception as e:
             logger.warning(f"Error during sync cover extraction for {file_path}: {e}")
@@ -107,6 +111,19 @@ class CoverProcessor:
             return None
         except Exception as e:
             logger.warning(f"Failed to extract FLAC cover from {file_path}: {e}")
+            return None
+
+    def _extract_wav_cover(self, file_path: Path) -> Optional[bytes]:
+        try:
+            audio = WAVE(file_path)
+
+            if hasattr(audio, "tags") and audio.tags:
+                for key in audio.tags.keys():
+                    if key.startswith("APIC:"):
+                        return audio.tags[key].data
+            return None
+        except Exception as e:
+            logger.warning(f"Failed to extract WAV cover from {file_path}: {e}")
             return None
 
     # TODO: make this optimal
