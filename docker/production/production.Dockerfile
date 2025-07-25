@@ -9,7 +9,9 @@ RUN npm ci --no-fund --prefer-offline \
 
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS backend-builder
 ENV PYTHONUNBUFFERED=1
-RUN apt-get update && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
         gcc \
@@ -36,7 +38,9 @@ ENV PYTHONUNBUFFERED=1 \
     WATCHFILES_POLL_DELAY_MS=2000 \
     PATH="/opt/venv/bin:$PATH"
 
-RUN apt-get update && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
         nginx \
         supervisor \
