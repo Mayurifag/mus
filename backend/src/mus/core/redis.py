@@ -32,3 +32,9 @@ async def check_app_write_lock(file_path: str) -> bool:
         return result > 0
     finally:
         await client.aclose()
+
+
+def reset_redis_pool_after_fork() -> None:
+    """Reset the global Redis connection pool after process fork."""
+    global _redis_pool
+    _redis_pool = None

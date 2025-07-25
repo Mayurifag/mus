@@ -2,13 +2,13 @@
 # Instruction for AI - if you change this file, you have also change ./docker-compose.override.yml.example file with same changes.
 
 x-backend-environment: &x-backend-environment
-  - APP_ENV=development
-  - FRONTEND_ORIGIN=http://localhost:5173
-  - SECRET_KEY=dev_secret_key_please_change_in_production
-  - REDIS_URL=redis://redis:6379
-  - WATCHFILES_FORCE_POLLING=true
-  - WATCHFILES_POLL_DELAY_MS=2000
-  - LOG_LEVEL=INFO
+  APP_ENV: development
+  FRONTEND_ORIGIN: http://localhost:5173
+  SECRET_KEY: dev_secret_key_please_change_in_production
+  REDIS_URL: redis://redis:6379
+  WATCHFILES_FORCE_POLLING: true
+  WATCHFILES_POLL_DELAY_MS: 2000
+  LOG_LEVEL: INFO
 
 x-volumes: &x-volumes
   - ../backend:/app
@@ -33,9 +33,9 @@ services:
       - ../frontend:/app
       - app_node_modules:/app/node_modules
     environment:
-      - SECRET_KEY=dev_secret_key_please_change_in_production
-      - VITE_INTERNAL_API_HOST=http://backend:8000
-      - VITE_PUBLIC_API_HOST=http://localhost:8000
+      SECRET_KEY: dev_secret_key_please_change_in_production
+      VITE_INTERNAL_API_HOST: http://backend:8000
+      VITE_PUBLIC_API_HOST: http://localhost:8000
     restart: unless-stopped
 
   redis:

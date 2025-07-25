@@ -47,6 +47,7 @@ RUN apt-get update && \
         gettext-base \
         ffmpeg \
         redis-server \
+        sqlite3 \
     && curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
@@ -77,7 +78,7 @@ RUN chmod +x /app/start.sh && \
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=5s --timeout=5s --start-period=1s --retries=33 \
+HEALTHCHECK --interval=300s --timeout=3s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:8000/api/healthcheck.json || exit 1
 
 CMD ["/app/start.sh"]
