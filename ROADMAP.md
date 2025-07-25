@@ -212,6 +212,7 @@
   - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while. UDP - do not need to wait 200.
 - [ ] After changes read only filesystem won't work. We have to fix it and use flags on readonly
+  - [ ] seems permission check after startup! so it has to be before/after fast data and used for slow scan flag.
 
 ## Phase non needed features
 

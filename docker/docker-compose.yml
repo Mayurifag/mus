@@ -4,15 +4,6 @@ services:
       context: ..
       dockerfile: docker/backend.Dockerfile
     restart: unless-stopped
-    depends_on:
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/healthcheck.json"]
-      interval: 30s
-      timeout: 3s
-      start_period: 3s
-      retries: 33
 
   frontend:
     build:
@@ -21,9 +12,6 @@ services:
     # I forgot why I added that maybe thats not needed anymore with auth (not sure). Maybe thats because I need to communicate to backend:8000 exactly somewhere
     extra_hosts:
       - "localhost:host-gateway"
-    depends_on:
-      backend:
-        condition: service_healthy
 
   redis:
     image: redis:7-alpine
@@ -34,14 +22,6 @@ services:
       context: ..
       dockerfile: docker/backend.Dockerfile
     depends_on:
-      backend:
-        condition: service_healthy
       redis:
-        condition: service_healthy
+        condition: service_started
     command: sh -c "[ -f /app/requirements.txt ] && uv pip sync /app/requirements.txt; streaq src.mus.core.streaq_broker.worker"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import redis; r = redis.Redis(host='redis', port=6379); r.ping()"]
-      interval: 30s
-      timeout: 3s
-      start_period: 3s
-      retries: 33
