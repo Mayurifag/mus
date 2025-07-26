@@ -8,6 +8,7 @@ from src.mus.application.use_cases.process_track_metadata import (
     process_slow_metadata_for_track,
 )
 from src.mus.core.redis import reset_redis_pool_after_fork
+from src.mus.infrastructure.database import recreate_engine_after_fork
 from src.mus.domain.entities.track import ProcessingStatus
 from src.mus.util.db_utils import get_tracks_by_status
 
@@ -15,12 +16,13 @@ logger = logging.getLogger(__name__)
 
 
 def _process_pool_initializer():
-    """Initialize worker processes by resetting the Redis connection pool."""
+    """Initialize worker processes by resetting connections."""
     logger.info(f"[CHILD-INIT] Worker process {os.getpid()} initializing...")
     try:
         reset_redis_pool_after_fork()
+        recreate_engine_after_fork()
         logger.info(
-            f"[CHILD-INIT] Worker process {os.getpid()} Redis pool reset complete"
+            f"[CHILD-INIT] Worker process {os.getpid()} Redis pool and DB Engine reset complete"
         )
     except Exception as e:
         logger.error(
