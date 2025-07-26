@@ -38,24 +38,59 @@ async def lifespan(_: FastAPI):
     fast_scanner = await FastInitialScanUseCase.create_default()
     await fast_scanner.execute()
 
-    slow_scanner = SlowInitialScanUseCase()
-    slow_scan_task = asyncio.create_task(slow_scanner.execute())
+    async def run_slow_scan_with_logging():
+        """Wrapper to ensure slow scan exceptions are logged and don't get lost."""
+        try:
+            logger.info("Starting async slow metadata scan task...")
+            slow_scanner = SlowInitialScanUseCase()
+            await (
+                slow_scanner.execute()
+            )  # This runs async but the task itself is fire-and-forget
+            logger.info("Async slow metadata scan task completed successfully")
+        except Exception as e:
+            logger.critical(
+                f"CRITICAL: Async slow metadata scan task failed with exception: {e}",
+                exc_info=True,
+            )
 
+    # Start slow scan as async fire-and-forget task (as intended)
+    # The task runs async, but we don't await it here so startup isn't blocked
+    slow_scan_task = asyncio.create_task(run_slow_scan_with_logging())
+
+    # Add callback to log final task status
+    def log_slow_scan_completion(task):
+        if task.cancelled():
+            logger.info("Slow scan task was cancelled")
+        elif task.exception():
+            logger.error(f"Slow scan task failed with exception: {task.exception()}")
+        else:
+            logger.info("Slow scan task completed successfully")
+
+    slow_scan_task.add_done_callback(log_slow_scan_completion)
     watcher_task = asyncio.create_task(watch_music_directory())
 
     try:
         yield
     finally:
+        logger.info("Application shutting down, cancelling background tasks...")
         watcher_task.cancel()
         slow_scan_task.cancel()
+
         try:
             await watcher_task
         except asyncio.CancelledError:
-            pass
+            logger.info("File watcher task cancelled successfully")
+        except Exception as e:
+            logger.error(
+                f"Error while cancelling file watcher task: {e}", exc_info=True
+            )
+
         try:
             await slow_scan_task
         except asyncio.CancelledError:
-            pass
+            logger.info("Slow scan task cancelled successfully")
+        except Exception as e:
+            logger.error(f"Error while cancelling slow scan task: {e}", exc_info=True)
 
 
 app = FastAPI(
