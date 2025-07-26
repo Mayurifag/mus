@@ -61,7 +61,11 @@ class SlowInitialScanUseCase:
             error_count = 0
 
             for i, res in enumerate(results):
-                if isinstance(res, tuple) and len(res) == 2 and isinstance(res[0], Exception):
+                if (
+                    isinstance(res, tuple)
+                    and len(res) == 2
+                    and isinstance(res[0], Exception)
+                ):
                     error_count += 1
                     track_id = pending_tracks[i].id
                     exc, tb_str = res

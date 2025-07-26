@@ -54,9 +54,7 @@ async def process_slow_metadata_for_track(track_id: int) -> Optional[Track]:
         cover_task = cover_processor.extract_cover_from_file(file_path)
 
         accurate_duration, cover_data = await asyncio.gather(duration_task, cover_task)
-        logger.info(
-            f"[{track_id}] Duration analysis and cover extraction finished."
-        )
+        logger.info(f"[{track_id}] Duration analysis and cover extraction finished.")
         logger.debug(
             f"[{track_id}] Accurate duration: {accurate_duration}, Cover data length: {len(cover_data) if cover_data else 0}"
         )
