@@ -204,6 +204,8 @@
   - [x] Complex e2e test: some file has to be flac/wav with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
 - [x] Get back files from backup
 - [x] ffs refactor docker-compose.override.yml.example shared envs and things + add context for AI to also change non example file
+- [o] ~~After recent changes e2e takes too long and fails on timeout~~
+- [ ] Container labels: add latest commit title, hash and build time
 - [ ] Recurring task with production - known bugs Desktop / PWA / iphone
   - [x] Too much healthchecks. I need it very rarely. Can we check things once and every 1h or so? its not critical anyway I think - or remove healthcheck at all because for what reason do I need it???
   - [ ] Broken covers

@@ -44,14 +44,25 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed to get the commit message
       - name: Set lowercase repository name
         run: |
           echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+      - name: Set build metadata
+        id: build_meta
+        run: |
+          echo "build_date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+          echo "commit_title=$(git log -1 --pretty=%s)" >> $GITHUB_OUTPUT
       - name: Build and push to both registries
         uses: docker/build-push-action@v6
         with:
           file: docker/production/production.Dockerfile
           push: true
+          build-args: |
+            COMMIT_TITLE=${{ steps.build_meta.outputs.commit_title }}
+            COMMIT_SHA=${{ github.sha }}
+            BUILD_DATE=${{ steps.build_meta.outputs.build_date }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ github.sha }}

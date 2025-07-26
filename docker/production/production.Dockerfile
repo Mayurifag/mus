@@ -26,6 +26,10 @@ RUN uv pip install --no-cache .
 
 FROM python:3.13-slim-bookworm
 ARG TARGETARCH
+ARG BUILD_DATE
+ARG COMMIT_SHA
+ARG COMMIT_TITLE
+
 ENV PYTHONUNBUFFERED=1 \
     APP_ENV=production \
     LOG_LEVEL=info \
@@ -37,6 +41,10 @@ ENV PYTHONUNBUFFERED=1 \
     WATCHFILES_FORCE_POLLING=true \
     WATCHFILES_POLL_DELAY_MS=2000 \
     PATH="/opt/venv/bin:$PATH"
+
+LABEL org.opencontainers.image.created=$BUILD_DATE
+LABEL org.opencontainers.image.revision=$COMMIT_SHA
+LABEL org.opencontainers.image.title=$COMMIT_TITLE
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
