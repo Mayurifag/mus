@@ -6,14 +6,16 @@ ENV DATA_DIR_PATH=/app_data
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
         gcc \
         libvips-dev \
         ffmpeg \
         curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && groupadd -r appgroup && useradd -r -g appgroup --create-home appuser \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -r appgroup && useradd -r -g appgroup --create-home appuser \
     && mkdir -p $DATA_DIR_PATH/database $DATA_DIR_PATH/covers $DATA_DIR_PATH/music \
     && uv venv /opt/venv \
     && chown -R appuser:appgroup /app /opt/venv $DATA_DIR_PATH /home/appuser
