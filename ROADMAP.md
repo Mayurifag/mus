@@ -186,7 +186,7 @@
 - [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
 - [x] ~~Celery and async tasks~~
 - [x] Wipe out history changes completely I do not need them - at least now and they make code messy.
-- [ ] Events refactoring ideas - On app launch too many slow metadata going on.
+- [x] Events refactoring ideas - On app launch too many slow metadata going on.
   - [x] As a beginning I need to document for now how it works and how should it work. External/internal changes all types of events. Maybe some kind of flowchart -> in future to transform onto finite state machine
   - [x] Change from rq to arq and to async code here and there
   - [x] slow metadata - convert automatically to UTF-8 id2V2.3
@@ -195,20 +195,27 @@
   - [x] When initial scan is going on: we might have "loading covers" based on metadata not done status in db on frontend. We might fire events without notification to change files. We might go one by one in single task and fire event on each cover processing and other metadata. We still need to save the state to continue on failures - or just dont give a fuck about that? because we will each time just might select files without processed metadata.
   - [x] I do not really use processing_status'es. I should leave just 2 of them. Pending and done. Or anything else? might also have "error" status to have junkyard for files with errors to not reprocess them.
   - [x] Refactor slow metadata - have service with each step in its own service. It has to extract cover, process duration, change encoding and save to db that file is processed.
-  - [ ] ~~Is that a bad thing to show just really original image with real extension and so on? We will parse less~~
+  - [o] ~~Is that a bad thing to show just really original image with real extension and so on? We will parse less~~
   - [x] Maximum parallelism (Use a ProcessPoolExecutor for CPU-Bound Code) - only applicable for first scan
   - [x] I have to refactor first for a single track and for batch
 - [x] e2e test for each scenario and fix each task / frontend.
   - [x] current state: track deletion fires but does not change frontend in playwright environment (?)
-  - [ ] ~~we will have to write at least successful flow for each event~~
+  - [o] ~~we will have to write at least successful flow for each event~~
   - [x] Complex e2e test: some file has to be flac/wav with cover and wrong metadata for duration. Check metadata and cover works. Set added_at.
 - [x] Get back files from backup
 - [x] ffs refactor docker-compose.override.yml.example shared envs and things + add context for AI to also change non example file
-- [ ] Recurring task with PWA / iphone bugs
+- [o] ~~After recent changes e2e takes too long and fails on timeout~~
+- [x] Container labels: add latest commit title, hash and build time
+- [ ] Recurring task with production - known bugs Desktop / PWA / iphone
+  - [x] Too much healthchecks. I need it very rarely. Can we check things once and every 1h or so? its not critical anyway I think - or remove healthcheck at all because for what reason do I need it???
+  - [ ] Broken covers
+  - [ ] After cover fixes - reset branches and select only needed changes.
+  - [x] Install sqlite3 for debugs
   - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
   - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
-- [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while.
+- [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while. UDP - do not need to wait 200.
 - [ ] After changes read only filesystem won't work. We have to fix it and use flags on readonly
+  - [ ] seems permission check after startup! so it has to be before/after fast data and used for slow scan flag.
 
 ## Phase non needed features
 
@@ -217,6 +224,7 @@
 - [ ] Make sure initial scan on startup is not blocking "healthy" status for backend docker container.
   - [ ] only fast one blocks. I have to refactor startup calls into its own non-blocking service. There will be fast/slow/watcher one by one launched
 - [ ] more e2e scenarios
+  - [ ] Duration - written in db and in track
 - [ ] wtf is "track updated" event on slow metadata after create? Nothing wrong just bad naming
 - [ ] slow metadata on startup doesnt standartize id3 version and encoding + also doesnt save correct duration to file tags - this has to be single file save - so single job? I have to use different fields based on file for this length, so use library..
 - [ ] Slider has to be smaller by default and on hover it has to be bigger in size like now

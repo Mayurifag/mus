@@ -9,7 +9,9 @@ RUN npm ci --no-fund --prefer-offline \
 
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS backend-builder
 ENV PYTHONUNBUFFERED=1
-RUN apt-get update && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
         gcc \
@@ -24,6 +26,10 @@ RUN uv pip install --no-cache .
 
 FROM python:3.13-slim-bookworm
 ARG TARGETARCH
+ARG BUILD_DATE
+ARG COMMIT_SHA
+ARG COMMIT_TITLE
+
 ENV PYTHONUNBUFFERED=1 \
     APP_ENV=production \
     LOG_LEVEL=info \
@@ -36,7 +42,13 @@ ENV PYTHONUNBUFFERED=1 \
     WATCHFILES_POLL_DELAY_MS=2000 \
     PATH="/opt/venv/bin:$PATH"
 
-RUN apt-get update && \
+LABEL org.opencontainers.image.created=$BUILD_DATE
+LABEL org.opencontainers.image.revision=$COMMIT_SHA
+LABEL org.opencontainers.image.title=$COMMIT_TITLE
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
         nginx \
         supervisor \
@@ -47,6 +59,7 @@ RUN apt-get update && \
         gettext-base \
         ffmpeg \
         redis-server \
+        sqlite3 \
     && curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
@@ -77,7 +90,7 @@ RUN chmod +x /app/start.sh && \
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=5s --timeout=5s --start-period=1s --retries=33 \
+HEALTHCHECK --interval=300s --timeout=3s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:8000/api/healthcheck.json || exit 1
 
 CMD ["/app/start.sh"]
