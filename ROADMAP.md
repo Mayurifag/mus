@@ -206,19 +206,20 @@
 - [x] ffs refactor docker-compose.override.yml.example shared envs and things + add context for AI to also change non example file
 - [o] ~~After recent changes e2e takes too long and fails on timeout~~
 - [x] Container labels: add latest commit title, hash and build time
-- [ ] Recurring task with production - known bugs Desktop / PWA / iphone
-  - [x] Too much healthchecks. I need it very rarely. Can we check things once and every 1h or so? its not critical anyway I think - or remove healthcheck at all because for what reason do I need it???
-  - [ ] Broken covers
-  - [ ] After cover fixes - reset branches and select only needed changes.
-  - [x] Install sqlite3 for debugs
-  - [ ] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
-  - [ ] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
-- [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while. UDP - do not need to wait 200.
-- [ ] After changes read only filesystem won't work. We have to fix it and use flags on readonly
-  - [ ] seems permission check after startup! so it has to be before/after fast data and used for slow scan flag.
+- [x] Too much healthchecks. I need it very rarely. Can we check things once and every 1h or so? its not critical anyway I think - or remove healthcheck at all because for what reason do I need it???
+- [x] Broken covers
+- [x] After cover fixes - reset branches and select only needed changes.
+- [x] Install sqlite3 for debugs
+- [x] After changes read only filesystem won't work. We have to fix it and use flags on readonly
+  - [x] ~~seems permission check after startup! so it has to be before/after fast data and used for slow scan flag.~~
+- [x] Recurring task with production - known bugs Desktop / PWA / iphone
+  - [x] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
+  - [x] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
 
 ## Phase non needed features
 
+- [ ] Case to check in e2e: file edited externally like delete-and-create with new data. Will it be treated like delete and create? Will it be deleted and created with new id? will my save state thing work?
+- [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while. UDP - do not need to wait 200.
 - [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
 - [ ] e2e in CI before deployment after linters. Complex github actions flow.
 - [ ] Make sure initial scan on startup is not blocking "healthy" status for backend docker container.
@@ -226,7 +227,9 @@
 - [ ] more e2e scenarios
   - [ ] Duration - written in db and in track
 - [ ] wtf is "track updated" event on slow metadata after create? Nothing wrong just bad naming
-- [ ] slow metadata on startup doesnt standartize id3 version and encoding + also doesnt save correct duration to file tags - this has to be single file save - so single job? I have to use different fields based on file for this length, so use library..
+- [o] slow metadata on startup doesnt standartize id3 version and encoding + also doesnt save correct duration to file tags - this has to be single file save - so single job? I have to use different fields based on file for this length, so use library..
+  - [x] Standartize on startup
+  - [ ] Make it efficient with only 1 final change of file for both duration and standartize
 - [ ] Slider has to be smaller by default and on hover it has to be bigger in size like now
 - [ ] ~~Revert functionality UI~~
 - [ ] Remove non-docker development - not sure if thats needed - actually needed because AI doesnt understand what env im working in currently. Less commands is better
@@ -268,3 +271,7 @@
 - [ ] Define Playlist entity
 - [ ] Implement playlist management service (Deferred)
 - [ ] Many-to-many relation between tracks/albums/artists
+
+## Ideas
+
+- [ ] Every minute check if folder still read-only or writeable - this might be one of the little things nobody notices

@@ -22,10 +22,14 @@ cleanup() {
         docker stop "$E2E_CONTAINER_NAME" 2>/dev/null || true
     fi
 
-    # Restore original test file after tests complete
-    if [ -f "$SCRIPT_DIR/original/The Midnight Echoes - Digital Dreams.wav" ]; then
-        cp "$SCRIPT_DIR/original/The Midnight Echoes - Digital Dreams.wav" "$SCRIPT_DIR/music/The Midnight Echoes - Digital Dreams.wav" 2>/dev/null || true
-        echo "Restored original test file"
+    if [ -d "$SCRIPT_DIR/original" ]; then
+        for file in "$SCRIPT_DIR/original"/*; do
+            if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                cp "$file" "$SCRIPT_DIR/music/$filename" 2>/dev/null || true
+            fi
+        done
+        echo "Restored all original test files"
     fi
 }
 
