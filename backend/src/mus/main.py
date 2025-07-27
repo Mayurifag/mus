@@ -38,24 +38,17 @@ async def lifespan(_: FastAPI):
     fast_scanner = await FastInitialScanUseCase.create_default()
     await fast_scanner.execute()
 
-    slow_scanner = SlowInitialScanUseCase()
-    slow_scan_task = asyncio.create_task(slow_scanner.execute())
-
-    watcher_task = asyncio.create_task(watch_music_directory())
+    tasks = [
+        asyncio.create_task(SlowInitialScanUseCase().execute()),
+        asyncio.create_task(watch_music_directory()),
+    ]
 
     try:
         yield
     finally:
-        watcher_task.cancel()
-        slow_scan_task.cancel()
-        try:
-            await watcher_task
-        except asyncio.CancelledError:
-            pass
-        try:
-            await slow_scan_task
-        except asyncio.CancelledError:
-            pass
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
 
 app = FastAPI(
