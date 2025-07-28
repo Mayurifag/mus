@@ -7,10 +7,10 @@ from typing import Any, Dict
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.mus.application.services.permissions_service import PermissionsService
 from src.mus.application.use_cases.fast_initial_scan import FastInitialScanUseCase
 from src.mus.application.use_cases.slow_initial_scan import SlowInitialScanUseCase
 from src.mus.config import settings
+from src.mus.infrastructure.api.permissions_singleton import permissions_service
 from src.mus.infrastructure.api.routers import (
     auth_router,
     errors_router,
@@ -32,14 +32,13 @@ logger = logging.getLogger(__name__)
 async def lifespan(_: FastAPI):
     await create_db_and_tables()
 
-    permissions_service = PermissionsService()
-    await asyncio.to_thread(permissions_service.check_write_permissions)
+    await asyncio.to_thread(permissions_service.check_permissions)
 
     fast_scanner = await FastInitialScanUseCase.create_default()
     await fast_scanner.execute()
 
     tasks = [
-        asyncio.create_task(SlowInitialScanUseCase().execute()),
+        asyncio.create_task(SlowInitialScanUseCase(permissions_service).execute()),
         asyncio.create_task(watch_music_directory()),
     ]
 

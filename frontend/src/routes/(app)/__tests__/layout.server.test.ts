@@ -45,7 +45,7 @@ describe("+layout.server.ts", () => {
   };
 
   const mockPermissions = {
-    can_write_files: true,
+    can_write_music_files: true,
   };
 
   // Mock event object required by the load function

@@ -3,6 +3,7 @@ import logging
 import time
 from os import cpu_count
 
+from src.mus.application.services.permissions_service import PermissionsService
 from src.mus.application.use_cases.process_track_metadata import (
     process_slow_metadata_for_track,
 )
@@ -14,10 +15,14 @@ logger = logging.getLogger(__name__)
 CONCURRENCY_LIMIT = (cpu_count() or 1) * 2
 
 
-async def _process_track_with_semaphore(track_id: int, semaphore: asyncio.Semaphore):
+async def _process_track_with_semaphore(
+    track_id: int, semaphore: asyncio.Semaphore, permissions_service: PermissionsService
+):
     async with semaphore:
         try:
-            processed_track = await process_slow_metadata_for_track(track_id)
+            processed_track = await process_slow_metadata_for_track(
+                track_id, permissions_service
+            )
             if processed_track:
                 processed_track.processing_status = ProcessingStatus.COMPLETE
                 processed_track.last_error = None
@@ -38,6 +43,9 @@ async def _process_track_with_semaphore(track_id: int, semaphore: asyncio.Semaph
 
 
 class SlowInitialScanUseCase:
+    def __init__(self, permissions_service: PermissionsService):
+        self.permissions_service = permissions_service
+
     async def execute(self):
         logger.info("Phase 2: Slow metadata processing starting...")
 
@@ -52,7 +60,7 @@ class SlowInitialScanUseCase:
 
         semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
         tasks = [
-            _process_track_with_semaphore(track.id, semaphore)
+            _process_track_with_semaphore(track.id, semaphore, self.permissions_service)
             for track in pending_tracks
             if track.id is not None
         ]

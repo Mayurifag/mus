@@ -92,9 +92,9 @@ export class DragDropService {
     this.callbacks.onDragStateChange(false);
 
     const permissions = get(permissionsStore);
-    if (!permissions.can_write_files) {
+    if (!permissions.can_write_music_files) {
       toast.error(
-        "File upload is not available - insufficient write permissions",
+        "File upload is not available - music directory is read-only",
       );
       return;
     }

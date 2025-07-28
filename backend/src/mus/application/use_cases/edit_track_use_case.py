@@ -7,6 +7,7 @@ from mutagen._file import File as MutagenFile
 from fastapi import HTTPException
 
 from src.mus.application.dtos.track import TrackUpdateDTO
+from src.mus.application.services.permissions_service import PermissionsService
 from src.mus.infrastructure.persistence.sqlite_track_repository import (
     SQLiteTrackRepository,
 )
@@ -17,8 +18,9 @@ from src.mus.core.redis import set_app_write_lock
 
 
 class EditTrackUseCase:
-    def __init__(self, track_repo: SQLiteTrackRepository):
+    def __init__(self, track_repo: SQLiteTrackRepository, permissions_service: PermissionsService):
         self.track_repo = track_repo
+        self.permissions_service = permissions_service
 
     async def execute(
         self, track_id: int, update_data: TrackUpdateDTO
@@ -26,9 +28,6 @@ class EditTrackUseCase:
         track = await self.track_repo.get_by_id(track_id)
         if not track:
             raise HTTPException(status_code=404, detail="Track not found")
-
-        if not os.access(track.file_path, os.W_OK):
-            raise HTTPException(status_code=403, detail="File is not writable")
 
         changes_delta = update_data.model_dump(
             exclude_unset=True, exclude={"rename_file"}

@@ -21,10 +21,11 @@ from mutagen._file import File as MutagenFile
 
 from src.mus.application.dtos.track import TrackListDTO, TrackUpdateDTO
 from src.mus.application.use_cases.edit_track_use_case import EditTrackUseCase
+from src.mus.application.services.permissions_service import PermissionsService
 from src.mus.config import settings
 from src.mus.core.redis import set_app_write_lock
 from src.mus.core.streaq_broker import worker
-from src.mus.infrastructure.api.dependencies import get_track_repository
+from src.mus.infrastructure.api.dependencies import get_track_repository, get_permissions_service
 from src.mus.infrastructure.jobs.file_system_jobs import (
     delete_track_with_files,
     handle_file_created,
@@ -175,15 +176,21 @@ async def update_track(
     update_data: TrackUpdateDTO,
     track_id: int = Path(..., gt=0),
     track_repository: SQLiteTrackRepository = Depends(get_track_repository),
+    permissions_service: PermissionsService = Depends(get_permissions_service),
 ) -> Dict[str, Any]:
-    use_case = EditTrackUseCase(track_repository)
+    if not permissions_service.can_write_music_files:
+        raise HTTPException(status_code=403, detail="Music directory is read-only")
+    use_case = EditTrackUseCase(track_repository, permissions_service)
     return await use_case.execute(track_id, update_data)
 
 
 @router.delete("/{track_id}", status_code=status.HTTP_202_ACCEPTED)
 async def delete_track(
     track_id: int = Path(..., gt=0),
+    permissions_service: PermissionsService = Depends(get_permissions_service),
 ) -> Response:
+    if not permissions_service.can_write_music_files:
+        raise HTTPException(status_code=403, detail="Music directory is read-only")
     async with worker:
         await delete_track_with_files.enqueue(track_id=track_id)
     return Response(status_code=status.HTTP_202_ACCEPTED)
@@ -194,7 +201,10 @@ async def upload_track(
     title: str = Form(...),
     artist: str = Form(...),
     file: UploadFile = File(...),
+    permissions_service: PermissionsService = Depends(get_permissions_service),
 ) -> Dict[str, Any]:
+    if not permissions_service.can_write_music_files:
+        raise HTTPException(status_code=403, detail="Music directory is read-only")
     extension = validate_upload_file(file)
 
     file_content = await file.read()

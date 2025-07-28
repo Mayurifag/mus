@@ -12,6 +12,7 @@
   } from "$lib/services/apiClient";
   import { toast } from "svelte-sonner";
   import { Plus, X, HelpCircle, Save, Trash2 } from "@lucide/svelte";
+  import { permissionsStore } from "$lib/stores/permissionsStore";
 
   import FilenameDisplay from "./FilenameDisplay.svelte";
 
@@ -410,12 +411,13 @@
 
     <Dialog.Footer class="!justify-between">
       <div class="mr-auto">
-        {#if mode === "edit"}
+        {#if mode === "edit" && $permissionsStore.can_write_music_files}
           <Button
             variant="outline"
             size="sm"
             onclick={() => (confirmDeleteOpen = true)}
             disabled={isUploading}
+            title="Delete track"
             class="border-destructive/20 text-destructive hover:bg-destructive hover:text-destructive-foreground"
           >
             <Trash2 class="mr-2 h-4 w-4" />

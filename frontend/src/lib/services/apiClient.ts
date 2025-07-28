@@ -206,7 +206,7 @@ export function connectTrackUpdateEvents(
 }
 
 export async function fetchPermissions(fetchFn: typeof fetch = fetch): Promise<{
-  can_write_files: boolean;
+  can_write_music_files: boolean;
 }> {
   try {
     const response = await fetchFn(
@@ -218,7 +218,7 @@ export async function fetchPermissions(fetchFn: typeof fetch = fetch): Promise<{
     return await response.json();
   } catch (error) {
     console.error("Error fetching permissions:", error);
-    return { can_write_files: false };
+    return { can_write_music_files: false };
   }
 }
 

@@ -6,6 +6,7 @@ from typing import Optional
 
 from mutagen._file import File as MutagenFile
 
+from src.mus.application.services.permissions_service import PermissionsService
 from src.mus.core.redis import set_app_write_lock
 from src.mus.config import settings
 from src.mus.domain.entities.track import Track
@@ -14,7 +15,9 @@ from src.mus.util.ffprobe_analyzer import get_accurate_duration
 from src.mus.util.db_utils import get_track_by_id, update_track
 
 
-async def process_slow_metadata_for_track(track_id: int) -> Optional[Track]:
+async def process_slow_metadata_for_track(
+    track_id: int, permissions_service: PermissionsService
+) -> Optional[Track]:
     track = await get_track_by_id(track_id)
     if not track or not Path(track.file_path).exists():
         return None
@@ -24,10 +27,11 @@ async def process_slow_metadata_for_track(track_id: int) -> Optional[Track]:
     original_mtime = file_path.stat().st_mtime
 
     audio = MutagenFile(file_path, easy=False)
-    if audio and _needs_id3_standardization(audio):
-        await set_app_write_lock(str(file_path))
-        audio.save(v2_version=3)
-        os.utime(file_path, (original_mtime, original_mtime))
+    if permissions_service.can_write_music_files:
+        if audio and _needs_id3_standardization(audio):
+            await set_app_write_lock(str(file_path))
+            audio.save(v2_version=3)
+            os.utime(file_path, (original_mtime, original_mtime))
 
     cover_processor = CoverProcessor(settings.COVERS_DIR_PATH)
 
@@ -60,7 +64,7 @@ async def process_slow_metadata_for_track(track_id: int) -> Optional[Track]:
     return track
 
 
-def _needs_id3_standardization(audio: MutagenFile) -> bool:
+def _needs_id3_standardization(audio) -> bool:
     if hasattr(audio, "tags") and audio.tags:
         if hasattr(audio.tags, "version") and audio.tags.version == (2, 3, 0):
             return False

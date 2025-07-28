@@ -1,6 +1,7 @@
 import logging
 import time
 
+from src.mus.application.services.permissions_service import PermissionsService
 from src.mus.application.use_cases.process_track_metadata import (
     process_slow_metadata_for_track,
 )
@@ -16,8 +17,11 @@ async def process_slow_metadata(track_id: int):
     logger = logging.getLogger(__name__)
     logger.info(f"WORKER: Starting process_slow_metadata for track {track_id}")
 
+    permissions_service = PermissionsService()
+    permissions_service.check_permissions()
+
     try:
-        track = await process_slow_metadata_for_track(track_id)
+        track = await process_slow_metadata_for_track(track_id, permissions_service)
 
         if track:
             track.last_error = None

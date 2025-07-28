@@ -158,17 +158,16 @@
     role="button"
     tabindex="-1"
   >
-    <button
-      class="text-muted-foreground icon-glow-effect cursor-pointer rounded-md p-1 transition-colors"
-      disabled={!$permissionsStore.can_write_files}
-      onclick={() => (editModalOpen = true)}
-      aria-label="Edit track"
-      title={!$permissionsStore.can_write_files
-        ? "Editing disabled: write permissions not available"
-        : "Edit"}
-    >
-      <Pencil class="h-5 w-5" />
-    </button>
+    {#if $permissionsStore.can_write_music_files}
+      <button
+        class="text-muted-foreground icon-glow-effect cursor-pointer rounded-md p-1 transition-colors"
+        onclick={() => (editModalOpen = true)}
+        aria-label="Edit track"
+        title="Edit"
+      >
+        <Pencil class="h-5 w-5" />
+      </button>
+    {/if}
   </div>
 </div>
 
