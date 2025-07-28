@@ -104,7 +104,7 @@
   - [x] Tags have to be windows compatible for filenames (prevent <, >, :, ", /, \, |, ?, *). Remove them.
   - [x] Default option to rename filename as well (checkbox). Ticked by default, but user can prevent that. Use artist - track name notation. Always preview new filename. Make warning on long filenames I think (>100). Prevent to save 255 characters.
   - [x] Save file history
-  - [ ] ~~Add reverting functionality~~
+  - [o] ~~Add reverting functionality~~
   - [x] We have to think that in future we will have possibility to have Artist entity and maybe in future we will match whats in db with new file
   - [x] Think already what to do with multiple artists - where do additional ones have to be stated and what will be the separator to divide them and show later. In Artist field metatags lets split them with ";". In filename lets split them with "ft. %artist%".
   - [x] Cover art - cant be changed now, yet show it. In future I want to be able to fetch arts from some search, yt, or else and pick best one
@@ -165,8 +165,8 @@
   - [x] Layout_TrackChangeHandler - executes twice - why?
   - [x] check effects + check draganddrop
 - [x] Edit track functionality enhancements
-  - [ ] ~~Show exact changes will be done - for example if we change encoding it also has to be shown~~
-  - [ ] ~~Check that wrong tags could be fixed in UI - wrong encoding, wrong fields filled~~
+  - [o] ~~Show exact changes will be done - for example if we change encoding it also has to be shown~~
+  - [o] ~~Check that wrong tags could be fixed in UI - wrong encoding, wrong fields filled~~
   - [x] check long filenames on edit - add warning
   - [x] Remove files in editing file dialog - with confirmation. It may be not files but just entries in db.
   - [x] Ignore all tags on creation except author/trackname. We will use it and/or overwrite just them. Others will be ignored (not deleted).
@@ -220,41 +220,39 @@ PWA - music nog going next automatically, switch from effect
 
 ## Phase non needed features
 
-- [ ] Case to check in e2e: file edited externally like delete-and-create with new data. Will it be treated like delete and create? Will it be deleted and created with new id? will my save state thing work?
+- [ ] On Edit - if im not mistaken we do not check if file with same name exists, we should show UI warning and prevent save on such cases
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while. UDP - do not need to wait 200.
 - [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
 - [ ] e2e in CI before deployment after linters. Complex github actions flow.
-- [ ] Make sure initial scan on startup is not blocking "healthy" status for backend docker container.
-  - [ ] only fast one blocks. I have to refactor startup calls into its own non-blocking service. There will be fast/slow/watcher one by one launched
+- [x] Make sure initial scan on startup is not blocking "healthy" status for backend docker container.
+  - [o] ~~only fast one blocks. I have to refactor startup calls into its own non-blocking service. There will be fast/slow/watcher one by one launched~~
 - [ ] more e2e scenarios
   - [ ] Duration - written in db and in track
+  - [ ] file edited externally like delete-and-create with new data. Will it be treated like delete and create? Will it be deleted and created with new id? will my save state thing work?
 - [ ] wtf is "track updated" event on slow metadata after create? Nothing wrong just bad naming
 - [o] slow metadata on startup doesnt standartize id3 version and encoding + also doesnt save correct duration to file tags - this has to be single file save - so single job? I have to use different fields based on file for this length, so use library..
   - [x] Standartize on startup
   - [ ] Make it efficient with only 1 final change of file for both duration and standartize
-- [ ] Slider has to be smaller by default and on hover it has to be bigger in size like now
+- [ ] Slider stylings
+  - [ ] has to be smaller by default and on hover it has to be bigger in size like now
+  - [ ] styling for playing music - make it less colored but on hover make blue colored styling for slider
 - [ ] ~~Revert functionality UI~~
 - [ ] Remove non-docker development - not sure if thats needed - actually needed because AI doesnt understand what env im working in currently. Less commands is better
 - [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401 - actually think to move everything in redis so there will be no sql db. But - think of relationships such model. Redis might have relationships or something.. I mean we can give up some consistency..
 - [ ] Sort tracks by different fields and ways
-- [ ] Continue refactoring effects
+- [x] Continue refactoring effects
 - [ ] fast search - has to be server side to look vk/yt - and download in future!
-- [ ] Download track functionality
+- [ ] Download track functionality?
 - [ ] docker-compose - i think we dont need separated volumes for cover/db, might be single
-- [ ] production image nginx better logging. Logging across app (!!!)
+- [ ] production image nginx better logging. Logging across app (!!!) - Think about this more
 - [ ] Hotkeys for player controls
-- [ ] Hover player controls should show what will be done + also hotkey for that
+  - [ ] Hover player controls should show what will be done + also hotkey for that
 - [ ] Marquee for long texts - all places - not sure where we exactly have to do that. Probably for player footer
-- [ ] ~~styling for playing music - make it less colored but on hover make blue colored styling for slider~~
-- [ ] Get rid of fucking SSR and simplify code A LOT - ???.
+- [ ] ~~Get rid of fucking SSR and simplify code A LOT - ???.~~
 - [ ] Render play button from tracklist under album cover in tracklist
 - [ ] Edit cover arts - download from some search, from youtube or else to pick one. I do not want to handle uploading covers yet I think.
-- [ ] Define Artist entity
-- [ ] Edit modal - possibility to set title artist (choose?)
-- [ ] Parse artists, make them unique, add to db. Make functionality to set artist for track. Remove artist from db if no tracks with this artist. Multiple artists for track.
-- [ ] Artist page with all their tracks
-- [ ] Artist can have many similar names (Тату = t.A.T.u.) - get from internet their possible titles for automatical matching later? AI?
 - [ ] "Play next" functionality
+- [ ] Test files which are in folders
 
 ## Phase yt
 
@@ -267,12 +265,17 @@ PWA - music nog going next automatically, switch from effect
 - [ ] vk.com player with download functionality
 - [ ] ...?? soundcloud?
 
-## Phase playlist management and album management
+## Phase artist / playlist management / album management
 
+- [ ] Define Artist entity
+- [ ] Edit modal - possibility to set title artist (choose?)
 - [ ] Define Album entity, album page with tracks
 - [ ] Define Playlist entity
 - [ ] Implement playlist management service (Deferred)
 - [ ] Many-to-many relation between tracks/albums/artists
+- [ ] Parse artists, make them unique, add to db. Make functionality to set artist for track. Remove artist from db if no tracks with this artist. Multiple artists for track.
+- [ ] Artist page with all their tracks
+- [ ] Artist can have many similar names (Тату = t.A.T.u.) - get from internet their possible titles for automatical matching later? AI?
 
 ## Ideas
 
