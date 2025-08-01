@@ -375,7 +375,7 @@ requires-dist = [
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.2" },
     { name = "vulture", specifier = ">=2.14" },
     { name = "watchfiles", specifier = ">=0.21.0" },
-    { name = "yt-dlp", specifier = ">=2023.12.30" },
+    { name = "yt-dlp", specifier = ">=2024.12.13" },
 ]
 
 [[package]]

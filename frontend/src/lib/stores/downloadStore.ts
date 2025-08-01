@@ -1,6 +1,11 @@
 import { writable } from "svelte/store";
 
-export type DownloadState = "idle" | "downloading" | "awaiting_review" | "failed";
+export type DownloadState =
+  | "idle"
+  | "downloading"
+  | "completed"
+  | "awaiting_review"
+  | "failed";
 
 export interface DownloadStoreState {
   state: DownloadState;
@@ -34,6 +39,12 @@ function createDownloadStore() {
         suggestedTitle: null,
         suggestedArtist: null,
         coverDataUrl: null,
+      })),
+    setCompleted: () =>
+      update((state) => ({
+        ...state,
+        state: "completed",
+        error: null,
       })),
     setFailed: (error: string) =>
       update((state) => ({

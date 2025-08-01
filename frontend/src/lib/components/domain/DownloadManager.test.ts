@@ -11,6 +11,15 @@ vi.mock("$lib/services/apiClient", () => ({
 
 vi.mock("svelte-sonner", () => ({
   toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+
+vi.mock("svelte-sonner", () => ({
+  toast: {
     error: vi.fn(),
   },
 }));
@@ -229,6 +238,16 @@ describe("DownloadManager", () => {
           "Download service is temporarily unavailable. Please try again later.",
         ),
       ).toBeInTheDocument();
+    });
+  });
+
+  it("should show completed state", async () => {
+    render(DownloadManager);
+
+    downloadStore.setCompleted();
+
+    await waitFor(() => {
+      expect(screen.getByText("Completed")).toBeInTheDocument();
     });
   });
 });

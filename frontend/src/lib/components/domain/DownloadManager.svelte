@@ -3,7 +3,7 @@
   import { startDownload } from "$lib/services/apiClient";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
-  import { Download, Loader2, AlertCircle } from "@lucide/svelte";
+  import { Download, Loader2, AlertCircle, CheckCircle } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
 
   let url = $state("");
@@ -54,7 +54,16 @@
   }
 
   const isDownloading = $derived($downloadStore.state === "downloading");
+  const isCompleted = $derived($downloadStore.state === "completed");
   const hasError = $derived($downloadStore.state === "failed");
+
+  $effect(() => {
+    if (isCompleted) {
+      setTimeout(() => {
+        downloadStore.reset();
+      }, 2000);
+    }
+  });
 </script>
 
 <div class="space-y-3">
@@ -74,15 +83,21 @@
 
     <Button
       onclick={handleDownload}
-      disabled={isDownloading || !url.trim()}
+      disabled={isDownloading || isCompleted || !url.trim()}
       size="sm"
-      class="bg-accent hover:bg-accent/90 text-accent-foreground w-full font-medium transition-all duration-200 {isDownloading
+      class="w-full font-medium transition-all duration-200 {isDownloading ||
+      isCompleted
         ? 'cursor-not-allowed opacity-70'
-        : ''}"
+        : ''} {isCompleted
+        ? 'bg-green-600 hover:bg-green-600'
+        : 'bg-accent hover:bg-accent/90'} text-accent-foreground"
     >
       {#if isDownloading}
         <Loader2 class="mr-2 h-4 w-4 animate-spin" />
         Downloading...
+      {:else if isCompleted}
+        <CheckCircle class="mr-2 h-4 w-4" />
+        Completed
       {:else}
         <Download class="mr-2 h-4 w-4" />
         Download
