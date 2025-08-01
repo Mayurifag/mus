@@ -26,6 +26,7 @@ dependencies = [
   "vulture>=2.14",
   "bandit>=1.8.5",
   "python-multipart>=0.0.20",
+  "yt-dlp>=2023.12.30",
 ]
 
 [build-system]
