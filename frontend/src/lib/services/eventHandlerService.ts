@@ -54,6 +54,9 @@ export function handleMusEvent(payload: MusEvent): void {
     case "download_started":
       downloadStore.startDownload();
       break;
+    case "download_completed":
+      downloadStore.setCompleted();
+      break;
     case "download_failed":
       if (payload.action_payload) {
         const failedPayload =
