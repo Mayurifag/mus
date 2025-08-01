@@ -42,7 +42,7 @@ The feature will be implemented in several stages, starting with the backend inf
 
 ## Subtasks
 
-### [ ] 1. Backend: Implement Download Initiation API and Job
+### [x] 1. Backend: Implement Download Initiation API and Job
 **Description**: Create the API endpoint to start a download from a URL and set up the corresponding background job structure.
 **Details**:
 - Add `yt-dlp>=2023.12.30` to `backend/pyproject.toml` dependencies.

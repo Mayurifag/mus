@@ -18,7 +18,9 @@ from src.mus.core.redis import set_app_write_lock
 
 
 class EditTrackUseCase:
-    def __init__(self, track_repo: SQLiteTrackRepository, permissions_service: PermissionsService):
+    def __init__(
+        self, track_repo: SQLiteTrackRepository, permissions_service: PermissionsService
+    ):
         self.track_repo = track_repo
         self.permissions_service = permissions_service
 
