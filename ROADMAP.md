@@ -216,6 +216,8 @@
   - [x] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
   - [x] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
 
+PWA - music nog going next automatically, switch from effect
+
 ## Phase non needed features
 
 - [ ] Case to check in e2e: file edited externally like delete-and-create with new data. Will it be treated like delete and create? Will it be deleted and created with new id? will my save state thing work?
