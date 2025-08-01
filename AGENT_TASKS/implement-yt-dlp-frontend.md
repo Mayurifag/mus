@@ -39,7 +39,7 @@ This implementation builds upon the backend infrastructure for downloading track
 
 ## Subtasks
 
-### [ ] 1. Implement Frontend UI, State Management, and Finalization Logic
+### [x] 1. Implement Frontend UI, State Management, and Finalization Logic
 **Description**: Create the full frontend experience for the downloader, including the UI in the sidebar, state management via a new store, handling SSE events, and integrating with the metadata modal for final confirmation.
 **Details**:
 1.  **Create Store**: Implement `src/lib/stores/downloadStore.ts` to manage the download state (`idle`, `downloading`, `awaiting_review`, `failed`), error message, and the payload from the `download_ready_for_review` event.

@@ -22,8 +22,20 @@ async def initiate_download(request: DownloadUrlRequest):
         if not lock_acquired:
             raise HTTPException(status_code=429, detail="Download already in progress")
 
-        async with worker:
-            await download_track_from_url.enqueue(url=request.url)
+        try:
+            async with worker:
+                await download_track_from_url.enqueue(url=request.url)
+        except Exception as e:
+            # Release lock if job enqueue fails
+            await client.delete(lock_key)
+            if "Missing function" in str(e) or "download_track_from_url" in str(e):
+                raise HTTPException(
+                    status_code=503,
+                    detail="Download service is temporarily unavailable",
+                )
+            raise HTTPException(
+                status_code=500, detail=f"Failed to start download: {str(e)}"
+            )
 
         return {"status": "accepted"}
     finally:

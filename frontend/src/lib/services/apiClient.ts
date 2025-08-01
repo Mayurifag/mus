@@ -222,6 +222,50 @@ export async function fetchPermissions(fetchFn: typeof fetch = fetch): Promise<{
   }
 }
 
+export async function startDownload(url: string): Promise<void> {
+  const result = await safeApiCall(
+    async () => {
+      const response = await fetch(`${API_PREFIX}${API_VERSION_PATH}/downloads/url`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url }),
+      });
+      await handleApiResponse(response);
+    },
+    { context: "startDownload" },
+  );
+
+  if (result === null) {
+    throw new Error("Failed to start download");
+  }
+}
+
+export async function confirmDownload(
+  tempId: string,
+  title: string,
+  artist: string,
+): Promise<void> {
+  const result = await safeApiCall(
+    async () => {
+      const response = await fetch(`${API_PREFIX}${API_VERSION_PATH}/downloads/confirm`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ tempId, title, artist }),
+      });
+      await handleApiResponse(response);
+    },
+    { context: "confirmDownload" },
+  );
+
+  if (result === null) {
+    throw new Error("Failed to confirm download");
+  }
+}
+
 export async function fetchMagicLinkUrl(): Promise<string> {
   try {
     const response = await fetch(

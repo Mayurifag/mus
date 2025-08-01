@@ -4,12 +4,19 @@
   import { trackStore } from "$lib/stores/trackStore";
   import { audioServiceStore } from "$lib/stores/audioServiceStore";
   import { permissionsStore } from "$lib/stores/permissionsStore";
+  import { downloadStore } from "$lib/stores/downloadStore";
 
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
   import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
-  import { sendPlayerStateBeacon as apiSendPlayerStateBeacon } from "$lib/services/apiClient";
+  import {
+    sendPlayerStateBeacon as apiSendPlayerStateBeacon,
+    confirmDownload,
+  } from "$lib/services/apiClient";
   import { authConfigStore } from "$lib/stores/authConfigStore";
-  import { initEventHandlerService } from "$lib/services/eventHandlerService";
+  import {
+    initEventHandlerService,
+    setDownloadModalOpener,
+  } from "$lib/services/eventHandlerService";
   import { AudioService } from "$lib/services/AudioService";
   import { updateEffectStats } from "$lib/utils/monitoredEffect";
   import * as Sheet from "$lib/components/ui/sheet";
@@ -45,6 +52,9 @@
   let fileToUpload = $state<File | null>(null);
   let parsedFileInfo = $state<ParsedFileInfo | null>(null);
   let dragDropService: DragDropService;
+
+  // Download modal state
+  let downloadModalOpen = $state(false);
 
   function initializeAudioService() {
     if (audio) {
@@ -120,6 +130,7 @@
     initializeAudioService();
     restorePlayerState();
     setupEventListeners();
+    setDownloadModalOpener(openDownloadModalHandler);
 
     lastCurrentTrackId = data.playerState.current_track_id;
     isInitializing = false;
@@ -229,6 +240,27 @@
 
     cleanup();
   }
+
+  async function handleDownloadConfirm(title: string, artist: string) {
+    if (!$downloadStore.tempId) return;
+
+    try {
+      await confirmDownload($downloadStore.tempId, title, artist);
+      downloadStore.reset();
+      downloadModalOpen = false;
+    } catch (error) {
+      console.error("Failed to confirm download:", error);
+    }
+  }
+
+  function handleDownloadModalClose() {
+    downloadModalOpen = false;
+    downloadStore.reset();
+  }
+
+  function openDownloadModalHandler() {
+    downloadModalOpen = true;
+  }
 </script>
 
 <Sheet.Root bind:open={sheetOpen}>
@@ -279,5 +311,19 @@
     suggestedArtist={parsedFileInfo.suggestedArtist}
     coverDataUrl={parsedFileInfo.coverInfo?.dataUrl}
     metadata={parsedFileInfo.metadata}
+  />
+{/if}
+
+<!-- Download modal -->
+{#if downloadModalOpen && $downloadStore.state === "awaiting_review"}
+  <TrackMetadataModal
+    bind:open={downloadModalOpen}
+    mode="create"
+    suggestedTitle={$downloadStore.suggestedTitle || ""}
+    suggestedArtist={$downloadStore.suggestedArtist || ""}
+    coverDataUrl={$downloadStore.coverDataUrl}
+    isDownload={true}
+    onDownloadConfirm={handleDownloadConfirm}
+    onClose={handleDownloadModalClose}
   />
 {/if}
