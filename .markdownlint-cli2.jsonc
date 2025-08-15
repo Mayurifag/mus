@@ -1,0 +1,16 @@
+{
+  "config": {
+    "MD013": {
+      "line_length": 222
+    }
+  },
+  "fix": true,
+  "globs": [
+    "**/*.{md,markdown}"
+  ],
+  "ignores": [
+    "AGENT_TASKS/*.md",
+    "!AGENT_TASKS/.rules.md"
+  ],
+  "noBanner": true
+}
