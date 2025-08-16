@@ -10,7 +10,7 @@
 - [x] Fix frontend
 - [x] move next track out of audioService, think how. Maybe thats good case for effect. This effect has to change web title!
 - [x] Move all dependencies to devDependencies. Eliminate usage of xior and use fetch
-- [x] Try to go with https://github.com/unplugin/unplugin-icons - use lucide there
+- [x] Try to go with <https://github.com/unplugin/unplugin-icons> - use lucide there
 - [x] Bug - after loading page, if we select another track, it will not play. Check it.
 - [x] Remove time since added from trackitem and also remove date-fns
 - [x] Why we have +page.svelte and +layout.svelte? Should not that be only one?
@@ -18,7 +18,7 @@
 - [x] Analyze all css methods which update several states in once. Make them with different methods. Remove all $: and refactor to svelte 5.
 - [x] Divide frontend into components: footer / sidebar / tracklist, etc.
 - [x] Style progress bar so it would be equal like tracklist' one. Remove styling from TrackItem.svelte.
-- [x] Move to vscode, update workflow, aliases. Adapt this workflow. Remove cursorrules. Update all snippets. https://www.chatprd.ai/resources/PRD-for-Cursor - browsermcp.io
+- [x] Move to vscode, update workflow, aliases. Adapt this workflow. Remove cursorrules. Update all snippets. <https://www.chatprd.ai/resources/PRD-for-Cursor> - browsermcp.io
 - [x] Implement and display per-track buffered time ranges using a new BufferedRangesService and update Slider.svelte to render these ranges.
 - [x] css to fix too large music files names
 - [x] ai workflow Tasks - use just task.md everywhere. Use single backticks. There has to be no step like "review" or "ci" or something.
@@ -63,29 +63,29 @@
 - [x] Production problems - doesnt redirect correctly on token. Login on mobile doesnt get nice link.
 - [x] sliders - beginning a bit filled; end not filled a bit
 - [x] **Foundation: Database & Queues**
-    - [x] Enhance `Track` schema with `inode` and `content_hash` for robust file tracking.
-        - [x] Add `processing_status: str` enum (`PENDING`, `METADATA_DONE`, `ART_DONE`, `COMPLETE`, `ERROR`).
-        - [x] Add `last_error_message: str | None`.
-    - [x] Tune SQLite for concurrency by enabling WAL mode and a busy timeout. Maybe other tuning as well
-        - [x] Enable `PRAGMA journal_mode=WAL` and `PRAGMA synchronous = NORMAL` on all connections.
-        - [x] Set `PRAGMA busy_timeout` to 5000ms.
-    - [x] Set up a task queue system (e.g., RQ) using DragonflyDB as the broker. Be sure you do it fine inside production image.
-        - [x] Add `dragonfly` service to `docker-compose.yml` for local development.
-        - [x] Add DragonflyDB installation to the production Dockerfile.
-        - [x] Add `[program:dragonfly]` and `[program:rq-worker]` to `supervisord.conf`.
-        - [x] Use two queues: `high_priority` for file events and `low_priority` for analysis (covers, ffprobe, etc.). Those will be just two tasks. Analysis will be one file but with functionality from different files.
+  - [x] Enhance `Track` schema with `inode` and `content_hash` for robust file tracking.
+    - [x] Add `processing_status: str` enum (`PENDING`, `METADATA_DONE`, `ART_DONE`, `COMPLETE`, `ERROR`).
+    - [x] Add `last_error_message: str | None`.
+  - [x] Tune SQLite for concurrency by enabling WAL mode and a busy timeout. Maybe other tuning as well
+    - [x] Enable `PRAGMA journal_mode=WAL` and `PRAGMA synchronous = NORMAL` on all connections.
+    - [x] Set `PRAGMA busy_timeout` to 5000ms.
+  - [x] Set up a task queue system (e.g., RQ) using DragonflyDB as the broker. Be sure you do it fine inside production image.
+    - [x] Add `dragonfly` service to `docker-compose.yml` for local development.
+    - [x] Add DragonflyDB installation to the production Dockerfile.
+    - [x] Add `[program:dragonfly]` and `[program:rq-worker]` to `supervisord.conf`.
+    - [x] Use two queues: `high_priority` for file events and `low_priority` for analysis (covers, ffprobe, etc.). Those will be just two tasks. Analysis will be one file but with functionality from different files.
 - [x] **Core Processing Pipeline**
-    - [x] Implement `watchdog` to monitor the music directory for real-time file changes (`created`, `modified`, `deleted`, `moved`).
-    - [x] Remove all current code about processing files. We will start from scratch!!
-    - [x] On startup, perform an initial full scan that populates the database or the queue before the watcher takes over.
-        - [x] This scan will synchronously extract fast metadata (`mutagen`) in batches and save to the DB. It will then enqueue slower tasks (covers, duration) to the `low_priority` queue.
-    - [x] Create an asynchronous worker to process `created` and `modified` events for metadata extraction and accurate duration analysis (using FFprobe).
-    - [x] Create a dedicated worker for cover art extraction and processing, triggered after successful metadata processing.
-    - [x] Create a dedicated worker to handle `deleted` events, ensuring tracks and their associated covers are removed.
-    - [x] Implement logic to handle `moved` events by updating the file path based on inode, preserving the track's identity.
+  - [x] Implement `watchdog` to monitor the music directory for real-time file changes (`created`, `modified`, `deleted`, `moved`).
+  - [x] Remove all current code about processing files. We will start from scratch!!
+  - [x] On startup, perform an initial full scan that populates the database or the queue before the watcher takes over.
+    - [x] This scan will synchronously extract fast metadata (`mutagen`) in batches and save to the DB. It will then enqueue slower tasks (covers, duration) to the `low_priority` queue.
+  - [x] Create an asynchronous worker to process `created` and `modified` events for metadata extraction and accurate duration analysis (using FFprobe).
+  - [x] Create a dedicated worker for cover art extraction and processing, triggered after successful metadata processing.
+  - [x] Create a dedicated worker to handle `deleted` events, ensuring tracks and their associated covers are removed.
+  - [x] Implement logic to handle `moved` events by updating the file path based on inode, preserving the track's identity.
 - [x] **Features & Robustness**
-    - [x] Implement `TrackHistory` table and API to track the last 5 metadata changes per track and allow for rollbacks.
-    - [x] Implement basic performance monitoring (e.g., queue depths).
+  - [x] Implement `TrackHistory` table and API to track the last 5 metadata changes per track and allow for rollbacks.
+  - [x] Implement basic performance monitoring (e.g., queue depths).
 - [o] ~~Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?~~
 - [x] Frontend should get only usable fields for /tracks.
 - [x] Slider cursor hand on cover
@@ -180,10 +180,10 @@
 - [x] On adding file on drag and drop - it produces too many events.. Should it? Maybe no need to produce events on file creation from upload?
 - [x] Setup playwright mcp. Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
 - [x] Work on snippets for LLM
-  - [x] https://x.com/steipete/status/1940314756705132683
-  - [x] https://x.com/robzolkos/status/1940462968593875060
+  - [x] <https://x.com/steipete/status/1940314756705132683>
+  - [x] <https://x.com/robzolkos/status/1940462968593875060>
   - [x] Update mr alias to include full text from snippet
-- [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
+- [o] ~~minify options <https://github.com/ntsd/sveltekit-html-minifier> <https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier>~~
 - [x] ~~Celery and async tasks~~
 - [x] Wipe out history changes completely I do not need them - at least now and they make code messy.
 - [x] Events refactoring ideas - On app launch too many slow metadata going on.

@@ -8,9 +8,5 @@
   "globs": [
     "**/*.{md,markdown}"
   ],
-  "ignores": [
-    "AGENT_TASKS/*.md",
-    "!AGENT_TASKS/.rules.md"
-  ],
   "noBanner": true
 }
