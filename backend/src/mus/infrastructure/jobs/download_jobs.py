@@ -71,21 +71,32 @@ def _download_audio(url: str, logger: logging.Logger) -> str:
     # yt-dlp binding not used because SponsorBlock did not work reliably
     cmd = [
         "yt-dlp",
-        "--format", "bestaudio/best",
+        "--format",
+        "bestaudio/best",
         "--extract-audio",
-        "--audio-format", "mp3",
-        "--audio-quality", "0",
-        "-o", output_template,
+        "--audio-format",
+        "mp3",
+        "--audio-quality",
+        "0",
+        "-o",
+        output_template,
         "--embed-thumbnail",
-        "--convert-thumbnails", "jpg",
+        "--convert-thumbnails",
+        "jpg",
         "--embed-metadata",
-        "--parse-metadata", "title:%(title)s",
-        "--parse-metadata", "artist:%(artist,uploader|Unknown Artist)s",
-        "--sponsorblock-remove", "all",
+        "--parse-metadata",
+        "title:%(title)s",
+        "--parse-metadata",
+        "artist:%(artist,uploader|Unknown Artist)s",
+        "--sponsorblock-remove",
+        "all",
         "--embed-chapters",
-        "--concurrent-fragments", "3",
-        "--throttled-rate", "100K",
-        "--retries", "10",
+        "--concurrent-fragments",
+        "3",
+        "--throttled-rate",
+        "100K",
+        "--retries",
+        "10",
         "--no-playlist",
         url,
     ]
@@ -95,10 +106,10 @@ def _download_audio(url: str, logger: logging.Logger) -> str:
 
         # Parse yt-dlp output to get the actual filename
         all_output = result.stdout + result.stderr
-        for line in all_output.split('\n'):
-            if '[ExtractAudio] Destination:' in line:
+        for line in all_output.split("\n"):
+            if "[ExtractAudio] Destination:" in line:
                 # Extract filename from: [ExtractAudio] Destination: /path/to/file.mp3
-                filename = line.split('Destination: ')[-1].strip()
+                filename = line.split("Destination: ")[-1].strip()
                 if filename and Path(filename).exists():
                     return filename
 
