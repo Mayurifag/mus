@@ -225,8 +225,12 @@
 - [x] PWA - music nog going next automatically, switch from effect
 - [x] bug - deletion music kinda strange.. No event to frontend it seems?
 
-## Phase non needed features
+## Ongoing
 
+- [ ] Fix uv warnings and fix production.Dockerfile
+  - [ ] <https://github.com/astral-sh/uv-docker-example/blob/main/multistage.Dockerfile>
+  - [ ] <https://hynek.me/articles/docker-uv/>
+- [ ] Add ci commands to makefile
 - [ ] after yt-dlp we have to fire modal with saving
 - [ ] On Edit - if im not mistaken we do not check if file with same name exists, we should show UI warning and prevent save on such cases! that is server check
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while. UDP - do not need to wait 200.

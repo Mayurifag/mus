@@ -3,8 +3,8 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 WORKDIR /app
 
 ENV DATA_DIR_PATH=/app_data
-ENV VIRTUAL_ENV=/opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+# ENV VIRTUAL_ENV=/opt/venv
+# ENV PATH="/opt/venv/bin:$PATH"
 
 ARG USER_ID=1000
 ARG GROUP_ID=1000

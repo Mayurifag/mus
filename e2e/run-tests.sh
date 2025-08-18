@@ -4,18 +4,13 @@ set -e
 
 E2E_IMAGE_NAME="mus:e2e-test"
 E2E_CONTAINER_NAME="mus-e2e-test"
+E2E_PLAYWRIGHT_IMAGE_NAME="mus:e2e-playwright"
 E2E_HOST_PORT="4124"
 E2E_SECRET_KEY="e2e-secret-key"
 E2E_TIMEOUT=12
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-MODE="${1:-headless}"
-
-case "$MODE" in
-    headless|headed|debug) ;;
-    *) echo "Usage: $0 [headless|headed|debug]"; exit 1 ;;
-esac
 
 cleanup() {
     if docker ps -q -f name="$E2E_CONTAINER_NAME" | grep -q .; then
@@ -88,15 +83,12 @@ if [ $timeout -le 0 ]; then
     exit 1
 fi
 
-echo "Installing Playwright dependencies..."
 cd "$SCRIPT_DIR"
-npm ci --no-audit --no-fund --prefer-offline
+docker build -t "$E2E_PLAYWRIGHT_IMAGE_NAME" .
 
 echo "Running E2E tests..."
-case "$MODE" in
-    headed) npx playwright test --headed ;;
-    debug) npx playwright test --debug ;;
-    *) npx playwright test ;;
-esac
-
-echo "E2E tests completed successfully!"
+docker run --rm --network host \
+    -v "$SCRIPT_DIR/test-results:/e2e/test-results" \
+    -v "$SCRIPT_DIR/playwright-report:/e2e/playwright-report" \
+    -v "$SCRIPT_DIR/playwright/.auth:/e2e/playwright/.auth" \
+    "$E2E_PLAYWRIGHT_IMAGE_NAME"

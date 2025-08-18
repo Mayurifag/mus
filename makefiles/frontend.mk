@@ -1,4 +1,4 @@
-DOCKER_COMPOSE_FRONTEND_CMD := $(DOCKER_COMPOSE_CMD) run --rm frontend
+DOCKER_COMPOSE_FRONTEND_CMD := $(DOCKER_COMPOSE_CMD) run --no-TTY --rm frontend
 
 .PHONY: front-install
 front-install:

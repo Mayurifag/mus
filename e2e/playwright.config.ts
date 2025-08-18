@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 const useForChromium = {
   ...devices['Desktop Chrome'],
   launchOptions: {
-    args: ['--disable-web-security', '--disable-features=VizDisplayCompositor'],
+    args: ['--disable-web-security', '--disable-features=VizDisplayCompositor', '--no-sandbox', '--disable-setuid-sandbox'],
   },
 };
 

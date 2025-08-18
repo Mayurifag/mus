@@ -291,7 +291,7 @@ describe("DownloadManager", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("should hide input and button when permissions are revoked", () => {
+    it("should hide input and button when permissions are revoked", async () => {
       // Start with permissions
       permissionsStore.set({ can_write_music_files: true });
       const { rerender } = render(DownloadManager);
@@ -309,11 +309,14 @@ describe("DownloadManager", () => {
       permissionsStore.set({ can_write_music_files: false });
       rerender({});
 
-      expect(
-        screen.getByText(
-          "Download not available - music directory is read-only",
-        ),
-      ).toBeInTheDocument();
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            "Download not available - music directory is read-only",
+          ),
+        ).toBeInTheDocument();
+      });
+
       expect(
         screen.queryByPlaceholderText(
           "Enter YouTube URL or other supported link",
@@ -324,7 +327,7 @@ describe("DownloadManager", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("should show download UI when permissions are granted", () => {
+    it("should show download UI when permissions are granted", async () => {
       // Start without permissions
       permissionsStore.set({ can_write_music_files: false });
       const { rerender } = render(DownloadManager);
@@ -339,11 +342,14 @@ describe("DownloadManager", () => {
       permissionsStore.set({ can_write_music_files: true });
       rerender({});
 
-      expect(
-        screen.getByPlaceholderText(
-          "Enter YouTube URL or other supported link",
-        ),
-      ).toBeInTheDocument();
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText(
+            "Enter YouTube URL or other supported link",
+          ),
+        ).toBeInTheDocument();
+      });
+
       expect(
         screen.getByRole("button", { name: /download/i }),
       ).toBeInTheDocument();

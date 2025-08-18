@@ -36,8 +36,9 @@ const mockTrackTransformed = {
   artist: "Test Artist",
   duration: 180,
   has_cover: true,
-  cover_small_url: "/api/v1/tracks/1/covers/small.webp",
-  cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+  cover_small_url: "http://localhost:8001/api/v1/tracks/1/covers/small.webp",
+  cover_original_url:
+    "http://localhost:8001/api/v1/tracks/1/covers/original.webp",
 };
 
 const mockPlayerState = {
@@ -77,7 +78,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks");
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8001/api/v1/tracks",
+      );
       expect(result).toEqual([mockTrackTransformed]);
     });
 
@@ -93,7 +96,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks");
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8001/api/v1/tracks",
+      );
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining("fetchTracks"),
         expect.any(Error),
@@ -107,7 +112,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/tracks");
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8001/api/v1/tracks",
+      );
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining("fetchTracks"),
         expect.any(Error),
@@ -129,7 +136,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state");
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8001/api/v1/player/state",
+      );
       expect(result).toEqual(mockPlayerState);
     });
 
@@ -145,7 +154,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state");
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8001/api/v1/player/state",
+      );
       expect(result).toEqual({
         current_track_id: null,
         progress_seconds: 0.0,
@@ -168,7 +179,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state");
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8001/api/v1/player/state",
+      );
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining("fetchPlayerState"),
         expect.any(Error),
@@ -189,7 +202,9 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/player/state");
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8001/api/v1/player/state",
+      );
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining("fetchPlayerState"),
         expect.any(Error),
@@ -216,7 +231,7 @@ describe("apiClient", () => {
       apiClient.sendPlayerStateBeacon(mockPlayerState);
 
       expect(mockSendBeacon).toHaveBeenCalledWith(
-        "/api/v1/player/state",
+        "http://localhost:8001/api/v1/player/state",
         expect.any(Blob),
       );
     });
