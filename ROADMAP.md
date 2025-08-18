@@ -221,12 +221,9 @@
 - [x] Recurring task with production - known bugs Desktop / PWA / iphone
   - [x] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
   - [x] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
-
-## Current
-
-- [ ] Server events dont go to frontend on linux
+- [x] Server events dont go to frontend on linux
 - [ ] PWA - music nog going next automatically, switch from effect
-- [ ] bug - deletion music kinda strange.. No event to frontend it seems?
+- [x] bug - deletion music kinda strange.. No event to frontend it seems?
 
 ## Phase non needed features
 
