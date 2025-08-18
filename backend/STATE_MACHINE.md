@@ -6,7 +6,10 @@ This document outlines the event-driven architecture and state machine for proce
 
 To simplify the descriptions below, here are the definitions of the core background processes.
 
-* **Fast Metadata Extraction (`extract_fast_metadata`)**: A quick, synchronous operation using `mutagen` to read basic tags (title, artist), duration, and file system stats (`inode`, `mtime`). This is designed to be fast enough to run immediately when a file is detected.
+* **Fast Metadata Extraction (`extract_fast_metadata`)**: A quick, synchronous
+  operation using `mutagen` to read basic tags (title, artist), duration, and
+  file system stats (`inode`, `mtime`). This is designed to be fast enough to
+  run immediately when a file is detected.
 * **Slow Metadata Analysis (`process_slow_metadata`)**: A slower, asynchronous background task that performs deeper analysis. It is enqueued into the `low_priority` queue. Its responsibilities include:
   * **Accurate Duration**: Uses `ffprobe` to get a precise duration, correcting any inaccuracies from the initial fast scan.
   * **Cover Art Processing**: Extracts embedded cover art using `mutagen`, cleans it, and generates standardized `webp` thumbnails (`original` and `small`) using `pyvips`.
@@ -24,7 +27,9 @@ To simplify the descriptions below, here are the definitions of the core backgro
 
 A track in the database progresses through several states, defined by the `ProcessingStatus` enum.
 
-* **`PENDING`**: The track has undergone **Fast Metadata Extraction**. Basic tags are in the database, and the track is usable in the UI. A `process_slow_metadata` task has been enqueued for deeper analysis. This is the default state for a track that is not yet fully processed or is awaiting re-processing.
+* **`PENDING`**: The track has undergone **Fast Metadata Extraction**. Basic tags are in the database, and the track is usable in the UI.
+  A `process_slow_metadata` task has been enqueued for deeper analysis. This is the default state for a track that is not yet fully processed or is
+  awaiting re-processing.
 * **`COMPLETE`**: The track has successfully undergone **Slow Metadata Analysis**. Its duration is accurate, cover art has been processed, and tags are normalized.
 * **`ERROR`**: An error occurred during either fast or slow processing. The `last_error_message` field in the database contains details.
 
@@ -41,8 +46,10 @@ On application startup, a special batch process is initiated to efficiently inde
 2. **Phase 2: Slow Batch Analysis**
     * After the fast scan completes, a single, long-running background job is enqueued on the `low_priority` queue.
     * This job queries the database for all tracks with `status: PENDING`.
-    * It processes these tracks in batches, executing the full **Slow Metadata Analysis** (accurate duration, cover art, tag normalization) for each track in the batch.
-    * After each batch is processed, a bulk `UPDATE` operation sets their `status` to `COMPLETE`. `track_updated` SSE events are sent for each processed track *without a toast message*, allowing the UI to silently update cover art and duration as they become available.
+    * It processes these tracks in batches, executing the full **Slow Metadata Analysis** (accurate duration, cover art, tag normalization) for each
+      track in the batch.
+    * After each batch is processed, a bulk `UPDATE` operation sets their `status` to `COMPLETE`. `track_updated` SSE events are sent for each processed track
+      *without a toast message*, allowing the UI to silently update cover art and duration as they become available.
 
 ## Event Triggers and State Transitions
 
@@ -91,7 +98,8 @@ These events are triggered by user actions in the frontend UI.
 
 * **`POST /api/v1/tracks/upload` (New Track Upload)**
     1. **Trigger**: User uploads a file via the drag-and-drop interface.
-    2. **Action**: The file is saved to the music directory with metadata applied. This triggers the standard `File Created` event via `watchfiles`, initiating the processing pipeline. The task is enqueued with a flag to skip the `slow_metadata` job initially if metadata was already written.
+    2. **Action**: The file is saved to the music directory with metadata applied. This triggers the standard `File Created` event via `watchfiles`,
+       initiating the processing pipeline. The task is enqueued with a flag to skip the `slow_metadata` job initially if metadata was already written.
 
 * **`PATCH /api/v1/tracks/{id}` (Metadata Edit)**
     1. **Trigger**: User saves changes in the track metadata editor.
@@ -136,7 +144,8 @@ The use of background queues is designed to handle race conditions efficiently b
 2. Before any `process_slow_metadata` task begins execution for a given track, its first action is to **cancel any other pending `process_slow_metadata` jobs for the same track ID** in the `low_priority` queue.
 3. This ensures that the original, now-outdated task from before the file modification is removed from the queue without ever running.
 
-**Outcome**: The system is self-optimizing. Only the `process_slow_metadata` task corresponding to the most recent file state will be executed, preventing wasted resources and ensuring the final state is always consistent.
+**Outcome**: The system is self-optimizing. Only the `process_slow_metadata` task corresponding to the most recent file state will be executed,
+preventing wasted resources and ensuring the final state is always consistent.
 
 ```mermaid
 stateDiagram-v2

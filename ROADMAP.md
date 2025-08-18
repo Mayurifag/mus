@@ -99,14 +99,18 @@
   - [x] First of all: we should check on app load if we actually can change files (user might use read-only volume). Find the best way to find this. If we cant, we should disable all editing functionality.
   - [x] Use modal window. Mobile - most of screen. Desktop idk. If there are no changes, click outside of modal will close it. If there are changes, we should confirm that. Also there has to be cancel button.
   - [x] UI Trigger - three-dot menu on each TrackItem that reveals an "Edit" option. This keeps the main track list UI clean.
-  - [x] API Endpoint Design: A logical RESTful approach would be a PATCH request to an endpoint like /api/v1/tracks/{track_id}. The request body would contain the new metadata and the rename_file boolean flag. I want to send ONLY CHANGES, not all metadata. That way will be easier to save history. We have to handle the case when there is no changes - think what should we do because PATCH is not idempotent and we do not want to save that in history.
+  - [x] API Endpoint Design: A logical RESTful approach would be a PATCH request to an endpoint like /api/v1/tracks/{track_id}. The request body would contain the new
+    metadata and the rename_file boolean flag. I want to send ONLY CHANGES, not all metadata. That way will be easier to save history. We have to handle the case when
+    there is no changes - think what should we do because PATCH is not idempotent and we do not want to save that in history.
   - [x] Tags have to have good encoding - ID3v2.4 with UTF-8 encoding (or ID3v2.3?)
   - [x] Tags have to be windows compatible for filenames (prevent <, >, :, ", /, \, |, ?, *). Remove them.
-  - [x] Default option to rename filename as well (checkbox). Ticked by default, but user can prevent that. Use artist - track name notation. Always preview new filename. Make warning on long filenames I think (>100). Prevent to save 255 characters.
+  - [x] Default option to rename filename as well (checkbox). Ticked by default, but user can prevent that. Use artist - track name notation. Always preview new
+    filename. Make warning on long filenames I think (>100). Prevent to save 255 characters.
   - [x] Save file history
   - [o] ~~Add reverting functionality~~
   - [x] We have to think that in future we will have possibility to have Artist entity and maybe in future we will match whats in db with new file
-  - [x] Think already what to do with multiple artists - where do additional ones have to be stated and what will be the separator to divide them and show later. In Artist field metatags lets split them with ";". In filename lets split them with "ft. %artist%".
+  - [x] Think already what to do with multiple artists - where do additional ones have to be stated and what will be the separator to divide them and show later.
+    In Artist field metatags lets split them with ";". In filename lets split them with "ft. %artist%".
   - [x] Cover art - cant be changed now, yet show it. In future I want to be able to fetch arts from some search, yt, or else and pick best one
   - [x] Error handling on file save - if file is missing (rare case) or there are rights problem (common case probably) - show error to user
   - [x] History has to save the exact change in jsonb and all file metadata with its filename in jsonb.
@@ -192,7 +196,9 @@
   - [x] slow metadata - convert automatically to UTF-8 id2V2.3
   - [x] whats slowing there - i think we might do things faster
   - [x] We should have different code for when event is from EXTERNAL file changes and from app. That would be much easier to maintain.
-  - [x] When initial scan is going on: we might have "loading covers" based on metadata not done status in db on frontend. We might fire events without notification to change files. We might go one by one in single task and fire event on each cover processing and other metadata. We still need to save the state to continue on failures - or just dont give a fuck about that? because we will each time just might select files without processed metadata.
+  - [x] When initial scan is going on: we might have "loading covers" based on metadata not done status in db on frontend. We might fire events without notification to
+    change files. We might go one by one in single task and fire event on each cover processing and other metadata. We still need to save the state to continue on
+    failures - or just dont give a fuck about that? because we will each time just might select files without processed metadata.
   - [x] I do not really use processing_status'es. I should leave just 2 of them. Pending and done. Or anything else? might also have "error" status to have junkyard for files with errors to not reprocess them.
   - [x] Refactor slow metadata - have service with each step in its own service. It has to extract cover, process duration, change encoding and save to db that file is processed.
   - [o] ~~Is that a bad thing to show just really original image with real extension and so on? We will parse less~~
@@ -228,9 +234,11 @@ PWA - music nog going next automatically, switch from effect
   - [o] ~~only fast one blocks. I have to refactor startup calls into its own non-blocking service. There will be fast/slow/watcher one by one launched~~
 - [ ] more e2e scenarios
   - [ ] Duration - written in db and in track
-  - [ ] file edited externally like delete-and-create with new data. Will it be treated like delete and create? Will it be deleted and created with new id? will my save state thing work?
+  - [ ] file edited externally like delete-and-create with new data. Will it be treated like delete and create? Will it be deleted and created with new id? will my
+    save state thing work?
 - [ ] wtf is "track updated" event on slow metadata after create? Nothing wrong just bad naming
-- [o] slow metadata on startup doesnt standartize id3 version and encoding + also doesnt save correct duration to file tags - this has to be single file save - so single job? I have to use different fields based on file for this length, so use library..
+- [o] slow metadata on startup doesnt standartize id3 version and encoding + also doesnt save correct duration to file tags - this has to be single file save -
+  so single job? I have to use different fields based on file for this length, so use library..
   - [x] Standartize on startup
   - [ ] Make it efficient with only 1 final change of file for both duration and standartize
 - [ ] Slider stylings
@@ -238,7 +246,8 @@ PWA - music nog going next automatically, switch from effect
   - [ ] styling for playing music - make it less colored but on hover make blue colored styling for slider
 - [ ] ~~Revert functionality UI~~
 - [ ] Remove non-docker development - not sure if thats needed - actually needed because AI doesnt understand what env im working in currently. Less commands is better
-- [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401 - actually think to move everything in redis so there will be no sql db. But - think of relationships such model. Redis might have relationships or something.. I mean we can give up some consistency..
+- [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401 - actually think to move everything in redis so there will be no
+  sql db. But - think of relationships such model. Redis might have relationships or something.. I mean we can give up some consistency..
 - [ ] Sort tracks by different fields and ways
 - [x] Continue refactoring effects
 - [ ] fast search - has to be server side to look vk/yt - and download in future!
