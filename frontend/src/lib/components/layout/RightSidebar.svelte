@@ -30,6 +30,9 @@
       $trackStore.playHistory.length >= MIN_HISTORY_FOR_DEBUG,
   );
 
+  const shouldShowEffectsMonitor =
+    import.meta.env.VITE_EFFECTS_DEBUG === "true";
+
   const timelineItems = $derived.by(() => {
     const items: Array<{
       track: Track | null;
@@ -190,9 +193,11 @@
       <RecentEvents />
     </div>
 
-    <div class="p-4">
-      <EffectMonitor />
-    </div>
+    {#if shouldShowEffectsMonitor}
+      <div class="p-4">
+        <EffectMonitor />
+      </div>
+    {/if}
   </div>
 
   <!-- QR Login Modal -->

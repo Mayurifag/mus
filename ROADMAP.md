@@ -222,12 +222,13 @@
   - [x] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
   - [x] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
 - [x] Server events dont go to frontend on linux
-- [ ] PWA - music nog going next automatically, switch from effect
+- [x] PWA - music nog going next automatically, switch from effect
 - [x] bug - deletion music kinda strange.. No event to frontend it seems?
 
 ## Phase non needed features
 
-- [ ] On Edit - if im not mistaken we do not check if file with same name exists, we should show UI warning and prevent save on such cases
+- [ ] after yt-dlp we have to fire modal with saving
+- [ ] On Edit - if im not mistaken we do not check if file with same name exists, we should show UI warning and prevent save on such cases! that is server check
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while. UDP - do not need to wait 200.
 - [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
 - [ ] e2e in CI before deployment after linters. Complex github actions flow.

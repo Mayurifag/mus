@@ -58,7 +58,7 @@
 
   function initializeAudioService() {
     if (audio) {
-      audioService = new AudioService(audio, () => trackStore.nextTrack());
+      audioService = new AudioService(audio);
       audioServiceStore.set(audioService);
     }
   }

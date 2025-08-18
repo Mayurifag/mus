@@ -10,6 +10,7 @@ from src.mus.core.streaq_broker import worker
 from src.mus.infrastructure.api.sse_handler import notify_sse_from_worker
 from src.mus.infrastructure.jobs.file_system_jobs import handle_file_created
 
+
 @worker.task()
 async def download_track_from_url(url: str):
     logger = logging.getLogger(__name__)

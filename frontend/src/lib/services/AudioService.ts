@@ -6,7 +6,6 @@ import { formatArtistsForDisplay } from "$lib/utils/formatters";
 
 export class AudioService {
   private audio: HTMLAudioElement;
-  private onPlaybackFinishedCallback: () => void;
   private shouldAutoPlay = false;
   private isSeeking = false;
 
@@ -28,12 +27,8 @@ export class AudioService {
   private _currentIsRepeat = false;
   private _currentCurrentBufferedRanges: TimeRange[] = [];
 
-  constructor(
-    audio: HTMLAudioElement,
-    onPlaybackFinishedWithoutRepeat: () => void,
-  ) {
+  constructor(audio: HTMLAudioElement) {
     this.audio = audio;
-    this.onPlaybackFinishedCallback = onPlaybackFinishedWithoutRepeat;
 
     // Subscribe to our own stores to keep current values in sync
     this._volume.subscribe((value) => (this._currentVolume = value));
@@ -98,7 +93,8 @@ export class AudioService {
         });
       }
     } else {
-      this.onPlaybackFinishedCallback();
+      // Move to next track directly instead of using callback
+      trackStore.nextTrack();
     }
   };
 

@@ -5,7 +5,7 @@ These rules are absolute. No deviations. You must strictly follow every directiv
 ## General Rules
 
 * Never use emojis.
-* Never add comments.
+* NEVER add comments. Never describe what code does.
 * Never add docstrings descriptions to methods.
 * Responses must be laconic, neutral, and focused.
 * Always prioritize performance, security, maintainability, and correctness.
