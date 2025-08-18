@@ -224,6 +224,7 @@
 
 ## Current
 
+- [ ] Server events dont go to frontend on linux
 - [ ] PWA - music nog going next automatically, switch from effect
 - [ ] bug - deletion music kinda strange.. No event to frontend it seems?
 

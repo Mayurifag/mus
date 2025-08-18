@@ -6,7 +6,7 @@ import type { Track } from "$lib/types";
 vi.mock("$lib/services/apiClient", () => ({
   getStreamUrl: vi.fn(
     (trackId: number) =>
-      `http://localhost:8000/api/v1/tracks/${trackId}/stream`,
+      `http://localhost:8001/api/v1/tracks/${trackId}/stream`,
   ),
 }));
 
@@ -90,7 +90,7 @@ describe("AudioService", () => {
   it("should update audio source when track changes", () => {
     audioService.updateAudioSource(mockTrack, true);
 
-    expect(mockAudio.src).toBe("http://localhost:8000/api/v1/tracks/1/stream");
+    expect(mockAudio.src).toBe("http://localhost:8001/api/v1/tracks/1/stream");
     expect(mockAudio.load).toHaveBeenCalled();
   });
 

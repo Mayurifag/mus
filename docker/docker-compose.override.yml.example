@@ -20,7 +20,7 @@ x-volumes: &x-volumes
 services:
   backend:
     ports:
-      - "8000:8000"
+      - "8001:8001"
     volumes: *x-volumes
     environment:
       <<: *x-backend-environment
@@ -34,8 +34,8 @@ services:
       - app_node_modules:/app/node_modules
     environment:
       SECRET_KEY: dev_secret_key_please_change_in_production
-      VITE_INTERNAL_API_HOST: http://backend:8000
-      VITE_PUBLIC_API_HOST: http://localhost:8000
+      VITE_INTERNAL_API_HOST: http://backend:8001
+      VITE_PUBLIC_API_HOST: http://localhost:8001
     restart: unless-stopped
 
   redis:

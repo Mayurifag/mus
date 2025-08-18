@@ -1,18 +1,22 @@
+x-backend: &x-backend
+  build:
+    context: ..
+    dockerfile: docker/backend.Dockerfile
+    args:
+      USER_ID: ${USER_ID:-1000}
+      GROUP_ID: ${GROUP_ID:-1000}
+  restart: unless-stopped
+
 services:
   backend:
-    build:
-      context: ..
-      dockerfile: docker/backend.Dockerfile
-      args:
-        USER_ID: ${USER_ID:-1000}
-        GROUP_ID: ${GROUP_ID:-1000}
-    restart: unless-stopped
+    <<: *x-backend
 
   frontend:
     build:
       context: ..
       dockerfile: docker/frontend.Dockerfile
-    # I forgot why I added that maybe thats not needed anymore with auth (not sure). Maybe thats because I need to communicate to backend:8000 exactly somewhere
+    # I forgot why I added that maybe thats not needed anymore with auth (not sure).
+    # Maybe thats because I need to communicate to backend:8000 exactly somewhere
     extra_hosts:
       - "localhost:host-gateway"
 
@@ -21,12 +25,7 @@ services:
     restart: unless-stopped
 
   streaq-worker:
-    build:
-      context: ..
-      dockerfile: docker/backend.Dockerfile
-      args:
-        USER_ID: ${USER_ID:-1000}
-        GROUP_ID: ${GROUP_ID:-1000}
+    <<: *x-backend
     depends_on:
       redis:
         condition: service_started

@@ -25,6 +25,6 @@ RUN groupadd -g $GROUP_ID appgroup && useradd -u $USER_ID -g appgroup --create-h
 
 USER appuser
 
-EXPOSE 8000
+EXPOSE 8001
 
-CMD ["sh", "-c", "[ -f /app/requirements.txt ] && uv pip sync /app/requirements.txt; uvicorn src.mus.main:app --host 0.0.0.0 --port 8000 --reload --reload-delay 0.5"]
+CMD ["sh", "-c", "[ -f /app/requirements.txt ] && uv pip sync /app/requirements.txt; uvicorn src.mus.main:app --host 0.0.0.0 --port 8001 --reload --reload-delay 0.5"]

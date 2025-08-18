@@ -1,16 +1,14 @@
 import asyncio
 import logging
-import time
-from pathlib import Path
+import subprocess  # nosec B404
 
-import yt_dlp
+from pathlib import Path
 
 from src.mus.config import settings
 from src.mus.core.redis import get_redis_client, set_app_write_lock
 from src.mus.core.streaq_broker import worker
 from src.mus.infrastructure.api.sse_handler import notify_sse_from_worker
 from src.mus.infrastructure.jobs.file_system_jobs import handle_file_created
-
 
 @worker.task()
 async def download_track_from_url(url: str):
@@ -67,75 +65,54 @@ async def download_track_from_url(url: str):
 def _download_audio(url: str, logger: logging.Logger) -> str:
     output_dir = Path(settings.MUSIC_DIR_PATH)
     output_dir.mkdir(parents=True, exist_ok=True)
+    output_template = str(
+        output_dir / "%(artist,uploader|Unknown Artist)s - %(title)s.%(ext)s"
+    )
+    # yt-dlp binding not used because SponsorBlock did not work reliably
+    cmd = [
+        "yt-dlp",
+        "--format", "bestaudio/best",
+        "--extract-audio",
+        "--audio-format", "mp3",
+        "--audio-quality", "0",
+        "-o", output_template,
+        "--embed-thumbnail",
+        "--convert-thumbnails", "jpg",
+        "--embed-metadata",
+        "--parse-metadata", "title:%(title)s",
+        "--parse-metadata", "artist:%(artist,uploader|Unknown Artist)s",
+        "--sponsorblock-remove", "all",
+        "--embed-chapters",
+        "--concurrent-fragments", "3",
+        "--throttled-rate", "100K",
+        "--retries", "10",
+        "--no-playlist",
+        url,
+    ]
 
-    ydl_opts = {
-        "format": "bestaudio/best",
-        "outtmpl": str(
-            output_dir / "%(artist,uploader|Unknown Artist)s - %(title)s.%(ext)s"
-        ),
-        "extractaudio": True,
-        "audioformat": "mp3",
-        "audioquality": "0",
-        "postprocessors": [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "0",
-            },
-            {
-                "key": "EmbedThumbnail",
-                "already_have_thumbnail": False,
-            },
-            {
-                "key": "FFmpegMetadata",
-                "add_metadata": True,
-            },
-        ],
-        "writethumbnail": True,
-        "embedthumbnail": True,
-        "convertthumbnails": "jpg",
-        "embedmetadata": True,
-        "parse_metadata": [
-            "title:%(title)s",
-            "artist:%(artist,uploader|Unknown Artist)s",
-        ],
-        "sponsorblock_remove": [
-            "sponsor",
-            "selfpromo",
-            "interaction",
-            "intro",
-            "outro",
-            "preview",
-            "music_offtopic",
-        ],
-        "sponsorblock_chapter_title": "[SponsorBlock]: %(category)s",
-        "embedchapters": True,
-        "concurrent_fragment_downloads": 3,
-        "throttledratelimit": 100000,
-        "retries": 10,
-        "noplaylist": True,
-        "quiet": True,
-        "no_warnings": True,
-    }
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)  # nosec B603
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        try:
-            info = ydl.extract_info(url, download=False)
-            if not info:
-                raise Exception("Failed to extract video information")
+        # Parse yt-dlp output to get the actual filename
+        all_output = result.stdout + result.stderr
+        for line in all_output.split('\n'):
+            if '[ExtractAudio] Destination:' in line:
+                # Extract filename from: [ExtractAudio] Destination: /path/to/file.mp3
+                filename = line.split('Destination: ')[-1].strip()
+                if filename and Path(filename).exists():
+                    return filename
 
-            title = info.get("title", "Unknown")
-            logger.info(f"WORKER: Extracted info for: {title}")
+        # # Fallback: find the most recent mp3 file
+        # mp3_files = list(output_dir.glob("*.mp3"))
+        # if mp3_files:
+        #     latest_file = max(mp3_files, key=lambda f: f.stat().st_mtime)
+        #     return str(latest_file)
 
-            ydl.download([url])
-            logger.info(f"WORKER: Download completed for: {title}")
+        raise Exception("Downloaded file not found")
 
-            for file in output_dir.glob("*.mp3"):
-                if file.stat().st_mtime > (time.time() - 60):
-                    logger.info(f"WORKER: Found downloaded file: {file}")
-                    return str(file)
-
-            raise Exception(f"Downloaded file not found for: {title}")
-        except Exception as e:
-            logger.error(f"WORKER: yt-dlp error: {str(e)}")
-            raise
+    except subprocess.CalledProcessError as e:
+        logger.error(f"WORKER: yt-dlp subprocess error: {e.stderr}")
+        raise Exception(f"Download failed: {e.stderr}")
+    except Exception as e:
+        logger.error(f"WORKER: Download error: {str(e)}")
+        raise

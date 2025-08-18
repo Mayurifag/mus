@@ -47,7 +47,7 @@ docker build -f docker/production/production.Dockerfile -t "$E2E_IMAGE_NAME" .
 
 echo "Starting container..."
 docker run -d --name "$E2E_CONTAINER_NAME" \
-    -p "$E2E_HOST_PORT:8000" \
+    -p "$E2E_HOST_PORT:8001" \
     -e SECRET_KEY="$E2E_SECRET_KEY" \
     -e WATCHFILES_FORCE_POLLING=true \
     -v "$SCRIPT_DIR/music:/app_data/music:rw" \
