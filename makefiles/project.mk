@@ -3,4 +3,4 @@ ci: markdown-lint back-lint front-lint e2e-lint front-svelte-check front-test ba
 
 .PHONY: markdown-lint
 markdown-lint:
-	markdownlint-cli2
+	@$(DOCKER_COMPOSE_CMD) run --rm -v "$(PWD):/workspace" -w /workspace frontend npx markdownlint-cli2

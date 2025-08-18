@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import DownloadManager from "./DownloadManager.svelte";
 import { downloadStore } from "$lib/stores/downloadStore";
+import { permissionsStore } from "$lib/stores/permissionsStore";
 import * as apiClient from "$lib/services/apiClient";
 
 // Mock dependencies
@@ -28,6 +29,7 @@ describe("DownloadManager", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     downloadStore.reset();
+    permissionsStore.set({ can_write_music_files: true });
   });
 
   it("should render download form", () => {
@@ -248,6 +250,117 @@ describe("DownloadManager", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Completed")).toBeInTheDocument();
+    });
+  });
+
+  describe("Permission-based rendering", () => {
+    it("should render download UI when write permissions are available", () => {
+      permissionsStore.set({ can_write_music_files: true });
+
+      render(DownloadManager);
+
+      expect(screen.getByText("Download from URL")).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText(
+          "Enter YouTube URL or other supported link",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /download/i }),
+      ).toBeInTheDocument();
+    });
+
+    it("should show permission denied message when write permissions are not available", () => {
+      permissionsStore.set({ can_write_music_files: false });
+
+      render(DownloadManager);
+
+      expect(screen.getByText("Download from URL")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "Download not available - music directory is read-only",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByPlaceholderText(
+          "Enter YouTube URL or other supported link",
+        ),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /download/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("should hide input and button when permissions are revoked", () => {
+      // Start with permissions
+      permissionsStore.set({ can_write_music_files: true });
+      const { rerender } = render(DownloadManager);
+
+      expect(
+        screen.getByPlaceholderText(
+          "Enter YouTube URL or other supported link",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /download/i }),
+      ).toBeInTheDocument();
+
+      // Revoke permissions
+      permissionsStore.set({ can_write_music_files: false });
+      rerender({});
+
+      expect(
+        screen.getByText(
+          "Download not available - music directory is read-only",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByPlaceholderText(
+          "Enter YouTube URL or other supported link",
+        ),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /download/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("should show download UI when permissions are granted", () => {
+      // Start without permissions
+      permissionsStore.set({ can_write_music_files: false });
+      const { rerender } = render(DownloadManager);
+
+      expect(
+        screen.getByText(
+          "Download not available - music directory is read-only",
+        ),
+      ).toBeInTheDocument();
+
+      // Grant permissions
+      permissionsStore.set({ can_write_music_files: true });
+      rerender({});
+
+      expect(
+        screen.getByPlaceholderText(
+          "Enter YouTube URL or other supported link",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /download/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(
+          "Download not available - music directory is read-only",
+        ),
+      ).not.toBeInTheDocument();
+    });
+
+    it("should show lock icon in permission denied message", () => {
+      permissionsStore.set({ can_write_music_files: false });
+
+      render(DownloadManager);
+
+      const lockIcon = screen.getByTestId("lock-icon");
+      expect(lockIcon).toBeInTheDocument();
     });
   });
 });

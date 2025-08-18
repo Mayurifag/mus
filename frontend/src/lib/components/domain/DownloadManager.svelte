@@ -1,9 +1,16 @@
 <script lang="ts">
   import { downloadStore } from "$lib/stores/downloadStore";
+  import { permissionsStore } from "$lib/stores/permissionsStore";
   import { startDownload } from "$lib/services/apiClient";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
-  import { Download, Loader2, AlertCircle, CheckCircle } from "@lucide/svelte";
+  import {
+    Download,
+    Loader2,
+    AlertCircle,
+    CheckCircle,
+    Lock,
+  } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
 
   let url = $state("");
@@ -56,6 +63,7 @@
   const isDownloading = $derived($downloadStore.state === "downloading");
   const isCompleted = $derived($downloadStore.state === "completed");
   const hasError = $derived($downloadStore.state === "failed");
+  const canWriteFiles = $derived($permissionsStore.can_write_music_files);
 
   $effect(() => {
     if (isCompleted) {
@@ -72,45 +80,56 @@
     Download from URL
   </h4>
 
-  <div class="space-y-3">
-    <Input
-      bind:value={url}
-      placeholder="Enter YouTube URL or other supported link"
-      disabled={isDownloading}
-      onkeydown={handleKeydown}
-      class="bg-muted/30 border-border/50 placeholder:text-muted-foreground/60 focus:border-accent/50 focus:ring-accent/20 text-sm"
-    />
+  {#if canWriteFiles}
+    <div class="space-y-3">
+      <Input
+        bind:value={url}
+        placeholder="Enter YouTube URL or other supported link"
+        disabled={isDownloading}
+        onkeydown={handleKeydown}
+        class="bg-muted/30 border-border/50 placeholder:text-muted-foreground/60 focus:border-accent/50 focus:ring-accent/20 text-sm"
+      />
 
-    <Button
-      onclick={handleDownload}
-      disabled={isDownloading || isCompleted || !url.trim()}
-      size="sm"
-      class="w-full font-medium transition-all duration-200 {isDownloading ||
-      isCompleted
-        ? 'cursor-not-allowed opacity-70'
-        : ''} {isCompleted
-        ? 'bg-green-600 hover:bg-green-600'
-        : 'bg-accent hover:bg-accent/90'} text-accent-foreground"
-    >
-      {#if isDownloading}
-        <Loader2 class="mr-2 h-4 w-4 animate-spin" />
-        Downloading...
-      {:else if isCompleted}
-        <CheckCircle class="mr-2 h-4 w-4" />
-        Completed
-      {:else}
-        <Download class="mr-2 h-4 w-4" />
-        Download
-      {/if}
-    </Button>
-
-    {#if hasError && $downloadStore.error}
-      <div
-        class="bg-destructive/10 text-destructive flex items-center gap-2 rounded-md p-2 text-sm"
+      <Button
+        onclick={handleDownload}
+        disabled={isDownloading || isCompleted || !url.trim()}
+        size="sm"
+        class="w-full font-medium transition-all duration-200 {isDownloading ||
+        isCompleted
+          ? 'cursor-not-allowed opacity-70'
+          : ''} {isCompleted
+          ? 'bg-green-600 hover:bg-green-600'
+          : 'bg-accent hover:bg-accent/90'} text-accent-foreground"
       >
-        <AlertCircle size={14} class="flex-shrink-0" />
-        <span class="flex-1">{$downloadStore.error}</span>
-      </div>
-    {/if}
-  </div>
+        {#if isDownloading}
+          <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+          Downloading...
+        {:else if isCompleted}
+          <CheckCircle class="mr-2 h-4 w-4" />
+          Completed
+        {:else}
+          <Download class="mr-2 h-4 w-4" />
+          Download
+        {/if}
+      </Button>
+
+      {#if hasError && $downloadStore.error}
+        <div
+          class="bg-destructive/10 text-destructive flex items-center gap-2 rounded-md p-2 text-sm"
+        >
+          <AlertCircle size={14} class="flex-shrink-0" />
+          <span class="flex-1">{$downloadStore.error}</span>
+        </div>
+      {/if}
+    </div>
+  {:else}
+    <div
+      class="bg-muted/20 text-muted-foreground flex items-center gap-2 rounded-md p-3 text-sm"
+    >
+      <Lock size={16} class="flex-shrink-0" data-testid="lock-icon" />
+      <span class="flex-1">
+        Download not available - music directory is read-only
+      </span>
+    </div>
+  {/if}
 </div>

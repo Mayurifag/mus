@@ -24,8 +24,16 @@ async def test_initiate_download_success(client):
             "src.mus.infrastructure.jobs.download_jobs.download_track_from_url.enqueue",
             new_callable=AsyncMock,
         ) as mock_enqueue,
+        patch(
+            "src.mus.infrastructure.api.routers.download_router.get_permissions_service"
+        ) as mock_get_permissions,
     ):
         mock_get_redis.return_value = mock_redis
+
+        # Mock permissions service with write access
+        mock_permissions = AsyncMock()
+        mock_permissions.can_write_music_files = True
+        mock_get_permissions.return_value = mock_permissions
 
         response = client.post(
             "/api/v1/downloads/url", json={"url": "https://example.com/video"}
@@ -37,15 +45,46 @@ async def test_initiate_download_success(client):
 
 
 @pytest.mark.asyncio
+async def test_initiate_download_no_write_permissions(client):
+    with patch(
+        "src.mus.infrastructure.api.routers.download_router.get_permissions_service"
+    ) as mock_get_permissions:
+        # Mock permissions service without write access
+        mock_permissions = AsyncMock()
+        mock_permissions.can_write_music_files = False
+        mock_get_permissions.return_value = mock_permissions
+
+        response = client.post(
+            "/api/v1/downloads/url", json={"url": "https://example.com/video"}
+        )
+
+        assert response.status_code == 403
+        assert (
+            response.json()["detail"]
+            == "Download not available - insufficient write permissions to music directory"
+        )
+
+
+@pytest.mark.asyncio
 async def test_initiate_download_lock_already_exists(client):
     mock_redis = AsyncMock()
     mock_redis.set.return_value = False  # Lock already exists
     mock_redis.aclose = AsyncMock()
 
-    with patch(
-        "src.mus.infrastructure.api.routers.download_router.get_redis_client"
-    ) as mock_get_redis:
+    with (
+        patch(
+            "src.mus.infrastructure.api.routers.download_router.get_redis_client"
+        ) as mock_get_redis,
+        patch(
+            "src.mus.infrastructure.api.routers.download_router.get_permissions_service"
+        ) as mock_get_permissions,
+    ):
         mock_get_redis.return_value = mock_redis
+
+        # Mock permissions service with write access
+        mock_permissions = AsyncMock()
+        mock_permissions.can_write_music_files = True
+        mock_get_permissions.return_value = mock_permissions
 
         response = client.post(
             "/api/v1/downloads/url", json={"url": "https://example.com/video"}

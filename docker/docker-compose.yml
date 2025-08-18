@@ -3,6 +3,9 @@ services:
     build:
       context: ..
       dockerfile: docker/backend.Dockerfile
+      args:
+        USER_ID: ${USER_ID:-1000}
+        GROUP_ID: ${GROUP_ID:-1000}
     restart: unless-stopped
 
   frontend:
@@ -21,6 +24,9 @@ services:
     build:
       context: ..
       dockerfile: docker/backend.Dockerfile
+      args:
+        USER_ID: ${USER_ID:-1000}
+        GROUP_ID: ${GROUP_ID:-1000}
     depends_on:
       redis:
         condition: service_started

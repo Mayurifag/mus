@@ -1,4 +1,4 @@
-DOCKER_COMPOSE_CMD := docker compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml
+DOCKER_COMPOSE_CMD := USER_ID=$$(id -u) GROUP_ID=$$(id -g) docker compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml
 DOCKER_PROD_CMD := docker build -f docker/production/production.Dockerfile
 
 .PHONY: up

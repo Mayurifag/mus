@@ -6,6 +6,9 @@ ENV DATA_DIR_PATH=/app_data
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
@@ -15,7 +18,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd -r appgroup && useradd -r -g appgroup --create-home appuser \
+RUN groupadd -g $GROUP_ID appgroup && useradd -u $USER_ID -g appgroup --create-home appuser \
     && mkdir -p $DATA_DIR_PATH/database $DATA_DIR_PATH/covers $DATA_DIR_PATH/music \
     && uv venv /opt/venv \
     && chown -R appuser:appgroup /app /opt/venv $DATA_DIR_PATH /home/appuser

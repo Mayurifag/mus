@@ -6,7 +6,9 @@
   },
   "fix": true,
   "globs": [
-    "**/*.{md,markdown}"
+    "**/*.{md,markdown}",
+    "!**/node_modules/**",
+    "!**/.venv/**"
   ],
   "noBanner": true
 }
