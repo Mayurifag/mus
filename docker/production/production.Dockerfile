@@ -8,7 +8,7 @@ RUN npm ci --no-fund --prefer-offline \
     ;
 
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS backend-builder
-ENV PYTHONUNBUFFERED=1
+
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
@@ -16,13 +16,22 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         build-essential \
         gcc \
         libvips-dev
-WORKDIR /app/backend_build_temp
-RUN uv venv /opt/venv
-ENV VIRTUAL_ENV=/opt/venv
+
+ENV PYTHONUNBUFFERED=1 \
+    VIRTUAL_ENV=/opt/venv \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PYTHON_DOWNLOADS=never
 ENV PATH="/opt/venv/bin:$PATH"
-COPY backend/pyproject.toml backend/README.md* ./
+
+WORKDIR /app/backend
+
+COPY backend/pyproject.toml backend/uv.lock backend/README.md* ./
 COPY backend/src ./src
-RUN uv pip install --no-cache .
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --no-editable
 
 FROM python:3.13-slim-bookworm
 ARG TARGETARCH
@@ -64,8 +73,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 
-ARG UID=10001
-ARG GID=10001
+ARG UID=1000
+ARG GID=1000
 RUN groupadd --gid ${GID} appgroup && \
     useradd --uid ${UID} --gid ${GID} --shell /bin/bash --create-home appuser
 

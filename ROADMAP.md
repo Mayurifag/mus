@@ -237,6 +237,7 @@
 - [ ] is it fine that supervisord from root starts nginx not appuser
 - [ ] imba feature: on startup we check music folder and for files there
 - [ ] after yt-dlp we have to fire modal with saving
+- [ ] redis pub-sub for events
 - [ ] On Edit - if im not mistaken we do not check if file with same name exists, we should show UI warning and prevent save on such cases! that is server check
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while. UDP - do not need to wait 200.
 - [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
