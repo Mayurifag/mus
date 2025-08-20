@@ -4,7 +4,7 @@ WORKDIR /app
 
 ENV DATA_DIR_PATH=/app_data
 # ENV VIRTUAL_ENV=/opt/venv
-# ENV PATH="/opt/venv/bin:$PATH"
+ENV PATH="/opt/venv/bin:$PATH"
 
 ARG USER_ID=1000
 ARG GROUP_ID=1000

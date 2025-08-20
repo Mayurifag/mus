@@ -276,7 +276,7 @@
     </div>
   </main>
 
-  <Toaster position="top-left" />
+  <Toaster position="top-right" />
 
   <!-- Desktop Sidebar - positioned fixed on the right -->
   <aside

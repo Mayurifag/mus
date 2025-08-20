@@ -43,7 +43,7 @@ docker-test-prod: docker-test-prod-stop
 	@echo "Starting production container with music folder from override config..."
 	@MUSIC_PATH=$$(grep -A 15 "backend:" docker/docker-compose.override.yml | grep "/app_data/music" | sed 's/.*- \([^:]*\):.*/\1/' | xargs) && \
 	echo "Using music path: $$MUSIC_PATH" && \
-	docker run -d --name mus-prod-test -p 4124:8001 \
+	docker run -d --name mus-prod-test -p 4124:8000 \
 		-e SECRET_KEY=test-secret-key-123 \
 		-v "$$MUSIC_PATH":/app_data/music \
 		mus:test
