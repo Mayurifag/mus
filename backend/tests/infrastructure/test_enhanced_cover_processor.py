@@ -21,21 +21,10 @@ def sample_image_data():
     return buffer
 
 
-@pytest.fixture(scope="function")
-def temp_covers_dir():
-    test_dir_name = "./test_covers_func_ecp"
-    test_dir = Path(test_dir_name)
-    if test_dir.exists():
-        shutil.rmtree(test_dir)
-    os.makedirs(test_dir, exist_ok=True)
-    yield test_dir
-    shutil.rmtree(test_dir)
-
-
 @pytest.fixture
-def cover_processor(temp_covers_dir: Path):
+def cover_processor(tmp_path: Path):
     """Create a CoverProcessor instance with a temporary directory for each test."""
-    processor = CoverProcessor(covers_dir_path=temp_covers_dir)
+    processor = CoverProcessor(covers_dir_path=tmp_path)
     return processor
 
 
