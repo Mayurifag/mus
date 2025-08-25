@@ -4,7 +4,9 @@
   "description": "E2E testing suite for mus",
   "type": "module",
   "scripts": {
-    "test": "playwright test",
+    "test:e2e": "./run-tests.sh headless",
+    "test:e2e:headed": "./run-tests.sh headed",
+    "test:e2e:debug": "./run-tests.sh debug",
     "cleanup": "./cleanup.sh",
     "lint": "npx tsc --noEmit"
   },

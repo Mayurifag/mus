@@ -11,6 +11,12 @@ E2E_TIMEOUT=12
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+MODE="${1:-headless}"
+
+case "$MODE" in
+    headless|headed|debug) ;;
+    *) echo "Usage: $0 [headless|headed|debug]"; exit 1 ;;
+esac
 
 cleanup() {
     if docker ps -q -f name="$E2E_CONTAINER_NAME" | grep -q .; then
@@ -36,9 +42,9 @@ if docker ps -aq -f name="$E2E_CONTAINER_NAME" | grep -q .; then
     docker rm "$E2E_CONTAINER_NAME" 2>/dev/null || true
 fi
 
-echo "Building production Docker image..."
-cd "$PROJECT_ROOT"
-docker build -f docker/production/production.Dockerfile -t "$E2E_IMAGE_NAME" .
+echo "Installing Playwright dependencies..."
+cd "$SCRIPT_DIR"
+npm ci --no-audit --no-fund --prefer-offline
 
 echo "Starting container..."
 docker run -d --name "$E2E_CONTAINER_NAME" \
@@ -83,14 +89,10 @@ if [ $timeout -le 0 ]; then
     exit 1
 fi
 
+echo "Running E2E tests..."
 cd "$SCRIPT_DIR"
-# docker build -t "$E2E_PLAYWRIGHT_IMAGE_NAME" .
-
-# echo "Running E2E tests..."
-# docker run --rm --network host \
-#     -v "$SCRIPT_DIR/test-results:/e2e/test-results" \
-#     -v "$SCRIPT_DIR/playwright-report:/e2e/playwright-report" \
-#     -v "$SCRIPT_DIR/playwright/.auth:/e2e/playwright/.auth" \
-#     "$E2E_PLAYWRIGHT_IMAGE_NAME"
-
-npx playwright test
+case "$MODE" in
+    headed) npx playwright test --headed ;;
+    debug) npx playwright test --debug ;;
+    *) npx playwright test ;;
+esac
