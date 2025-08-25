@@ -19,12 +19,6 @@ vi.mock("svelte-sonner", () => ({
   },
 }));
 
-vi.mock("svelte-sonner", () => ({
-  toast: {
-    error: vi.fn(),
-  },
-}));
-
 describe("DownloadManager", () => {
   beforeEach(() => {
     vi.clearAllMocks();

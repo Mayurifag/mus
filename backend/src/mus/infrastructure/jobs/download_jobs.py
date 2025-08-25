@@ -1,14 +1,22 @@
 import asyncio
 import logging
 import subprocess  # nosec B404
-
 from pathlib import Path
+from urllib.parse import urlparse
 
 from src.mus.config import settings
 from src.mus.core.redis import get_redis_client, set_app_write_lock
 from src.mus.core.streaq_broker import worker
 from src.mus.infrastructure.api.sse_handler import notify_sse_from_worker
 from src.mus.infrastructure.jobs.file_system_jobs import handle_file_created
+
+
+def _validate_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url)
+        return parsed.scheme in ["http", "https"] and bool(parsed.netloc)
+    except Exception:
+        return False
 
 
 @worker.task()
@@ -24,6 +32,9 @@ async def download_track_from_url(url: str):
     )
 
     try:
+        if not _validate_url(url):
+            raise ValueError("Invalid URL format")
+
         output_path = await asyncio.to_thread(_download_audio, url, logger)
 
         await set_app_write_lock(output_path)
@@ -103,28 +114,34 @@ def _download_audio(url: str, logger: logging.Logger) -> str:
     ]
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)  # nosec B603
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, check=True, timeout=600
+        )  # nosec B603
 
         # Parse yt-dlp output to get the actual filename
         all_output = result.stdout + result.stderr
+        music_dir = Path(settings.MUSIC_DIR_PATH).resolve()
         for line in all_output.split("\n"):
             if "[ExtractAudio] Destination:" in line:
                 # Extract filename from: [ExtractAudio] Destination: /path/to/file.mp3
-                filename = line.split("Destination: ")[-1].strip()
-                if filename and Path(filename).exists():
-                    return filename
-
-        # # Fallback: find the most recent mp3 file
-        # mp3_files = list(output_dir.glob("*.mp3"))
-        # if mp3_files:
-        #     latest_file = max(mp3_files, key=lambda f: f.stat().st_mtime)
-        #     return str(latest_file)
+                filename_str = line.split("Destination: ")[-1].strip()
+                if filename_str:
+                    output_file = Path(filename_str).resolve()
+                    if output_file.is_relative_to(music_dir) and output_file.exists():
+                        return str(output_file)
+                    else:
+                        logger.warning(
+                            f"WORKER: yt-dlp reported a file outside of music directory: {filename_str}"
+                        )
 
         raise Exception("Downloaded file not found")
 
+    except subprocess.TimeoutExpired as e:
+        logger.error(f"WORKER: yt-dlp subprocess timed out: {e.stderr}")
+        raise Exception("Download timed out after 10 minutes") from e
     except subprocess.CalledProcessError as e:
         logger.error(f"WORKER: yt-dlp subprocess error: {e.stderr}")
-        raise Exception(f"Download failed: {e.stderr}")
+        raise Exception(f"Download failed: {e.stderr}") from e
     except Exception as e:
         logger.error(f"WORKER: Download error: {str(e)}")
         raise
