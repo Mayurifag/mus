@@ -61,11 +61,12 @@
   $effect(() => {
     updateEffectStats("TrackList_VirtualizerSetup");
 
+    // TODO: we probably can use array length or size from backend
     if (browser) {
       virtualizer = createWindowVirtualizer({
         count: tracks.length,
         estimateSize: () => 72,
-        overscan: 15,
+        overscan: 500,
         getScrollElement: () => window,
       });
     }
