@@ -168,5 +168,5 @@ websockets==15.0.1
     # via uvicorn
 wrapt==1.17.2
     # via deprecated
-yt-dlp==2025.7.21
+yt-dlp==2025.8.22
     # via mus (pyproject.toml)
