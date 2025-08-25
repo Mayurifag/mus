@@ -8,6 +8,7 @@ ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV VIRTUAL_ENV=/opt/venv
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv
+ENV RUFF_CACHE_DIR=/tmp/.ruff_cache
 
 ARG USER_ID=1000
 ARG GROUP_ID=1000
@@ -24,7 +25,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 RUN groupadd -g $GROUP_ID appgroup && useradd -u $USER_ID -g appgroup --create-home appuser \
     && mkdir -p $DATA_DIR_PATH/database $DATA_DIR_PATH/covers $DATA_DIR_PATH/music \
     && uv venv /opt/venv \
-    && mkdir -p /app/.ruff_cache \
     && chown -R appuser:appgroup /app /opt/venv $DATA_DIR_PATH /home/appuser
 
 USER appuser
