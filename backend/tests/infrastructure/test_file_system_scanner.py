@@ -11,9 +11,9 @@ from src.mus.infrastructure.scanner.file_system_scanner import FileSystemScanner
 
 
 @pytest.fixture
-def test_music_dir():
+def test_music_dir(tmp_path: Path):
     """Create a temporary test music directory with nested folders and test files."""
-    base_dir = Path("./test_music")
+    base_dir = tmp_path / "test_music"
     dirs_to_create = [
         base_dir,
         base_dir / "album1",
@@ -23,7 +23,7 @@ def test_music_dir():
         base_dir / "empty_dir",
     ]
     for d in dirs_to_create:
-        os.makedirs(d, exist_ok=True)
+        d.mkdir(exist_ok=True)
 
     files_to_create = {
         base_dir / "track1.mp3": "",
@@ -38,15 +38,6 @@ def test_music_dir():
     for f_path, content in files_to_create.items():
         f_path.write_text(content)
     yield base_dir
-    for f_path in files_to_create:
-        if f_path.exists():
-            os.remove(f_path)
-    for d in reversed(dirs_to_create):
-        if d.exists():
-            try:
-                os.rmdir(d)
-            except OSError:
-                pass
 
 
 @pytest.fixture
@@ -56,18 +47,11 @@ def file_system_scanner(test_music_dir):
 
 
 @pytest.fixture
-def custom_music_dir():
+def custom_music_dir(tmp_path: Path):
     """Create a temporary custom music directory."""
-    base_dir = Path("./custom_music")
-    os.makedirs(base_dir, exist_ok=True)
-
+    base_dir = tmp_path / "custom_music"
+    base_dir.mkdir(exist_ok=True)
     yield base_dir
-
-    if base_dir.exists():
-        try:
-            os.rmdir(base_dir)
-        except OSError:
-            pass
 
 
 @pytest.mark.asyncio
@@ -128,9 +112,9 @@ async def test_scan_directories(file_system_scanner, test_music_dir):
 
 
 @pytest.mark.asyncio
-async def test_nonexistent_directory(file_system_scanner):
+async def test_nonexistent_directory(file_system_scanner, tmp_path: Path):
     """Test handling of nonexistent directories."""
-    nonexistent_dir = Path("./dir_that_does_not_exist")
+    nonexistent_dir = tmp_path / "dir_that_does_not_exist"
 
     # Should not raise an exception
     files = []

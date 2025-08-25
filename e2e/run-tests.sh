@@ -41,9 +41,9 @@ if docker ps -aq -f name="$E2E_CONTAINER_NAME" | grep -q .; then
     docker rm "$E2E_CONTAINER_NAME" 2>/dev/null || true
 fi
 
-echo "Building production Docker image..."
-cd "$PROJECT_ROOT"
-docker build -f docker/production/production.Dockerfile -t "$E2E_IMAGE_NAME" .
+echo "Installing Playwright dependencies..."
+cd "$SCRIPT_DIR"
+npm ci --no-audit --no-fund --prefer-offline
 
 echo "Starting container..."
 docker run -d --name "$E2E_CONTAINER_NAME" \
@@ -88,15 +88,10 @@ if [ $timeout -le 0 ]; then
     exit 1
 fi
 
-echo "Installing Playwright dependencies..."
-cd "$SCRIPT_DIR"
-npm ci --no-audit --no-fund --prefer-offline
-
 echo "Running E2E tests..."
+cd "$SCRIPT_DIR"
 case "$MODE" in
     headed) npx playwright test --headed ;;
     debug) npx playwright test --debug ;;
     *) npx playwright test ;;
 esac
-
-echo "E2E tests completed successfully!"

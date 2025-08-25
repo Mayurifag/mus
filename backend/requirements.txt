@@ -41,7 +41,9 @@ ffmpeg-python==0.2.0
 future==1.0.0
     # via ffmpeg-python
 greenlet==3.2.3
-    # via mus (pyproject.toml)
+    # via
+    #   mus (pyproject.toml)
+    #   sqlalchemy
 h11==0.16.0
     # via
     #   httpcore
@@ -166,3 +168,5 @@ websockets==15.0.1
     # via uvicorn
 wrapt==1.17.2
     # via deprecated
+yt-dlp==2025.7.21
+    # via mus (pyproject.toml)

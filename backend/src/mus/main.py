@@ -13,6 +13,7 @@ from src.mus.config import settings
 from src.mus.infrastructure.api.permissions_singleton import permissions_service
 from src.mus.infrastructure.api.routers import (
     auth_router,
+    download_router,
     errors_router,
     permissions_router,
     player_router,
@@ -66,6 +67,7 @@ if settings.APP_ENV != "production":
     )
 
 app.include_router(auth_router.router)
+app.include_router(download_router.router)
 app.include_router(player_router.router)
 app.include_router(track_router.router)
 app.include_router(permissions_router.router)

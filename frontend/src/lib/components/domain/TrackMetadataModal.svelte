@@ -27,6 +27,9 @@
     suggestedArtist,
     coverDataUrl,
     metadata,
+    isDownload = false,
+    onDownloadConfirm,
+    onClose,
   }: {
     open: boolean;
     mode: "edit" | "create";
@@ -36,6 +39,9 @@
     suggestedArtist?: string;
     coverDataUrl?: string | null;
     metadata?: AudioMetadata;
+    isDownload?: boolean;
+    onDownloadConfirm?: (title: string, artist: string) => Promise<void>;
+    onClose?: () => void;
   } = $props();
 
   let confirmDeleteOpen = $state(false);
@@ -120,6 +126,9 @@
   function handleOpenChange(newOpen: boolean) {
     if (!newOpen) {
       open = false;
+      if (onClose) {
+        onClose();
+      }
     }
   }
 
@@ -176,8 +185,26 @@
   async function handleSave() {
     if (mode === "create" && file) {
       await handleUpload();
+    } else if (mode === "create" && isDownload && onDownloadConfirm) {
+      await handleDownloadConfirm();
     } else if (mode === "edit" && track) {
       await handleUpdate();
+    }
+  }
+
+  async function handleDownloadConfirm() {
+    if (!onDownloadConfirm) return;
+
+    isUploading = true;
+    try {
+      await onDownloadConfirm(sanitizedTitle, currentArtistString);
+      toast.success("Track added successfully");
+      open = false;
+    } catch (error) {
+      console.error("Error confirming download:", error);
+      toast.error("Failed to add track");
+    } finally {
+      isUploading = false;
     }
   }
 

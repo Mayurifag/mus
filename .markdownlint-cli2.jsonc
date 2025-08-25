@@ -1,0 +1,15 @@
+{
+  "config": {
+    "MD013": {
+      "line_length": 222
+    }
+  },
+  "fix": true,
+  "globs": [
+    "**/*.{md,markdown}",
+    "!**/node_modules/**",
+    "!**/.venv/**",
+    "!AGENT_TASKS/**"
+  ],
+  "noBanner": true
+}

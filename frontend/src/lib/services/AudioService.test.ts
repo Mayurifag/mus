@@ -1,19 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AudioService } from "./AudioService";
 import type { Track } from "$lib/types";
+import { trackStore } from "$lib/stores/trackStore";
 
 // Mock the apiClient module
 vi.mock("$lib/services/apiClient", () => ({
   getStreamUrl: vi.fn(
     (trackId: number) =>
-      `http://localhost:8000/api/v1/tracks/${trackId}/stream`,
+      `http://localhost:8001/api/v1/tracks/${trackId}/stream`,
   ),
+}));
+
+// Mock the trackStore module
+vi.mock("$lib/stores/trackStore", () => ({
+  trackStore: {
+    nextTrack: vi.fn(),
+  },
 }));
 
 describe("AudioService", () => {
   let audioService: AudioService;
   let mockAudio: HTMLAudioElement;
-  let mockOnPlaybackFinished: ReturnType<typeof vi.fn>;
 
   const mockTrack: Track = {
     id: 1,
@@ -50,10 +57,10 @@ describe("AudioService", () => {
       },
     } as unknown as HTMLAudioElement;
 
-    // Create mock callback
-    mockOnPlaybackFinished = vi.fn();
+    audioService = new AudioService(mockAudio);
 
-    audioService = new AudioService(mockAudio, mockOnPlaybackFinished);
+    // Reset mock calls
+    vi.mocked(trackStore.nextTrack).mockClear();
   });
 
   it("should set up event listeners on construction", () => {
@@ -90,7 +97,7 @@ describe("AudioService", () => {
   it("should update audio source when track changes", () => {
     audioService.updateAudioSource(mockTrack, true);
 
-    expect(mockAudio.src).toBe("http://localhost:8000/api/v1/tracks/1/stream");
+    expect(mockAudio.src).toBe("http://localhost:8001/api/v1/tracks/1/stream");
     expect(mockAudio.load).toHaveBeenCalled();
   });
 
@@ -227,7 +234,7 @@ describe("AudioService", () => {
     );
   });
 
-  it("should call onPlaybackFinishedCallback when track ends without repeat", () => {
+  it("should call trackStore.nextTrack when track ends without repeat", () => {
     audioService.setRepeat(false);
 
     const addEventListenerMock =
@@ -238,10 +245,10 @@ describe("AudioService", () => {
 
     endedHandler();
 
-    expect(mockOnPlaybackFinished).toHaveBeenCalled();
+    expect(trackStore.nextTrack).toHaveBeenCalled();
   });
 
-  it("should not call onPlaybackFinishedCallback when track ends with repeat", () => {
+  it("should not call trackStore.nextTrack when track ends with repeat", () => {
     audioService.setRepeat(true);
 
     const addEventListenerMock =
@@ -252,7 +259,7 @@ describe("AudioService", () => {
 
     endedHandler();
 
-    expect(mockOnPlaybackFinished).not.toHaveBeenCalled();
+    expect(trackStore.nextTrack).not.toHaveBeenCalled();
     expect(mockAudio.play).toHaveBeenCalled();
   });
 

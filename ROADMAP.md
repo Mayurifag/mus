@@ -10,7 +10,7 @@
 - [x] Fix frontend
 - [x] move next track out of audioService, think how. Maybe thats good case for effect. This effect has to change web title!
 - [x] Move all dependencies to devDependencies. Eliminate usage of xior and use fetch
-- [x] Try to go with https://github.com/unplugin/unplugin-icons - use lucide there
+- [x] Try to go with <https://github.com/unplugin/unplugin-icons> - use lucide there
 - [x] Bug - after loading page, if we select another track, it will not play. Check it.
 - [x] Remove time since added from trackitem and also remove date-fns
 - [x] Why we have +page.svelte and +layout.svelte? Should not that be only one?
@@ -18,7 +18,7 @@
 - [x] Analyze all css methods which update several states in once. Make them with different methods. Remove all $: and refactor to svelte 5.
 - [x] Divide frontend into components: footer / sidebar / tracklist, etc.
 - [x] Style progress bar so it would be equal like tracklist' one. Remove styling from TrackItem.svelte.
-- [x] Move to vscode, update workflow, aliases. Adapt this workflow. Remove cursorrules. Update all snippets. https://www.chatprd.ai/resources/PRD-for-Cursor - browsermcp.io
+- [x] Move to vscode, update workflow, aliases. Adapt this workflow. Remove cursorrules. Update all snippets.
 - [x] Implement and display per-track buffered time ranges using a new BufferedRangesService and update Slider.svelte to render these ranges.
 - [x] css to fix too large music files names
 - [x] ai workflow Tasks - use just task.md everywhere. Use single backticks. There has to be no step like "review" or "ci" or something.
@@ -63,29 +63,29 @@
 - [x] Production problems - doesnt redirect correctly on token. Login on mobile doesnt get nice link.
 - [x] sliders - beginning a bit filled; end not filled a bit
 - [x] **Foundation: Database & Queues**
-    - [x] Enhance `Track` schema with `inode` and `content_hash` for robust file tracking.
-        - [x] Add `processing_status: str` enum (`PENDING`, `METADATA_DONE`, `ART_DONE`, `COMPLETE`, `ERROR`).
-        - [x] Add `last_error_message: str | None`.
-    - [x] Tune SQLite for concurrency by enabling WAL mode and a busy timeout. Maybe other tuning as well
-        - [x] Enable `PRAGMA journal_mode=WAL` and `PRAGMA synchronous = NORMAL` on all connections.
-        - [x] Set `PRAGMA busy_timeout` to 5000ms.
-    - [x] Set up a task queue system (e.g., RQ) using DragonflyDB as the broker. Be sure you do it fine inside production image.
-        - [x] Add `dragonfly` service to `docker-compose.yml` for local development.
-        - [x] Add DragonflyDB installation to the production Dockerfile.
-        - [x] Add `[program:dragonfly]` and `[program:rq-worker]` to `supervisord.conf`.
-        - [x] Use two queues: `high_priority` for file events and `low_priority` for analysis (covers, ffprobe, etc.). Those will be just two tasks. Analysis will be one file but with functionality from different files.
+  - [x] Enhance `Track` schema with `inode` and `content_hash` for robust file tracking.
+    - [x] Add `processing_status: str` enum (`PENDING`, `METADATA_DONE`, `ART_DONE`, `COMPLETE`, `ERROR`).
+    - [x] Add `last_error_message: str | None`.
+  - [x] Tune SQLite for concurrency by enabling WAL mode and a busy timeout. Maybe other tuning as well
+    - [x] Enable `PRAGMA journal_mode=WAL` and `PRAGMA synchronous = NORMAL` on all connections.
+    - [x] Set `PRAGMA busy_timeout` to 5000ms.
+  - [x] Set up a task queue system (e.g., RQ) using DragonflyDB as the broker. Be sure you do it fine inside production image.
+    - [x] Add `dragonfly` service to `docker-compose.yml` for local development.
+    - [x] Add DragonflyDB installation to the production Dockerfile.
+    - [x] Add `[program:dragonfly]` and `[program:rq-worker]` to `supervisord.conf`.
+    - [x] Use two queues: `high_priority` for file events and `low_priority` for analysis (covers, ffprobe, etc.). Those will be just two tasks. Analysis will be one file but with functionality from different files.
 - [x] **Core Processing Pipeline**
-    - [x] Implement `watchdog` to monitor the music directory for real-time file changes (`created`, `modified`, `deleted`, `moved`).
-    - [x] Remove all current code about processing files. We will start from scratch!!
-    - [x] On startup, perform an initial full scan that populates the database or the queue before the watcher takes over.
-        - [x] This scan will synchronously extract fast metadata (`mutagen`) in batches and save to the DB. It will then enqueue slower tasks (covers, duration) to the `low_priority` queue.
-    - [x] Create an asynchronous worker to process `created` and `modified` events for metadata extraction and accurate duration analysis (using FFprobe).
-    - [x] Create a dedicated worker for cover art extraction and processing, triggered after successful metadata processing.
-    - [x] Create a dedicated worker to handle `deleted` events, ensuring tracks and their associated covers are removed.
-    - [x] Implement logic to handle `moved` events by updating the file path based on inode, preserving the track's identity.
+  - [x] Implement `watchdog` to monitor the music directory for real-time file changes (`created`, `modified`, `deleted`, `moved`).
+  - [x] Remove all current code about processing files. We will start from scratch!!
+  - [x] On startup, perform an initial full scan that populates the database or the queue before the watcher takes over.
+    - [x] This scan will synchronously extract fast metadata (`mutagen`) in batches and save to the DB. It will then enqueue slower tasks (covers, duration) to the `low_priority` queue.
+  - [x] Create an asynchronous worker to process `created` and `modified` events for metadata extraction and accurate duration analysis (using FFprobe).
+  - [x] Create a dedicated worker for cover art extraction and processing, triggered after successful metadata processing.
+  - [x] Create a dedicated worker to handle `deleted` events, ensuring tracks and their associated covers are removed.
+  - [x] Implement logic to handle `moved` events by updating the file path based on inode, preserving the track's identity.
 - [x] **Features & Robustness**
-    - [x] Implement `TrackHistory` table and API to track the last 5 metadata changes per track and allow for rollbacks.
-    - [x] Implement basic performance monitoring (e.g., queue depths).
+  - [x] Implement `TrackHistory` table and API to track the last 5 metadata changes per track and allow for rollbacks.
+  - [x] Implement basic performance monitoring (e.g., queue depths).
 - [o] ~~Analyze saving state - would it be faster and less simple code to just send state every second if it is changed?~~
 - [x] Frontend should get only usable fields for /tracks.
 - [x] Slider cursor hand on cover
@@ -99,14 +99,18 @@
   - [x] First of all: we should check on app load if we actually can change files (user might use read-only volume). Find the best way to find this. If we cant, we should disable all editing functionality.
   - [x] Use modal window. Mobile - most of screen. Desktop idk. If there are no changes, click outside of modal will close it. If there are changes, we should confirm that. Also there has to be cancel button.
   - [x] UI Trigger - three-dot menu on each TrackItem that reveals an "Edit" option. This keeps the main track list UI clean.
-  - [x] API Endpoint Design: A logical RESTful approach would be a PATCH request to an endpoint like /api/v1/tracks/{track_id}. The request body would contain the new metadata and the rename_file boolean flag. I want to send ONLY CHANGES, not all metadata. That way will be easier to save history. We have to handle the case when there is no changes - think what should we do because PATCH is not idempotent and we do not want to save that in history.
+  - [x] API Endpoint Design: A logical RESTful approach would be a PATCH request to an endpoint like /api/v1/tracks/{track_id}. The request body would contain the new
+    metadata and the rename_file boolean flag. I want to send ONLY CHANGES, not all metadata. That way will be easier to save history. We have to handle the case when
+    there is no changes - think what should we do because PATCH is not idempotent and we do not want to save that in history.
   - [x] Tags have to have good encoding - ID3v2.4 with UTF-8 encoding (or ID3v2.3?)
   - [x] Tags have to be windows compatible for filenames (prevent <, >, :, ", /, \, |, ?, *). Remove them.
-  - [x] Default option to rename filename as well (checkbox). Ticked by default, but user can prevent that. Use artist - track name notation. Always preview new filename. Make warning on long filenames I think (>100). Prevent to save 255 characters.
+  - [x] Default option to rename filename as well (checkbox). Ticked by default, but user can prevent that. Use artist - track name notation. Always preview new
+    filename. Make warning on long filenames I think (>100). Prevent to save 255 characters.
   - [x] Save file history
-  - [ ] ~~Add reverting functionality~~
+  - [o] ~~Add reverting functionality~~
   - [x] We have to think that in future we will have possibility to have Artist entity and maybe in future we will match whats in db with new file
-  - [x] Think already what to do with multiple artists - where do additional ones have to be stated and what will be the separator to divide them and show later. In Artist field metatags lets split them with ";". In filename lets split them with "ft. %artist%".
+  - [x] Think already what to do with multiple artists - where do additional ones have to be stated and what will be the separator to divide them and show later.
+    In Artist field metatags lets split them with ";". In filename lets split them with "ft. %artist%".
   - [x] Cover art - cant be changed now, yet show it. In future I want to be able to fetch arts from some search, yt, or else and pick best one
   - [x] Error handling on file save - if file is missing (rare case) or there are rights problem (common case probably) - show error to user
   - [x] History has to save the exact change in jsonb and all file metadata with its filename in jsonb.
@@ -165,8 +169,8 @@
   - [x] Layout_TrackChangeHandler - executes twice - why?
   - [x] check effects + check draganddrop
 - [x] Edit track functionality enhancements
-  - [ ] ~~Show exact changes will be done - for example if we change encoding it also has to be shown~~
-  - [ ] ~~Check that wrong tags could be fixed in UI - wrong encoding, wrong fields filled~~
+  - [o] ~~Show exact changes will be done - for example if we change encoding it also has to be shown~~
+  - [o] ~~Check that wrong tags could be fixed in UI - wrong encoding, wrong fields filled~~
   - [x] check long filenames on edit - add warning
   - [x] Remove files in editing file dialog - with confirmation. It may be not files but just entries in db.
   - [x] Ignore all tags on creation except author/trackname. We will use it and/or overwrite just them. Others will be ignored (not deleted).
@@ -180,10 +184,9 @@
 - [x] On adding file on drag and drop - it produces too many events.. Should it? Maybe no need to produce events on file creation from upload?
 - [x] Setup playwright mcp. Rewrite all AGENT_TASKS prompts with info about playwright mcp. Also if no tracks found - just tell that no sleep needed, its fine.
 - [x] Work on snippets for LLM
-  - [x] https://x.com/steipete/status/1940314756705132683
-  - [x] https://x.com/robzolkos/status/1940462968593875060
+  - [x] <https://x.com/steipete/status/1940314756705132683>
+  - [x] <https://x.com/robzolkos/status/1940462968593875060>
   - [x] Update mr alias to include full text from snippet
-- [o] ~~minify options https://github.com/ntsd/sveltekit-html-minifier https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier~~
 - [x] ~~Celery and async tasks~~
 - [x] Wipe out history changes completely I do not need them - at least now and they make code messy.
 - [x] Events refactoring ideas - On app launch too many slow metadata going on.
@@ -192,7 +195,9 @@
   - [x] slow metadata - convert automatically to UTF-8 id2V2.3
   - [x] whats slowing there - i think we might do things faster
   - [x] We should have different code for when event is from EXTERNAL file changes and from app. That would be much easier to maintain.
-  - [x] When initial scan is going on: we might have "loading covers" based on metadata not done status in db on frontend. We might fire events without notification to change files. We might go one by one in single task and fire event on each cover processing and other metadata. We still need to save the state to continue on failures - or just dont give a fuck about that? because we will each time just might select files without processed metadata.
+  - [x] When initial scan is going on: we might have "loading covers" based on metadata not done status in db on frontend. We might fire events without notification to
+    change files. We might go one by one in single task and fire event on each cover processing and other metadata. We still need to save the state to continue on
+    failures - or just dont give a fuck about that? because we will each time just might select files without processed metadata.
   - [x] I do not really use processing_status'es. I should leave just 2 of them. Pending and done. Or anything else? might also have "error" status to have junkyard for files with errors to not reprocess them.
   - [x] Refactor slow metadata - have service with each step in its own service. It has to extract cover, process duration, change encoding and save to db that file is processed.
   - [o] ~~Is that a bad thing to show just really original image with real extension and so on? We will parse less~~
@@ -215,46 +220,61 @@
 - [x] Recurring task with production - known bugs Desktop / PWA / iphone
   - [x] PWA - last tracks are not shown under player footer - maybe I have to delete prev "fix" of phones placing - just watch recent changes to find problematic code
   - [x] Fix PWA - it shows tracks under notch and so on. On the bottom it overlaps with ios bar to open recent apps
+- [x] Server events dont go to frontend on linux
+- [x] PWA - music nog going next automatically, switch from effect
+- [x] bug - deletion music kinda strange.. No event to frontend it seems?
 
-PWA - music nog going next automatically, switch from effect
+## Ongoing
 
-## Phase non needed features
-
-- [ ] Case to check in e2e: file edited externally like delete-and-create with new data. Will it be treated like delete and create? Will it be deleted and created with new id? will my save state thing work?
+- [x] Fix uv warnings and fix production.Dockerfile
+  - [x] <https://github.com/astral-sh/uv-docker-example/blob/main/multistage.Dockerfile>
+  - [x] <https://hynek.me/articles/docker-uv/>
+  - [x] bytecode etc optimizations in backend.dockerfile too
+- [x] Add ci commands to makefile
+- [x] yt-dlp - downloads many file in folder, it has to be single file finalized and moved
+- [ ] Fix edit not shown in production
+- [ ] is it fine that supervisord from root starts nginx not appuser
+- [ ] imba feature: on startup we check music folder and for files there and setting the same user rights and group - backend + production dockerfiles
+- [ ] can we show download progress somehow?
+- [ ] after yt-dlp we have to fire modal with saving - there is "awaiting_review" status but does not work now
+- [ ] log what takes long on e2e testing
+- [ ] redis pub-sub for events
+- [ ] On Edit - if im not mistaken we do not check if file with same name exists, we should show UI warning and prevent save on such cases! that is server check
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while. UDP - do not need to wait 200.
 - [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
 - [ ] e2e in CI before deployment after linters. Complex github actions flow.
-- [ ] Make sure initial scan on startup is not blocking "healthy" status for backend docker container.
-  - [ ] only fast one blocks. I have to refactor startup calls into its own non-blocking service. There will be fast/slow/watcher one by one launched
+- [x] Make sure initial scan on startup is not blocking "healthy" status for backend docker container.
+  - [o] ~~only fast one blocks. I have to refactor startup calls into its own non-blocking service. There will be fast/slow/watcher one by one launched~~
 - [ ] more e2e scenarios
   - [ ] Duration - written in db and in track
+  - [ ] file edited externally like delete-and-create with new data. Will it be treated like delete and create? Will it be deleted and created with new id? will my
+    save state thing work?
 - [ ] wtf is "track updated" event on slow metadata after create? Nothing wrong just bad naming
-- [o] slow metadata on startup doesnt standartize id3 version and encoding + also doesnt save correct duration to file tags - this has to be single file save - so single job? I have to use different fields based on file for this length, so use library..
+- [o] slow metadata on startup doesnt standartize id3 version and encoding + also doesnt save correct duration to file tags - this has to be single file save -
+  so single job? I have to use different fields based on file for this length, so use library..
   - [x] Standartize on startup
   - [ ] Make it efficient with only 1 final change of file for both duration and standartize
-- [ ] Slider has to be smaller by default and on hover it has to be bigger in size like now
+- [ ] Slider stylings
+  - [ ] has to be smaller by default and on hover it has to be bigger in size like now
+  - [ ] styling for playing music - make it less colored but on hover make blue colored styling for slider
 - [ ] ~~Revert functionality UI~~
 - [ ] Remove non-docker development - not sure if thats needed - actually needed because AI doesnt understand what env im working in currently. Less commands is better
-- [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401 - actually think to move everything in redis so there will be no sql db. But - think of relationships such model. Redis might have relationships or something.. I mean we can give up some consistency..
+- [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401 - actually think to move everything in redis so there will be no
+  sql db. But - think of relationships such model. Redis might have relationships or something.. I mean we can give up some consistency..
 - [ ] Sort tracks by different fields and ways
-- [ ] Continue refactoring effects
+- [x] Continue refactoring effects
 - [ ] fast search - has to be server side to look vk/yt - and download in future!
-- [ ] Download track functionality
+- [ ] Download track functionality?
 - [ ] docker-compose - i think we dont need separated volumes for cover/db, might be single
-- [ ] production image nginx better logging. Logging across app (!!!)
+- [ ] production image nginx better logging. Logging across app (!!!) - Think about this more
 - [ ] Hotkeys for player controls
-- [ ] Hover player controls should show what will be done + also hotkey for that
+  - [ ] Hover player controls should show what will be done + also hotkey for that
 - [ ] Marquee for long texts - all places - not sure where we exactly have to do that. Probably for player footer
-- [ ] ~~styling for playing music - make it less colored but on hover make blue colored styling for slider~~
-- [ ] Get rid of fucking SSR and simplify code A LOT - ???.
+- [ ] ~~Get rid of fucking SSR and simplify code A LOT - ???.~~
 - [ ] Render play button from tracklist under album cover in tracklist
 - [ ] Edit cover arts - download from some search, from youtube or else to pick one. I do not want to handle uploading covers yet I think.
-- [ ] Define Artist entity
-- [ ] Edit modal - possibility to set title artist (choose?)
-- [ ] Parse artists, make them unique, add to db. Make functionality to set artist for track. Remove artist from db if no tracks with this artist. Multiple artists for track.
-- [ ] Artist page with all their tracks
-- [ ] Artist can have many similar names (Тату = t.A.T.u.) - get from internet their possible titles for automatical matching later? AI?
 - [ ] "Play next" functionality
+- [ ] Test files which are in folders
 
 ## Phase yt
 
@@ -267,13 +287,19 @@ PWA - music nog going next automatically, switch from effect
 - [ ] vk.com player with download functionality
 - [ ] ...?? soundcloud?
 
-## Phase playlist management and album management
+## Phase artist / playlist management / album management
 
+- [ ] Define Artist entity
+- [ ] Edit modal - possibility to set title artist (choose?)
 - [ ] Define Album entity, album page with tracks
 - [ ] Define Playlist entity
 - [ ] Implement playlist management service (Deferred)
 - [ ] Many-to-many relation between tracks/albums/artists
+- [ ] Parse artists, make them unique, add to db. Make functionality to set artist for track. Remove artist from db if no tracks with this artist. Multiple artists for track.
+- [ ] Artist page with all their tracks
+- [ ] Artist can have many similar names (Тату = t.A.T.u.) - get from internet their possible titles for automatical matching later? AI?
 
 ## Ideas
 
 - [ ] Every minute check if folder still read-only or writeable - this might be one of the little things nobody notices
+- [ ] The part of adding a group/user/etc has to go on executing script - we read music folder and get user rights

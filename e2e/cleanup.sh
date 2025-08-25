@@ -21,5 +21,3 @@ if docker images -q "$E2E_IMAGE_NAME" | grep -q .; then
     echo "Removing image $E2E_IMAGE_NAME..."
     docker rmi "$E2E_IMAGE_NAME" 2>/dev/null || true
 fi
-
-echo "E2E cleanup complete"

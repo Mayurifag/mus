@@ -20,7 +20,7 @@ from src.mus.infrastructure.persistence.sqlite_player_state_repository import (
 from src.mus.infrastructure.database import get_session_generator
 from src.mus.main import app as fastapi_app
 
-TEST_DB_PATH = "./test.db"
+TEST_DB_PATH = "/tmp/test.db"
 TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
 
 

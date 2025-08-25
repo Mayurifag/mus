@@ -37,6 +37,7 @@
   const trackDuration = $derived(track.duration);
   const trackHasCover = $derived(track.has_cover);
   const trackCoverSmallUrl = $derived(track.cover_small_url);
+  let canWriteMusicFiles = $derived($permissionsStore.can_write_music_files);
 
   function playTrack() {
     if (!audioService) {
@@ -65,7 +66,7 @@
   let progressValue = $derived(
     isSelected && currentTime !== undefined ? currentTime : 0,
   );
-  let editModalOpen = $state(false);
+  let editModalOpen = $derived(false);
 
   let mouseDownTarget: EventTarget | null = null;
   function handleMouseDown(event: MouseEvent): void {
@@ -158,7 +159,7 @@
     role="button"
     tabindex="-1"
   >
-    {#if $permissionsStore.can_write_music_files}
+    {#if canWriteMusicFiles}
       <button
         class="text-muted-foreground icon-glow-effect cursor-pointer rounded-md p-1 transition-colors"
         onclick={() => (editModalOpen = true)}

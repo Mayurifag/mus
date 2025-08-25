@@ -1,86 +1,74 @@
-BACKEND_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../backend)
+DOCKER_COMPOSE_BACKEND_CMD := $(DOCKER_COMPOSE_CMD) run --rm --no-TTY backend
 
 .PHONY: back-lint
 back-lint: back-format
 	@echo "Linting backend code..."
-	cd $(BACKEND_DIR) && uv run ruff check src tests --no-fix
-	cd $(BACKEND_DIR) && uv run vulture src tests --min-confidence 90
-	cd $(BACKEND_DIR) && uv run bandit -r src
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv run ruff check src tests --no-fix
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv run vulture src tests --min-confidence 90
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv run bandit -r src
+
+.PHONY: back-ruff-fix
+back-ruff-fix:
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv run ruff check src tests --fix
 
 .PHONY: back-format
 back-format:
 	@echo "Formatting backend code..."
-	cd $(BACKEND_DIR) && uv run ruff format src tests
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv run ruff format src tests
 
 .PHONY: back-format-check
 back-format-check:
 	@echo "Checking backend code formatting..."
-	cd $(BACKEND_DIR) && uv run ruff format src tests --check
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv run ruff format src tests --check
 
 .PHONY: back-test
 back-test:
 	@echo "Running backend tests..."
-	cd $(BACKEND_DIR) && rm -f test.db
-	cd $(BACKEND_DIR) && rm -rf test_data/
-	cd $(BACKEND_DIR) && mkdir -p test_data/database test_data/covers test_data/music
-	cd $(BACKEND_DIR) && uv run pytest tests --tb=short
-	cd $(BACKEND_DIR) && rm -rf MagicMock/ test.db test_data/
-
-.PHONY: back-dev
-back-dev:
-	@echo "Starting backend development server on http://0.0.0.0:8000 ..."
-	cd $(BACKEND_DIR) && uv run uvicorn src.mus.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir src
+	@$(DOCKER_COMPOSE_BACKEND_CMD) sh -c "rm -f /tmp/test.db && rm -rf /tmp/test_data && mkdir -p /tmp/test_data/database /tmp/test_data/covers /tmp/test_data/music && uv run pytest tests --tb=short && rm -rf MagicMock/ /tmp/test.db /tmp/test_data"
 
 .PHONY: back-uv-init
 back-uv-init:
 	@echo "Initializing uv environment in backend..."
-	cd $(BACKEND_DIR) && uv init
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv init
 
 .PHONY: back-remove-venv
 back-remove-venv:
 	@echo "Removing backend virtual environment..."
-	cd $(BACKEND_DIR) && rm -rf .venv
+	@$(DOCKER_COMPOSE_BACKEND_CMD) rm -rf .venv
 
 .PHONY: back-create-venv
 back-create-venv:
 	@echo "Creating backend virtual environment..."
-	cd $(BACKEND_DIR) && uv venv
-
-.PHONY: back-activate-venv
-back-activate-venv:
-	@echo "To activate backend virtual environment, run: cd $(BACKEND_DIR) && . .venv/bin/activate"
-	@echo "This command itself does not activate it in the current shell."
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv venv
 
 .PHONY: back-lock
 back-lock:
 	@echo "Locking backend dependencies..."
-	cd $(BACKEND_DIR) && uv pip compile pyproject.toml -o requirements.txt --all-extras
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv pip compile pyproject.toml -o requirements.txt --all-extras
 
 .PHONY: back-sync
 back-sync:
 	@echo "Syncing backend dependencies..."
-	cd $(BACKEND_DIR) && uv pip sync requirements.txt
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv pip sync requirements.txt
 
 .PHONY: back-venv-reprovision
 back-venv-reprovision: back-remove-venv back-create-venv back-lock back-sync
-	@echo "Backend virtual environment reprovisioned."
 
 .PHONY: back-update-deps
 back-update-deps:
 	@echo "Updating backend dependencies..."
-	cd $(BACKEND_DIR) && uv pip compile pyproject.toml -o requirements.txt --all-extras --upgrade
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv pip compile pyproject.toml -o requirements.txt --all-extras --upgrade
 	$(MAKE) back-sync
-	@echo "Backend dependencies updated successfully."
 
 .PHONY: back-uv-install
-# Example: make back-uv-install ARGS="pytest pytest-asyncio"
 back-uv-install:
 	@echo "Installing backend uv package(s): $(ARGS)..."
-	cd $(BACKEND_DIR) && uv add $(ARGS)
-	$(MAKE) back-lock
-	$(MAKE) back-sync
-	@echo "Backend package(s) $(ARGS) installed and dependencies updated."
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv add $(ARGS)
+	$(MAKE) back-install
 
 .PHONY: back-install
 back-install: back-lock back-sync
-	@echo "Backend dependencies installed/synced."
+
+.PHONY: back-sh
+back-sh:
+	@$(DOCKER_COMPOSE_CMD) run -it backend bash

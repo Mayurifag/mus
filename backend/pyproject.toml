@@ -26,6 +26,7 @@ dependencies = [
   "vulture>=2.14",
   "bandit>=1.8.5",
   "python-multipart>=0.0.20",
+  "yt-dlp>=2025.7.21",
 ]
 
 [build-system]
@@ -36,7 +37,7 @@ build-backend = "hatchling.build"
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
 pythonpath = ["."]
-env = ["APP_ENV=test", "DATA_DIR_PATH=./test_data"]
+env = ["APP_ENV=test", "DATA_DIR_PATH=/tmp/test_data"]
 # DeprecationWarning:
 # 🚨 You probably want to use `session.exec()` instead of `session.execute()`.
 filterwarnings = ["ignore::DeprecationWarning"]

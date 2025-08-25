@@ -2,7 +2,18 @@ import { toast } from "svelte-sonner";
 import * as apiClient from "./apiClient";
 import { trackStore } from "$lib/stores/trackStore";
 import { recentEventsStore } from "$lib/stores/recentEventsStore";
-import type { MusEvent } from "$lib/types";
+import { downloadStore } from "$lib/stores/downloadStore";
+import type {
+  MusEvent,
+  DownloadReadyPayload,
+  DownloadFailedPayload,
+} from "$lib/types";
+
+let openDownloadModal: (() => void) | null = null;
+
+export function setDownloadModalOpener(opener: () => void) {
+  openDownloadModal = opener;
+}
 
 /**
  * Handles incoming SSE events from the backend
@@ -38,6 +49,29 @@ export function handleMusEvent(payload: MusEvent): void {
         typeof payload.action_payload.id === "number"
       ) {
         trackStore.deleteTrack(payload.action_payload.id);
+      }
+      break;
+    case "download_started":
+      downloadStore.startDownload();
+      break;
+    case "download_completed":
+      downloadStore.setCompleted();
+      break;
+    case "download_failed":
+      if (payload.action_payload) {
+        const failedPayload =
+          payload.action_payload as unknown as DownloadFailedPayload;
+        downloadStore.setFailed(failedPayload.error);
+      }
+      break;
+    case "download_ready_for_review":
+      if (payload.action_payload) {
+        const readyPayload =
+          payload.action_payload as unknown as DownloadReadyPayload;
+        downloadStore.setAwaitingReview(readyPayload);
+        if (openDownloadModal) {
+          openDownloadModal();
+        }
       }
       break;
   }

@@ -1,10 +1,8 @@
-import os
 from typing import Any
 import pytest
 from pathlib import Path
 import pyvips
 from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
-import shutil  # Added for cleanup
 from unittest.mock import patch, AsyncMock
 
 
@@ -23,11 +21,9 @@ def sample_image_data():
 
 # A temporary directory for covers, created once per module
 @pytest.fixture(scope="module")
-def module_temp_covers_dir():
-    test_dir = Path("./test_covers_module_cp")  # Unique name
-    os.makedirs(test_dir, exist_ok=True)
-    yield test_dir
-    shutil.rmtree(test_dir)  # Cleanup after all tests in module are done
+def module_temp_covers_dir(tmp_path_factory):
+    """Create a module-scoped temporary directory for cover processing tests."""
+    return tmp_path_factory.mktemp("test_covers_module_cp")
 
 
 @pytest.fixture

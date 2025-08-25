@@ -6,6 +6,7 @@
   import EffectMonitor from "$lib/components/debug/EffectMonitor.svelte";
   import RecentEvents from "$lib/components/debug/RecentEvents.svelte";
   import ErrorItem from "$lib/components/domain/ErrorItem.svelte";
+  import DownloadManager from "$lib/components/domain/DownloadManager.svelte";
   import type { Track } from "$lib/types";
   import { formatArtistsForDisplay } from "$lib/utils/formatters";
   import { fetchErroredTracks } from "$lib/services/apiClient";
@@ -28,6 +29,9 @@
     $trackStore.is_shuffle &&
       $trackStore.playHistory.length >= MIN_HISTORY_FOR_DEBUG,
   );
+
+  const shouldShowEffectsMonitor =
+    import.meta.env.VITE_EFFECTS_DEBUG === "true";
 
   const timelineItems = $derived.by(() => {
     const items: Array<{
@@ -90,86 +94,111 @@
   });
 </script>
 
-<div class="h-full w-full">
-  <!-- QR Login Button - Top Right -->
-  <div class="mb-6 flex justify-end">
-    <button
-      class="icon-glow-effect relative rounded-md p-2 transition-all duration-200"
-      onclick={() => (isQrModalOpen = true)}
-      title="Open QR code for mobile access"
-      aria-label="Open QR code for mobile access"
-    >
-      <QrCode class="h-8 w-8" />
-    </button>
+<div class="bg-card/50 flex h-full w-full flex-col backdrop-blur-sm">
+  <!-- Header with QR Button -->
+  <div class="border-border/50 border-b p-4">
+    <div class="flex items-center justify-between">
+      <h2 class="text-foreground text-lg font-semibold">Controls</h2>
+      <button
+        class="icon-glow-effect bg-muted/50 hover:bg-muted relative rounded-lg p-2 transition-all duration-200"
+        onclick={() => (isQrModalOpen = true)}
+        title="Open QR code for mobile access"
+        aria-label="Open QR code for mobile access"
+      >
+        <QrCode class="text-muted-foreground h-5 w-5" />
+      </button>
+    </div>
   </div>
 
-  <!-- Errors Section -->
-  {#if erroredTracks.length > 0}
-    <div class="mb-6 border-t pt-4">
-      <h4
-        class="text-muted-foreground mb-3 flex items-center gap-2 text-sm font-semibold"
-      >
-        <AlertTriangle size={16} class="text-red-500" />
-        Errors ({erroredTracks.length})
-      </h4>
-
-      <div class="space-y-2">
-        {#each erroredTracks as track (track.id)}
-          <ErrorItem
-            {track}
-            onRequeue={() => removeErroredTrack(track.id)}
-            onDelete={() => removeErroredTrack(track.id)}
-          />
-        {/each}
-      </div>
+  <!-- Scrollable Content -->
+  <div class="flex-1 overflow-y-auto">
+    <!-- Download Manager -->
+    <div class="border-border/30 border-b p-4">
+      <DownloadManager />
     </div>
-  {/if}
 
-  <!-- Playback Debug Section -->
-  {#if shouldShowDebugTimeline}
-    <div class="border-t pt-4">
-      <h4 class="text-muted-foreground mb-2 text-sm font-semibold">Playback</h4>
+    <!-- Errors Section -->
+    {#if erroredTracks.length > 0}
+      <div class="border-border/30 border-b p-4">
+        <h4
+          class="text-foreground mb-3 flex items-center gap-2 text-sm font-semibold"
+        >
+          <AlertTriangle size={16} class="text-destructive" />
+          Errors ({erroredTracks.length})
+        </h4>
 
-      <!-- Timeline View -->
-      <div class="space-y-1">
-        {#each timelineItems as item (item.position)}
-          {#if item.track || item.isCurrent}
-            <div class="flex items-center gap-2 text-xs">
-              <!-- Pointer -->
-              <div class="w-4 text-center">
-                {#if item.isCurrent}
-                  <span class="text-blue-400">→</span>
-                {:else}
-                  <span class="text-muted-foreground/30">·</span>
-                {/if}
-              </div>
+        <div class="space-y-2">
+          {#each erroredTracks as track (track.id)}
+            <ErrorItem
+              {track}
+              onRequeue={() => removeErroredTrack(track.id)}
+              onDelete={() => removeErroredTrack(track.id)}
+            />
+          {/each}
+        </div>
+      </div>
+    {/if}
 
-              <!-- Track Info -->
+    <!-- Playback Debug Section -->
+    {#if shouldShowDebugTimeline}
+      <div class="border-border/30 border-b p-4">
+        <h4 class="text-foreground mb-3 text-sm font-semibold">
+          Playback Timeline
+        </h4>
+
+        <!-- Timeline View -->
+        <div class="space-y-1.5">
+          {#each timelineItems as item (item.position)}
+            {#if item.track || item.isCurrent}
               <div
-                class="flex-1 {item.isCurrent
-                  ? 'font-medium text-blue-400'
-                  : 'text-muted-foreground/70'}"
+                class="flex items-center gap-3 rounded-md px-2 py-1 text-xs transition-colors {item.isCurrent
+                  ? 'bg-accent/10'
+                  : 'hover:bg-muted/30'}"
               >
-                {#if item.track}
-                  {item.track.title} - {formatArtistsForDisplay(
-                    item.track.artist,
-                  )}
-                {:else}
-                  <span class="italic">No track</span>
-                {/if}
+                <!-- Pointer -->
+                <div class="w-3 text-center">
+                  {#if item.isCurrent}
+                    <span class="text-accent">▶</span>
+                  {:else}
+                    <span class="text-muted-foreground/40">•</span>
+                  {/if}
+                </div>
+
+                <!-- Track Info -->
+                <div
+                  class="flex-1 truncate {item.isCurrent
+                    ? 'text-accent font-medium'
+                    : 'text-muted-foreground'}"
+                >
+                  {#if item.track}
+                    <span class="block truncate">
+                      {item.track.title}
+                    </span>
+                    <span class="block truncate text-xs opacity-70">
+                      {formatArtistsForDisplay(item.track.artist)}
+                    </span>
+                  {:else}
+                    <span class="italic opacity-50">No track</span>
+                  {/if}
+                </div>
               </div>
-            </div>
-          {/if}
-        {/each}
+            {/if}
+          {/each}
+        </div>
       </div>
+    {/if}
+
+    <!-- Debug Sections -->
+    <div class="border-border/30 border-b p-4">
+      <RecentEvents />
     </div>
-  {/if}
 
-  <!-- Recent Events -->
-  <RecentEvents />
-
-  <!-- Effect Monitor -->
-  <EffectMonitor />
+    {#if shouldShowEffectsMonitor}
+      <div class="p-4">
+        <EffectMonitor />
+      </div>
+    {/if}
+  </div>
 
   <!-- QR Login Modal -->
   <QRLoginModal bind:open={isQrModalOpen} />

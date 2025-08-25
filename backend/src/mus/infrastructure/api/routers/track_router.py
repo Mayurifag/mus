@@ -25,7 +25,10 @@ from src.mus.application.services.permissions_service import PermissionsService
 from src.mus.config import settings
 from src.mus.core.redis import set_app_write_lock
 from src.mus.core.streaq_broker import worker
-from src.mus.infrastructure.api.dependencies import get_track_repository, get_permissions_service
+from src.mus.infrastructure.api.dependencies import (
+    get_track_repository,
+    get_permissions_service,
+)
 from src.mus.infrastructure.jobs.file_system_jobs import (
     delete_track_with_files,
     handle_file_created,

@@ -13,9 +13,9 @@ describe("trackStore", () => {
       file_path: "/music/track1.mp3",
       has_cover: true,
       cover_small_url:
-        "http://localhost:8000/api/v1/tracks/1/covers/small.webp",
+        "http://localhost:8001/api/v1/tracks/1/covers/small.webp",
       cover_original_url:
-        "http://localhost:8000/api/v1/tracks/1/covers/original.webp",
+        "http://localhost:8001/api/v1/tracks/1/covers/original.webp",
       updated_at: 1640995200,
     },
     {
@@ -26,9 +26,9 @@ describe("trackStore", () => {
       file_path: "/music/track2.mp3",
       has_cover: true,
       cover_small_url:
-        "http://localhost:8000/api/v1/tracks/2/covers/small.webp",
+        "http://localhost:8001/api/v1/tracks/2/covers/small.webp",
       cover_original_url:
-        "http://localhost:8000/api/v1/tracks/2/covers/original.webp",
+        "http://localhost:8001/api/v1/tracks/2/covers/original.webp",
       updated_at: 1640995300,
     },
     {

@@ -2,10 +2,11 @@
 
 These rules are absolute. No deviations. You must strictly follow every directive below.
 
-General Rules
+## General Rules
 
 * Never use emojis.
-* Never add comments or docstrings unless explicitly asked.
+* NEVER add comments. Never describe what code does.
+* Never add docstrings descriptions to methods.
 * Responses must be laconic, neutral, and focused.
 * Always prioritize performance, security, maintainability, and correctness.
 * Always proceed with execution — never ask for permission.
@@ -13,8 +14,7 @@ General Rules
 * Never compliment excessively or be overly affirming (avoid "You're absolutely right!" etc). Criticize ideas when warranted, ask clarifying questions for precision, and deliver funny insults when mistakes are found.
 * Your answers have to start from word "Yay!"
 
-
-Mandatory CI Execution Rule
+## Mandatory CI Execution Rule
 
 * After completing ANY code changes, modifications, or implementations in the application, you MUST automatically run `make ci` without being asked or reminded.
 * This applies to all changes regardless of scope: single file edits, multi-file changes, feature implementations, bug fixes, refactoring, etc.
@@ -22,8 +22,7 @@ Mandatory CI Execution Rule
 * If `make ci` fails, you must fix all issues and re-run until it passes completely.
 * This rule applies even when the user does not explicitly mention running CI checks.
 
-
-No Permission-Seeking Rule
+## No Permission-Seeking Rule
 
 * NEVER ask "Would you like me to keep going?" or any similar permission-seeking questions during task execution.
 * Always proceed with the next logical step in completing the requested work.
@@ -31,33 +30,30 @@ No Permission-Seeking Rule
 * Continue working through multi-step processes without interruption.
 * The user finds permission-seeking questions disruptive to workflow.
 
-
-Code Philosophy
+## Code Philosophy
 
 * Write self-documenting code. Use clear, descriptive names.
 * Keep logic simple. Avoid overengineering, unnecessary abstractions, and excessive logging. Handle errors gracefully without excessive boilerplate.
 * Break code into small, focused files. Aim to keep files under 100 LOC and refactor when they grow too large.
 * Delete unused lines without leaving empty gaps.
-* Avoid generic suffixes like *Helper, *Util, *Manager. Use specific, descriptive names. Suffixes like *Service are acceptable when they align with architectural patterns (e.g., Application Services).
+* Avoid generic suffixes like *Helper,*Util, *Manager. Use specific, descriptive names. Suffixes like*Service are acceptable when they align with architectural patterns (e.g., Application Services).
 * Adhere to SOLID, DRY, YAGNI, and KISS principles. Apply architectural patterns like Hexagonal Architecture where appropriate.
 * Never add long sleep()s – max 1 second unless explicitly allowed.
 * All code changes must be accompanied by tests (see Testing section).
 
-
-Styling (Tailwind CSS / Svelte)
+## Styling (Tailwind CSS / Svelte)
 
 * Use Tailwind CSS utility classes directly in .svelte/.html files.
 * Customize shadcn-svelte components using Tailwind.
 * Use cn() utility (clsx + tailwind-merge) for dynamic classes.
 * Never manually reorder Tailwind CSS classes. Adhere to the order enforced by the project's Prettier configuration (`prettier-plugin-tailwindcss`).
-* Minimize <style> blocks in Svelte components.
+* Minimize `<style>` blocks in Svelte components.
 * CSS rules:
   * Indent with 2 spaces.
   * Quote strings with special characters or starting with numbers.
   * Use blank lines between logical blocks.
 
-
-Python / FastAPI
+## Python / FastAPI
 
 * Follow PEP 8, with 88 char max line length.
 * Use type hints everywhere.
@@ -68,8 +64,7 @@ Python / FastAPI
 * Structure code using SRP (Single Responsibility Principle).
 * Do not use print or logging unless specified.
 
-
-Svelte + TypeScript
+## Svelte + TypeScript
 
 * Use `<script lang="ts">`.
 * Order sections within `.svelte` files as follows:
@@ -82,7 +77,7 @@ Svelte + TypeScript
   * $derived() for computed.
   * $effect() for side effects.
   * $props() and $bindable() for props.
-  * `$: ` syntax is strictly forbidden.
+  * `$:` syntax is strictly forbidden.
 * Use semantic HTML and ARIA attributes.
 * Use keyed #each for list iteration.
 * Use Svelte stores:
@@ -93,8 +88,7 @@ Svelte + TypeScript
   * services/, stores/, types/, utils/
 * Backend API requests go through src/lib/services/apiClient.ts.
 
-
-Testing
+## Testing
 
 * Write tests before or alongside code.
 * Python: use pytest, pytest-asyncio. High coverage required.
@@ -105,15 +99,13 @@ Testing
 * Use fakeredis-py for Redis testing instead of mocking Redis calls. Set up global fixtures that can be explicitly required rather than auto-used.
 * Focus tests on core business logic rather than complex integration scenarios. Simple, direct tests of utilities often provide better value than elaborate mocking setups.
 
-
-Docker
+## Docker
 
 * Use specific, official base images (e.g., python:3.12-slim-bookworm).
 * Use alpine/slim variants. Avoid latest.
 * Chain related RUN commands to minimize image layers.
 
-
-Makefiles
+## Makefiles
 
 * Use make target \[arg1] \[arg2] ... — do not use ARGS="...".
 * Use make targets over direct commands (e.g., make up, not docker-compose up).
@@ -123,8 +115,7 @@ Makefiles
 * Use UPPERCASE:= for variables.
 * Do not use make om-\* targets (reserved for user).
 
-
-YAML (CI/CD & Docker Compose)
+## YAML (CI/CD & Docker Compose)
 
 * Indent with 2 spaces. Do not use tabs.
 * Use lowercase true / false booleans.
@@ -133,24 +124,21 @@ YAML (CI/CD & Docker Compose)
   * Define minimal triggers and permissions.
   * Use versioned actions (e.g., actions/checkout\@v4).
 
-
-Libraries / Tools
+## Libraries / Tools
 
 * Python packages: use uv.
 * Icons: lucide-svelte.
 * Class composition: clsx + tailwind-merge via cn() utility.
 * Linting/Formatting: obey ESLint and Prettier in project config.
 
-
-Process & Quality Assurance
+## Process & Quality Assurance
 
 * Always run `make ci` before considering any task complete. Individual test passes do not guarantee CI success.
 * Established processes exist for good reasons - follow them even when they seem redundant.
 * Run tests frequently during development, but treat CI as the final authority.
 * When setting up global test infrastructure, prefer explicit fixture requirements over auto-use to prevent hidden dependencies.
 
-
-AGENT_TASKS Execution Rules
+## AGENT_TASKS Execution Rules
 
 1. For each subtask:
    * Complete the implementation and its tests.
@@ -160,6 +148,73 @@ AGENT_TASKS Execution Rules
 4. Propose updated .md file showing new subtask status.
 5. Wait for user review before continuing.
 
+## Zen MCP Server Guidelines
+
+The Zen MCP Server provides advanced AI-powered development tools that enable Claude to orchestrate multiple AI models for enhanced code analysis, problem-solving, and collaborative development.
+These tools follow two main patterns: workflow tools for systematic investigation and simple tools for direct AI collaboration.
+
+### Tool Architecture
+
+The Zen MCP Server implements two distinct tool categories:
+
+* **Workflow Tools**: Multi-step tools with forced pauses between steps to encourage thorough investigation and analysis.
+  These tools guide Claude through systematic investigation processes with step-by-step analysis and expert validation.
+* **Simple Tools**: Direct request → AI model → response pattern for streamlined functionality that doesn't require multi-step workflows.
+
+### Available Workflow Tools
+
+* **`debug`**: Systematic investigation and root cause analysis with step-by-step debugging methodology
+* **`analyze`**: Comprehensive code analysis workflow with architectural assessment and pattern detection
+* **`codereview`**: Professional code review workflow with severity levels and actionable feedback
+* **`precommit`**: Pre-commit validation workflow for git changes across multiple repositories
+* **`refactor`**: Intelligent refactoring analysis workflow with decomposition focus and code smell detection
+* **`thinkdeep`**: Extended reasoning workflow for complex problem investigation and critical evaluation
+* **`secaudit`**: Comprehensive security audit workflow with OWASP Top 10 analysis and compliance evaluation
+* **`docgen`**: Documentation generation workflow with complexity analysis and gotcha identification
+* **`testgen`**: Test generation workflow with comprehensive edge case coverage
+
+### Available Simple Tools
+
+* **`chat`**: General development chat and collaborative thinking with AI models
+* **`consensus`**: Multi-model perspective gathering with stance steering (for/against/neutral)
+* **`planner`**: Interactive sequential planning for complex projects (special case - no AI calls)
+* **`tracer`**: Static code analysis prompt generator for call-flow mapping and dependency tracing
+* **`challenge`**: Critical challenge prompt that prevents reflexive agreement responses
+* **`listmodels`**: Display available AI models organized by provider
+
+### When to Use Zen Tools
+
+* Use workflow tools for complex analysis requiring systematic investigation across multiple steps
+* Use simple tools for direct AI collaboration, brainstorming, and quick analysis tasks
+* Prefer workflow tools when standard analysis approaches are insufficient for debugging, refactoring, or architectural assessment
+* Apply workflow tools when you need thorough investigation with expert validation from multiple AI models
+* Use simple tools for getting second opinions, collaborative thinking, and multi-model consensus
+
+### Integration with Development Workflow
+
+* Workflow tools enforce investigation between steps - Claude must examine code before proceeding to next step
+* Tools support AI-to-AI conversation threading where context carries forward between different models
+* Claude can automatically select the best AI model for each task or you can specify models explicitly
+* Tools integrate with existing CI/CD processes for comprehensive analysis before critical changes
+* Support for local models (Ollama, vLLM) and cloud providers (OpenAI, Gemini, OpenRouter, DIAL)
+
+### Best Practices
+
+* Start with workflow tools for comprehensive analysis requiring multiple investigation steps
+* Use simple tools for quick collaboration and getting diverse AI perspectives
+* Leverage conversation continuation across tools - context from one tool carries to another
+* Provide ALL possible files as context because model has high context window
+
+Specific Usage Scenarios
+
+* **Complex Debugging**: Use `debug` workflow for systematic root cause analysis of mysterious bugs
+* **Code Quality**: Use `codereview` workflow for comprehensive code analysis with severity levels
+* **Pre-Release Validation**: Use `precommit` workflow for thorough validation before major releases
+* **Architecture Analysis**: Use `analyze` workflow for understanding complex codebases and architectural patterns
+* **Security Assessment**: Use `secaudit` workflow for OWASP-based security evaluation
+* **Collaborative Thinking**: Use `chat` simple tool for brainstorming and getting AI perspectives
+* **Decision Making**: Use `consensus` simple tool for multi-model analysis of technical proposals
+* **Project Planning**: Use `planner` simple tool for breaking down complex projects into manageable steps
 
 Final Reminder
 
