@@ -237,6 +237,7 @@
 - [ ] imba feature: on startup we check music folder and for files there and setting the same user rights and group - backend + production dockerfiles
 - [ ] can we show download progress somehow?
 - [ ] after yt-dlp we have to fire modal with saving - there is "awaiting_review" status but does not work now
+- [ ] log what takes long on e2e testing
 - [ ] redis pub-sub for events
 - [ ] On Edit - if im not mistaken we do not check if file with same name exists, we should show UI warning and prevent save on such cases! that is server check
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while. UDP - do not need to wait 200.

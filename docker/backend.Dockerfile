@@ -23,11 +23,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -g $GROUP_ID appgroup && useradd -u $USER_ID -g appgroup --create-home appuser \
-    && mkdir -p $DATA_DIR_PATH/database $DATA_DIR_PATH/covers $DATA_DIR_PATH/music \
-    && uv venv /opt/venv \
+    && mkdir -p $DATA_DIR_PATH/database $DATA_DIR_PATH/covers $DATA_DIR_PATH/music /opt/venv \
     && chown -R appuser:appgroup /app /opt/venv $DATA_DIR_PATH /home/appuser
 
 USER appuser
+
+RUN uv venv /opt/venv
 
 EXPOSE 8001
 

@@ -2,7 +2,7 @@ FROM node:24-alpine
 
 WORKDIR /app
 
-RUN npm install -g markdownlint-cli2
+RUN npm install -g npm markdownlint-cli2
 
 EXPOSE 5173
 

@@ -129,9 +129,10 @@ def _download_audio(url: str, logger: logging.Logger) -> str:
                     filename_str = line.split("Destination: ")[-1].strip()
                     if filename_str:
                         output_file = Path(filename_str)
-                        if output_file.is_relative_to(
-                            temp_dir
-                        ) and output_file.exists():
+                        if (
+                            output_file.is_relative_to(temp_dir)
+                            and output_file.exists()
+                        ):
                             downloaded_file_path = output_file
                             break
                         else:
