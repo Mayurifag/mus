@@ -1,5 +1,14 @@
 .PHONY: ci
-ci: markdown-lint back-ruff-fix back-lint front-lint e2e-lint front-svelte-check front-test back-test e2e-test-headless
+ci:
+	@$(MAKE) markdown-lint && \
+	$(MAKE) back-ruff-fix && \
+	$(MAKE) back-lint && \
+	$(MAKE) front-lint && \
+	$(MAKE) e2e-lint && \
+	$(MAKE) front-svelte-check && \
+	$(MAKE) front-test && \
+	$(MAKE) back-test && \
+	$(MAKE) e2e
 
 .PHONY: markdown-lint
 markdown-lint:
