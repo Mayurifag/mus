@@ -44,12 +44,12 @@ back-create-venv:
 .PHONY: back-lock
 back-lock:
 	@echo "Locking backend dependencies..."
-	@$(DOCKER_COMPOSE_BACKEND_CMD) uv pip compile pyproject.toml -o requirements.txt --all-extras
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv lock
 
 .PHONY: back-sync
 back-sync:
 	@echo "Syncing backend dependencies..."
-	@$(DOCKER_COMPOSE_BACKEND_CMD) uv pip sync requirements.txt
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv sync --all-extras
 
 .PHONY: back-venv-reprovision
 back-venv-reprovision: back-remove-venv back-create-venv back-lock back-sync
@@ -57,7 +57,7 @@ back-venv-reprovision: back-remove-venv back-create-venv back-lock back-sync
 .PHONY: back-update-deps
 back-update-deps:
 	@echo "Updating backend dependencies..."
-	@$(DOCKER_COMPOSE_BACKEND_CMD) uv pip compile pyproject.toml -o requirements.txt --all-extras --upgrade
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv lock --upgrade
 	$(MAKE) back-sync
 
 .PHONY: back-uv-install

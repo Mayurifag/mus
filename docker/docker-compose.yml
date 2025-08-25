@@ -29,4 +29,4 @@ services:
     depends_on:
       redis:
         condition: service_started
-    command: sh -c "[ -f /app/requirements.txt ] && uv pip sync /app/requirements.txt; streaq src.mus.core.streaq_broker.worker"
+    command: sh -c "[ -f /app/uv.lock ] && uv pip sync; streaq src.mus.core.streaq_broker.worker"

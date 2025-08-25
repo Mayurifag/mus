@@ -32,4 +32,4 @@ RUN uv venv /opt/venv
 
 EXPOSE 8001
 
-CMD ["sh", "-c", "[ -f /app/requirements.txt ] && uv pip sync /app/requirements.txt; uvicorn src.mus.main:app --host 0.0.0.0 --port 8001 --reload --timeout-graceful-shutdown 1"]
+CMD ["sh", "-c", "[ -f /app/uv.lock ] && uv pip sync; uvicorn src.mus.main:app --host 0.0.0.0 --port 8001 --reload --timeout-graceful-shutdown 1"]

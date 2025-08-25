@@ -48,7 +48,6 @@ services:
     volumes: *x-volumes
     environment:
       <<: *x-backend-environment
-    command: sh -c "[ -f /app/requirements.txt ] && uv pip sync /app/requirements.txt; streaq src.mus.core.streaq_broker.worker"
 
 volumes:
   app_node_modules:

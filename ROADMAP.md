@@ -281,6 +281,7 @@
 - [ ] Download page - with form to add url
 - [ ] yt-dlp from yt (list domains)
 - [ ] yt-dlp from other sites?
+- [ ] functionality to automatically update yt-dlp? on startup?
 
 ## Phase vk / other services ?
 
