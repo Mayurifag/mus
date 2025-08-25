@@ -3,8 +3,9 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 WORKDIR /app
 
 ENV DATA_DIR_PATH=/app_data
-# ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
 
 ARG USER_ID=1000
 ARG GROUP_ID=1000

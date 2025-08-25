@@ -4,7 +4,6 @@ set -e
 
 E2E_IMAGE_NAME="mus:e2e-test"
 E2E_CONTAINER_NAME="mus-e2e-test"
-E2E_PLAYWRIGHT_IMAGE_NAME="mus:e2e-playwright"
 E2E_HOST_PORT="4124"
 E2E_SECRET_KEY="e2e-secret-key"
 E2E_TIMEOUT=12

@@ -8,7 +8,8 @@
   "globs": [
     "**/*.{md,markdown}",
     "!**/node_modules/**",
-    "!**/.venv/**"
+    "!**/.venv/**",
+    "!AGENT_TASKS/**"
   ],
   "noBanner": true
 }

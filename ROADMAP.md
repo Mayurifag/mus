@@ -301,3 +301,4 @@
 ## Ideas
 
 - [ ] Every minute check if folder still read-only or writeable - this might be one of the little things nobody notices
+- [ ] The part of adding a group/user/etc has to go on executing script - we read music folder and get user rights

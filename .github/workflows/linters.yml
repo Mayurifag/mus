@@ -31,88 +31,44 @@ jobs:
         with:
           globs: '**/*.md'
 
-  backend-lint:
+  backend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        id: setup-python
-        with:
-          python-version: '3.13'
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-      - name: Cache uv dependencies
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Cache Docker layers
         uses: actions/cache@v4
         with:
-          path: ~/.cache/uv
-          key: uv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('backend/pyproject.toml') }}
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-backend-${{ hashFiles('backend/uv.lock') }}
           restore-keys: |
-            uv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-
-      - name: Install backend dependencies
-        run: |
-          cd backend
-          uv pip install --system . ruff vulture bandit
+            ${{ runner.os }}-buildx-backend-
+      - name: Copy Docker Compose override file
+        run: cp docker/docker-compose.override.yml.example docker/docker-compose.override.yml
       - name: Run backend linting
-        run: |
-          make back-format-check
-          make back-lint
-
-  backend-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        id: setup-python
-        with:
-          python-version: '3.13'
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-      - name: Install system dependencies for pyvips
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libvips-dev
-      - name: Cache uv dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: uv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('backend/pyproject.toml') }}
-          restore-keys: |
-            uv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-
-      - name: Install backend dependencies
-        run: |
-          cd backend
-          uv pip install --system .
+        run: make back-lint
       - name: Run backend tests
         run: make back-test
 
-  frontend-lint:
+  frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Cache Docker layers
+        uses: actions/cache@v4
         with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: 'frontend/package-lock.json'
-      - name: Install frontend dependencies
-        run: make front-ci-install
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-frontend-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-frontend-
+      - name: Copy Docker Compose override file
+        run: cp docker/docker-compose.override.yml.example docker/docker-compose.override.yml
       - name: Run frontend linting
-        run: make front-lint-only
-
-  frontend-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: 'frontend/package-lock.json'
-      - name: Install frontend dependencies
-        run: make front-ci-install
+        run: make front-lint
       - name: Run frontend tests
         run: make front-test
+      - name: Run Svelte type checking
+        run: make front-svelte-check
