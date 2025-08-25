@@ -226,15 +226,15 @@
 
 ## Ongoing
 
-- [ ] Fix uv warnings and fix production.Dockerfile
-  - [ ] <https://github.com/astral-sh/uv-docker-example/blob/main/multistage.Dockerfile>
-  - [ ] <https://hynek.me/articles/docker-uv/>
-  - [ ] bytecode etc optimizations in backend.dockerfile too
-- [ ] Add ci commands to makefile
-- [ ] yt-dlp - downloads many file in folder, it has to be single file finalized and moved
+- [x] Fix uv warnings and fix production.Dockerfile
+  - [x] <https://github.com/astral-sh/uv-docker-example/blob/main/multistage.Dockerfile>
+  - [x] <https://hynek.me/articles/docker-uv/>
+  - [x] bytecode etc optimizations in backend.dockerfile too
+- [x] Add ci commands to makefile
+- [x] yt-dlp - downloads many file in folder, it has to be single file finalized and moved
 - [ ] Fix edit not shown in production
 - [ ] is it fine that supervisord from root starts nginx not appuser
-- [ ] imba feature: on startup we check music folder and for files there
+- [ ] imba feature: on startup we check music folder and for files there and setting the same user rights and group - backend + production dockerfiles
 - [ ] after yt-dlp we have to fire modal with saving
 - [ ] redis pub-sub for events
 - [ ] On Edit - if im not mistaken we do not check if file with same name exists, we should show UI warning and prevent save on such cases! that is server check
