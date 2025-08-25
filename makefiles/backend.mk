@@ -64,3 +64,7 @@ back-uv-install:
 
 .PHONY: back-install
 back-install: back-lock back-sync
+
+.PHONY: back-sh
+back-sh:
+	@$(DOCKER_COMPOSE_CMD) run -it backend bash
