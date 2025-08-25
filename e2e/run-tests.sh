@@ -84,11 +84,13 @@ if [ $timeout -le 0 ]; then
 fi
 
 cd "$SCRIPT_DIR"
-docker build -t "$E2E_PLAYWRIGHT_IMAGE_NAME" .
+# docker build -t "$E2E_PLAYWRIGHT_IMAGE_NAME" .
 
-echo "Running E2E tests..."
-docker run --rm --network host \
-    -v "$SCRIPT_DIR/test-results:/e2e/test-results" \
-    -v "$SCRIPT_DIR/playwright-report:/e2e/playwright-report" \
-    -v "$SCRIPT_DIR/playwright/.auth:/e2e/playwright/.auth" \
-    "$E2E_PLAYWRIGHT_IMAGE_NAME"
+# echo "Running E2E tests..."
+# docker run --rm --network host \
+#     -v "$SCRIPT_DIR/test-results:/e2e/test-results" \
+#     -v "$SCRIPT_DIR/playwright-report:/e2e/playwright-report" \
+#     -v "$SCRIPT_DIR/playwright/.auth:/e2e/playwright/.auth" \
+#     "$E2E_PLAYWRIGHT_IMAGE_NAME"
+
+npx playwright test

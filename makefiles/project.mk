@@ -44,7 +44,7 @@ test-prod: test-prod-stop
 	@echo "Production container started at http://localhost:4124"
 	@echo "Authentication enabled with SECRET_KEY=test-secret-key-123"
 	@echo "Magic link: http://localhost:4124/login?token=test-secret-key-123"
-	@echo "Use 'make docker-test-prod-stop' to stop and clean up"
+	@echo "Use 'make test-prod-stop' to stop and clean up"
 
 .PHONY: test-prod-stop
 test-prod-stop:

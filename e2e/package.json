@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "test": "playwright test",
-    "test:e2e": "./run-tests.sh",
     "cleanup": "./cleanup.sh",
     "lint": "npx tsc --noEmit"
   },

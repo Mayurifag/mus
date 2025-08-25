@@ -181,7 +181,7 @@ export function connectTrackUpdateEvents(
   }
 
   const url = `${API_PREFIX}${API_VERSION_PATH}/events/track-updates`;
-  const eventSource = new EventSource(url);
+  const eventSource = new EventSource(url, { withCredentials: true });
   globalEventSource = eventSource;
 
   eventSource.onmessage = (event) => {
