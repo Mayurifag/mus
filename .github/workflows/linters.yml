@@ -66,6 +66,8 @@ jobs:
             ${{ runner.os }}-buildx-frontend-
       - name: Copy Docker Compose override file
         run: cp docker/docker-compose.override.yml.example docker/docker-compose.override.yml
+      - name: Install frontend dependencies
+        run: make front-ci-install
       - name: Run frontend linting
         run: make front-lint
       - name: Run frontend tests

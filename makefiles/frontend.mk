@@ -42,4 +42,4 @@ front-svelte-check:
 
 .PHONY: front-ci-install
 front-ci-install:
-	@$(DOCKER_COMPOSE_FRONTEND_CMD) npm ci
+	@$(DOCKER_COMPOSE_FRONTEND_CMD) npm ci --no-fund
