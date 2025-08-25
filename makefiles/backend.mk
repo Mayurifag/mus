@@ -7,6 +7,10 @@ back-lint: back-format
 	@$(DOCKER_COMPOSE_BACKEND_CMD) uv run vulture src tests --min-confidence 90
 	@$(DOCKER_COMPOSE_BACKEND_CMD) uv run bandit -r src
 
+.PHONY: back-ruff-fix
+back-ruff-fix:
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv run ruff check src tests --fix
+
 .PHONY: back-format
 back-format:
 	@echo "Formatting backend code..."

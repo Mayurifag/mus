@@ -18,7 +18,7 @@
 - [x] Analyze all css methods which update several states in once. Make them with different methods. Remove all $: and refactor to svelte 5.
 - [x] Divide frontend into components: footer / sidebar / tracklist, etc.
 - [x] Style progress bar so it would be equal like tracklist' one. Remove styling from TrackItem.svelte.
-- [x] Move to vscode, update workflow, aliases. Adapt this workflow. Remove cursorrules. Update all snippets. <https://www.chatprd.ai/resources/PRD-for-Cursor> - browsermcp.io
+- [x] Move to vscode, update workflow, aliases. Adapt this workflow. Remove cursorrules. Update all snippets.
 - [x] Implement and display per-track buffered time ranges using a new BufferedRangesService and update Slider.svelte to render these ranges.
 - [x] css to fix too large music files names
 - [x] ai workflow Tasks - use just task.md everywhere. Use single backticks. There has to be no step like "review" or "ci" or something.
@@ -187,7 +187,6 @@
   - [x] <https://x.com/steipete/status/1940314756705132683>
   - [x] <https://x.com/robzolkos/status/1940462968593875060>
   - [x] Update mr alias to include full text from snippet
-- [o] ~~minify options <https://github.com/ntsd/sveltekit-html-minifier> <https://svelte.dev/docs/kit/migrating#Integrations-HTML-minifier>~~
 - [x] ~~Celery and async tasks~~
 - [x] Wipe out history changes completely I do not need them - at least now and they make code messy.
 - [x] Events refactoring ideas - On app launch too many slow metadata going on.

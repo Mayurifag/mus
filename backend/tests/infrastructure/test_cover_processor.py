@@ -1,10 +1,8 @@
-import os
 from typing import Any
 import pytest
 from pathlib import Path
 import pyvips
 from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
-import shutil
 from unittest.mock import patch, AsyncMock
 
 

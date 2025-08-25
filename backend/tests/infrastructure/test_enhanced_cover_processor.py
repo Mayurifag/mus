@@ -2,9 +2,7 @@ import pytest
 from pathlib import Path
 from typing import Any
 import pyvips
-import shutil
 from unittest.mock import patch, MagicMock
-import os
 
 from src.mus.infrastructure.scanner.cover_processor import CoverProcessor
 
