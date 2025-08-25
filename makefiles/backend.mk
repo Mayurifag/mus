@@ -20,7 +20,7 @@ back-format-check:
 .PHONY: back-test
 back-test:
 	@echo "Running backend tests..."
-	@$(DOCKER_COMPOSE_BACKEND_CMD) sh -c "rm -f test.db && rm -rf test_data/ && mkdir -p test_data/database test_data/covers test_data/music && uv run pytest tests --tb=short && rm -rf MagicMock/ test.db test_data/"
+	@$(DOCKER_COMPOSE_BACKEND_CMD) sh -c "rm -f /tmp/test.db && rm -rf /tmp/test_data && mkdir -p /tmp/test_data/database /tmp/test_data/covers /tmp/test_data/music && uv run pytest tests --tb=short && rm -rf MagicMock/ /tmp/test.db /tmp/test_data"
 
 .PHONY: back-uv-init
 back-uv-init:
