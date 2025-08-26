@@ -13,4 +13,8 @@ e2e-lint:
 
 .PHONY: e2e-report
 e2e-report:
-	xdg-open ./e2e/playwright-report/index.html
+	if command -v xdg-open >/dev/null 2>&1; then \
+	    xdg-open ./e2e/playwright-report/index.html; \
+	else \
+	    open ./e2e/playwright-report/index.html; \
+	fi
