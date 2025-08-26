@@ -36,11 +36,12 @@ async def lifespan(_: FastAPI):
 
     await asyncio.to_thread(permissions_service.check_permissions)
 
-    # Initialize yt-dlp-proxy on startup
+    # Check yt-dlp-proxy availability on startup
     logger.info("Checking yt-dlp-proxy availability...")
-    if not await ytdlp_service.ensure_ytdlp_proxy_available():
-        logger.info("yt-dlp-proxy not available, running update script...")
-        await ytdlp_service.run_update_script(max_workers=4)
+    if await ytdlp_service.ensure_ytdlp_proxy_available():
+        logger.info("yt-dlp-proxy is available and ready")
+    else:
+        logger.warning("yt-dlp-proxy not available - will be installed during first download attempt")
 
     fast_scanner = await FastInitialScanUseCase.create_default()
     await fast_scanner.execute()

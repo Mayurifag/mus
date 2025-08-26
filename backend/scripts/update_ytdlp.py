@@ -42,28 +42,17 @@ class YtDlpUpdater:
             logger.error(f"stderr: {e.stderr}")
             raise
 
-    def install_yt_dlp_binary(self) -> bool:
-        """Install or update yt-dlp to nightly channel."""
-        logger.info("Installing/updating yt-dlp to nightly channel...")
+    def check_yt_dlp_available(self) -> bool:
+        """Check if yt-dlp is available."""
+        logger.info("Checking yt-dlp availability...")
 
-        # First install yt-dlp if not present
         try:
-            self._run_command([sys.executable, "-m", "yt_dlp", "--version"])
-        except Exception:
-            logger.info("yt-dlp not found, installing first...")
-            self._run_command([
-                "uv", "pip", "install", "yt-dlp"
-            ])
-
-        # Update to nightly
-        self._run_command([
-            sys.executable, "-m", "yt_dlp", "--update-to", "nightly"
-        ])
-
-        result = self._run_command([sys.executable, "-m", "yt_dlp", "--version"])
-        logger.info(f"yt-dlp version: {result.stdout.strip()}")
-
-        return True
+            result = self._run_command([sys.executable, "-m", "yt_dlp", "--version"])
+            logger.info(f"yt-dlp version: {result.stdout.strip()}")
+            return True
+        except Exception as e:
+            logger.error(f"yt-dlp not available: {e}")
+            return False
 
     def install_yt_dlp_proxy(self) -> bool:
         """Install or update yt-dlp-proxy from GitHub."""
@@ -127,11 +116,13 @@ if __name__ == "__main__":
         return True
 
     def update_all(self, max_workers: int = 4) -> bool:
-        """Update both yt-dlp and yt-dlp-proxy."""
-        logger.info("Starting full update process...")
+        """Update yt-dlp-proxy (yt-dlp is installed during container build)."""
+        logger.info("Starting update process...")
 
-        # Update yt-dlp
-        self.install_yt_dlp_binary()
+        # Check yt-dlp is available
+        if not self.check_yt_dlp_available():
+            logger.error("yt-dlp not available - should be installed during container build")
+            return False
 
         # Install/update yt-dlp-proxy
         self.install_yt_dlp_proxy()
@@ -139,7 +130,7 @@ if __name__ == "__main__":
         # Update yt-dlp-proxy
         self.update_yt_dlp_proxy(max_workers)
 
-        logger.info("All updates completed successfully")
+        logger.info("Update process completed successfully")
         return True
 
 

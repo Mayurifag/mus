@@ -20,6 +20,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         libvips-dev \
         ffmpeg \
         curl \
+        git \
     && rm -rf /var/lib/apt/lists/*
 
 RUN (groupadd -g $GROUP_ID appgroup || true) \
@@ -33,4 +34,4 @@ RUN uv venv /opt/venv
 
 EXPOSE 8001
 
-CMD ["sh", "-c", "[ -f /app/uv.lock ] && uv pip sync; uvicorn src.mus.main:app --host 0.0.0.0 --port 8001 --reload --timeout-graceful-shutdown 1"]
+CMD ["sh", "-c", "uv sync --all-extras; uv pip install -U --pre 'yt-dlp[default]'; python scripts/update_ytdlp.py 4 || true; uvicorn src.mus.main:app --host 0.0.0.0 --port 8001 --reload --timeout-graceful-shutdown 1"]

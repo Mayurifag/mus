@@ -259,13 +259,13 @@
   - [ ] has to be smaller by default and on hover it has to be bigger in size like now
   - [ ] styling for playing music - make it less colored but on hover make blue colored styling for slider
 - [ ] ~~Revert functionality UI~~
-- [ ] Remove non-docker development - not sure if thats needed - actually needed because AI doesnt understand what env im working in currently. Less commands is better
+- [x] Remove non-docker development - not sure if thats needed - actually needed because AI doesnt understand what env im working in currently. Less commands is better
 - [ ] Get rid of SQLModel, only sqlalchemy. Remove all warnings disabling. remove all # noqa: F401 - actually think to move everything in redis so there will be no
   sql db. But - think of relationships such model. Redis might have relationships or something.. I mean we can give up some consistency..
 - [ ] Sort tracks by different fields and ways
 - [x] Continue refactoring effects
 - [ ] fast search - has to be server side to look vk/yt - and download in future!
-- [ ] Download track functionality?
+- [ ] Download track functionality? only in edit window I think?
 - [ ] docker-compose - i think we dont need separated volumes for cover/db, might be single
 - [ ] production image nginx better logging. Logging across app (!!!) - Think about this more
 - [ ] Hotkeys for player controls
@@ -305,3 +305,4 @@
 
 - [ ] Every minute check if folder still read-only or writeable - this might be one of the little things nobody notices
 - [ ] The part of adding a group/user/etc has to go on executing script - we read music folder and get user rights
+- [ ] Autoplay slider on right sidebar
