@@ -22,9 +22,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd -g $GROUP_ID appgroup && useradd -u $USER_ID -g appgroup --create-home appuser \
+RUN (groupadd -g $GROUP_ID appgroup || true) \
+    && useradd -u $USER_ID -g $(getent group $GROUP_ID | cut -d: -f1) --create-home appuser \
     && mkdir -p $DATA_DIR_PATH/database $DATA_DIR_PATH/covers $DATA_DIR_PATH/music /opt/venv \
-    && chown -R appuser:appgroup /app /opt/venv $DATA_DIR_PATH /home/appuser
+    && chown -R appuser:$(getent group $GROUP_ID | cut -d: -f1) /app $DATA_DIR_PATH /home/appuser /opt/venv
 
 USER appuser
 
