@@ -232,8 +232,8 @@
   - [x] bytecode etc optimizations in backend.dockerfile too
 - [x] Add ci commands to makefile
 - [x] yt-dlp - downloads many file in folder, it has to be single file finalized and moved
-- [ ] Fix edit not shown in production
-- [ ] is it fine that supervisord from root starts nginx not appuser
+- [x] Fix edit not shown in production
+- [x] is it fine that supervisord from root starts nginx not appuser
 - [ ] imba feature: on startup we check music folder and for files there and setting the same user rights and group - backend + production dockerfiles
 - [ ] can we show download progress somehow?
 - [ ] after yt-dlp we have to fire modal with saving - there is "awaiting_review" status but does not work now
@@ -242,6 +242,7 @@
 - [ ] On Edit - if im not mistaken we do not check if file with same name exists, we should show UI warning and prevent save on such cases! that is server check
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while. UDP - do not need to wait 200.
 - [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
+- [ ] nginx not from root but from appuser - this will require some fixes because container won't run in that moment
 - [ ] e2e in CI before deployment after linters. Complex github actions flow.
 - [x] Make sure initial scan on startup is not blocking "healthy" status for backend docker container.
   - [o] ~~only fast one blocks. I have to refactor startup calls into its own non-blocking service. There will be fast/slow/watcher one by one launched~~
