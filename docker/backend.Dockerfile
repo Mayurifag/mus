@@ -34,4 +34,4 @@ RUN uv venv /opt/venv
 
 EXPOSE 8001
 
-CMD ["sh", "-c", "uv sync --all-extras; uv pip install -U --pre 'yt-dlp[default]'; python scripts/update_ytdlp.py 4 || true; uvicorn src.mus.main:app --host 0.0.0.0 --port 8001 --reload --timeout-graceful-shutdown 1"]
+CMD ["sh", "-c", "uv sync --all-extras; uv pip install -U --pre 'yt-dlp[default]'; python scripts/update_ytdlp.py 4; uvicorn src.mus.main:app --host 0.0.0.0 --port 8001 --reload --timeout-graceful-shutdown 1"]

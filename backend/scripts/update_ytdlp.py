@@ -61,76 +61,83 @@ class YtDlpUpdater:
         import tempfile
         import shutil
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-            repo_path = temp_path / "yt-dlp-proxy"
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+                repo_path = temp_path / "yt-dlp-proxy"
 
-            # Clone the repository
-            self._run_command([
-                "git", "clone", "https://github.com/Petrprogs/yt-dlp-proxy.git",
-                str(repo_path)
-            ])
+                # Clone the repository
+                self._run_command([
+                    "git", "clone", "https://github.com/Petrprogs/yt-dlp-proxy.git",
+                    str(repo_path)
+                ])
 
-            # Install dependencies
-            self._run_command([
-                "uv", "pip", "install", "-r", "requirements.txt"
-            ], cwd=str(repo_path))
+                # Install dependencies
+                self._run_command([
+                    "uv", "pip", "install", "-r", "requirements.txt"
+                ], cwd=str(repo_path))
 
-            # Create permanent installation directory
-            install_path = Path.home() / ".local" / "share" / "yt-dlp-proxy"
-            if install_path.exists():
-                shutil.rmtree(install_path)
-            shutil.copytree(repo_path, install_path)
+                # Create permanent installation directory
+                install_path = Path.home() / ".local" / "share" / "yt-dlp-proxy"
+                if install_path.exists():
+                    shutil.rmtree(install_path)
+                shutil.copytree(repo_path, install_path)
 
-            # Create wrapper script
-            wrapper_path = Path.home() / ".local" / "bin" / "yt-dlp-proxy"
-            wrapper_path.parent.mkdir(parents=True, exist_ok=True)
+                # Create wrapper script
+                wrapper_path = Path.home() / ".local" / "bin" / "yt-dlp-proxy"
+                wrapper_path.parent.mkdir(parents=True, exist_ok=True)
 
-            wrapper_content = f'''#!/usr/bin/env python3
+                wrapper_content = f'''#!/usr/bin/env python3
 import sys
 sys.path.insert(0, "{install_path}")
 from main import main
 if __name__ == "__main__":
     main()
 '''
-            wrapper_path.write_text(wrapper_content)
-            wrapper_path.chmod(0o755)
+                wrapper_path.write_text(wrapper_content)
+                wrapper_path.chmod(0o755)
 
-            # Verify installation
-            self._run_command([str(wrapper_path), "--help"])
-            logger.info("yt-dlp-proxy installed successfully")
+                # Verify installation
+                self._run_command([str(wrapper_path), "--help"])
+                logger.info("yt-dlp-proxy installed successfully")
 
-            return True
+                return True
+        except Exception as e:
+            logger.error(f"An error occurred during yt-dlp-proxy installation: {e}", exc_info=True)
+            return False
 
     def update_yt_dlp_proxy(self, max_workers: int = 4) -> bool:
         """Update yt-dlp-proxy with specified max workers."""
         logger.info(f"Updating yt-dlp-proxy with max-workers={max_workers}...")
-
         proxy_path = str(Path.home() / ".local" / "bin" / "yt-dlp-proxy")
-        self._run_command([
-            proxy_path, "update",
-            "--max-workers", str(max_workers)
-        ])
 
-        logger.info("yt-dlp-proxy updated successfully")
-        return True
+        try:
+            self._run_command([
+                proxy_path, "update",
+                "--max-workers", str(max_workers)
+            ])
+            logger.info("yt-dlp-proxy updated successfully")
+            return True
+        except Exception as e:
+            logger.error(f"An error occurred while updating yt-dlp-proxy proxy list: {e}", exc_info=True)
+            return False
 
     def update_all(self, max_workers: int = 4) -> bool:
         """Update yt-dlp-proxy (yt-dlp is installed during container build)."""
         logger.info("Starting update process...")
 
-        # Check yt-dlp is available
         if not self.check_yt_dlp_available():
             logger.error("yt-dlp not available - should be installed during container build")
             return False
 
-        # Install/update yt-dlp-proxy
-        self.install_yt_dlp_proxy()
+        if not self.install_yt_dlp_proxy():
+            logger.error("Failed to install yt-dlp-proxy.")
+            return False
 
-        # Update yt-dlp-proxy
-        self.update_yt_dlp_proxy(max_workers)
+        if not self.update_yt_dlp_proxy(max_workers):
+            logger.warning("Failed to update proxy list for yt-dlp-proxy. The tool is installed but may use stale proxies.")
 
-        logger.info("Update process completed successfully")
+        logger.info("Update process completed.")
         return True
 
 

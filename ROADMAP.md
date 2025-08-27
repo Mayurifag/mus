@@ -235,11 +235,11 @@
 - [x] Fix edit not shown in production
 - [x] is it fine that supervisord from root starts nginx not appuser
 - [ ] imba feature: on startup we check music folder and for files there and setting the same user rights and group - backend + production dockerfiles
-- [ ] can we show download progress somehow?
-- [ ] after yt-dlp we have to fire modal with saving - there is "awaiting_review" status but does not work now
+- [ ] critical mobile bug: on the end of track it switches to next but doesnt play automatically until open webpage. If i try to play from modal - does nothing first and when disappears
 - [ ] log what takes long on e2e testing
 - [ ] redis pub-sub for events
 - [ ] On Edit - if im not mistaken we do not check if file with same name exists, we should show UI warning and prevent save on such cases! that is server check
+- [ ] use custom play icon on timeline when shuffle because its ugly on w11
 - [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while. UDP - do not need to wait 200.
 - [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
 - [ ] nginx not from root but from appuser - this will require some fixes because container won't run in that moment
@@ -283,6 +283,8 @@
 - [ ] yt-dlp from yt (list domains)
 - [ ] yt-dlp from other sites?
 - [ ] functionality to automatically update yt-dlp? on startup?
+- [ ] can we show download progress somehow?
+- [ ] after yt-dlp we have to fire modal with saving - there is "awaiting_review" status but does not work now
 
 ## Phase vk / other services ?
 
