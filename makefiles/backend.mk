@@ -49,7 +49,7 @@ back-lock:
 .PHONY: back-sync
 back-sync:
 	@echo "Syncing backend dependencies..."
-	@$(DOCKER_COMPOSE_BACKEND_CMD) uv sync --all-extras
+	@$(DOCKER_COMPOSE_BACKEND_CMD) uv sync
 
 .PHONY: back-venv-reprovision
 back-venv-reprovision: back-remove-venv back-create-venv back-lock back-sync
