@@ -22,6 +22,7 @@ from src.mus.infrastructure.api.routers import (
 from src.mus.infrastructure.api.sse_handler import router as sse_router
 from src.mus.infrastructure.database import create_db_and_tables
 from src.mus.infrastructure.file_watcher.watcher import watch_music_directory
+from src.mus.infrastructure.services.ytdlp_service import ytdlp_service
 
 logging.basicConfig(
     level=settings.LOG_LEVEL.upper(), format="%(levelname)s:     %(name)s - %(message)s"
@@ -34,6 +35,13 @@ async def lifespan(_: FastAPI):
     await create_db_and_tables()
 
     await asyncio.to_thread(permissions_service.check_permissions)
+
+    # Check yt-dlp-proxy availability on startup
+    logger.info("Checking yt-dlp-proxy availability...")
+    if await ytdlp_service.ensure_ytdlp_proxy_available():
+        logger.info("yt-dlp-proxy is available and ready")
+    else:
+        logger.warning("yt-dlp-proxy not available - will be installed during first download attempt")
 
     fast_scanner = await FastInitialScanUseCase.create_default()
     await fast_scanner.execute()

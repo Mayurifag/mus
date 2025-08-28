@@ -20,11 +20,13 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         libvips-dev \
         ffmpeg \
         curl \
+        git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd -g $GROUP_ID appgroup && useradd -u $USER_ID -g appgroup --create-home appuser \
+RUN (groupadd -g $GROUP_ID appgroup || true) \
+    && useradd -u $USER_ID -g $(getent group $GROUP_ID | cut -d: -f1) --create-home appuser \
     && mkdir -p $DATA_DIR_PATH/database $DATA_DIR_PATH/covers $DATA_DIR_PATH/music /opt/venv \
-    && chown -R appuser:appgroup /app /opt/venv $DATA_DIR_PATH /home/appuser
+    && chown -R appuser:$(getent group $GROUP_ID | cut -d: -f1) /app $DATA_DIR_PATH /home/appuser /opt/venv
 
 USER appuser
 
@@ -32,4 +34,4 @@ RUN uv venv /opt/venv
 
 EXPOSE 8001
 
-CMD ["sh", "-c", "[ -f /app/uv.lock ] && uv pip sync; uvicorn src.mus.main:app --host 0.0.0.0 --port 8001 --reload --timeout-graceful-shutdown 1"]
+CMD ["sh", "-c", "uv sync --all-extras; uv pip install -U --pre 'yt-dlp[default]'; python scripts/update_ytdlp.py 4; uvicorn src.mus.main:app --host 0.0.0.0 --port 8001 --reload --timeout-graceful-shutdown 1"]

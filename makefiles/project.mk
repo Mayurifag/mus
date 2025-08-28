@@ -9,6 +9,10 @@ up:
 down:
 	@$(DOCKER_COMPOSE_CMD) down --remove-orphans
 
+.PHONY: down-volumes
+down-volumes:
+	@$(DOCKER_COMPOSE_CMD) down --remove-orphans --volumes
+
 .PHONY: logs
 logs:
 	@$(DOCKER_COMPOSE_CMD) logs --tail=5000 $(ARGS)
