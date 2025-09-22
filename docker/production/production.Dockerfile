@@ -69,6 +69,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         ffmpeg \
         redis-server \
         sqlite3 \
+        cron \
     && curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
@@ -76,7 +77,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 ARG UID=1000
 ARG GID=1000
 RUN groupadd --gid ${GID} appgroup && \
-    useradd --uid ${UID} --gid ${GID} --shell /bin/bash --create-home appuser
+    useradd --uid ${UID} --gid ${GID} --shell /bin/bash --create-home appuser && \
+    mkdir -p /home/appuser/.local/bin && \
+    chown -R appuser:appgroup /home/appuser
 
 WORKDIR /app
 
@@ -91,11 +94,20 @@ COPY docker/production/login.html /app/docker/production/login.html
 COPY docker/production/nginx.conf.template /app/docker/production/nginx.conf.template
 COPY docker/production/start.sh /app/start.sh
 COPY docker/production/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/production/yt-dlp-update.cron /etc/cron.d/yt-dlp-update
+
+ENV PATH="/home/appuser/.local/bin:${PATH}"
 
 RUN chmod +x /app/start.sh && \
+    chmod 0644 /etc/cron.d/yt-dlp-update && \
     mkdir -p /app_data/database /app_data/covers /app_data/music /var/log/supervisor /var/cache/nginx/covers_cache && \
     chown -R appuser:appgroup /app_data /app/frontend/build && \
     chown appuser:appgroup /app
+
+USER appuser
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /home/appuser/.local/bin/yt-dlp && \
+    chmod a+rx /home/appuser/.local/bin/yt-dlp && \
+    yt-dlp --update-to nightly
 
 EXPOSE 8000
 

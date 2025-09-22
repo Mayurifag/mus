@@ -24,10 +24,16 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 RUN (groupadd -g $GROUP_ID appgroup || true) \
     && useradd -u $USER_ID -g $(getent group $GROUP_ID | cut -d: -f1) --create-home appuser \
-    && mkdir -p $DATA_DIR_PATH/database $DATA_DIR_PATH/covers $DATA_DIR_PATH/music /opt/venv \
+    && mkdir -p $DATA_DIR_PATH/database $DATA_DIR_PATH/covers $DATA_DIR_PATH/music /opt/venv /home/appuser/.local/bin \
     && chown -R appuser:$(getent group $GROUP_ID | cut -d: -f1) /app $DATA_DIR_PATH /home/appuser /opt/venv
 
 USER appuser
+
+ENV PATH="/home/appuser/.local/bin:${PATH}"
+
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /home/appuser/.local/bin/yt-dlp && \
+    chmod a+rx /home/appuser/.local/bin/yt-dlp && \
+    yt-dlp --update-to nightly
 
 RUN uv venv /opt/venv
 
