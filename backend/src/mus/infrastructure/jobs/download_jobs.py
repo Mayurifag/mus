@@ -114,8 +114,12 @@ def _download_audio(url: str, logger: logging.Logger) -> str:
             "--retries",
             "10",
             "--no-playlist",
-            url,
         ]
+
+        if settings.COOKIES_FILE_PATH.exists() and settings.COOKIES_FILE_PATH.is_file():
+            cmd.extend(["--cookies", str(settings.COOKIES_FILE_PATH)])
+
+        cmd.append(url)
 
         try:
             result = subprocess.run(

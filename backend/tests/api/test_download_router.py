@@ -1,10 +1,13 @@
 from unittest.mock import AsyncMock, patch
+from pathlib import Path
+import tempfile
 
 import pytest
 from fastapi.testclient import TestClient
 
 from src.mus.application.services.permissions_service import PermissionsService
 from src.mus.infrastructure.api.dependencies import get_permissions_service
+from src.mus.infrastructure.jobs.download_jobs import _download_audio
 
 
 @pytest.fixture
@@ -137,3 +140,78 @@ async def test_download_job_releases_lock():
 
         mock_redis.delete.assert_called_once_with("download_lock:global")
         mock_redis.aclose.assert_called()
+
+
+def test_cookies_file_path_config():
+    """Test that COOKIES_FILE_PATH config property works correctly."""
+    from src.mus.config import Config
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        config = Config()
+        config.DATA_DIR_PATH = Path(temp_dir)
+
+        expected_path = Path(temp_dir) / "cookies.txt"
+        assert config.COOKIES_FILE_PATH == expected_path
+
+
+def test_download_command_includes_cookies_when_file_exists():
+    """Test that the download command includes --cookies flag when cookies file exists."""
+    import logging
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        cookies_file = Path(temp_dir) / "cookies.txt"
+        cookies_file.write_text("# Test cookies file")
+
+        with patch(
+            "src.mus.infrastructure.jobs.download_jobs.settings"
+        ) as mock_settings:
+            mock_settings.COOKIES_FILE_PATH = cookies_file
+
+            # Mock subprocess.run to capture the command
+            with patch(
+                "src.mus.infrastructure.jobs.download_jobs.subprocess.run"
+            ) as mock_run:
+                mock_run.side_effect = Exception("Test exception to stop execution")
+
+                logger = logging.getLogger(__name__)
+                try:
+                    _download_audio("https://example.com/video", logger)
+                except Exception:
+                    pass
+
+                mock_run.assert_called_once()
+                cmd_args = mock_run.call_args[0][0]
+
+                assert "--cookies" in cmd_args
+                cookies_index = cmd_args.index("--cookies")
+                assert cmd_args[cookies_index + 1] == str(cookies_file)
+
+
+def test_download_command_excludes_cookies_when_file_missing():
+    """Test that the download command excludes --cookies flag when cookies file doesn't exist."""
+    import logging
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        non_existent_cookies = Path(temp_dir) / "nonexistent_cookies.txt"
+
+        with patch(
+            "src.mus.infrastructure.jobs.download_jobs.settings"
+        ) as mock_settings:
+            mock_settings.COOKIES_FILE_PATH = non_existent_cookies
+
+            # Mock subprocess.run to capture the command
+            with patch(
+                "src.mus.infrastructure.jobs.download_jobs.subprocess.run"
+            ) as mock_run:
+                mock_run.side_effect = Exception("Test exception to stop execution")
+
+                logger = logging.getLogger(__name__)
+                try:
+                    _download_audio("https://example.com/video", logger)
+                except Exception:
+                    pass
+
+                mock_run.assert_called_once()
+                cmd_args = mock_run.call_args[0][0]
+
+                assert "--cookies" not in cmd_args
