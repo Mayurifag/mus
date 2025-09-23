@@ -29,7 +29,7 @@ async def _process_track_with_semaphore(
                 await update_track(processed_track)
             return track_id, None
         except Exception as e:
-            logger.error(f"Failed processing track_id {track_id}: {e}", exc_info=False)
+            logger.error(f"Failed processing track_id {track_id}: {e}", exc_info=True)
             track_to_update = await get_track_by_id(track_id)
             if track_to_update:
                 track_to_update.processing_status = ProcessingStatus.ERROR

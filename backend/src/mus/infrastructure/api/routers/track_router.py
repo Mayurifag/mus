@@ -241,6 +241,7 @@ async def upload_track(
     try:
         with open(file_path, "wb") as f:
             f.write(buffer.getvalue())
+        os.chmod(file_path, 0o666)  # nosec B103
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
 

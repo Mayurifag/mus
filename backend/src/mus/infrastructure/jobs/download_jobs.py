@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import shutil
 import subprocess  # nosec B404
 import tempfile
@@ -152,6 +153,7 @@ def _download_audio(url: str, logger: logging.Logger) -> str:
             final_path = music_dir / downloaded_file_path.name
 
             shutil.move(str(downloaded_file_path), str(final_path))
+            os.chmod(str(final_path), 0o666)  # nosec B103
             logger.info(
                 f"WORKER: Moved downloaded file from {downloaded_file_path} to {final_path}"
             )

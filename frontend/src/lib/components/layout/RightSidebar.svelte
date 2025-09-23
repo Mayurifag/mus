@@ -1,7 +1,7 @@
 <script lang="ts">
   import { trackStore } from "$lib/stores/trackStore";
 
-  import { QrCode, AlertTriangle } from "@lucide/svelte";
+  import { QrCode, AlertTriangle, Play } from "@lucide/svelte";
   import QRLoginModal from "$lib/components/auth/QRLoginModal.svelte";
   import EffectMonitor from "$lib/components/debug/EffectMonitor.svelte";
   import RecentEvents from "$lib/components/debug/RecentEvents.svelte";
@@ -158,7 +158,7 @@
                 <!-- Pointer -->
                 <div class="w-3 text-center">
                   {#if item.isCurrent}
-                    <span class="text-accent">▶</span>
+                    <Play class="text-accent h-3 w-3" />
                   {:else}
                     <span class="text-muted-foreground/40">•</span>
                   {/if}
