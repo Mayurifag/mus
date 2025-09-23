@@ -4,8 +4,6 @@ WORKDIR /app
 
 ENV DATA_DIR_PATH=/app_data
 ENV PATH="/opt/venv/bin:$PATH"
-ENV UV_COMPILE_BYTECODE=1
-ENV UV_LINK_MODE=copy
 ENV VIRTUAL_ENV=/opt/venv
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 ENV RUFF_CACHE_DIR=/tmp/.ruff_cache
