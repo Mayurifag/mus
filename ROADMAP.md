@@ -241,7 +241,7 @@
 - [ ] redis pub-sub for events
 - [ ] On Edit - if im not mistaken we do not check if file with same name exists, we should show UI warning and prevent save on such cases! that is server check
 - [x] use custom play icon on timeline when shuffle because its ugly on w11
-- [ ] on close tab did not restore track - bug. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while. UDP - do not need to wait 200.
+- [ ] strange restore track on open tab bugs. Maybe we have to reimplement. Maybe we have to save that in local storage and send once in a while. UDP - do not need to wait 200.
 - [ ] Player footer desktop - on change windows calculate div for player controls - this will allow to have full size for artist-title
 - [ ] nginx not from root but from appuser - this will require some fixes because container won't run in that moment
 - [ ] e2e in CI before deployment after linters. Complex github actions flow.
@@ -277,15 +277,19 @@
 - [ ] Edit cover arts - download from some search, from youtube or else to pick one. I do not want to handle uploading covers yet I think.
 - [ ] "Play next" functionality
 - [ ] Test files which are in folders
+- [ ] Shuffled history tracks - play on click
 
 ## Phase yt
 
-- [ ] Download page - with form to add url
-- [ ] yt-dlp from yt (list domains)
+- [x] Download page - with form to add url
+- [x] yt-dlp from yt (list domains)
 - [ ] yt-dlp from other sites?
 - [ ] functionality to automatically update yt-dlp? on startup?
 - [ ] can we show download progress somehow?
-- [ ] after yt-dlp we have to fire modal with saving - there is "awaiting_review" status but does not work now
+- [ ] after yt-dlp we have to fire modal with saving - there is
+  "awaiting_review" status but does not work now
+- [ ] Youtube: use 2.5-flash-lite LLM to parse artists/title and get rid of
+  trash from trackname like "official music video" and so on
 
 ## Phase vk / other services ?
 
@@ -306,6 +310,6 @@
 
 ## Ideas
 
-- [ ] Every minute check if folder still read-only or writeable - this might be one of the little things nobody notices
+- [ ] ~~Every minute check if folder still read-only or writeable - this might be one of the little things nobody notices~~
 - [ ] The part of adding a group/user/etc has to go on executing script - we read music folder and get user rights
-- [ ] Autoplay slider on right sidebar
+- [ ] Autoplay slider on right sidebar after opening tab
