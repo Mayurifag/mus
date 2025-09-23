@@ -7,7 +7,7 @@ simple yet very powerful selfhosted solution to listen, manage and download
 music.
 
 For now I do not want to show it to the public yet because there are tons of
-things I'd like to finish (see ROADMAP.md), for example better UI and <vk.ru>
+things I'd like to finish (see ROADMAP.md), for example better UI and vk.ru
 integration to search/download from.
 
 Yet I already use it daily from my PC and phone (as PWA app). There will be no
@@ -27,8 +27,9 @@ me!
 - Easy new music upload flow
 - Auto-rename files to have single format
 - Every file gets ID3v2.3 tags with UTF-8 encoding enforced
-- Download new files using yt-dlp. Custom <vk.ru> support incoming
-- Mobile support via PWA app and fast QR code setup. No plans for natives yet.
+- Download new files using yt-dlp **respecting SponsorBlock Youtube segments**.
+  Custom vk.ru support incoming
+- Mobile support via PWA app and fast QR code setup. No plans for natives yet
 - Simple secure authentication via token supported
 - No dumb features like "Repeat all playlist" (repeat only current track)
 - Intelligently disable features requiring write support if mounted folder is
