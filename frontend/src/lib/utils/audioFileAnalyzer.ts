@@ -23,7 +23,7 @@ export interface FileAnalysisResult {
 function extractCoverInfo(pictures?: IPicture[]): CoverInfo | null {
   if (pictures && pictures.length > 0) {
     const picture = pictures[0];
-    const blob = new Blob([picture.data], {
+    const blob = new Blob([new Uint8Array(picture.data)], {
       type: picture.format || "image/jpeg",
     });
     const dataUrl = URL.createObjectURL(blob);

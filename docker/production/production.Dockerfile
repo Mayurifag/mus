@@ -102,7 +102,8 @@ RUN chmod +x /app/start.sh && \
     chmod 0644 /etc/cron.d/yt-dlp-update && \
     mkdir -p /app_data/database /app_data/covers /app_data/music /var/log/supervisor /var/cache/nginx/covers_cache && \
     chown -R appuser:appgroup /app_data /app/frontend/build && \
-    chown appuser:appgroup /app
+    chown appuser:appgroup /app && \
+    chmod 666 /etc/nginx/nginx.conf || touch /etc/nginx/nginx.conf && chmod 666 /etc/nginx/nginx.conf
 
 USER appuser
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /home/appuser/.local/bin/yt-dlp && \
