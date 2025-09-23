@@ -154,6 +154,35 @@ def test_cookies_file_path_config():
         assert config.COOKIES_FILE_PATH == expected_path
 
 
+def test_download_command_includes_cache_dir():
+    """Test that the download command includes --cache-dir flag."""
+    import logging
+    from unittest.mock import patch
+    from src.mus.infrastructure.jobs.download_jobs import _download_audio
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.stdout = "[ExtractAudio] Destination: test.mp3"
+        mock_run.return_value.stderr = ""
+
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.is_file", return_value=True),
+            patch("shutil.move"),
+            patch("os.chmod"),
+        ):
+            try:
+                _download_audio("https://example.com/video", logging.getLogger())
+            except Exception:
+                pass  # We expect this to fail due to mocking
+
+            # Check that the command includes --cache-dir
+            mock_run.assert_called_once()
+            cmd = mock_run.call_args[0][0]
+            assert "--cache-dir" in cmd
+            cache_dir_index = cmd.index("--cache-dir")
+            assert cmd[cache_dir_index + 1].endswith("/.cache")
+
+
 def test_download_command_includes_cookies_when_file_exists():
     """Test that the download command includes --cookies flag when cookies file exists."""
     import logging

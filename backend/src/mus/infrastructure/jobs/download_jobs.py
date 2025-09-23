@@ -115,6 +115,8 @@ def _download_audio(url: str, logger: logging.Logger) -> str:
             "--retries",
             "10",
             "--no-playlist",
+            "--cache-dir",
+            str(settings.DATA_DIR_PATH / ".cache"),
         ]
 
         if settings.COOKIES_FILE_PATH.exists() and settings.COOKIES_FILE_PATH.is_file():

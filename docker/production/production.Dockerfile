@@ -49,7 +49,9 @@ ENV PYTHONUNBUFFERED=1 \
     NODE_VERSION=24 \
     WATCHFILES_FORCE_POLLING=true \
     WATCHFILES_POLL_DELAY_MS=2000 \
-    PATH="/opt/venv/bin:$PATH"
+    PATH="/opt/venv/bin:$PATH" \
+    XDG_CACHE_HOME=/app_data/.cache \
+    HOME=/home/appuser
 
 LABEL org.opencontainers.image.created=$BUILD_DATE
 LABEL org.opencontainers.image.revision=$COMMIT_SHA
@@ -100,7 +102,7 @@ ENV PATH="/home/appuser/.local/bin:${PATH}"
 
 RUN chmod +x /app/start.sh && \
     chmod 0644 /etc/cron.d/yt-dlp-update && \
-    mkdir -p /app_data/database /app_data/covers /app_data/music /var/log/supervisor /var/cache/nginx/covers_cache && \
+    mkdir -p /app_data/database /app_data/covers /app_data/music /app_data/.cache /var/log/supervisor /var/cache/nginx/covers_cache && \
     chown -R appuser:appgroup /app_data /app/frontend/build && \
     chown appuser:appgroup /app && \
     chmod 666 /etc/nginx/nginx.conf || touch /etc/nginx/nginx.conf && chmod 666 /etc/nginx/nginx.conf
