@@ -11,18 +11,20 @@ x-backend-environment: &x-backend-environment
   WATCHFILES_POLL_DELAY_MS: 2000
   LOG_LEVEL: INFO
 
-x-volumes: &x-volumes
+x-backend-volumes: &x-backend-volumes
   - ../backend:/app
-  - ./.venv:/opt/venv
+  - backend_venv:/opt/venv
   - /path/to/your/music:/app_data/music
   - app_data_database:/app_data/database
   - app_data_covers:/app_data/covers
+  # Optional: Mount cookies.txt for yt-dlp authenticated downloads
+  # - ./cookies.txt:/app_data/cookies.txt:ro
 
 services:
   backend:
     ports:
       - "8001:8001"
-    volumes: *x-volumes
+    volumes: *x-backend-volumes
     environment:
       <<: *x-backend-environment
     restart: unless-stopped
@@ -45,11 +47,12 @@ services:
       - "6379:6379"
 
   streaq-worker:
-    volumes: *x-volumes
+    volumes: *x-backend-volumes
     environment:
       <<: *x-backend-environment
 
 volumes:
   app_node_modules:
+  backend_venv:
   app_data_database:
   app_data_covers:

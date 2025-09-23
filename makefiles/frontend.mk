@@ -16,6 +16,10 @@ front-npm-dev-install:
 front-npm-uninstall:
 	@$(DOCKER_COMPOSE_FRONTEND_CMD) npm uninstall $(ARGS)
 
+.PHONY: front-npm-update
+front-npm-update:
+	@$(DOCKER_COMPOSE_FRONTEND_CMD) npm update
+
 .PHONY: front-build
 front-build:
 	@$(DOCKER_COMPOSE_FRONTEND_CMD) npm run build

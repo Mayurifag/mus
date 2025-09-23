@@ -36,5 +36,10 @@ class Config(BaseModel):
     def DATABASE_PATH(self) -> Path:
         return self.DATA_DIR_PATH / "database" / "mus.db"
 
+    @computed_field
+    @property
+    def COOKIES_FILE_PATH(self) -> Path:
+        return self.DATA_DIR_PATH / "cookies.txt"
+
 
 settings = Config()

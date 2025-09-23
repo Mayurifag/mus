@@ -80,10 +80,7 @@ describe("AudioService", () => {
       "error",
       expect.any(Function),
     );
-    expect(mockAudio.addEventListener).toHaveBeenCalledWith(
-      "canplay",
-      expect.any(Function),
-    );
+
     expect(mockAudio.addEventListener).toHaveBeenCalledWith(
       "progress",
       expect.any(Function),
@@ -220,10 +217,7 @@ describe("AudioService", () => {
       "error",
       expect.any(Function),
     );
-    expect(mockAudio.removeEventListener).toHaveBeenCalledWith(
-      "canplay",
-      expect.any(Function),
-    );
+
     expect(mockAudio.removeEventListener).toHaveBeenCalledWith(
       "progress",
       expect.any(Function),
@@ -321,27 +315,11 @@ describe("AudioService", () => {
   it("should auto-play when updateAudioSource is called with isPlaying=true", () => {
     audioService.updateAudioSource(mockTrack, true);
 
-    const addEventListenerMock =
-      mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
-    const canPlayHandler = addEventListenerMock.mock.calls.find(
-      (call: unknown[]) => call[0] === "canplay",
-    )?.[1] as () => void;
-
-    canPlayHandler();
-
     expect(mockAudio.play).toHaveBeenCalled();
   });
 
   it("should not auto-play when updateAudioSource is called with isPlaying=false", () => {
     audioService.updateAudioSource(mockTrack, false);
-
-    const addEventListenerMock =
-      mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
-    const canPlayHandler = addEventListenerMock.mock.calls.find(
-      (call: unknown[]) => call[0] === "canplay",
-    )?.[1] as () => void;
-
-    canPlayHandler();
 
     expect(mockAudio.play).not.toHaveBeenCalled();
   });

@@ -1,0 +1,1 @@
+0 3 * * * appuser /home/appuser/.local/bin/yt-dlp -U > /dev/null 2>&1
