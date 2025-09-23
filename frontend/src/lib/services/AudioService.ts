@@ -6,7 +6,6 @@ import { formatArtistsForDisplay } from "$lib/utils/formatters";
 
 export class AudioService {
   private audio: HTMLAudioElement;
-  private shouldAutoPlay = false;
   private isSeeking = false;
 
   // Convert internal state to reactive stores
@@ -51,7 +50,6 @@ export class AudioService {
     this.audio.addEventListener("timeupdate", this.handleTimeUpdate);
     this.audio.addEventListener("ended", this.handleEnded);
     this.audio.addEventListener("error", this.handleError);
-    this.audio.addEventListener("canplay", this.handleCanPlay);
     this.audio.addEventListener("play", this.handlePlay);
     this.audio.addEventListener("pause", this.handlePause);
     this.audio.addEventListener("playing", this.setupActionHandlers);
@@ -103,16 +101,6 @@ export class AudioService {
     this.pause();
   };
 
-  private handleCanPlay = (): void => {
-    if (this.shouldAutoPlay) {
-      this.audio.play().catch((error) => {
-        console.error("Error auto-playing audio:", error);
-        this.pause();
-      });
-      this.shouldAutoPlay = false;
-    }
-  };
-
   private handleProgress = (): void => {
     this.updateBufferedRanges();
   };
@@ -144,7 +132,6 @@ export class AudioService {
 
     const streamUrl = getStreamUrl(track.id);
     if (this.audio.src !== streamUrl) {
-      this.shouldAutoPlay = isPlaying;
       this.audio.src = streamUrl;
       this.audio.load();
       if (typeof document !== "undefined") {
@@ -153,6 +140,15 @@ export class AudioService {
       this._currentTime.set(0);
       this._currentBufferedRanges.set([]);
       this.updateMediaSessionMetadata(track);
+
+      // Immediately attempt to play if requested to maintain user gesture context
+      if (isPlaying) {
+        this.audio.play().catch((error) => {
+          if (error.name !== "AbortError") {
+            this.pause();
+          }
+        });
+      }
     }
   }
 
@@ -341,7 +337,6 @@ export class AudioService {
     this.audio.removeEventListener("timeupdate", this.handleTimeUpdate);
     this.audio.removeEventListener("ended", this.handleEnded);
     this.audio.removeEventListener("error", this.handleError);
-    this.audio.removeEventListener("canplay", this.handleCanPlay);
     this.audio.removeEventListener("play", this.handlePlay);
     this.audio.removeEventListener("pause", this.handlePause);
     this.audio.removeEventListener("playing", this.setupActionHandlers);

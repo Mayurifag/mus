@@ -109,6 +109,8 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o 
     chmod a+rx /home/appuser/.local/bin/yt-dlp && \
     yt-dlp --update-to nightly
 
+USER root
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=300s --timeout=3s --start-period=10s --retries=3 \
