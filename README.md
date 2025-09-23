@@ -33,6 +33,8 @@ me!
 - No dumb features like "Repeat all playlist" (repeat only current track)
 - Intelligently disable features requiring write support if mounted folder is
   read-only
+- Various little things to make experience smooth (virtual list of music files,
+  automatic webp cover preview generation on upload and much more)
 
 ## Technical details
 

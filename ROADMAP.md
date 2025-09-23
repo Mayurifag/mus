@@ -228,7 +228,6 @@
 
 - [x] Fix uv warnings and fix production.Dockerfile
   - [x] <https://github.com/astral-sh/uv-docker-example/blob/main/multistage.Dockerfile>
-  - [x] <https://hynek.me/articles/docker-uv/>
   - [x] bytecode etc optimizations in backend.dockerfile too
 - [x] Add ci commands to makefile
 - [x] yt-dlp - downloads many file in folder, it has to be single file finalized and moved
