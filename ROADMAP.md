@@ -235,7 +235,9 @@
 - [x] is it fine that supervisord from root starts nginx not appuser
 - [x] critical mobile bug: on the end of track it switches to next but doesnt play automatically until open webpage. If i try to play from modal - does nothing first and when disappears
 - [x] cookies.txt usage
+- [ ] Before trying to write test and so on, check that folder actually exist and mounted, otherwise it will be failed
 - [ ] Memory is eating too much it seems. why? no need. Every track change - no freeing memory, just eating
+- [ ] init problem - too much eating and not all pictures converted
 - [ ] imba feature: on startup we check music folder and for files there and setting the same user rights and group - backend + production dockerfiles
 - [ ] log what takes long on e2e testing
 - [ ] On Edit - if im not mistaken we do not check if file with same name exists, we should show UI warning and prevent save on such cases! that is server check
