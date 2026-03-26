@@ -9,6 +9,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+pyvips.cache_set_max(0)
+pyvips.cache_set_max_mem(0)
+pyvips.cache_set_max_files(0)
+
 
 class CoverProcessor:
     def __init__(self, covers_dir_path: Path) -> None:

@@ -3,6 +3,8 @@ import logging
 import time
 from os import cpu_count
 
+import pyvips
+
 from src.mus.application.services.permissions_service import PermissionsService
 from src.mus.application.use_cases.process_track_metadata import (
     process_slow_metadata_for_track,
@@ -70,6 +72,7 @@ class SlowInitialScanUseCase:
         success_count = sum(1 for _, error in results if error is None)
         error_count = len(results) - success_count
 
+        await asyncio.to_thread(pyvips.vips_cache_drop_all)
         logger.info(
             f"Slow scan complete. Succeeded: {success_count}, Failed: {error_count}"
         )

@@ -9,7 +9,8 @@
     "**/*.{md,markdown}",
     "!**/node_modules/**",
     "!**/.venv/**",
-    "!AGENT_TASKS/**"
+    "!AGENT_TASKS/**",
+    "!.gsd/**"
   ],
   "noBanner": true
 }

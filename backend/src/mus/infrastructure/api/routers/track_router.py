@@ -49,6 +49,8 @@ AUDIO_CONTENT_TYPES: Final = {
     ".mp3": "audio/mpeg",
     ".flac": "audio/flac",
     ".wav": "audio/wav",
+    ".m4a": "audio/mp4",
+    ".ogg": "audio/ogg",
 }
 
 
@@ -111,7 +113,7 @@ async def stream_track(
         filename=os.path.basename(track.file_path),
         headers={
             "ETag": f'"{etag}"',
-            "Cache-Control": "public, max-age=86400, immutable",
+            "Cache-Control": "public, max-age=86400",
             "Accept-Ranges": "bytes",
         },
     )
