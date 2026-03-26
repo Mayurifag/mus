@@ -7,7 +7,11 @@ ci:
 	$(MAKE) e2e-lint && \
 	$(MAKE) front-svelte-check && \
 	$(MAKE) front-test && \
-	$(MAKE) back-test && \
+	$(MAKE) back-test
+
+.PHONY: full-ci
+full-ci:
+	$(MAKE) ci && \
 	$(MAKE) e2e
 
 .PHONY: markdown-lint
