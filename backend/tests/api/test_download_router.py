@@ -1,13 +1,13 @@
-from unittest.mock import AsyncMock, patch
-from pathlib import Path
+import asyncio
 import tempfile
+from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from src.mus.application.services.permissions_service import PermissionsService
 from src.mus.infrastructure.api.dependencies import get_permissions_service
-from src.mus.infrastructure.jobs.download_jobs import _download_audio
 
 
 @pytest.fixture
@@ -154,93 +154,230 @@ def test_cookies_file_path_config():
         assert config.COOKIES_FILE_PATH == expected_path
 
 
-def test_download_command_includes_cache_dir():
-    """Test that the download command includes --cache-dir flag."""
-    import logging
-    from unittest.mock import patch
-    from src.mus.infrastructure.jobs.download_jobs import _download_audio
+@pytest.mark.asyncio
+async def test_metadata_success_youtube_style(client, app):
+    mock_permissions = PermissionsService()
+    mock_permissions.can_write_music_files = True
+    app.dependency_overrides[get_permissions_service] = lambda: mock_permissions
 
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value.stdout = "[ExtractAudio] Destination: test.mp3"
-        mock_run.return_value.stderr = ""
+    yt_dlp_data = {
+        "title": "Artist - Track (Official Video)",
+        "artist": None,
+        "channel": "Artist",
+        "thumbnail": "http://example.com/thumb.jpg",
+        "duration": 180,
+    }
 
-        with (
-            patch("pathlib.Path.exists", return_value=True),
-            patch("pathlib.Path.is_file", return_value=True),
-            patch("shutil.move"),
-            patch("os.chmod"),
-        ):
-            try:
-                _download_audio("https://example.com/video", logging.getLogger())
-            except Exception:
-                pass  # We expect this to fail due to mocking
+    with patch(
+        "src.mus.infrastructure.api.routers.download_router._fetch_raw_metadata",
+        new_callable=AsyncMock,
+        return_value=yt_dlp_data,
+    ):
+        try:
+            response = client.post(
+                "/api/v1/downloads/metadata",
+                json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
+            )
 
-            # Check that the command includes --cache-dir
-            mock_run.assert_called_once()
-            cmd = mock_run.call_args[0][0]
-            assert "--cache-dir" in cmd
-            cache_dir_index = cmd.index("--cache-dir")
-            assert cmd[cache_dir_index + 1].endswith("/.cache")
-
-
-def test_download_command_includes_cookies_when_file_exists():
-    """Test that the download command includes --cookies flag when cookies file exists."""
-    import logging
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        cookies_file = Path(temp_dir) / "cookies.txt"
-        cookies_file.write_text("# Test cookies file")
-
-        with patch(
-            "src.mus.infrastructure.jobs.download_jobs.settings"
-        ) as mock_settings:
-            mock_settings.COOKIES_FILE_PATH = cookies_file
-
-            # Mock subprocess.run to capture the command
-            with patch(
-                "src.mus.infrastructure.jobs.download_jobs.subprocess.run"
-            ) as mock_run:
-                mock_run.side_effect = Exception("Test exception to stop execution")
-
-                logger = logging.getLogger(__name__)
-                try:
-                    _download_audio("https://example.com/video", logger)
-                except Exception:
-                    pass
-
-                mock_run.assert_called_once()
-                cmd_args = mock_run.call_args[0][0]
-
-                assert "--cookies" in cmd_args
-                cookies_index = cmd_args.index("--cookies")
-                assert cmd_args[cookies_index + 1] == str(cookies_file)
+            assert response.status_code == 200
+            body = response.json()
+            assert body["artist"] == "Artist"
+            assert body["title"] == "Track"
+            assert body["thumbnail_url"] == "http://example.com/thumb.jpg"
+            assert body["duration"] == 180
+        finally:
+            app.dependency_overrides.clear()
 
 
-def test_download_command_excludes_cookies_when_file_missing():
-    """Test that the download command excludes --cookies flag when cookies file doesn't exist."""
-    import logging
+@pytest.mark.asyncio
+async def test_metadata_success_soundcloud_style(client, app):
+    mock_permissions = PermissionsService()
+    mock_permissions.can_write_music_files = True
+    app.dependency_overrides[get_permissions_service] = lambda: mock_permissions
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        non_existent_cookies = Path(temp_dir) / "nonexistent_cookies.txt"
+    yt_dlp_data = {
+        "title": "bad guy",
+        "artist": "Billie Eilish",
+        "channel": "Billie Eilish",
+        "thumbnail": "http://example.com/thumb2.jpg",
+        "duration": 194,
+    }
 
-        with patch(
-            "src.mus.infrastructure.jobs.download_jobs.settings"
-        ) as mock_settings:
-            mock_settings.COOKIES_FILE_PATH = non_existent_cookies
+    with patch(
+        "src.mus.infrastructure.api.routers.download_router._fetch_raw_metadata",
+        new_callable=AsyncMock,
+        return_value=yt_dlp_data,
+    ):
+        try:
+            response = client.post(
+                "/api/v1/downloads/metadata",
+                json={"url": "https://soundcloud.com/billieeilish/bad-guy"},
+            )
 
-            # Mock subprocess.run to capture the command
-            with patch(
-                "src.mus.infrastructure.jobs.download_jobs.subprocess.run"
-            ) as mock_run:
-                mock_run.side_effect = Exception("Test exception to stop execution")
+            assert response.status_code == 200
+            body = response.json()
+            assert body["artist"] == "Billie Eilish"
+            assert body["title"] == "bad guy"
+            assert body["thumbnail_url"] == "http://example.com/thumb2.jpg"
+            assert body["duration"] == 194
+        finally:
+            app.dependency_overrides.clear()
 
-                logger = logging.getLogger(__name__)
-                try:
-                    _download_audio("https://example.com/video", logger)
-                except Exception:
-                    pass
 
-                mock_run.assert_called_once()
-                cmd_args = mock_run.call_args[0][0]
+@pytest.mark.asyncio
+async def test_metadata_read_only_403(client, app):
+    mock_permissions = PermissionsService()
+    mock_permissions.can_write_music_files = False
+    app.dependency_overrides[get_permissions_service] = lambda: mock_permissions
 
-                assert "--cookies" not in cmd_args
+    try:
+        response = client.post(
+            "/api/v1/downloads/metadata",
+            json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
+        )
+
+        assert response.status_code == 403
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_metadata_ytdlp_error_422(client, app):
+    mock_permissions = PermissionsService()
+    mock_permissions.can_write_music_files = True
+    app.dependency_overrides[get_permissions_service] = lambda: mock_permissions
+
+    with patch(
+        "src.mus.infrastructure.api.routers.download_router._fetch_raw_metadata",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("yt-dlp exited with non-zero status"),
+    ):
+        try:
+            response = client.post(
+                "/api/v1/downloads/metadata",
+                json={"url": "https://www.youtube.com/watch?v=invalid"},
+            )
+
+            assert response.status_code == 422
+        finally:
+            app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_metadata_timeout_504(client, app):
+    mock_permissions = PermissionsService()
+    mock_permissions.can_write_music_files = True
+    app.dependency_overrides[get_permissions_service] = lambda: mock_permissions
+
+    with patch(
+        "src.mus.infrastructure.api.routers.download_router._fetch_raw_metadata",
+        new_callable=AsyncMock,
+        side_effect=asyncio.TimeoutError(),
+    ):
+        try:
+            response = client.post(
+                "/api/v1/downloads/metadata",
+                json={"url": "https://www.youtube.com/watch?v=slow"},
+            )
+
+            assert response.status_code == 504
+        finally:
+            app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_confirm_success(client, app):
+    mock_redis = AsyncMock()
+    mock_redis.set.return_value = True
+    mock_redis.aclose = AsyncMock()
+
+    mock_permissions = PermissionsService()
+    mock_permissions.can_write_music_files = True
+    app.dependency_overrides[get_permissions_service] = lambda: mock_permissions
+
+    with (
+        patch(
+            "src.mus.infrastructure.api.routers.download_router.get_redis_client"
+        ) as mock_get_redis,
+        patch(
+            "src.mus.infrastructure.jobs.download_jobs.download_track_from_url.enqueue",
+            new_callable=AsyncMock,
+        ) as mock_enqueue,
+    ):
+        mock_get_redis.return_value = mock_redis
+
+        try:
+            response = client.post(
+                "/api/v1/downloads/confirm",
+                json={
+                    "url": "https://example.com/video",
+                    "title": "Some Track",
+                    "artist": "Some Artist",
+                },
+            )
+
+            assert response.status_code == 202
+            assert response.json() == {"status": "accepted"}
+            mock_enqueue.assert_called_once_with(
+                url="https://example.com/video",
+                title="Some Track",
+                artist="Some Artist",
+            )
+        finally:
+            app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_confirm_no_permissions(client, app):
+    mock_permissions = PermissionsService()
+    mock_permissions.can_write_music_files = False
+    app.dependency_overrides[get_permissions_service] = lambda: mock_permissions
+
+    try:
+        response = client.post(
+            "/api/v1/downloads/confirm",
+            json={
+                "url": "https://example.com/video",
+                "title": "Some Track",
+                "artist": "Some Artist",
+            },
+        )
+
+        assert response.status_code == 403
+        assert (
+            response.json()["detail"]
+            == "Download not available - insufficient write permissions to music directory"
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_confirm_lock_already_exists(client, app):
+    mock_redis = AsyncMock()
+    mock_redis.set.return_value = False  # Lock already exists
+    mock_redis.aclose = AsyncMock()
+
+    mock_permissions = PermissionsService()
+    mock_permissions.can_write_music_files = True
+    app.dependency_overrides[get_permissions_service] = lambda: mock_permissions
+
+    with patch(
+        "src.mus.infrastructure.api.routers.download_router.get_redis_client"
+    ) as mock_get_redis:
+        mock_get_redis.return_value = mock_redis
+
+        try:
+            response = client.post(
+                "/api/v1/downloads/confirm",
+                json={
+                    "url": "https://example.com/video",
+                    "title": "Some Track",
+                    "artist": "Some Artist",
+                },
+            )
+
+            assert response.status_code == 429
+            assert response.json()["detail"] == "Download already in progress"
+        finally:
+            app.dependency_overrides.clear()

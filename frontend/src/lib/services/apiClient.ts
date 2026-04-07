@@ -245,8 +245,40 @@ export async function startDownload(url: string): Promise<void> {
   }
 }
 
+export interface TrackMetadata {
+  title: string;
+  artist: string;
+  thumbnail_url: string | null;
+  duration: number | null;
+}
+
+export async function fetchMetadata(url: string): Promise<TrackMetadata> {
+  const result = await safeApiCall(
+    async () => {
+      const response = await fetch(
+        `${API_PREFIX}${API_VERSION_PATH}/downloads/metadata`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ url }),
+        },
+      );
+      return await handleApiResponse<TrackMetadata>(response);
+    },
+    { context: "fetchMetadata" },
+  );
+
+  if (result === null) {
+    throw new Error("Failed to fetch metadata");
+  }
+
+  return result;
+}
+
 export async function confirmDownload(
-  tempId: string,
+  url: string,
   title: string,
   artist: string,
 ): Promise<void> {
@@ -259,7 +291,7 @@ export async function confirmDownload(
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ tempId, title, artist }),
+          body: JSON.stringify({ url, title, artist }),
         },
       );
       await handleApiResponse(response);

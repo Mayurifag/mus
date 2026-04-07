@@ -3,6 +3,7 @@ import { initEventHandlerService, handleMusEvent } from "./eventHandlerService";
 import * as apiClient from "./apiClient";
 import { trackStore } from "$lib/stores/trackStore";
 import { recentEventsStore } from "$lib/stores/recentEventsStore";
+import { downloadStore } from "$lib/stores/downloadStore";
 import type { MusEvent, Track } from "$lib/types";
 
 // Mock dependencies
@@ -22,6 +23,15 @@ vi.mock("$lib/stores/trackStore", () => ({
 vi.mock("$lib/stores/recentEventsStore", () => ({
   recentEventsStore: {
     addEvent: vi.fn(),
+  },
+}));
+
+vi.mock("$lib/stores/downloadStore", () => ({
+  downloadStore: {
+    startDownload: vi.fn(),
+    setCompleted: vi.fn(),
+    setFailed: vi.fn(),
+    setProgress: vi.fn(),
   },
 }));
 
@@ -202,6 +212,36 @@ describe("eventHandlerService", () => {
       };
 
       expect(() => handleMusEvent(payload)).not.toThrow();
+    });
+
+    it("should handle download_progress event", () => {
+      const payload: MusEvent = {
+        message_to_show: null,
+        message_level: null,
+        action_key: "download_progress",
+        action_payload: { percent: 55.0, speed: "3.2MiB/s", eta: "00:45" },
+      };
+
+      handleMusEvent(payload);
+
+      expect(downloadStore.setProgress).toHaveBeenCalledWith({
+        percent: 55.0,
+        speed: "3.2MiB/s",
+        eta: "00:45",
+      });
+    });
+
+    it("should not call setProgress when download_progress has no payload", () => {
+      const payload: MusEvent = {
+        message_to_show: null,
+        message_level: null,
+        action_key: "download_progress",
+        action_payload: null,
+      };
+
+      handleMusEvent(payload);
+
+      expect(downloadStore.setProgress).not.toHaveBeenCalled();
     });
   });
 

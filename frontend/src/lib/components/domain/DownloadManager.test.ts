@@ -7,6 +7,8 @@ import * as apiClient from "$lib/services/apiClient";
 
 // Mock dependencies
 vi.mock("$lib/services/apiClient", () => ({
+  fetchMetadata: vi.fn(),
+  confirmDownload: vi.fn(),
   startDownload: vi.fn(),
 }));
 
@@ -17,6 +19,13 @@ vi.mock("svelte-sonner", () => ({
     info: vi.fn(),
     warning: vi.fn(),
   },
+}));
+
+// Minimal mock for TrackMetadataModal to avoid full Dialog complexity in unit tests
+vi.mock("./TrackMetadataModal.svelte", () => ({
+  default: vi.fn().mockImplementation(() => ({
+    $$: { ctx: [] },
+  })),
 }));
 
 describe("DownloadManager", () => {
@@ -60,36 +69,20 @@ describe("DownloadManager", () => {
     expect(button).not.toBeDisabled();
   });
 
-  it("should call startDownload when form is submitted", async () => {
-    const mockStartDownload = vi.mocked(apiClient.startDownload);
-    mockStartDownload.mockResolvedValue();
-
-    render(DownloadManager);
-
-    const input = screen.getByPlaceholderText(
-      "Enter YouTube URL or other supported link",
-    );
-    const button = screen.getByRole("button", { name: /download/i });
-
-    await fireEvent.input(input, {
-      target: { value: "https://youtube.com/watch?v=test" },
+  it("should call fetchMetadata when form is submitted", async () => {
+    const mockFetchMetadata = vi.mocked(apiClient.fetchMetadata);
+    mockFetchMetadata.mockResolvedValue({
+      title: "Test Song",
+      artist: "Test Artist",
+      thumbnail_url: null,
+      duration: null,
     });
-    await fireEvent.click(button);
-
-    expect(mockStartDownload).toHaveBeenCalledWith(
-      "https://youtube.com/watch?v=test",
-    );
-  });
-
-  it("should clear input after successful download start", async () => {
-    const mockStartDownload = vi.mocked(apiClient.startDownload);
-    mockStartDownload.mockResolvedValue();
 
     render(DownloadManager);
 
     const input = screen.getByPlaceholderText(
       "Enter YouTube URL or other supported link",
-    ) as HTMLInputElement;
+    );
     const button = screen.getByRole("button", { name: /download/i });
 
     await fireEvent.input(input, {
@@ -98,8 +91,48 @@ describe("DownloadManager", () => {
     await fireEvent.click(button);
 
     await waitFor(() => {
-      expect(input.value).toBe("");
+      expect(mockFetchMetadata).toHaveBeenCalledWith(
+        "https://youtube.com/watch?v=test",
+      );
     });
+  });
+
+  it("should transition store to awaiting_review after successful metadata fetch", async () => {
+    const mockFetchMetadata = vi.mocked(apiClient.fetchMetadata);
+    mockFetchMetadata.mockResolvedValue({
+      title: "Test Song",
+      artist: "Test Artist",
+      thumbnail_url: "https://example.com/thumb.jpg",
+      duration: 180,
+    });
+
+    render(DownloadManager);
+
+    const input = screen.getByPlaceholderText(
+      "Enter YouTube URL or other supported link",
+    );
+
+    await fireEvent.input(input, {
+      target: { value: "https://youtube.com/watch?v=test" },
+    });
+    await fireEvent.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() => {
+      const state = downloadStore;
+      let storeValue: { state: string } | undefined;
+      state.subscribe((v) => (storeValue = v))();
+      expect(storeValue?.state).toBe("awaiting_review");
+    });
+  });
+
+  it("should show loading state when fetching metadata", async () => {
+    // Put store directly in fetching_metadata state
+    downloadStore.setFetchingMetadata("https://youtube.com/watch?v=test");
+
+    render(DownloadManager);
+
+    expect(screen.getByText("Fetching metadata...")).toBeInTheDocument();
+    expect(screen.getByRole("button")).toBeDisabled();
   });
 
   it("should show loading state when downloading", async () => {
@@ -111,7 +144,7 @@ describe("DownloadManager", () => {
     expect(screen.getByRole("button")).toBeDisabled();
   });
 
-  it("should show error message when download fails", async () => {
+  it("should show error message when metadata fetch fails", async () => {
     downloadStore.setFailed("Network error");
 
     render(DownloadManager);
@@ -119,9 +152,34 @@ describe("DownloadManager", () => {
     expect(screen.getByText("Network error")).toBeInTheDocument();
   });
 
+  it("should handle metadata fetch failure and set failed state", async () => {
+    const mockFetchMetadata = vi.mocked(apiClient.fetchMetadata);
+    mockFetchMetadata.mockRejectedValue(new Error("Failed to fetch metadata"));
+
+    render(DownloadManager);
+
+    const input = screen.getByPlaceholderText(
+      "Enter YouTube URL or other supported link",
+    );
+
+    await fireEvent.input(input, {
+      target: { value: "https://youtube.com/watch?v=test" },
+    });
+    await fireEvent.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Failed to fetch metadata")).toBeInTheDocument();
+    });
+  });
+
   it("should handle Enter key press", async () => {
-    const mockStartDownload = vi.mocked(apiClient.startDownload);
-    mockStartDownload.mockResolvedValue();
+    const mockFetchMetadata = vi.mocked(apiClient.fetchMetadata);
+    mockFetchMetadata.mockResolvedValue({
+      title: "Test Song",
+      artist: "Test Artist",
+      thumbnail_url: null,
+      duration: null,
+    });
 
     render(DownloadManager);
 
@@ -134,14 +192,21 @@ describe("DownloadManager", () => {
     });
     await fireEvent.keyDown(input, { key: "Enter" });
 
-    expect(mockStartDownload).toHaveBeenCalledWith(
-      "https://youtube.com/watch?v=test",
-    );
+    await waitFor(() => {
+      expect(mockFetchMetadata).toHaveBeenCalledWith(
+        "https://youtube.com/watch?v=test",
+      );
+    });
   });
 
   it("should trim whitespace from URL", async () => {
-    const mockStartDownload = vi.mocked(apiClient.startDownload);
-    mockStartDownload.mockResolvedValue();
+    const mockFetchMetadata = vi.mocked(apiClient.fetchMetadata);
+    mockFetchMetadata.mockResolvedValue({
+      title: "Test Song",
+      artist: "Test Artist",
+      thumbnail_url: null,
+      duration: null,
+    });
 
     render(DownloadManager);
 
@@ -155,14 +220,16 @@ describe("DownloadManager", () => {
     });
     await fireEvent.click(button);
 
-    expect(mockStartDownload).toHaveBeenCalledWith(
-      "https://youtube.com/watch?v=test",
-    );
+    await waitFor(() => {
+      expect(mockFetchMetadata).toHaveBeenCalledWith(
+        "https://youtube.com/watch?v=test",
+      );
+    });
   });
 
   it("should show specific error message for rate limiting", async () => {
-    const mockStartDownload = vi.mocked(apiClient.startDownload);
-    mockStartDownload.mockRejectedValue(new Error("Too Many Requests"));
+    const mockFetchMetadata = vi.mocked(apiClient.fetchMetadata);
+    mockFetchMetadata.mockRejectedValue(new Error("Too Many Requests"));
 
     render(DownloadManager);
 
@@ -186,8 +253,8 @@ describe("DownloadManager", () => {
   });
 
   it("should show specific error message for download in progress", async () => {
-    const mockStartDownload = vi.mocked(apiClient.startDownload);
-    mockStartDownload.mockRejectedValue(
+    const mockFetchMetadata = vi.mocked(apiClient.fetchMetadata);
+    mockFetchMetadata.mockRejectedValue(
       new Error("Download already in progress"),
     );
 
@@ -213,8 +280,8 @@ describe("DownloadManager", () => {
   });
 
   it("should show specific error message for service unavailable", async () => {
-    const mockStartDownload = vi.mocked(apiClient.startDownload);
-    mockStartDownload.mockRejectedValue(new Error("Service Unavailable"));
+    const mockFetchMetadata = vi.mocked(apiClient.fetchMetadata);
+    mockFetchMetadata.mockRejectedValue(new Error("Service Unavailable"));
 
     render(DownloadManager);
 
@@ -245,6 +312,31 @@ describe("DownloadManager", () => {
     await waitFor(() => {
       expect(screen.getByText("Completed")).toBeInTheDocument();
     });
+  });
+
+  it("should show progress bar when downloading with progress data", async () => {
+    downloadStore.startDownload();
+    downloadStore.setProgress({
+      percent: 45.5,
+      speed: "2.5MiB/s",
+      eta: "00:30",
+    });
+
+    render(DownloadManager);
+
+    await waitFor(() => {
+      expect(screen.getByText(/45\.5%/)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/2\.5MiB\/s/)).toBeInTheDocument();
+    expect(screen.getByText(/00:30/)).toBeInTheDocument();
+  });
+
+  it("should not show progress bar when downloading without progress data", async () => {
+    downloadStore.startDownload();
+
+    render(DownloadManager);
+
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
   });
 
   describe("Permission-based rendering", () => {
