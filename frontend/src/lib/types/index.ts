@@ -31,13 +31,18 @@ export interface MusEvent {
   action_payload: Record<string, unknown> | null;
 }
 
-export interface DownloadReadyPayload {
-  tempId: string;
-  title: string;
-  artist: string;
-  coverDataUrl: string;
-}
-
 export interface DownloadFailedPayload {
   error: string;
+}
+
+export interface DownloadProgress {
+  percent: number;
+  speed: string;
+  eta: string;
+}
+
+export interface DownloadProgressPayload {
+  percent: number;
+  speed: string;
+  eta: string;
 }

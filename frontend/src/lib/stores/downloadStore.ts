@@ -1,28 +1,34 @@
 import { writable } from "svelte/store";
+import type { DownloadProgress } from "$lib/types";
 
 export type DownloadState =
   | "idle"
+  | "fetching_metadata"
+  | "awaiting_review"
   | "downloading"
   | "completed"
-  | "awaiting_review"
   | "failed";
 
 export interface DownloadStoreState {
   state: DownloadState;
   error: string | null;
-  tempId: string | null;
-  suggestedTitle: string | null;
-  suggestedArtist: string | null;
-  coverDataUrl: string | null;
+  url: string | null;
+  title: string | null;
+  artist: string | null;
+  thumbnailUrl: string | null;
+  duration: number | null;
+  progress: DownloadProgress | null;
 }
 
 const initialState: DownloadStoreState = {
   state: "idle",
   error: null,
-  tempId: null,
-  suggestedTitle: null,
-  suggestedArtist: null,
-  coverDataUrl: null,
+  url: null,
+  title: null,
+  artist: null,
+  thumbnailUrl: null,
+  duration: null,
+  progress: null,
 };
 
 function createDownloadStore() {
@@ -30,15 +36,39 @@ function createDownloadStore() {
 
   return {
     subscribe,
+    setFetchingMetadata: (url: string) =>
+      update((state) => ({
+        ...state,
+        state: "fetching_metadata",
+        error: null,
+        url,
+      })),
+    setAwaitingReview: ({
+      title,
+      artist,
+      thumbnailUrl,
+      duration,
+    }: {
+      title: string;
+      artist: string;
+      thumbnailUrl: string | null;
+      duration: number | null;
+    }) =>
+      update((state) => ({
+        ...state,
+        state: "awaiting_review",
+        error: null,
+        title,
+        artist,
+        thumbnailUrl,
+        duration,
+      })),
     startDownload: () =>
       update((state) => ({
         ...state,
         state: "downloading",
         error: null,
-        tempId: null,
-        suggestedTitle: null,
-        suggestedArtist: null,
-        coverDataUrl: null,
+        progress: null,
       })),
     setCompleted: () =>
       update((state) => ({
@@ -52,21 +82,8 @@ function createDownloadStore() {
         state: "failed",
         error,
       })),
-    setAwaitingReview: (payload: {
-      tempId: string;
-      title: string;
-      artist: string;
-      coverDataUrl: string;
-    }) =>
-      update((state) => ({
-        ...state,
-        state: "awaiting_review",
-        error: null,
-        tempId: payload.tempId,
-        suggestedTitle: payload.title,
-        suggestedArtist: payload.artist,
-        coverDataUrl: payload.coverDataUrl,
-      })),
+    setProgress: (progress: DownloadProgress) =>
+      update((s) => ({ ...s, progress })),
     reset: () => set(initialState),
   };
 }

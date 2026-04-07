@@ -5,23 +5,18 @@ import { recentEventsStore } from "$lib/stores/recentEventsStore";
 import { downloadStore } from "$lib/stores/downloadStore";
 import type {
   MusEvent,
-  DownloadReadyPayload,
   DownloadFailedPayload,
+  DownloadProgressPayload,
 } from "$lib/types";
-
-let openDownloadModal: (() => void) | null = null;
-
-export function setDownloadModalOpener(opener: () => void) {
-  openDownloadModal = opener;
-}
 
 /**
  * Handles incoming SSE events from the backend
  * @param payload The event payload from the SSE stream
  */
 export function handleMusEvent(payload: MusEvent): void {
-  // Store event in recent events store
-  recentEventsStore.addEvent(payload);
+  if (payload.action_key !== "download_progress") {
+    recentEventsStore.addEvent(payload);
+  }
 
   // Show toast message if provided
   if (payload.message_to_show) {
@@ -64,14 +59,14 @@ export function handleMusEvent(payload: MusEvent): void {
         downloadStore.setFailed(failedPayload.error);
       }
       break;
-    case "download_ready_for_review":
+    case "download_progress":
       if (payload.action_payload) {
-        const readyPayload =
-          payload.action_payload as unknown as DownloadReadyPayload;
-        downloadStore.setAwaitingReview(readyPayload);
-        if (openDownloadModal) {
-          openDownloadModal();
-        }
+        const p = payload.action_payload as unknown as DownloadProgressPayload;
+        downloadStore.setProgress({
+          percent: p.percent,
+          speed: p.speed,
+          eta: p.eta,
+        });
       }
       break;
   }

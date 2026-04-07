@@ -97,3 +97,6 @@ htmlcov/
 target/
 vendor/
 tmp/
+
+# ── GSD baseline (auto-generated) ──
+.gsd-id

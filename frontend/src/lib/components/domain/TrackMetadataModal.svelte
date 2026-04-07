@@ -102,6 +102,16 @@
       }
 
       artists = artistList.map((value) => ({ id: artistIdCounter++, value }));
+    } else if (mode === "create" && isDownload) {
+      // Download mode: pre-fill from metadata fetched by DownloadManager
+      formState.title = suggestedTitle ?? "";
+      formState.renameFile = false;
+
+      if (suggestedArtist && suggestedArtist.trim()) {
+        artists = [{ id: artistIdCounter++, value: suggestedArtist.trim() }];
+      } else {
+        artists = [{ id: artistIdCounter++, value: "" }];
+      }
     } else if (mode === "create" && file) {
       // Use suggested title and artist from parsed filename
       formState.title =
@@ -183,10 +193,10 @@
   });
 
   async function handleSave() {
-    if (mode === "create" && file) {
-      await handleUpload();
-    } else if (mode === "create" && isDownload && onDownloadConfirm) {
+    if (mode === "create" && isDownload && onDownloadConfirm) {
       await handleDownloadConfirm();
+    } else if (mode === "create" && file) {
+      await handleUpload();
     } else if (mode === "edit" && track) {
       await handleUpdate();
     }
@@ -198,11 +208,10 @@
     isUploading = true;
     try {
       await onDownloadConfirm(sanitizedTitle, currentArtistString);
-      toast.success("Track added successfully");
       open = false;
     } catch (error) {
       console.error("Error confirming download:", error);
-      toast.error("Failed to add track");
+      toast.error("Failed to start download");
     } finally {
       isUploading = false;
     }
@@ -290,6 +299,19 @@
                 />
               {/if}
             </div>
+          {:else if mode === "create" && isDownload}
+            <!-- Thumbnail from fetched metadata -->
+            {#if coverDataUrl}
+              <div
+                class="bg-muted group relative aspect-square w-full overflow-hidden rounded-lg"
+              >
+                <img
+                  src={coverDataUrl}
+                  alt="Track thumbnail"
+                  class="h-full w-full object-cover"
+                />
+              </div>
+            {/if}
           {:else if mode === "create" && file}
             <!-- Cover image if available -->
             {#if coverDataUrl}

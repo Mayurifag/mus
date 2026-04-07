@@ -12,10 +12,12 @@ describe("downloadStore", () => {
     expect(state).toEqual({
       state: "idle",
       error: null,
-      tempId: null,
-      suggestedTitle: null,
-      suggestedArtist: null,
-      coverDataUrl: null,
+      url: null,
+      title: null,
+      artist: null,
+      thumbnailUrl: null,
+      duration: null,
+      progress: null,
     });
   });
 
@@ -24,10 +26,14 @@ describe("downloadStore", () => {
     const state = get(downloadStore);
     expect(state.state).toBe("downloading");
     expect(state.error).toBeNull();
-    expect(state.tempId).toBeNull();
-    expect(state.suggestedTitle).toBeNull();
-    expect(state.suggestedArtist).toBeNull();
-    expect(state.coverDataUrl).toBeNull();
+  });
+
+  it("should set completed state", () => {
+    downloadStore.startDownload();
+    downloadStore.setCompleted();
+    const state = get(downloadStore);
+    expect(state.state).toBe("completed");
+    expect(state.error).toBeNull();
   });
 
   it("should set failed state", () => {
@@ -38,23 +44,6 @@ describe("downloadStore", () => {
     expect(state.error).toBe(errorMessage);
   });
 
-  it("should set awaiting review state", () => {
-    const payload = {
-      tempId: "temp123",
-      title: "Test Song",
-      artist: "Test Artist",
-      coverDataUrl: "data:image/jpeg;base64,test",
-    };
-    downloadStore.setAwaitingReview(payload);
-    const state = get(downloadStore);
-    expect(state.state).toBe("awaiting_review");
-    expect(state.error).toBeNull();
-    expect(state.tempId).toBe(payload.tempId);
-    expect(state.suggestedTitle).toBe(payload.title);
-    expect(state.suggestedArtist).toBe(payload.artist);
-    expect(state.coverDataUrl).toBe(payload.coverDataUrl);
-  });
-
   it("should reset to initial state", () => {
     downloadStore.startDownload();
     downloadStore.setFailed("Some error");
@@ -63,10 +52,12 @@ describe("downloadStore", () => {
     expect(state).toEqual({
       state: "idle",
       error: null,
-      tempId: null,
-      suggestedTitle: null,
-      suggestedArtist: null,
-      coverDataUrl: null,
+      url: null,
+      title: null,
+      artist: null,
+      thumbnailUrl: null,
+      duration: null,
+      progress: null,
     });
   });
 
@@ -78,17 +69,95 @@ describe("downloadStore", () => {
     expect(state.error).toBeNull();
   });
 
-  it("should clear error when setting awaiting review", () => {
-    downloadStore.setFailed("Previous error");
-    const payload = {
-      tempId: "temp123",
-      title: "Test Song",
-      artist: "Test Artist",
-      coverDataUrl: "data:image/jpeg;base64,test",
-    };
-    downloadStore.setAwaitingReview(payload);
+  it("should set fetching_metadata state with url", () => {
+    downloadStore.setFetchingMetadata("https://example.com/video");
+    const state = get(downloadStore);
+    expect(state.state).toBe("fetching_metadata");
+    expect(state.url).toBe("https://example.com/video");
+    expect(state.error).toBeNull();
+  });
+
+  it("should set awaiting_review state with metadata fields", () => {
+    downloadStore.setFetchingMetadata("https://example.com/video");
+    downloadStore.setAwaitingReview({
+      title: "My Song",
+      artist: "My Artist",
+      thumbnailUrl: "https://example.com/thumb.jpg",
+      duration: 213,
+    });
     const state = get(downloadStore);
     expect(state.state).toBe("awaiting_review");
+    expect(state.title).toBe("My Song");
+    expect(state.artist).toBe("My Artist");
+    expect(state.thumbnailUrl).toBe("https://example.com/thumb.jpg");
+    expect(state.duration).toBe(213);
     expect(state.error).toBeNull();
+  });
+
+  it("should allow null thumbnailUrl and duration in awaiting_review", () => {
+    downloadStore.setAwaitingReview({
+      title: "Track",
+      artist: "Artist",
+      thumbnailUrl: null,
+      duration: null,
+    });
+    const state = get(downloadStore);
+    expect(state.state).toBe("awaiting_review");
+    expect(state.thumbnailUrl).toBeNull();
+    expect(state.duration).toBeNull();
+  });
+
+  it("should reset clears all metadata fields", () => {
+    downloadStore.setFetchingMetadata("https://example.com/video");
+    downloadStore.setAwaitingReview({
+      title: "Song",
+      artist: "Artist",
+      thumbnailUrl: "https://example.com/t.jpg",
+      duration: 180,
+    });
+    downloadStore.reset();
+    const state = get(downloadStore);
+    expect(state.url).toBeNull();
+    expect(state.title).toBeNull();
+    expect(state.artist).toBeNull();
+    expect(state.thumbnailUrl).toBeNull();
+    expect(state.duration).toBeNull();
+    expect(state.state).toBe("idle");
+  });
+
+  it("should set progress data", () => {
+    downloadStore.setProgress({
+      percent: 45.5,
+      speed: "2.5MiB/s",
+      eta: "00:30",
+    });
+    const state = get(downloadStore);
+    expect(state.progress).toEqual({
+      percent: 45.5,
+      speed: "2.5MiB/s",
+      eta: "00:30",
+    });
+  });
+
+  it("should reset progress when starting download", () => {
+    downloadStore.setProgress({
+      percent: 45.5,
+      speed: "2.5MiB/s",
+      eta: "00:30",
+    });
+    downloadStore.startDownload();
+    const state = get(downloadStore);
+    expect(state.progress).toBeNull();
+  });
+
+  it("should include progress null in reset", () => {
+    downloadStore.setProgress({
+      percent: 45.5,
+      speed: "2.5MiB/s",
+      eta: "00:30",
+    });
+    downloadStore.reset();
+    const state = get(downloadStore);
+    expect(state.progress).toBeNull();
   });
 });

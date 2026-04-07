@@ -1,7 +1,7 @@
 <script lang="ts">
   import { downloadStore } from "$lib/stores/downloadStore";
   import { permissionsStore } from "$lib/stores/permissionsStore";
-  import { startDownload } from "$lib/services/apiClient";
+  import { fetchMetadata, confirmDownload } from "$lib/services/apiClient";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import {
@@ -12,8 +12,10 @@
     Lock,
   } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
+  import TrackMetadataModal from "./TrackMetadataModal.svelte";
 
   let url = $state("");
+  let reviewModalOpen = $state(false);
 
   async function handleDownload() {
     if (!url.trim()) {
@@ -21,12 +23,20 @@
       return;
     }
 
+    const trimmedUrl = url.trim();
+
     try {
-      downloadStore.startDownload();
-      await startDownload(url.trim());
-      url = "";
+      downloadStore.setFetchingMetadata(trimmedUrl);
+      const metadata = await fetchMetadata(trimmedUrl);
+      downloadStore.setAwaitingReview({
+        title: metadata.title,
+        artist: metadata.artist,
+        thumbnailUrl: metadata.thumbnail_url,
+        duration: metadata.duration,
+      });
+      // $effect below opens the modal when state becomes awaiting_review
     } catch (error) {
-      let errorMessage = "Download failed";
+      let errorMessage = "Failed to fetch metadata";
 
       if (error instanceof Error) {
         if (
@@ -60,10 +70,40 @@
     }
   }
 
-  const isDownloading = $derived($downloadStore.state === "downloading");
+  async function handleDownloadConfirm(title: string, artist: string) {
+    const storeUrl = $downloadStore.url;
+    if (!storeUrl) return;
+    await confirmDownload(storeUrl, title, artist);
+    url = "";
+    downloadStore.startDownload();
+    reviewModalOpen = false;
+  }
+
+  function handleModalClose() {
+    if ($downloadStore.state === "awaiting_review") {
+      downloadStore.reset();
+    }
+    reviewModalOpen = false;
+  }
+
+  const isFetchingMetadata = $derived(
+    $downloadStore.state === "fetching_metadata",
+  );
+  const isDownloading = $derived(
+    $downloadStore.state === "downloading" ||
+      $downloadStore.state === "fetching_metadata",
+  );
   const isCompleted = $derived($downloadStore.state === "completed");
   const hasError = $derived($downloadStore.state === "failed");
+  const isAwaitingReview = $derived($downloadStore.state === "awaiting_review");
   const canWriteFiles = $derived($permissionsStore.can_write_music_files);
+  const progress = $derived($downloadStore.progress);
+
+  $effect(() => {
+    if (isAwaitingReview) {
+      reviewModalOpen = true;
+    }
+  });
 
   $effect(() => {
     if (isCompleted) {
@@ -85,7 +125,7 @@
       <Input
         bind:value={url}
         placeholder="Enter YouTube URL or other supported link"
-        disabled={isDownloading}
+        disabled={isDownloading || isCompleted}
         onkeydown={handleKeydown}
         class="bg-muted/30 border-border/50 placeholder:text-muted-foreground/60 focus:border-accent/50 focus:ring-accent/20 text-sm"
       />
@@ -101,7 +141,10 @@
           ? 'bg-green-600 hover:bg-green-600'
           : 'bg-accent hover:bg-accent/90'} text-accent-foreground"
       >
-        {#if isDownloading}
+        {#if isFetchingMetadata}
+          <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+          Fetching metadata...
+        {:else if isDownloading}
           <Loader2 class="mr-2 h-4 w-4 animate-spin" />
           Downloading...
         {:else if isCompleted}
@@ -112,6 +155,20 @@
           Download
         {/if}
       </Button>
+
+      {#if isDownloading && !isFetchingMetadata && progress !== null}
+        <div class="space-y-1">
+          <div class="bg-muted/30 h-2 overflow-hidden rounded-full">
+            <div
+              class="bg-accent h-full rounded-full transition-all duration-300"
+              style="width: {progress.percent}%"
+            ></div>
+          </div>
+          <span class="text-muted-foreground text-xs"
+            >{progress.percent.toFixed(1)}% · {progress.speed} · ETA {progress.eta}</span
+          >
+        </div>
+      {/if}
 
       {#if hasError && $downloadStore.error}
         <div
@@ -133,3 +190,16 @@
     </div>
   {/if}
 </div>
+
+{#if isAwaitingReview || reviewModalOpen}
+  <TrackMetadataModal
+    bind:open={reviewModalOpen}
+    mode="create"
+    isDownload={true}
+    suggestedTitle={$downloadStore.title ?? undefined}
+    suggestedArtist={$downloadStore.artist ?? undefined}
+    coverDataUrl={$downloadStore.thumbnailUrl}
+    onDownloadConfirm={handleDownloadConfirm}
+    onClose={handleModalClose}
+  />
+{/if}
