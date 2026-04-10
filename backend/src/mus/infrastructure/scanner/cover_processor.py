@@ -1,24 +1,32 @@
 import os
 import asyncio
 from pathlib import Path
-import pyvips
-from pyvips import Image as VipsImage
 from typing import Any, Optional
 from mutagen._file import File as MutagenFile
 import logging
 
 logger = logging.getLogger(__name__)
 
-pyvips.cache_set_max(0)
-pyvips.cache_set_max_mem(0)
-pyvips.cache_set_max_files(0)
+_pyvips_initialized = False
+
+
+def _get_pyvips():
+    import pyvips
+
+    global _pyvips_initialized
+    if not _pyvips_initialized:
+        pyvips.cache_set_max(0)
+        pyvips.cache_set_max_mem(0)
+        pyvips.cache_set_max_files(0)
+        pyvips.logger.setLevel(pyvips.logging.ERROR)
+        _pyvips_initialized = True
+    return pyvips
 
 
 class CoverProcessor:
     def __init__(self, covers_dir_path: Path) -> None:
         self.covers_dir = covers_dir_path
         os.makedirs(self.covers_dir, exist_ok=True)
-        pyvips.logger.setLevel(pyvips.logging.ERROR)
 
     async def process_and_save_cover(
         self,
@@ -55,9 +63,9 @@ class CoverProcessor:
         file_path: Optional[Path] = None,
     ) -> bool:
         try:
-            image: Any = VipsImage.new_from_buffer(cover_data_cleaned, "")
+            pyvips = _get_pyvips()
+            image: Any = pyvips.Image.new_from_buffer(cover_data_cleaned, "")
             image.webpsave(str(original_path), Q=95, strip=True)
-            # Using fixed 80x80 size for the small thumbnail
             thumbnail: Any = image.thumbnail_image(
                 80, height=80, crop=pyvips.Interesting.CENTRE
             )

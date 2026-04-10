@@ -26,3 +26,7 @@ services:
       redis:
         condition: service_started
     command: sh -c "uv sync --locked --no-editable; streaq src.mus.core.streaq_broker.worker"
+
+  ollama:
+    image: ollama/ollama
+    restart: unless-stopped

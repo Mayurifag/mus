@@ -108,7 +108,11 @@
       formState.renameFile = false;
 
       if (suggestedArtist && suggestedArtist.trim()) {
-        artists = [{ id: artistIdCounter++, value: suggestedArtist.trim() }];
+        const artistList = suggestedArtist
+          .split(",")
+          .map((a) => a.trim())
+          .filter(Boolean);
+        artists = artistList.map((value) => ({ id: artistIdCounter++, value }));
       } else {
         artists = [{ id: artistIdCounter++, value: "" }];
       }

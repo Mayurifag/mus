@@ -51,7 +51,8 @@ ENV PYTHONUNBUFFERED=1 \
     WATCHFILES_POLL_DELAY_MS=2000 \
     PATH="/opt/venv/bin:$PATH" \
     XDG_CACHE_HOME=/app_data/.cache \
-    HOME=/home/appuser
+    HOME=/home/appuser \
+    OLLAMA_MODELS=/opt/ollama/models
 
 LABEL org.opencontainers.image.created=$BUILD_DATE
 LABEL org.opencontainers.image.revision=$COMMIT_SHA
@@ -76,12 +77,30 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends zstd && \
+    rm -rf /var/lib/apt/lists/* && \
+    curl -fsSL "https://ollama.com/download/ollama-linux-${TARGETARCH}.tar.zst" | \
+    zstd -d | tar -xf - -C /usr && \
+    chmod +x /usr/bin/ollama
+
 ARG UID=1000
 ARG GID=1000
 RUN groupadd --gid ${GID} appgroup && \
     useradd --uid ${UID} --gid ${GID} --shell /bin/bash --create-home appuser && \
     mkdir -p /home/appuser/.local/bin && \
     chown -R appuser:appgroup /home/appuser
+
+# Pull model into image layer; only re-runs when ollama binary or model name changes
+RUN mkdir -p /opt/ollama/models && \
+    ollama serve & \
+    for i in $(seq 1 30); do \
+      curl -sf http://127.0.0.1:11434/api/tags > /dev/null 2>&1 && break; \
+      sleep 2; \
+    done && \
+    ollama pull qwen3.5:2b; \
+    pkill ollama; \
+    chown -R appuser:appgroup /opt/ollama/models
 
 WORKDIR /app
 

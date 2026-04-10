@@ -195,6 +195,10 @@ def test_clean_video_title_extended_mix():
     assert clean_video_title("Song [Extended Mix]") == "Song"
 
 
+def test_clean_video_title_original_mix():
+    assert clean_video_title("Song (Original Mix)") == "Song"
+
+
 def test_clean_video_title_album_version():
     assert clean_video_title("Song (Album Version)") == "Song"
 

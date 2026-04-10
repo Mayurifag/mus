@@ -27,6 +27,7 @@ me!
 - Easy new music upload flow
 - Auto-rename files to have single format
 - Every file gets ID3v2.3 tags with UTF-8 encoding enforced
+- Useful editor of artists/title with AI cleaning inbefore (qwen3.5:2B for now)
 - Download new files using yt-dlp **respecting SponsorBlock Youtube segments**.
   Custom vk.ru support incoming
 - Mobile support via PWA app and fast QR code setup. No plans for natives yet
@@ -40,7 +41,8 @@ me!
 ## Technical details
 
 This is dockerized single container (yes!) which contains Svelte frontend,
-FastAPI backend, worker, sqlite, redis, nginx, cron updater and supervisor.
+FastAPI backend, worker, sqlite, redis, nginx, cron updater, ollama and
+supervisor.
 
 In e2e folder I made setup to run playwright tests against production docker
 image, so its not bounded to python/js src files.
