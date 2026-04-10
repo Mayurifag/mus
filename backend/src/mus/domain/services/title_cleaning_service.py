@@ -30,6 +30,7 @@ _JUNK_KEYWORDS: tuple[str, ...] = (
     "remastered version",
     "extended version",
     "extended mix",
+    "original mix",
     "radio edit",
     "album version",
     "single version",

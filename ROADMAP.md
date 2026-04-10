@@ -283,12 +283,12 @@
 
 - [x] Download page - with form to add url
 - [x] yt-dlp from yt (list domains)
-- [ ] yt-dlp from other sites?
+- [x] yt-dlp from other sites?
 - [ ] functionality to automatically update yt-dlp? on startup?
-- [ ] can we show download progress somehow?
-- [ ] after yt-dlp we have to fire modal with saving - there is
+- [x] can we show download progress somehow?
+- [x] after yt-dlp we have to fire modal with saving - there is
   "awaiting_review" status but does not work now
-- [ ] Youtube: use 2.5-flash-lite LLM to parse artists/title and get rid of
+- [x] Youtube: use gemma 4 E2B LLM to parse artists/title and get rid of
   trash from trackname like "official music video" and so on
 
 ## Phase vk / other services ?

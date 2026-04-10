@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -13,6 +14,9 @@ from src.mus.domain.services.title_cleaning_service import (
     clean_video_title,
     extract_artist_title,
 )
+from src.mus.domain.services.ollama_service import parse_track_metadata
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/downloads", tags=["downloads"])
 
@@ -79,7 +83,11 @@ async def fetch_metadata(
     raw_artist = data.get("artist")
     channel_name = data.get("channel") or data.get("uploader") or ""
 
-    if raw_artist:
+    llm_result = await parse_track_metadata(raw_title, channel_name)
+    if llm_result is not None:
+        artist, title = llm_result
+        logger.debug("LLM parsed metadata: artist=%r title=%r", artist, title)
+    elif raw_artist:
         title = clean_video_title(raw_title)
         artist = raw_artist
     else:

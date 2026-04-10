@@ -15,6 +15,7 @@ class Config(BaseModel):
     SECRET_KEY: Optional[str] = os.getenv("SECRET_KEY")
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
+    OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
     MAX_UPLOAD_SIZE_MB: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "30"))
 
     DATA_DIR_PATH: Path = Path(os.getenv("DATA_DIR_PATH", "./app_data")).resolve()

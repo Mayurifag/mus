@@ -168,10 +168,17 @@ async def test_metadata_success_youtube_style(client, app):
         "duration": 180,
     }
 
-    with patch(
-        "src.mus.infrastructure.api.routers.download_router._fetch_raw_metadata",
-        new_callable=AsyncMock,
-        return_value=yt_dlp_data,
+    with (
+        patch(
+            "src.mus.infrastructure.api.routers.download_router._fetch_raw_metadata",
+            new_callable=AsyncMock,
+            return_value=yt_dlp_data,
+        ),
+        patch(
+            "src.mus.infrastructure.api.routers.download_router.parse_track_metadata",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
     ):
         try:
             response = client.post(
@@ -203,10 +210,17 @@ async def test_metadata_success_soundcloud_style(client, app):
         "duration": 194,
     }
 
-    with patch(
-        "src.mus.infrastructure.api.routers.download_router._fetch_raw_metadata",
-        new_callable=AsyncMock,
-        return_value=yt_dlp_data,
+    with (
+        patch(
+            "src.mus.infrastructure.api.routers.download_router._fetch_raw_metadata",
+            new_callable=AsyncMock,
+            return_value=yt_dlp_data,
+        ),
+        patch(
+            "src.mus.infrastructure.api.routers.download_router.parse_track_metadata",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
     ):
         try:
             response = client.post(
