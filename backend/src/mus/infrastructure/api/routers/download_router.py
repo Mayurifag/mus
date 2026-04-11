@@ -14,7 +14,7 @@ from src.mus.domain.services.title_cleaning_service import (
     clean_video_title,
     extract_artist_title,
 )
-from src.mus.domain.services.ollama_service import parse_track_metadata
+from src.mus.domain.services.gemini_service import parse_track_metadata
 
 logger = logging.getLogger(__name__)
 

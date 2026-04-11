@@ -10,7 +10,8 @@ x-backend-environment: &x-backend-environment
   WATCHFILES_FORCE_POLLING: true
   WATCHFILES_POLL_DELAY_MS: 2000
   LOG_LEVEL: INFO
-  OLLAMA_URL: http://ollama:11434
+  GEMINI_API_KEY: ""
+  GEMINI_MODEL: gemini-3.1-flash-lite-preview
 
 x-backend-volumes: &x-backend-volumes
   - ../backend:/app
@@ -52,36 +53,8 @@ services:
     environment:
       <<: *x-backend-environment
 
-  ollama:
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_models:/root/.ollama
-    environment:
-      OLLAMA_KEEP_ALIVE: -1
-    entrypoint: ["/bin/bash", "-c"]
-    command:
-      - |
-        ollama serve &
-        until ollama list >/dev/null 2>&1; do sleep 1; done
-        if ! ollama list | grep -q 'qwen3.5:2b'; then
-          echo "Pulling qwen3.5:2b..."
-          ollama pull qwen3.5:2b >/dev/null 2>&1 &
-          PULL_PID=$$!
-          while kill -0 $$PULL_PID 2>/dev/null; do
-            sleep 30
-            echo "Still pulling qwen3.5:2b..."
-          done
-          wait $$PULL_PID && echo "qwen3.5:2b ready"
-        fi
-        echo "Preloading qwen3.5:2b into memory..."
-        ollama run qwen3.5:2b "" >/dev/null 2>&1 || true
-        echo "qwen3.5:2b loaded and ready"
-        wait
-
 volumes:
   app_node_modules:
   backend_venv:
   app_data_database:
   app_data_covers:
-  ollama_models:

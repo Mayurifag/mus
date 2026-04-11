@@ -288,7 +288,7 @@
 - [x] can we show download progress somehow?
 - [x] after yt-dlp we have to fire modal with saving - there is
   "awaiting_review" status but does not work now
-- [x] Youtube: use gemma 4 E2B LLM to parse artists/title and get rid of
+- [x] Youtube: use Gemini LLM to parse artists/title and get rid of
   trash from trackname like "official music video" and so on
 
 ## Phase vk / other services ?
