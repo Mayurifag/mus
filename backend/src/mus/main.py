@@ -12,7 +12,6 @@ from src.mus.application.use_cases.slow_initial_scan import SlowInitialScanUseCa
 from src.mus.config import settings
 from src.mus.infrastructure.api.permissions_singleton import permissions_service
 from src.mus.infrastructure.api.routers import (
-    auth_router,
     download_router,
     errors_router,
     permissions_router,
@@ -66,7 +65,6 @@ if settings.APP_ENV != "production":
         allow_headers=["*"],
     )
 
-app.include_router(auth_router.router)
 app.include_router(download_router.router)
 app.include_router(player_router.router)
 app.include_router(track_router.router)

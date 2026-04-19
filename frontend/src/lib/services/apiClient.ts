@@ -304,22 +304,6 @@ export async function confirmDownload(
   }
 }
 
-export async function fetchMagicLinkUrl(): Promise<string> {
-  try {
-    const response = await fetch(
-      `${API_PREFIX}${API_VERSION_PATH}/auth/qr-code-url`,
-    );
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    return data.url;
-  } catch (error) {
-    console.error("Error fetching magic link URL:", error);
-    return "";
-  }
-}
-
 export async function uploadTrack(
   file: File,
   title: string,

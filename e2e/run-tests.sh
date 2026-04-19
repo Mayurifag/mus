@@ -5,7 +5,6 @@ set -e
 E2E_IMAGE_NAME="mus:e2e-test"
 E2E_CONTAINER_NAME="mus-e2e-test"
 E2E_HOST_PORT="4124"
-E2E_SECRET_KEY="e2e-secret-key"
 E2E_TIMEOUT=12
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -47,7 +46,6 @@ npm ci --no-audit --no-fund --prefer-offline
 echo "Starting container..."
 docker run -d --name "$E2E_CONTAINER_NAME" \
     -p "$E2E_HOST_PORT:8000" \
-    -e SECRET_KEY="$E2E_SECRET_KEY" \
     -e WATCHFILES_FORCE_POLLING=true \
     -v "$SCRIPT_DIR/music:/app_data/music:rw" \
     "$E2E_IMAGE_NAME"
