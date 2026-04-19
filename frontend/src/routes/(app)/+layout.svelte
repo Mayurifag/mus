@@ -7,7 +7,6 @@
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
   import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
   import { sendPlayerStateBeacon as apiSendPlayerStateBeacon } from "$lib/services/apiClient";
-  import { authConfigStore } from "$lib/stores/authConfigStore";
   import { initEventHandlerService } from "$lib/services/eventHandlerService";
   import { AudioService } from "$lib/services/AudioService";
   import { updateEffectStats } from "$lib/utils/monitoredEffect";
@@ -113,7 +112,6 @@
   }
 
   onMount(async () => {
-    authConfigStore.initialize();
     permissionsStore.set(data.permissions);
     trackStore.setTracks(data.tracks);
     initializeAudioService();
@@ -233,7 +231,7 @@
 <Sheet.Root bind:open={sheetOpen}>
   <!-- Main content area that uses full viewport scrolling -->
   <main
-    class="desktop:pr-64 sm700:pb-[calc(var(--footer-height-desktop)+1rem)] min-h-screen overflow-x-hidden pr-0 pb-[calc(var(--footer-height-mobile)+1rem)]"
+    class="desktop:pr-64 sm700:pb-[calc(var(--footer-height-desktop)+1rem)] min-h-screen overflow-x-clip pr-0 pb-[calc(var(--footer-height-mobile)+1rem)]"
     style="overscroll-behavior-y: contain; padding-top: var(--safe-area-inset-top);"
     ontouchstart={handleTouchStart}
     ontouchend={handleTouchEnd}

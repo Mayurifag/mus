@@ -1,8 +1,7 @@
 <script lang="ts">
   import { trackStore } from "$lib/stores/trackStore";
 
-  import { QrCode, AlertTriangle, Play } from "@lucide/svelte";
-  import QRLoginModal from "$lib/components/auth/QRLoginModal.svelte";
+  import { AlertTriangle, Play } from "@lucide/svelte";
   import EffectMonitor from "$lib/components/debug/EffectMonitor.svelte";
   import RecentEvents from "$lib/components/debug/RecentEvents.svelte";
   import ErrorItem from "$lib/components/domain/ErrorItem.svelte";
@@ -14,7 +13,6 @@
 
   const MIN_HISTORY_FOR_DEBUG = 2;
 
-  let isQrModalOpen = $state(false);
   let erroredTracks = $state<Track[]>([]);
 
   onMount(async () => {
@@ -95,19 +93,8 @@
 </script>
 
 <div class="bg-card/50 flex h-full w-full flex-col backdrop-blur-sm">
-  <!-- Header with QR Button -->
   <div class="border-border/50 border-b p-4">
-    <div class="flex items-center justify-between">
-      <h2 class="text-foreground text-lg font-semibold">Controls</h2>
-      <button
-        class="icon-glow-effect bg-muted/50 hover:bg-muted relative rounded-lg p-2 transition-all duration-200"
-        onclick={() => (isQrModalOpen = true)}
-        title="Open QR code for mobile access"
-        aria-label="Open QR code for mobile access"
-      >
-        <QrCode class="text-muted-foreground h-5 w-5" />
-      </button>
-    </div>
+    <h2 class="text-foreground text-lg font-semibold">Controls</h2>
   </div>
 
   <!-- Scrollable Content -->
@@ -199,7 +186,4 @@
       </div>
     {/if}
   </div>
-
-  <!-- QR Login Modal -->
-  <QRLoginModal bind:open={isQrModalOpen} />
 </div>

@@ -34,26 +34,9 @@ export default defineConfig({
 
   projects: [
     {
-      name: 'setup',
-      testMatch: /.*\.setup\.ts/,
+      name: 'tests',
+      testMatch: /.*\.spec\.ts/,
       use: useForChromium,
-    },
-    {
-      name: 'unauthenticated-tests',
-      testMatch: /.*auth\.spec\.ts/,
-      use: {
-        ...useForChromium,
-        storageState: { cookies: [], origins: [] },
-      },
-    },
-    {
-      name: 'authenticated-tests',
-      testMatch: /.*authenticated\.spec\.ts/,
-      dependencies: ['setup'],
-      use: {
-        ...useForChromium,
-        storageState: 'playwright/.auth/user.json',
-      },
     },
   ],
 });

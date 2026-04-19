@@ -92,7 +92,6 @@ COPY --from=frontend-builder --chown=appuser:appgroup /app/frontend/build /app/f
 COPY --from=frontend-builder --chown=appuser:appgroup /app/frontend/node_modules /app/frontend/node_modules
 COPY --from=frontend-builder --chown=appuser:appgroup /app/frontend/package.json /app/frontend/package.json
 
-COPY docker/production/login.html /app/docker/production/login.html
 COPY docker/production/nginx.conf.template /app/docker/production/nginx.conf.template
 COPY docker/production/start.sh /app/start.sh
 COPY docker/production/supervisord.conf /etc/supervisor/conf.d/supervisord.conf

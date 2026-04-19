@@ -12,7 +12,6 @@ if app_env is None or app_env == "development":
 
 class Config(BaseModel):
     APP_ENV: str = app_env if app_env else "development"
-    SECRET_KEY: Optional[str] = os.getenv("SECRET_KEY")
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
     GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY")

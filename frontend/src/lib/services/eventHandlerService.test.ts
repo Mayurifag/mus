@@ -93,7 +93,7 @@ describe("eventHandlerService", () => {
       expect(recentEventsStore.addEvent).toHaveBeenCalledWith(payload);
     });
 
-    it("should add event to recent events store even without message", () => {
+    it("should not add silent track_updated to recent events store", () => {
       const payload: MusEvent = {
         message_to_show: null,
         message_level: null,
@@ -103,7 +103,33 @@ describe("eventHandlerService", () => {
 
       handleMusEvent(payload);
 
+      expect(recentEventsStore.addEvent).not.toHaveBeenCalled();
+    });
+
+    it("should add track_updated with message to recent events store", () => {
+      const payload: MusEvent = {
+        message_to_show: "Moved track 'Test'",
+        message_level: "info",
+        action_key: "track_updated",
+        action_payload: null,
+      };
+
+      handleMusEvent(payload);
+
       expect(recentEventsStore.addEvent).toHaveBeenCalledWith(payload);
+    });
+
+    it("should not add download_completed to recent events store", () => {
+      const payload: MusEvent = {
+        message_to_show: "Download completed successfully",
+        message_level: "success",
+        action_key: "download_completed",
+        action_payload: null,
+      };
+
+      handleMusEvent(payload);
+
+      expect(recentEventsStore.addEvent).not.toHaveBeenCalled();
     });
 
     it("should handle track_added event", () => {

@@ -6,7 +6,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
 
-from src.mus.infrastructure.api.routers.auth_router import router as auth_router
 from src.mus.infrastructure.api.routers.player_router import router as player_router
 from src.mus.infrastructure.api.routers.track_router import router as track_router
 
@@ -41,7 +40,6 @@ def create_app_with_env(env_value=None):
         )
 
     # Include routers
-    app.include_router(auth_router)
     app.include_router(player_router)
     app.include_router(track_router)
 

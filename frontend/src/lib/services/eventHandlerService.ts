@@ -14,7 +14,11 @@ import type {
  * @param payload The event payload from the SSE stream
  */
 export function handleMusEvent(payload: MusEvent): void {
-  if (payload.action_key !== "download_progress") {
+  if (
+    payload.action_key !== "download_progress" &&
+    payload.action_key !== "download_completed" &&
+    (payload.action_key !== "track_updated" || payload.message_to_show)
+  ) {
     recentEventsStore.addEvent(payload);
   }
 
