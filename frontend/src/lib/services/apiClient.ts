@@ -253,28 +253,19 @@ export interface TrackMetadata {
 }
 
 export async function fetchMetadata(url: string): Promise<TrackMetadata> {
-  const result = await safeApiCall(
-    async () => {
-      const response = await fetch(
-        `${API_PREFIX}${API_VERSION_PATH}/downloads/metadata`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ url }),
-        },
-      );
-      return await handleApiResponse<TrackMetadata>(response);
+  const response = await fetch(
+    `${API_PREFIX}${API_VERSION_PATH}/downloads/metadata`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ url }),
     },
-    { context: "fetchMetadata" },
   );
-
-  if (result === null) {
-    throw new Error("Failed to fetch metadata");
-  }
-
-  return result;
+  return await handleApiResponse<TrackMetadata>(response, {
+    context: "fetchMetadata",
+  });
 }
 
 export async function confirmDownload(
