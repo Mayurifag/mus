@@ -14,6 +14,7 @@ class Config(BaseModel):
     APP_ENV: str = app_env if app_env else "development"
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
+    COMMIT_SHA: Optional[str] = os.getenv("COMMIT_SHA") or None
     GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
     OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://localhost:11434")

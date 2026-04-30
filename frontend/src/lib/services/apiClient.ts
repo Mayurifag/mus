@@ -295,6 +295,39 @@ export async function confirmDownload(
   }
 }
 
+export interface SystemInfo {
+  commit_sha: string | null;
+  yt_dlp_version: string | null;
+}
+
+export async function fetchSystemInfo(
+  fetchFn: typeof fetch = fetch,
+): Promise<SystemInfo> {
+  try {
+    const response = await fetchFn(
+      `${API_PREFIX}${API_VERSION_PATH}/system/info`,
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching system info:", error);
+    return { commit_sha: null, yt_dlp_version: null };
+  }
+}
+
+export async function updateYtDlp(): Promise<{
+  yt_dlp_version: string | null;
+  output: string;
+}> {
+  const response = await fetch(
+    `${API_PREFIX}${API_VERSION_PATH}/system/yt-dlp/update`,
+    { method: "POST" },
+  );
+  return await handleApiResponse(response, { context: "updateYtDlp" });
+}
+
 export async function uploadTrack(
   file: File,
   title: string,

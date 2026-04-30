@@ -7,6 +7,10 @@ import type { Track } from "$lib/types";
 // Mock the API client
 vi.mock("$lib/services/apiClient", () => ({
   fetchErroredTracks: vi.fn().mockResolvedValue([]),
+  fetchSystemInfo: vi
+    .fn()
+    .mockResolvedValue({ commit_sha: null, yt_dlp_version: null }),
+  updateYtDlp: vi.fn().mockResolvedValue({ yt_dlp_version: null, output: "" }),
 }));
 
 describe("RightSidebar", () => {

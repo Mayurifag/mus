@@ -8,16 +8,44 @@
   import DownloadManager from "$lib/components/domain/DownloadManager.svelte";
   import type { Track } from "$lib/types";
   import { formatArtistsForDisplay } from "$lib/utils/formatters";
-  import { fetchErroredTracks } from "$lib/services/apiClient";
+  import {
+    fetchErroredTracks,
+    fetchSystemInfo,
+    updateYtDlp,
+    type SystemInfo,
+  } from "$lib/services/apiClient";
   import { onMount } from "svelte";
+  import { toast } from "svelte-sonner";
 
   const MIN_HISTORY_FOR_DEBUG = 2;
 
   let erroredTracks = $state<Track[]>([]);
+  let systemInfo = $state<SystemInfo>({
+    commit_sha: null,
+    yt_dlp_version: null,
+  });
+  let isUpdatingYtDlp = $state(false);
 
   onMount(async () => {
     erroredTracks = await fetchErroredTracks();
+    systemInfo = await fetchSystemInfo();
   });
+
+  async function handleYtDlpUpdate() {
+    if (isUpdatingYtDlp) return;
+    isUpdatingYtDlp = true;
+    toast.info("Updating yt-dlp...");
+    try {
+      const result = await updateYtDlp();
+      systemInfo = { ...systemInfo, yt_dlp_version: result.yt_dlp_version };
+      toast.success(`yt-dlp updated to ${result.yt_dlp_version ?? "unknown"}`);
+    } catch (error) {
+      console.error("yt-dlp update failed", error);
+      toast.error("Failed to update yt-dlp");
+    } finally {
+      isUpdatingYtDlp = false;
+    }
+  }
 
   function removeErroredTrack(trackId: number) {
     erroredTracks = erroredTracks.filter((track) => track.id !== trackId);
@@ -186,4 +214,27 @@
       </div>
     {/if}
   </div>
+
+  {#if systemInfo.yt_dlp_version || systemInfo.commit_sha}
+    <div
+      class="border-border/50 text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 border-t p-3 text-xs"
+    >
+      {#if systemInfo.yt_dlp_version}
+        <button
+          type="button"
+          onclick={handleYtDlpUpdate}
+          disabled={isUpdatingYtDlp}
+          class="hover:text-foreground transition-colors disabled:opacity-50"
+          title="Click to force update yt-dlp"
+        >
+          yt-dlp {systemInfo.yt_dlp_version}{isUpdatingYtDlp
+            ? " (updating…)"
+            : ""}
+        </button>
+      {/if}
+      {#if systemInfo.commit_sha}
+        <span>mus {systemInfo.commit_sha.slice(0, 7)}</span>
+      {/if}
+    </div>
+  {/if}
 </div>
