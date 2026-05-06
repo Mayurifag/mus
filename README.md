@@ -16,9 +16,6 @@ in alpha stage.
 
 ![Web version screenshot](./.github/screenshot.webp)
 
-If you are from /r/selfhosted community and interested to test service, contact
-me!
-
 ## Features
 
 - File watcher for external uploads and automatical processing to play later!
