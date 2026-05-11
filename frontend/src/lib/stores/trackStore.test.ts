@@ -57,6 +57,7 @@ describe("trackStore", () => {
     expect(state.historyPosition).toBe(-1);
     expect(state.currentTrack).toBeNull();
     expect(state.is_shuffle).toBe(false);
+    expect(state.selectedArtist).toBeNull();
   });
 
   it("should set tracks and maintain current track index if possible", () => {
@@ -200,6 +201,14 @@ describe("trackStore", () => {
     expect(get(trackStore).is_shuffle).toBe(true);
     trackStore.setShuffle(false);
     expect(get(trackStore).is_shuffle).toBe(false);
+  });
+
+  it("should set and clear artist filter", () => {
+    trackStore.setArtistFilter("Test Artist 1");
+    expect(get(trackStore).selectedArtist).toBe("Test Artist 1");
+
+    trackStore.clearArtistFilter();
+    expect(get(trackStore).selectedArtist).toBeNull();
   });
 
   describe("shuffle mode navigation", () => {

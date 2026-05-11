@@ -1,9 +1,12 @@
-export function formatArtistsForDisplay(artistString: string): string {
+export function parseArtists(artistString: string): string[] {
   return artistString
     .split(";")
     .map((artist) => artist.trim())
-    .filter(Boolean)
-    .join(", ");
+    .filter(Boolean);
+}
+
+export function formatArtistsForDisplay(artistString: string): string {
+  return parseArtists(artistString).join(", ");
 }
 
 export function formatDuration(seconds: number): string {

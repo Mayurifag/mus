@@ -6,8 +6,9 @@
   import RecentEvents from "$lib/components/debug/RecentEvents.svelte";
   import ErrorItem from "$lib/components/domain/ErrorItem.svelte";
   import DownloadManager from "$lib/components/domain/DownloadManager.svelte";
+  import ArtistLinks from "$lib/components/domain/ArtistLinks.svelte";
   import type { Track } from "$lib/types";
-  import { formatArtistsForDisplay } from "$lib/utils/formatters";
+  import { parseArtists } from "$lib/utils/formatters";
   import {
     fetchErroredTracks,
     fetchSystemInfo,
@@ -59,6 +60,23 @@
 
   const shouldShowEffectsMonitor =
     import.meta.env.VITE_EFFECTS_DEBUG === "true";
+
+  const selectedArtist = $derived($trackStore.selectedArtist);
+
+  const topArtists = $derived.by(() => {
+    const counts: Record<string, number> = {};
+
+    for (const track of $trackStore.tracks) {
+      for (const artist of parseArtists(track.artist)) {
+        counts[artist] = (counts[artist] ?? 0) + 1;
+      }
+    }
+
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+      .slice(0, 5);
+  });
 
   const timelineItems = $derived.by(() => {
     const items: Array<{
@@ -133,6 +151,46 @@
       <DownloadManager />
     </div>
 
+    {#if topArtists.length > 0 || selectedArtist}
+      <div class="border-border/30 border-b p-4">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <h4 class="text-foreground text-sm font-semibold">Artists</h4>
+          {#if selectedArtist}
+            <button
+              type="button"
+              class="text-muted-foreground hover:text-foreground text-xs transition-colors"
+              onclick={() => trackStore.clearArtistFilter()}
+            >
+              Clear
+            </button>
+          {/if}
+        </div>
+
+        {#if selectedArtist}
+          <div class="text-muted-foreground mb-2 truncate text-xs">
+            Showing {selectedArtist}
+          </div>
+        {/if}
+
+        <div class="space-y-1">
+          {#each topArtists as artist (artist.name)}
+            <button
+              type="button"
+              class="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors {selectedArtist ===
+              artist.name
+                ? 'bg-accent/10 text-accent'
+                : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'}"
+              title="Show {artist.name} songs"
+              onclick={() => trackStore.setArtistFilter(artist.name)}
+            >
+              <span class="truncate">{artist.name}</span>
+              <span class="text-xs opacity-70">{artist.count}</span>
+            </button>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
     <!-- Errors Section -->
     {#if erroredTracks.length > 0}
       <div class="border-border/30 border-b p-4">
@@ -191,7 +249,7 @@
                       {item.track.title}
                     </span>
                     <span class="block truncate text-xs opacity-70">
-                      {formatArtistsForDisplay(item.track.artist)}
+                      <ArtistLinks artist={item.track.artist} />
                     </span>
                   {:else}
                     <span class="italic opacity-50">No track</span>

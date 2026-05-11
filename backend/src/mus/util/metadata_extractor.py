@@ -12,7 +12,8 @@ def extract_fast_metadata(file_path: Path) -> Optional[Dict[str, Any]]:
 
         stat_info = file_path.stat()
         title = (audio.get("title") or [file_path.stem])[0]
-        artist = (audio.get("artist") or ["Unknown Artist"])[0]
+        artists = [str(artist).strip() for artist in (audio.get("artist") or [])]
+        artist = "; ".join(artist for artist in artists if artist) or "Unknown Artist"
 
         duration = 0
         if audio.info and (length := getattr(audio.info, "length", None)):

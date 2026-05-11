@@ -20,19 +20,18 @@ vi.mock("@tanstack/svelte-virtual", () => ({
 // Mock the trackStore
 const mockTrackStoreData = vi.hoisted(() => ({
   currentTrackIndex: 0,
+  currentTrack: null as Track | null,
   tracks: [] as Track[],
+  selectedArtist: null as string | null,
 }));
 
 const mockTrackStore = vi.hoisted(() => ({
-  subscribe: vi.fn(
-    (
-      callback: (value: { currentTrackIndex: number; tracks: Track[] }) => void,
-    ) => {
-      callback(mockTrackStoreData);
-      return () => {};
-    },
-  ),
+  subscribe: vi.fn((callback: (value: typeof mockTrackStoreData) => void) => {
+    callback(mockTrackStoreData);
+    return () => {};
+  }),
   ...mockTrackStoreData,
+  clearArtistFilter: vi.fn(),
 }));
 
 vi.mock("$lib/stores/trackStore", () => ({
@@ -80,6 +79,8 @@ describe("TrackList component", () => {
 
     // Clear mocks
     vi.mocked(TrackItem).mockClear();
+    mockTrackStoreData.selectedArtist = null;
+    mockTrackStoreData.currentTrack = null;
   });
 
   it("renders the track list element when tracks are provided", () => {
@@ -104,5 +105,14 @@ describe("TrackList component", () => {
     // With virtualization, we don't render all items, just the visible ones
     // Since we mocked getVirtualItems to return empty array, no TrackItems should be rendered
     expect(vi.mocked(TrackItem)).toHaveBeenCalledTimes(0);
+  });
+
+  it("shows artist filter summary", () => {
+    mockTrackStoreData.tracks = mockTracks;
+    mockTrackStoreData.selectedArtist = "Artist 1";
+
+    render(TrackList);
+
+    expect(screen.getByText(/Showing 1 song by Artist 1/)).toBeInTheDocument();
   });
 });

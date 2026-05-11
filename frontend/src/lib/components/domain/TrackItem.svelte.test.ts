@@ -4,6 +4,7 @@ import { vi } from "vitest";
 vi.mock("$lib/stores/trackStore", () => ({
   trackStore: {
     playTrack: vi.fn(),
+    setArtistFilter: vi.fn(),
   },
 }));
 
@@ -45,6 +46,7 @@ describe("TrackItem component", () => {
 
     // Clear the mocks
     vi.mocked(trackStore.playTrack).mockClear();
+    vi.mocked(trackStore.setArtistFilter).mockClear();
   });
 
   it("renders track details correctly", () => {
@@ -137,6 +139,22 @@ describe("TrackItem component", () => {
     await fireEvent.keyDown(trackItemElement, { key: " " });
 
     expect(vi.mocked(trackStore.playTrack)).toHaveBeenCalledWith(4);
+  });
+
+  it("filters by artist when artist is clicked", async () => {
+    render(TrackItem, { track: mockTrack, index: 0, isSelected: false });
+
+    const artistButton = screen.getByRole("button", {
+      name: "Show Test Artist songs",
+    });
+    await fireEvent.mouseDown(artistButton, { button: 0 });
+    await fireEvent.mouseUp(artistButton, { button: 0 });
+    await fireEvent.click(artistButton);
+
+    expect(vi.mocked(trackStore.setArtistFilter)).toHaveBeenCalledWith(
+      "Test Artist",
+    );
+    expect(vi.mocked(trackStore.playTrack)).not.toHaveBeenCalled();
   });
 
   describe("buffered ranges integration", () => {

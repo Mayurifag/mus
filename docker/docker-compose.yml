@@ -6,6 +6,9 @@ x-backend: &x-backend
       USER_ID: ${USER_ID:-1000}
       GROUP_ID: ${GROUP_ID:-1000}
   restart: unless-stopped
+  depends_on:
+    redis:
+      condition: service_started
 
 services:
   backend:
@@ -22,7 +25,4 @@ services:
 
   streaq-worker:
     <<: *x-backend
-    depends_on:
-      redis:
-        condition: service_started
     command: sh -c "uv sync --locked --no-editable; streaq run src.mus.core.streaq_broker:worker"

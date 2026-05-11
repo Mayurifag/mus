@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
-import { render } from "@testing-library/svelte";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/svelte";
+import { get } from "svelte/store";
 import RightSidebar from "./RightSidebar.svelte";
 import { trackStore } from "$lib/stores/trackStore";
 import type { Track } from "$lib/types";
@@ -16,6 +17,10 @@ vi.mock("$lib/services/apiClient", () => ({
 }));
 
 describe("RightSidebar", () => {
+  beforeEach(() => {
+    trackStore.reset();
+  });
+
   it("should be defined", () => {
     expect(RightSidebar).toBeDefined();
   });
@@ -71,5 +76,43 @@ describe("RightSidebar", () => {
     const playIcon = container.querySelector('svg[class*="lucide-play"]');
     expect(playIcon).toBeInTheDocument();
     expect(playIcon).toHaveClass("h-3", "w-3", "text-accent");
+  });
+
+  it("should render top artists and filter by artist", async () => {
+    const tracks: Track[] = [
+      {
+        id: 1,
+        title: "Song 1",
+        artist: "Artist A; Artist B",
+        duration: 180,
+        file_path: "/test/path1.mp3",
+        updated_at: Date.now(),
+        has_cover: false,
+        cover_small_url: null,
+        cover_original_url: null,
+      },
+      {
+        id: 2,
+        title: "Song 2",
+        artist: "Artist A",
+        duration: 200,
+        file_path: "/test/path2.mp3",
+        updated_at: Date.now(),
+        has_cover: false,
+        cover_small_url: null,
+        cover_original_url: null,
+      },
+    ];
+
+    trackStore.setTracks(tracks);
+    render(RightSidebar);
+
+    expect(screen.getByText("Artists")).toBeInTheDocument();
+    expect(screen.getByText("Artist A")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+
+    await fireEvent.click(screen.getByText("Artist A"));
+
+    expect(get(trackStore).selectedArtist).toBe("Artist A");
   });
 });

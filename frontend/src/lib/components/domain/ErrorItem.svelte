@@ -3,6 +3,7 @@
   import type { Track } from "$lib/types";
   import { requeueTrack, deleteTrack } from "$lib/services/apiClient";
   import { toast } from "svelte-sonner";
+  import ArtistLinks from "$lib/components/domain/ArtistLinks.svelte";
 
   interface Props {
     track: Track;
@@ -47,7 +48,7 @@
       {track.title}
     </div>
     <div class="truncate text-xs text-red-700">
-      {track.artist}
+      <ArtistLinks artist={track.artist} />
     </div>
   </div>
 

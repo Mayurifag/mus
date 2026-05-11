@@ -8,6 +8,7 @@ export interface TrackStoreState {
   historyPosition: number;
   currentTrack: Track | null;
   is_shuffle: boolean;
+  selectedArtist: string | null;
 }
 
 const initialState: TrackStoreState = {
@@ -17,6 +18,7 @@ const initialState: TrackStoreState = {
   historyPosition: -1,
   currentTrack: null,
   is_shuffle: false,
+  selectedArtist: null,
 };
 
 function createTrackStore() {
@@ -375,6 +377,16 @@ function createTrackStore() {
       update((state) => ({
         ...state,
         ...clearShuffleHistory(state, is_shuffle),
+      })),
+    setArtistFilter: (artist: string) =>
+      update((state) => ({
+        ...state,
+        selectedArtist: artist,
+      })),
+    clearArtistFilter: () =>
+      update((state) => ({
+        ...state,
+        selectedArtist: null,
       })),
     addTrack: (track: Track) =>
       update((state) => {

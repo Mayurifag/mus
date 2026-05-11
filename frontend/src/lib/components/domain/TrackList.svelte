@@ -8,10 +8,29 @@
   import { createWindowVirtualizer } from "@tanstack/svelte-virtual";
   import { browser } from "$app/environment";
   import { updateEffectStats } from "$lib/utils/monitoredEffect";
+  import { parseArtists } from "$lib/utils/formatters";
 
   let { audioService }: { audioService?: AudioService } = $props();
 
-  const tracks = $derived($trackStore.tracks);
+  const selectedArtist = $derived($trackStore.selectedArtist);
+  const visibleTracks = $derived.by(() =>
+    selectedArtist
+      ? $trackStore.tracks.filter((track) =>
+          parseArtists(track.artist).includes(selectedArtist),
+        )
+      : $trackStore.tracks,
+  );
+  const trackRows = $derived.by(() =>
+    visibleTracks
+      .map((track) => ({
+        track,
+        index: $trackStore.tracks.findIndex((item) => item.id === track.id),
+      }))
+      .filter((row) => row.index !== -1),
+  );
+  const currentVisibleIndex = $derived(
+    trackRows.findIndex((row) => row.track.id === $trackStore.currentTrack?.id),
+  );
 
   // Audio playback state variables
   let isPlaying = $state(false);
@@ -67,7 +86,7 @@
     // TODO: we probably can use array length or size from backend
     if (browser) {
       virtualizer = createWindowVirtualizer({
-        count: tracks.length,
+        count: trackRows.length,
         estimateSize: () => 72,
         overscan: 12,
         getScrollElement: () => window,
@@ -94,14 +113,10 @@
   $effect(() => {
     updateEffectStats("TrackList_InitialScroll");
 
-    if (
-      !initialScrollDone &&
-      virtualizer &&
-      $trackStore.currentTrackIndex !== null
-    ) {
+    if (!initialScrollDone && virtualizer && currentVisibleIndex !== -1) {
       tick().then(() => {
-        if (virtualizer && $trackStore.currentTrackIndex !== null) {
-          $virtualizer!.scrollToIndex($trackStore.currentTrackIndex, {
+        if (virtualizer && currentVisibleIndex !== -1) {
+          $virtualizer!.scrollToIndex(currentVisibleIndex, {
             align: "center",
           });
         }
@@ -118,25 +133,49 @@
 </script>
 
 <div class="flex flex-col" data-testid="track-list">
-  {#if tracks.length === 0}
+  {#if selectedArtist}
+    <div
+      class="border-border/40 bg-muted/20 mx-2 mb-3 flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm"
+    >
+      <span class="text-muted-foreground min-w-0 truncate">
+        Showing {visibleTracks.length}
+        {visibleTracks.length === 1 ? "song" : "songs"} by {selectedArtist}
+      </span>
+      <button
+        type="button"
+        class="text-accent hover:text-accent/80 shrink-0 text-xs font-medium transition-colors"
+        onclick={() => trackStore.clearArtistFilter()}
+      >
+        Clear
+      </button>
+    </div>
+  {/if}
+
+  {#if $trackStore.tracks.length === 0}
     <div class="flex h-32 w-full flex-col items-center justify-center">
       <p class="text-muted-foreground mb-2 text-center">
         No tracks available. Wait a second, we are scanning your music library.
       </p>
     </div>
+  {:else if visibleTracks.length === 0}
+    <div class="flex h-32 w-full flex-col items-center justify-center">
+      <p class="text-muted-foreground mb-2 text-center">
+        No songs found for this artist.
+      </p>
+    </div>
   {:else if virtualizer}
     <div class="relative" style="height: {$virtualizer!.getTotalSize()}px">
-      {#each $virtualizer!.getVirtualItems() as item (tracks[item.index]?.id || `missing-${item.index}`)}
-        {#if tracks[item.index]}
+      {#each $virtualizer!.getVirtualItems() as item (trackRows[item.index]?.track.id || `missing-${item.index}`)}
+        {#if trackRows[item.index]}
           <div
             style="position: absolute; width: 100%; transform: translateY({item.start}px)"
             data-index={item.index}
             use:measureElement
           >
-            {#if $trackStore.currentTrackIndex === item.index}
+            {#if $trackStore.currentTrack?.id === trackRows[item.index].track.id}
               <TrackItem
-                track={tracks[item.index]}
-                index={item.index}
+                track={trackRows[item.index].track}
+                index={trackRows[item.index].index}
                 isSelected={true}
                 {audioService}
                 {currentTime}
@@ -147,8 +186,8 @@
               />
             {:else}
               <TrackItem
-                track={tracks[item.index]}
-                index={item.index}
+                track={trackRows[item.index].track}
+                index={trackRows[item.index].index}
                 isSelected={false}
                 {audioService}
                 onEdit={openEditModal}

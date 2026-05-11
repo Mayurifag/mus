@@ -5,10 +5,8 @@
   import { permissionsStore } from "$lib/stores/permissionsStore";
   import { Slider } from "$lib/components/ui/slider";
   import { Pencil } from "@lucide/svelte";
-  import {
-    formatArtistsForDisplay,
-    formatDuration,
-  } from "$lib/utils/formatters";
+  import { formatDuration } from "$lib/utils/formatters";
+  import ArtistLinks from "$lib/components/domain/ArtistLinks.svelte";
 
   let {
     track,
@@ -127,9 +125,9 @@
 
   <div class="flex min-w-0 flex-1 flex-col">
     <span class="truncate font-medium">{trackTitle}</span>
-    <span class="text-muted-foreground truncate text-sm"
-      >{formatArtistsForDisplay(trackArtist)}</span
-    >
+    <span class="text-muted-foreground truncate text-sm">
+      <ArtistLinks artist={trackArtist} />
+    </span>
 
     {#if isSelected}
       <Slider

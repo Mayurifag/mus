@@ -63,11 +63,15 @@ export async function analyzeAudioFile(
 
     const { title: filenameTitle, artist: filenameArtist } =
       parseFilenameForMetadata(file.name);
+    const artists = metadata.common.artists?.filter(Boolean).join("; ");
 
     const commonMetadata: AudioMetadata = {
       title: metadata.common.title || filenameTitle,
       artist:
-        metadata.common.artist || metadata.common.albumartist || filenameArtist,
+        artists ||
+        metadata.common.artist ||
+        metadata.common.albumartist ||
+        filenameArtist,
       album: metadata.common.album,
     };
 

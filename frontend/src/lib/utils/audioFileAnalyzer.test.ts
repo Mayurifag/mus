@@ -126,6 +126,21 @@ describe("audioFileAnalyzer", () => {
       expect(result.coverInfo).toBeNull();
     });
 
+    it("should preserve multiple artist tags", async () => {
+      const mockParseBlob = await getMockParseBlob();
+
+      const mockMetadata = createMockMetadata({
+        title: "Test Title",
+        artists: ["Artist One", "Artist Two"],
+      });
+
+      mockParseBlob.mockResolvedValue(mockMetadata);
+
+      const result = await analyzeAudioFile(mockFile);
+
+      expect(result.metadata.artist).toBe("Artist One; Artist Two");
+    });
+
     it("should parse artist and title from filename when tags are missing", async () => {
       const mockParseBlob = await getMockParseBlob();
 

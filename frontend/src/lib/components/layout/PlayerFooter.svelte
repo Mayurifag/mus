@@ -5,10 +5,8 @@
   import { trackStore } from "$lib/stores/trackStore";
   import type { AudioService } from "$lib/services/AudioService";
   import type { TimeRange } from "$lib/types";
-  import {
-    formatArtistsForDisplay,
-    formatDuration,
-  } from "$lib/utils/formatters";
+  import { formatDuration } from "$lib/utils/formatters";
+  import ArtistLinks from "$lib/components/domain/ArtistLinks.svelte";
   import { updateEffectStats } from "$lib/utils/monitoredEffect";
   import {
     Play,
@@ -303,7 +301,7 @@
       >
         {#if $trackStore.currentTrack}
           <span class="text-muted-foreground truncate text-sm font-medium">
-            {formatArtistsForDisplay($trackStore.currentTrack.artist)} - {$trackStore
+            <ArtistLinks artist={$trackStore.currentTrack.artist} /> - {$trackStore
               .currentTrack.title}
           </span>
         {:else}
@@ -344,7 +342,7 @@
               >{$trackStore.currentTrack.title}</span
             >
             <span class="text-muted-foreground truncate text-sm">
-              {formatArtistsForDisplay($trackStore.currentTrack.artist)}
+              <ArtistLinks artist={$trackStore.currentTrack.artist} />
             </span>
           </div>
         {:else}
