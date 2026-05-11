@@ -6,7 +6,10 @@
   import { permissionsStore } from "$lib/stores/permissionsStore";
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
   import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
-  import { sendPlayerStateBeacon as apiSendPlayerStateBeacon } from "$lib/services/apiClient";
+  import {
+    closeTrackUpdateEvents,
+    sendPlayerStateBeacon as apiSendPlayerStateBeacon,
+  } from "$lib/services/apiClient";
   import { initEventHandlerService } from "$lib/services/eventHandlerService";
   import { AudioService } from "$lib/services/AudioService";
   import { updateEffectStats } from "$lib/utils/monitoredEffect";
@@ -21,6 +24,7 @@
     DragDropService,
     type ParsedFileInfo,
   } from "$lib/services/dragDropService";
+  import { releaseCoverDataUrl } from "$lib/utils/audioFileAnalyzer";
 
   // Touch handling for swipe gestures
   let startX = $state<number | null>(null);
@@ -91,6 +95,9 @@
         isDraggingFile = isDragging;
       },
       onFileReady: (fileInfo: ParsedFileInfo) => {
+        if (parsedFileInfo?.coverInfo?.dataUrl) {
+          releaseCoverDataUrl(parsedFileInfo.coverInfo.dataUrl);
+        }
         fileToUpload = fileInfo.file;
         parsedFileInfo = fileInfo;
         uploadModalOpen = true;
@@ -125,12 +132,13 @@
   // Clean up event source on component destroy
   onDestroy(() => {
     if (eventSource) {
-      eventSource.close();
+      closeTrackUpdateEvents(eventSource);
     }
 
     // Clean up AudioService
     if (audioService) {
       audioService.destroy();
+      audioServiceStore.set(undefined);
     }
 
     // Remove event listeners - only in browser
@@ -142,6 +150,10 @@
       if (dragDropService) {
         dragDropService.removeEventListeners();
       }
+    }
+
+    if (parsedFileInfo?.coverInfo?.dataUrl) {
+      releaseCoverDataUrl(parsedFileInfo.coverInfo.dataUrl);
     }
   });
 
@@ -187,6 +199,16 @@
         savePlayerState();
       }, 5000);
       return () => clearInterval(interval);
+    }
+  });
+
+  $effect(() => {
+    if (!uploadModalOpen && (fileToUpload || parsedFileInfo)) {
+      if (parsedFileInfo?.coverInfo?.dataUrl) {
+        releaseCoverDataUrl(parsedFileInfo.coverInfo.dataUrl);
+      }
+      fileToUpload = null;
+      parsedFileInfo = null;
     }
   });
 

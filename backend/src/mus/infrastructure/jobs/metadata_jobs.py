@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 
@@ -10,6 +11,7 @@ from src.mus.util.db_utils import get_track_by_id, update_track
 from src.mus.infrastructure.api.sse_handler import notify_sse_from_worker
 from src.mus.util.track_dto_utils import create_track_dto_with_covers
 from src.mus.core.streaq_broker import worker
+from src.mus.util.memory import release_process_memory
 
 
 @worker.task()
@@ -67,3 +69,5 @@ async def process_slow_metadata(track_id: int):
             )
         else:
             logger.error(f"WORKER: Track {track_id} not found when handling error")
+    finally:
+        await asyncio.to_thread(release_process_memory)

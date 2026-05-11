@@ -11,6 +11,10 @@ e2e-lint:
 	@echo "Running E2E TypeScript linting..."
 	@cd e2e && npm ci --no-audit --no-fund --prefer-offline && npm run lint
 
+.PHONY: e2e-update-deps
+e2e-update-deps:
+	@cd e2e && npm update
+
 .PHONY: e2e-report
 e2e-report:
 	if command -v xdg-open >/dev/null 2>&1; then \

@@ -25,19 +25,24 @@ export class AudioService {
   private _currentDuration = 0;
   private _currentIsRepeat = false;
   private _currentCurrentBufferedRanges: TimeRange[] = [];
+  private storeUnsubscribers: Array<() => void> = [];
 
   constructor(audio: HTMLAudioElement) {
     this.audio = audio;
 
     // Subscribe to our own stores to keep current values in sync
-    this._volume.subscribe((value) => (this._currentVolume = value));
-    this._isMuted.subscribe((value) => (this._currentIsMuted = value));
-    this._isPlaying.subscribe((value) => (this._currentIsPlaying = value));
-    this._currentTime.subscribe((value) => (this._currentCurrentTime = value));
-    this._duration.subscribe((value) => (this._currentDuration = value));
-    this._isRepeat.subscribe((value) => (this._currentIsRepeat = value));
-    this._currentBufferedRanges.subscribe(
-      (value) => (this._currentCurrentBufferedRanges = value),
+    this.storeUnsubscribers.push(
+      this._volume.subscribe((value) => (this._currentVolume = value)),
+      this._isMuted.subscribe((value) => (this._currentIsMuted = value)),
+      this._isPlaying.subscribe((value) => (this._currentIsPlaying = value)),
+      this._currentTime.subscribe(
+        (value) => (this._currentCurrentTime = value),
+      ),
+      this._duration.subscribe((value) => (this._currentDuration = value)),
+      this._isRepeat.subscribe((value) => (this._currentIsRepeat = value)),
+      this._currentBufferedRanges.subscribe(
+        (value) => (this._currentCurrentBufferedRanges = value),
+      ),
     );
 
     this.setupEventListeners();
@@ -272,7 +277,8 @@ export class AudioService {
   }
 
   private setupActionHandlers = (): void => {
-    if (!("mediaSession" in navigator)) return;
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator))
+      return;
 
     navigator.mediaSession.setActionHandler("play", () => {
       this.play();
@@ -301,7 +307,8 @@ export class AudioService {
   };
 
   private updateMediaSessionMetadata(track: Track): void {
-    if (!("mediaSession" in navigator)) return;
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator))
+      return;
 
     const artwork: MediaImage[] = [];
     if (track.cover_original_url) {
@@ -325,13 +332,28 @@ export class AudioService {
   }
 
   private updateMediaSessionPlaybackState(): void {
-    if (!("mediaSession" in navigator)) return;
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator))
+      return;
     navigator.mediaSession.playbackState = this._currentIsPlaying
       ? "playing"
       : "paused";
   }
 
+  private clearMediaSession(): void {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator))
+      return;
+
+    navigator.mediaSession.setActionHandler("play", null);
+    navigator.mediaSession.setActionHandler("pause", null);
+    navigator.mediaSession.setActionHandler("nexttrack", null);
+    navigator.mediaSession.setActionHandler("previoustrack", null);
+    navigator.mediaSession.setActionHandler("seekto", null);
+    navigator.mediaSession.metadata = null;
+    navigator.mediaSession.playbackState = "none";
+  }
+
   destroy(): void {
+    this.pause();
     this.audio.controls = false;
     this.audio.removeEventListener("loadedmetadata", this.handleLoadedMetadata);
     this.audio.removeEventListener("timeupdate", this.handleTimeUpdate);
@@ -342,5 +364,14 @@ export class AudioService {
     this.audio.removeEventListener("playing", this.setupActionHandlers);
     this.audio.removeEventListener("progress", this.handleProgress);
     this.audio.removeEventListener("suspend", this.handleSuspend);
+    this.storeUnsubscribers.forEach((unsubscribe) => unsubscribe());
+    this.storeUnsubscribers = [];
+    this.clearMediaSession();
+    if (typeof this.audio.removeAttribute === "function") {
+      this.audio.removeAttribute("src");
+    } else {
+      this.audio.src = "";
+    }
+    this.audio.load();
   }
 }

@@ -21,6 +21,7 @@
 
   let erroredTracks = $state<Track[]>([]);
   let systemInfo = $state<SystemInfo>({
+    app_date: "unknown",
     commit_sha: null,
     yt_dlp_version: null,
   });
@@ -215,26 +216,26 @@
     {/if}
   </div>
 
-  {#if systemInfo.yt_dlp_version || systemInfo.commit_sha}
-    <div
-      class="border-border/50 text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 border-t p-3 text-xs"
-    >
-      {#if systemInfo.yt_dlp_version}
-        <button
-          type="button"
-          onclick={handleYtDlpUpdate}
-          disabled={isUpdatingYtDlp}
-          class="hover:text-foreground transition-colors disabled:opacity-50"
-          title="Click to force update yt-dlp"
-        >
-          yt-dlp {systemInfo.yt_dlp_version}{isUpdatingYtDlp
-            ? " (updating…)"
+  <div class="border-border/50 border-t p-3 text-xs">
+    <div class="text-muted-foreground flex items-center justify-between gap-3">
+      <div class="min-w-0 space-y-1">
+        <div class="truncate">
+          mus {systemInfo.app_date}{systemInfo.commit_sha
+            ? ` (${systemInfo.commit_sha.slice(0, 7)})`
             : ""}
-        </button>
-      {/if}
-      {#if systemInfo.commit_sha}
-        <span>mus {systemInfo.commit_sha.slice(0, 7)}</span>
-      {/if}
+        </div>
+        <div class="truncate">
+          yt-dlp {systemInfo.yt_dlp_version ?? "unknown"}
+        </div>
+      </div>
+      <button
+        type="button"
+        onclick={handleYtDlpUpdate}
+        disabled={isUpdatingYtDlp}
+        class="border-border/50 hover:text-foreground hover:border-accent/60 shrink-0 rounded-md border px-2 py-1 transition-colors disabled:opacity-50"
+      >
+        {isUpdatingYtDlp ? "Updating" : "Update"}
+      </button>
     </div>
-  {/if}
+  </div>
 </div>

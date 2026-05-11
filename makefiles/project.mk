@@ -25,6 +25,14 @@ build:
 	@$(DOCKER_COMPOSE_CMD) build --pull
 	@$(MAKE) up
 
+.PHONY: rebuild-backend-image
+rebuild-backend-image:
+	@$(DOCKER_COMPOSE_CMD) build --pull --no-cache backend streaq-worker
+
+.PHONY: prod-image
+prod-image:
+	@$(DOCKER_PROD_CMD) --pull --no-cache -t mus:latest .
+
 .PHONY: ps
 ps:
 	@$(DOCKER_COMPOSE_CMD) ps

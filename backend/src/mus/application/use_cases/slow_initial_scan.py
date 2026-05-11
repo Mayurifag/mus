@@ -8,11 +8,17 @@ from src.mus.application.use_cases.process_track_metadata import (
     process_slow_metadata_for_track,
 )
 from src.mus.domain.entities.track import ProcessingStatus
-from src.mus.util.db_utils import get_track_by_id, get_tracks_by_status, update_track
+from src.mus.util.db_utils import (
+    get_track_by_id,
+    get_track_ids_by_status,
+    update_track,
+)
+from src.mus.util.memory import release_process_memory
 
 logger = logging.getLogger(__name__)
 
 CONCURRENCY_LIMIT = (cpu_count() or 1) * 2
+BATCH_SIZE = max(CONCURRENCY_LIMIT * 4, 25)
 
 
 async def _process_track_with_semaphore(
@@ -27,6 +33,17 @@ async def _process_track_with_semaphore(
                 processed_track.processing_status = ProcessingStatus.COMPLETE
                 processed_track.last_error = None
                 await update_track(processed_track)
+            else:
+                track_to_update = await get_track_by_id(track_id)
+                if track_to_update:
+                    track_to_update.processing_status = ProcessingStatus.ERROR
+                    track_to_update.last_error = {
+                        "timestamp": int(time.time()),
+                        "job_name": "slow_initial_scan",
+                        "error_message": "Track file no longer exists",
+                    }
+                    await update_track(track_to_update)
+                return track_id, RuntimeError("Track file no longer exists")
             return track_id, None
         except Exception as e:
             logger.error(f"Failed processing track_id {track_id}: {e}", exc_info=True)
@@ -49,30 +66,40 @@ class SlowInitialScanUseCase:
     async def execute(self):
         logger.info("Phase 2: Slow metadata processing starting...")
 
-        pending_tracks = await get_tracks_by_status(ProcessingStatus.PENDING)
-        if not pending_tracks:
+        pending_track_ids = await get_track_ids_by_status(
+            ProcessingStatus.PENDING, BATCH_SIZE
+        )
+        if not pending_track_ids:
             logger.info("No pending tracks to process.")
             return
 
         logger.info(
-            f"Processing {len(pending_tracks)} pending tracks with concurrency limit of {CONCURRENCY_LIMIT}..."
+            f"Processing pending tracks with concurrency limit of {CONCURRENCY_LIMIT}..."
         )
 
-        semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
-        tasks = [
-            _process_track_with_semaphore(track.id, semaphore, self.permissions_service)
-            for track in pending_tracks
-            if track.id is not None
-        ]
+        success_count = 0
+        error_count = 0
 
-        results = await asyncio.gather(*tasks)
+        while pending_track_ids:
+            semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
+            tasks = [
+                _process_track_with_semaphore(
+                    track_id, semaphore, self.permissions_service
+                )
+                for track_id in pending_track_ids
+            ]
 
-        success_count = sum(1 for _, error in results if error is None)
-        error_count = len(results) - success_count
+            results = await asyncio.gather(*tasks)
+            success_count += sum(1 for _, error in results if error is None)
+            error_count += sum(1 for _, error in results if error is not None)
+            del tasks, results
 
-        import pyvips
+            await asyncio.to_thread(release_process_memory)
 
-        await asyncio.to_thread(pyvips.vips_cache_drop_all)
+            pending_track_ids = await get_track_ids_by_status(
+                ProcessingStatus.PENDING, BATCH_SIZE
+            )
+
         logger.info(
             f"Slow scan complete. Succeeded: {success_count}, Failed: {error_count}"
         )

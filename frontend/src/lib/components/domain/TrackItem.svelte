@@ -5,7 +5,6 @@
   import { permissionsStore } from "$lib/stores/permissionsStore";
   import { Slider } from "$lib/components/ui/slider";
   import { Pencil } from "@lucide/svelte";
-  import TrackMetadataModal from "./TrackMetadataModal.svelte";
   import {
     formatArtistsForDisplay,
     formatDuration,
@@ -20,6 +19,7 @@
     duration,
     isPlaying,
     bufferedRanges,
+    onEdit,
   }: {
     track: Track;
     isSelected?: boolean;
@@ -29,6 +29,7 @@
     duration?: number;
     isPlaying?: boolean;
     bufferedRanges?: TimeRange[];
+    onEdit?: (track: Track) => void;
   } = $props();
 
   // Make track data reactive to prop changes
@@ -66,7 +67,6 @@
   let progressValue = $derived(
     isSelected && currentTime !== undefined ? currentTime : 0,
   );
-  let editModalOpen = $derived(false);
 
   let mouseDownTarget: EventTarget | null = null;
   function handleMouseDown(event: MouseEvent): void {
@@ -162,7 +162,7 @@
     {#if canWriteMusicFiles}
       <button
         class="text-muted-foreground icon-glow-effect cursor-pointer rounded-md p-1 transition-colors"
-        onclick={() => (editModalOpen = true)}
+        onclick={() => onEdit?.(track)}
         aria-label="Edit track"
         title="Edit"
       >
@@ -171,5 +171,3 @@
     {/if}
   </div>
 </div>
-
-<TrackMetadataModal bind:open={editModalOpen} mode="edit" {track} />

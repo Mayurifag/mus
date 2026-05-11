@@ -89,6 +89,14 @@ async def get_tracks_by_status(status: ProcessingStatus) -> List[Track]:
         return list(result.all())
 
 
+async def get_track_ids_by_status(status: ProcessingStatus, limit: int) -> List[int]:
+    async with get_track_repo() as (_, session):
+        result = await session.exec(
+            select(Track.id).where(Track.processing_status == status).limit(limit)
+        )
+        return [track_id for track_id in result.all() if track_id is not None]
+
+
 async def upsert_tracks_batch(tracks: List[Track]) -> List[Track]:
     if not tracks:
         return []

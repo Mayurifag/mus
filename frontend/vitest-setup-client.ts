@@ -21,4 +21,18 @@ Object.defineProperty(window, "scrollTo", {
   writable: true,
 });
 
+Object.defineProperty(window, "ResizeObserver", {
+  writable: true,
+  value: class ResizeObserver {
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+  },
+});
+
+Object.defineProperty(globalThis, "ResizeObserver", {
+  writable: true,
+  value: window.ResizeObserver,
+});
+
 // add more mocks here if you need them

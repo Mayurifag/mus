@@ -35,6 +35,7 @@ async def _yt_dlp_version() -> str | None:
 @router.get("/info")
 async def get_system_info() -> dict:
     return {
+        "app_date": settings.APP_DATE,
         "commit_sha": settings.COMMIT_SHA,
         "yt_dlp_version": await _yt_dlp_version(),
     }

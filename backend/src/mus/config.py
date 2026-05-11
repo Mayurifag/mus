@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -10,8 +11,13 @@ if app_env is None or app_env == "development":
     load_dotenv()
 
 
+def get_app_date() -> str:
+    return datetime.now(timezone.utc).date().isoformat()
+
+
 class Config(BaseModel):
     APP_ENV: str = app_env if app_env else "development"
+    APP_DATE: str = os.getenv("BUILD_DATE", get_app_date())[:10]
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
     COMMIT_SHA: Optional[str] = os.getenv("COMMIT_SHA") or None

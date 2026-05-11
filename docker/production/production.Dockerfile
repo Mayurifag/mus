@@ -58,6 +58,7 @@ LABEL org.opencontainers.image.revision=$COMMIT_SHA
 LABEL org.opencontainers.image.title=$COMMIT_TITLE
 
 ENV COMMIT_SHA=$COMMIT_SHA
+ENV BUILD_DATE=$BUILD_DATE
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \

@@ -1,8 +1,9 @@
 <script lang="ts">
   import { tick } from "svelte";
   import type { AudioService } from "$lib/services/AudioService";
-  import type { TimeRange } from "$lib/types";
+  import type { TimeRange, Track } from "$lib/types";
   import TrackItem from "./TrackItem.svelte";
+  import TrackMetadataModal from "./TrackMetadataModal.svelte";
   import { trackStore } from "$lib/stores/trackStore";
   import { createWindowVirtualizer } from "@tanstack/svelte-virtual";
   import { browser } from "$app/environment";
@@ -21,6 +22,8 @@
   let virtualizer = $state<ReturnType<typeof createWindowVirtualizer> | null>(
     null,
   );
+  let editModalOpen = $state(false);
+  let editingTrack = $state<Track | null>(null);
   let initialScrollDone = false;
 
   // Subscribe to audio service stores
@@ -66,9 +69,25 @@
       virtualizer = createWindowVirtualizer({
         count: tracks.length,
         estimateSize: () => 72,
-        overscan: 500,
+        overscan: 12,
         getScrollElement: () => window,
       });
+    }
+  });
+
+  function openEditModal(track: Track) {
+    editingTrack = track;
+    editModalOpen = true;
+  }
+
+  function closeEditModal() {
+    editModalOpen = false;
+    editingTrack = null;
+  }
+
+  $effect(() => {
+    if (!editModalOpen && editingTrack) {
+      editingTrack = null;
     }
   });
 
@@ -124,6 +143,7 @@
                 {duration}
                 {isPlaying}
                 {bufferedRanges}
+                onEdit={openEditModal}
               />
             {:else}
               <TrackItem
@@ -131,6 +151,7 @@
                 index={item.index}
                 isSelected={false}
                 {audioService}
+                onEdit={openEditModal}
               />
             {/if}
           </div>
@@ -139,3 +160,12 @@
     </div>
   {/if}
 </div>
+
+{#if editingTrack}
+  <TrackMetadataModal
+    bind:open={editModalOpen}
+    mode="edit"
+    track={editingTrack}
+    onClose={closeEditModal}
+  />
+{/if}

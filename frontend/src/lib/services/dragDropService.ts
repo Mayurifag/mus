@@ -32,6 +32,7 @@ export interface DragDropCallbacks {
 export class DragDropService {
   private callbacks: DragDropCallbacks;
   private state: DragDropState;
+  private isDestroyed = false;
 
   constructor(callbacks: DragDropCallbacks) {
     this.callbacks = callbacks;
@@ -114,6 +115,8 @@ export class DragDropService {
 
     analyzeAudioFile(file)
       .then((analysis) => {
+        if (this.isDestroyed) return;
+
         const suggestedTitle = analysis.metadata.title || parsed.title;
         const suggestedArtist = analysis.metadata.artist || parsed.artist;
 
@@ -127,6 +130,8 @@ export class DragDropService {
         });
       })
       .catch((error) => {
+        if (this.isDestroyed) return;
+
         console.warn(
           "Error analyzing audio file, proceeding with filename parsing:",
           error,
@@ -143,6 +148,8 @@ export class DragDropService {
   };
 
   public setupEventListeners(): void {
+    this.isDestroyed = false;
+
     if (typeof window !== "undefined") {
       window.addEventListener("dragenter", this.handleDragEnter);
       window.addEventListener("dragover", this.handleDragOver);
@@ -152,6 +159,8 @@ export class DragDropService {
   }
 
   public removeEventListeners(): void {
+    this.isDestroyed = true;
+
     if (typeof window !== "undefined") {
       window.removeEventListener("dragenter", this.handleDragEnter);
       window.removeEventListener("dragover", this.handleDragOver);

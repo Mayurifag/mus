@@ -171,13 +171,30 @@ export async function requeueTrack(trackId: number): Promise<void> {
 }
 
 let globalEventSource: EventSource | null = null;
+let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+
+export function closeTrackUpdateEvents(
+  eventSource: EventSource | null = globalEventSource,
+): void {
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
+
+  if (eventSource) {
+    eventSource.close();
+  }
+
+  if (!eventSource || eventSource === globalEventSource) {
+    globalEventSource = null;
+  }
+}
 
 export function connectTrackUpdateEvents(
   onMessageCallback: (eventData: MusEvent) => void,
 ): EventSource {
-  // Close existing connection if any
   if (globalEventSource) {
-    globalEventSource.close();
+    closeTrackUpdateEvents(globalEventSource);
   }
 
   const url = `${API_PREFIX}${API_VERSION_PATH}/events/track-updates`;
@@ -194,9 +211,9 @@ export function connectTrackUpdateEvents(
   };
 
   eventSource.onerror = () => {
-    // Only attempt reconnection if this is still the active connection
-    if (eventSource === globalEventSource) {
-      setTimeout(() => {
+    if (eventSource === globalEventSource && reconnectTimeout === null) {
+      reconnectTimeout = setTimeout(() => {
+        reconnectTimeout = null;
         connectTrackUpdateEvents(onMessageCallback);
       }, 5000);
     }
@@ -296,6 +313,7 @@ export async function confirmDownload(
 }
 
 export interface SystemInfo {
+  app_date: string;
   commit_sha: string | null;
   yt_dlp_version: string | null;
 }
@@ -313,7 +331,7 @@ export async function fetchSystemInfo(
     return await response.json();
   } catch (error) {
     console.error("Error fetching system info:", error);
-    return { commit_sha: null, yt_dlp_version: null };
+    return { app_date: "unknown", commit_sha: null, yt_dlp_version: null };
   }
 }
 

@@ -98,6 +98,7 @@
   const isAwaitingReview = $derived($downloadStore.state === "awaiting_review");
   const canWriteFiles = $derived($permissionsStore.can_write_music_files);
   const progress = $derived($downloadStore.progress);
+  let resetCompletedTimeout: ReturnType<typeof setTimeout> | null = null;
 
   $effect(() => {
     if (isAwaitingReview) {
@@ -106,11 +107,24 @@
   });
 
   $effect(() => {
+    if (resetCompletedTimeout) {
+      clearTimeout(resetCompletedTimeout);
+      resetCompletedTimeout = null;
+    }
+
     if (isCompleted) {
-      setTimeout(() => {
+      resetCompletedTimeout = setTimeout(() => {
         downloadStore.reset();
+        resetCompletedTimeout = null;
       }, 2000);
     }
+
+    return () => {
+      if (resetCompletedTimeout) {
+        clearTimeout(resetCompletedTimeout);
+        resetCompletedTimeout = null;
+      }
+    };
   });
 </script>
 
