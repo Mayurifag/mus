@@ -47,12 +47,12 @@ jobs:
           fetch-depth: 0 # Needed to get the commit message
       - name: Set lowercase repository name
         run: |
-          echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+          echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Set build metadata
         id: build_meta
         run: |
-          echo "build_date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
-          echo "commit_title=$(git log -1 --pretty=%s)" >> $GITHUB_OUTPUT
+          echo "build_date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+          echo "commit_title=$(git log -1 --pretty=%s)" >> "$GITHUB_OUTPUT"
       - name: Build and push to both registries
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
         with:
@@ -70,8 +70,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Trigger watchtower
-        env:
-          WATCHTOWER_TOKEN: ${{ secrets.WATCHTOWER_HTTP_API_TOKEN }}
-          WATCHTOWER_URL: ${{ secrets.WATCHTOWER_URL }}
-        run: |
-          curl -X POST -H "Authorization: Bearer $WATCHTOWER_TOKEN" $WATCHTOWER_URL
+        uses: Mayurifag/multiple-watchtowers-update-action@master
+        with:
+          watchtower-urls: ${{ secrets.WATCHTOWER_URLS }}
+          watchtower-tokens: ${{ secrets.WATCHTOWER_TOKENS }}
