@@ -152,8 +152,8 @@ pub async fn update_track(
                 broadcast(
                     &state,
                     "track_updated",
-                    Some("Updated track"),
-                    Some("info"),
+                    Some("Track updated"),
+                    Some("success"),
                     Some(json!(dto)),
                 );
             }
@@ -214,6 +214,8 @@ async fn apply_track_update(
             extract_cover(Path::new(&track.file_path), &state.covers_dir, track.id).await?;
     }
 
+    let metadata_changed = new_title != track.title || new_artist != track.artist || rename_file;
+
     if new_title != track.title || new_artist != track.artist {
         write_audio_tags(Path::new(&track.file_path), &new_title, &new_artist).await?;
     }
@@ -225,7 +227,9 @@ async fn apply_track_update(
     track.title = new_title;
     track.artist = new_artist;
     track.file_path = new_path.to_string_lossy().to_string();
-    track.updated_at = now();
+    if metadata_changed {
+        track.updated_at = now();
+    }
     let file_meta = fs::metadata(&new_path)?;
     track.inode = inode(&file_meta);
     track.file_signature = Some(file_signature(&file_meta));

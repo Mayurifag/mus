@@ -11,6 +11,9 @@ name: Linters pipeline
 permissions:
   contents: read
 
+env:
+  CI_COMPOSE: docker compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml -f docker/docker-compose.ci.yml
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -19,8 +22,8 @@ jobs:
   markdown-link-check:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-    - uses: tcort/github-action-markdown-link-check@e7c7a18363c842693fadde5d41a3bd3573a7a225 # v1.1.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: tcort/github-action-markdown-link-check@e7c7a18363c842693fadde5d41a3bd3573a7a225 # v1.1.2
 
   markdown-lint:
     runs-on: ubuntu-latest
@@ -37,17 +40,40 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
-      - name: Cache Docker layers
+      - name: Set Docker build user
+        id: build_user
+        run: |
+          echo "uid=$(id -u)" >> "$GITHUB_OUTPUT"
+          echo "gid=$(id -g)" >> "$GITHUB_OUTPUT"
+      - name: Build backend image
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          context: .
+          file: docker/backend.Dockerfile
+          load: true
+          tags: mus-backend-ci
+          build-args: |
+            USER_ID=${{ steps.build_user.outputs.uid }}
+            GROUP_ID=${{ steps.build_user.outputs.gid }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+      - name: Cache Cargo artifacts
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-backend-${{ hashFiles('backend-rs/Cargo.lock') }}
+          path: |
+            .ci-cache/backend/cargo
+            .ci-cache/backend/target
+          key: ${{ runner.os }}-cargo-backend-${{ hashFiles('backend-rs/Cargo.lock') }}-${{ hashFiles('backend-rs/**/*.rs') }}
           restore-keys: |
-            ${{ runner.os }}-buildx-backend-
+            ${{ runner.os }}-cargo-backend-${{ hashFiles('backend-rs/Cargo.lock') }}-
+            ${{ runner.os }}-cargo-backend-
       - name: Copy Docker Compose override file
         run: cp docker/docker-compose.override.yml.example docker/docker-compose.override.yml
       - name: Run backend CI
-        run: make back-ci
+        run: |
+          USER_ID=$(id -u) GROUP_ID=$(id -g) make \
+            COMPOSE="$CI_COMPOSE" \
+            back-ci
 
   frontend:
     runs-on: ubuntu-latest
@@ -55,20 +81,55 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
-      - name: Cache Docker layers
+      - name: Build frontend image
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          context: .
+          file: docker/frontend.Dockerfile
+          load: true
+          tags: mus-frontend-ci
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+      - name: Cache frontend npm cache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-frontend-${{ hashFiles('frontend/package-lock.json') }}
+          path: .ci-cache/frontend/npm
+          key: ${{ runner.os }}-frontend-npm-${{ hashFiles('frontend/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-buildx-frontend-
+            ${{ runner.os }}-frontend-npm-
       - name: Copy Docker Compose override file
         run: cp docker/docker-compose.override.yml.example docker/docker-compose.override.yml
       - name: Install frontend dependencies
-        run: make front-ci-install
+        run: |
+          make \
+            COMPOSE="$CI_COMPOSE" \
+            front-ci-install
       - name: Run frontend linting
-        run: make front-lint
+        run: |
+          make \
+            COMPOSE="$CI_COMPOSE" \
+            front-lint
       - name: Run frontend tests
-        run: make front-test
+        run: |
+          make \
+            COMPOSE="$CI_COMPOSE" \
+            front-test
       - name: Run Svelte type checking
-        run: make front-svelte-check
+        run: |
+          make \
+            COMPOSE="$CI_COMPOSE" \
+            front-svelte-check
+
+  e2e-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Cache E2E npm cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-e2e-npm-${{ hashFiles('e2e/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-e2e-npm-
+      - name: Run E2E linting
+        run: make e2e-lint

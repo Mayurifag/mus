@@ -8,8 +8,6 @@
   "globs": [
     "**/*.{md,markdown}",
     "!**/node_modules/**",
-    "!**/.venv/**",
-    "!docker/.venv/**",
     "!e2e/playwright-report/**",
     "!e2e/test-results/**",
     "!AGENT_TASKS/**"

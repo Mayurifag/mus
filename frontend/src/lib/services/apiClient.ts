@@ -4,6 +4,7 @@ import type {
   PlayerState,
   MusEvent,
 } from "$lib/types";
+import { writable } from "svelte/store";
 import {
   handleApiResponse,
   createFormData,
@@ -18,6 +19,26 @@ const API_PREFIX = import.meta.env.SSR
 const API_VERSION_PATH = "/api/v1";
 const artworkResultsCache = new Map<string, ArtworkSearchResult[]>();
 
+export type SseConnectionStatus =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "reconnecting";
+
+export const trackUpdatesConnectionStatus =
+  writable<SseConnectionStatus>("disconnected");
+
+function createCoverUrl(url: string | null, updatedAt: number): string | null {
+  if (!url) return null;
+
+  if (url.includes("?")) {
+    return `${VITE_PUBLIC_API_HOST}${url}`;
+  }
+
+  const cacheKey = Number.isFinite(updatedAt) ? updatedAt : Date.now();
+  return `${VITE_PUBLIC_API_HOST}${url}?v=${cacheKey}`;
+}
+
 export function getStreamUrl(trackId: number): string {
   return `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}/stream`;
 }
@@ -28,12 +49,11 @@ export function createTrackWithUrls(
   const track = trackData as Track;
   return {
     ...track,
-    cover_small_url: track.cover_small_url
-      ? `${VITE_PUBLIC_API_HOST}${track.cover_small_url}`
-      : null,
-    cover_original_url: track.cover_original_url
-      ? `${VITE_PUBLIC_API_HOST}${track.cover_original_url}`
-      : null,
+    cover_small_url: createCoverUrl(track.cover_small_url, track.updated_at),
+    cover_original_url: createCoverUrl(
+      track.cover_original_url,
+      track.updated_at,
+    ),
   };
 }
 
@@ -327,6 +347,8 @@ export function closeTrackUpdateEvents(
   if (!eventSource || eventSource === globalEventSource) {
     globalEventSource = null;
   }
+
+  trackUpdatesConnectionStatus.set("disconnected");
 }
 
 export function connectTrackUpdateEvents(
@@ -338,12 +360,14 @@ export function connectTrackUpdateEvents(
   }
 
   const url = `${API_PREFIX}${API_VERSION_PATH}/events/track-updates`;
-  const eventSource = new EventSource(url, { withCredentials: true });
+  trackUpdatesConnectionStatus.set("connecting");
+  const eventSource = new EventSource(url);
   globalEventSource = eventSource;
 
   eventSource.onmessage = (event) => {
     try {
       const eventData = JSON.parse(event.data);
+      console.info("SSE track update event", eventData.action_key, eventData);
       onMessageCallback(eventData);
     } catch (error) {
       console.error("Error parsing SSE event:", error);
@@ -351,14 +375,18 @@ export function connectTrackUpdateEvents(
   };
 
   eventSource.onopen = () => {
+    console.info("SSE track updates connected");
+    trackUpdatesConnectionStatus.set("connected");
     onOpenCallback?.();
   };
 
-  eventSource.onerror = () => {
+  eventSource.onerror = (event) => {
+    console.warn("SSE track updates error", event);
+    trackUpdatesConnectionStatus.set("reconnecting");
     if (eventSource === globalEventSource && reconnectTimeout === null) {
       reconnectTimeout = setTimeout(() => {
         reconnectTimeout = null;
-        connectTrackUpdateEvents(onMessageCallback);
+        connectTrackUpdateEvents(onMessageCallback, onOpenCallback);
       }, 5000);
     }
   };

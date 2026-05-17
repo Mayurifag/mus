@@ -5,6 +5,7 @@
 .DS_Store
 *.log
 app_data/
+**/.venv/
 **/target/
 
 **/node_modules/

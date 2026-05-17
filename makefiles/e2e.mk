@@ -1,6 +1,6 @@
 .PHONY: e2e
 e2e:
-	@$(DOCKER_PROD_CMD) -t mus:e2e-test .
+	@docker build -f docker/production/production.Dockerfile -t mus:e2e-test .
 	@./e2e/run-tests.sh
 
 .PHONY: e2e-current-image

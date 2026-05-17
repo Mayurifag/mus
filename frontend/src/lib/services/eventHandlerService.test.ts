@@ -60,6 +60,7 @@ describe("eventHandlerService", () => {
     vi.mocked(apiClient.createTrackWithUrls).mockImplementation(
       (data) => data as Track,
     );
+    vi.mocked(apiClient.fetchTracks).mockResolvedValue([]);
   });
 
   describe("handleMusEvent", () => {
@@ -162,7 +163,7 @@ describe("eventHandlerService", () => {
       });
     });
 
-    it("should handle track_updated event", () => {
+    it("should handle track_updated event", async () => {
       const trackData = {
         id: 1,
         title: "Updated Track",
@@ -187,6 +188,9 @@ describe("eventHandlerService", () => {
         ...trackData,
         cover_small_url: null,
         cover_original_url: null,
+      });
+      await vi.waitFor(() => {
+        expect(trackStore.setTracks).toHaveBeenCalledWith([]);
       });
     });
 

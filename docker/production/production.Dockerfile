@@ -3,7 +3,7 @@ WORKDIR /app/frontend
 COPY frontend/ ./
 ENV VITE_INTERNAL_API_HOST=""
 ENV VITE_PUBLIC_API_HOST=""
-RUN npm install -g npm@latest \
+RUN npm install -g npm@11.14.1 \
     && npm ci --no-fund --prefer-offline \
     && npm run build
 

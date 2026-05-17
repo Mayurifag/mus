@@ -25,6 +25,7 @@ const mockTrackFromBackend = {
   title: "Test Track",
   artist: "Test Artist",
   duration: 180,
+  updated_at: 1640995200,
   has_cover: true,
   cover_small_url: "/api/v1/tracks/1/covers/small.webp",
   cover_original_url: "/api/v1/tracks/1/covers/original.webp",
@@ -35,10 +36,12 @@ const mockTrackTransformed = {
   title: "Test Track",
   artist: "Test Artist",
   duration: 180,
+  updated_at: 1640995200,
   has_cover: true,
-  cover_small_url: "http://localhost:8001/api/v1/tracks/1/covers/small.webp",
+  cover_small_url:
+    "http://localhost:8001/api/v1/tracks/1/covers/small.webp?v=1640995200",
   cover_original_url:
-    "http://localhost:8001/api/v1/tracks/1/covers/original.webp",
+    "http://localhost:8001/api/v1/tracks/1/covers/original.webp?v=1640995200",
 };
 
 const mockPlayerState = {
