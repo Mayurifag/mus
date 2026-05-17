@@ -25,7 +25,7 @@ in alpha stage.
 - Useful editor of artists/title metadata
 - Download new files using yt-dlp with SponsorBlock segment removal. Custom vk.ru
   support incoming
-- Mobile support via PWA app. No plans for natives yet
+- Mobile support via responsive web UI. No plans for natives yet
 - No dumb features like "Repeat all playlist" (repeat only current track)
 - Intelligently disable features requiring write support if mounted folder is
   read-only
