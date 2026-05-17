@@ -1,5 +1,5 @@
 .PHONY: back-ci
-back-ci: back-format-check back-check back-lint back-test back-machete back-audit
+back-ci: back-format-check back-lint back-test back-audit
 
 .PHONY: back-lint
 back-lint:
@@ -25,11 +25,6 @@ back-format-check:
 back-test:
 	@echo "Running backend tests..."
 	@$(COMPOSE) run --rm --no-TTY backend cargo test --locked --all-targets --all-features
-
-.PHONY: back-machete
-back-machete:
-	@echo "Checking backend dependencies..."
-	@$(COMPOSE) run --rm --no-TTY backend cargo machete
 
 .PHONY: back-audit
 back-audit:

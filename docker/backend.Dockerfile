@@ -1,4 +1,6 @@
-FROM rust:1-alpine
+# syntax=docker/dockerfile:1.7
+
+FROM rust:1-alpine3.22
 
 WORKDIR /app
 
@@ -15,6 +17,7 @@ RUN apk add --no-cache \
         build-base \
         ffmpeg \
         curl \
+        cargo-audit \
         cargo-watch \
         sudo \
         yt-dlp
@@ -29,13 +32,12 @@ RUN group_name="$(awk -F: -v gid="$GROUP_ID" '$3 == gid { print $1; exit }' /etc
 RUN rustup component add rustfmt clippy
 
 COPY backend-rs/Cargo.toml backend-rs/Cargo.lock ./
-RUN mkdir src \
+RUN --mount=type=cache,target=/cargo/registry \
+    --mount=type=cache,target=/cargo/git \
+    mkdir src \
     && printf 'fn main() {}\n' > src/main.rs \
     && cargo build --locked \
     && rm -rf src
-
-RUN CARGO_TARGET_DIR=/tmp/cargo-install-target cargo install --locked --root /usr/local/cargo cargo-audit cargo-machete \
-    && rm -rf /tmp/cargo-install-target
 
 USER appuser
 
