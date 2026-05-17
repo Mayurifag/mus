@@ -9,6 +9,7 @@
   import { browser } from "$app/environment";
   import { updateEffectStats } from "$lib/utils/monitoredEffect";
   import { parseArtists } from "$lib/utils/formatters";
+  import { get } from "svelte/store";
 
   let { audioService }: { audioService?: AudioService } = $props();
 
@@ -38,9 +39,9 @@
   let duration = $state(0);
   let bufferedRanges = $state<TimeRange[]>([]);
 
-  let virtualizer = $state<ReturnType<typeof createWindowVirtualizer> | null>(
-    null,
-  );
+  const virtualizer = browser
+    ? createWindowVirtualizer(virtualizerOptions(0))
+    : null;
   let virtualizerCount = -1;
   let editModalOpen = $state(false);
   let editingTrack = $state<Track | null>(null);
@@ -91,16 +92,6 @@
   });
 
   $effect(() => {
-    updateEffectStats("TrackList_VirtualizerSetup");
-
-    if (browser && !virtualizer) {
-      virtualizer = createWindowVirtualizer(
-        virtualizerOptions(visibleTrackCount),
-      );
-    }
-  });
-
-  $effect(() => {
     updateEffectStats("TrackList_VirtualizerCountUpdate");
 
     if (virtualizer && virtualizerCount !== visibleTrackCount) {
@@ -129,9 +120,10 @@
     updateEffectStats("TrackList_InitialScroll");
 
     if (!initialScrollDone && virtualizer && currentVisibleIndex !== -1) {
+      const currentVirtualizer = virtualizer;
       tick().then(() => {
-        if (virtualizer && currentVisibleIndex !== -1) {
-          $virtualizer!.scrollToIndex(currentVisibleIndex, {
+        if (currentVisibleIndex !== -1) {
+          get(currentVirtualizer).scrollToIndex(currentVisibleIndex, {
             align: "center",
           });
         }
@@ -142,7 +134,7 @@
 
   function measureElement(node: HTMLElement) {
     if (virtualizer) {
-      $virtualizer!.measureElement(node);
+      get(virtualizer).measureElement(node);
     }
   }
 </script>

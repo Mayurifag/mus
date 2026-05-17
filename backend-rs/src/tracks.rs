@@ -3,6 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use anyhow::anyhow;
 use axum::{
     body::Body,
     extract::{Multipart, Path as AxumPath, State},
@@ -12,6 +13,7 @@ use axum::{
 };
 use serde_json::{json, Value};
 use tokio::{fs as async_fs, io as async_io, io::AsyncWriteExt};
+use tower::ServiceExt;
 use tower_http::services::ServeFile;
 
 use crate::{
@@ -56,7 +58,10 @@ pub async fn stream_track(
     *request.headers_mut() = request_headers;
     Ok((
         headers,
-        ServeFile::new(track.file_path).try_call(request).await?,
+        ServeFile::new(track.file_path)
+            .oneshot(request)
+            .await
+            .unwrap(),
     )
         .into_response())
 }
@@ -89,8 +94,9 @@ async fn cover_response(state: AppState, id: i64, size: &str) -> Result<Response
     Ok((
         headers,
         ServeFile::new(cover_path)
-            .try_call(Request::new(Body::empty()))
-            .await?,
+            .oneshot(Request::new(Body::empty()))
+            .await
+            .unwrap(),
     )
         .into_response())
 }
@@ -103,7 +109,7 @@ pub async fn update_track(
     if !can_write(&state.music_dir) {
         return Err(AppError::forbidden("Music directory is read-only"));
     }
-    let mut track = get_track(&state, id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
+    let track = get_track(&state, id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
     let new_title = update.title.unwrap_or_else(|| track.title.clone());
     let new_artist = update.artist.unwrap_or_else(|| track.artist.clone());
     let rename_file = update.rename_file.unwrap_or(false);
@@ -117,6 +123,70 @@ pub async fn update_track(
         return Ok(Json(json!({"status": "no_changes"})));
     }
 
+    let mut new_path = PathBuf::from(&track.file_path);
+    if rename_file {
+        let ext = new_path
+            .extension()
+            .and_then(|v| v.to_str())
+            .unwrap_or("mp3");
+        let filename = generate_filename(&new_artist, &new_title, ext)?;
+        new_path = new_path.parent().unwrap_or(&state.music_dir).join(filename);
+        if new_path != Path::new(&track.file_path) && new_path.exists() {
+            return Err(AppError::conflict("A file with this name already exists"));
+        }
+    }
+
+    tokio::spawn(async move {
+        match apply_track_update(
+            state.clone(),
+            id,
+            new_title,
+            new_artist,
+            rename_file,
+            artwork_url,
+        )
+        .await
+        {
+            Ok(dto) => {
+                tracing::info!(track_id = dto.id, rename_file, "track updated");
+                broadcast(
+                    &state,
+                    "track_updated",
+                    Some("Updated track"),
+                    Some("info"),
+                    Some(json!(dto)),
+                );
+            }
+            Err(error) => {
+                let message = error.message;
+                tracing::error!(
+                    track_id = id,
+                    error = message.as_str(),
+                    "track update failed"
+                );
+                broadcast(
+                    &state,
+                    "track_update_failed",
+                    Some("Failed to update track"),
+                    Some("error"),
+                    Some(json!({"id": id, "error": message})),
+                );
+            }
+        }
+    });
+
+    Ok(Json(json!({"status": "queued"})))
+}
+
+async fn apply_track_update(
+    state: AppState,
+    id: i64,
+    new_title: String,
+    new_artist: String,
+    rename_file: bool,
+    artwork_url: Option<String>,
+) -> Result<TrackDto, AppError> {
+    let mut track = get_track(&state, id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
     let mut new_path = PathBuf::from(&track.file_path);
     if rename_file {
         let ext = new_path
@@ -159,18 +229,14 @@ pub async fn update_track(
     let file_meta = fs::metadata(&new_path)?;
     track.inode = inode(&file_meta);
     track.file_signature = Some(file_signature(&file_meta));
-    track.content_hash = Some(file_content_hash(&new_path)?);
-    save_track(&state, &track)?;
-    let dto = track_dto(track);
-    tracing::info!(track_id = dto.id, rename_file, "track updated");
-    broadcast(
-        &state,
-        "track_updated",
-        Some("Updated track"),
-        Some("info"),
-        Some(json!(dto.clone())),
+    let hash_path = new_path.clone();
+    track.content_hash = Some(
+        tokio::task::spawn_blocking(move || file_content_hash(&hash_path))
+            .await
+            .map_err(|error| AppError::from(anyhow!(error)))??,
     );
-    Ok(Json(json!({"status": "success", "track": dto})))
+    save_track(&state, &track)?;
+    Ok(track_dto(track))
 }
 
 pub async fn delete_track(

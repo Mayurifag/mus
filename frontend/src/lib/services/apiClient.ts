@@ -16,6 +16,7 @@ const API_PREFIX = import.meta.env.SSR
   ? VITE_INTERNAL_API_HOST
   : VITE_PUBLIC_API_HOST;
 const API_VERSION_PATH = "/api/v1";
+const artworkResultsCache = new Map<string, ArtworkSearchResult[]>();
 
 export function getStreamUrl(trackId: number): string {
   return `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}/stream`;
@@ -140,12 +141,122 @@ export async function searchArtwork({
     params.set("album", album);
   }
 
+  const cacheKey = artworkSearchCacheKey({ title, artist, album });
   const response = await fetch(
     `${API_PREFIX}${API_VERSION_PATH}/artwork/search?${params.toString()}`,
   );
-  return await handleApiResponse<ArtworkSearchResult[]>(response, {
+  const results = await handleApiResponse<ArtworkSearchResult[]>(response, {
     context: "searchArtwork",
   });
+  artworkResultsCache.set(cacheKey, results);
+  return results;
+}
+
+export async function searchArtworkStream({
+  title,
+  artist,
+  album,
+  signal,
+  onResults,
+}: {
+  title: string;
+  artist: string;
+  album?: string;
+  signal?: AbortSignal;
+  onResults: (results: ArtworkSearchResult[]) => void;
+}): Promise<void> {
+  const params = new URLSearchParams({ title, artist });
+  if (album) {
+    params.set("album", album);
+  }
+  const cacheKey = artworkSearchCacheKey({ title, artist, album });
+  const cachedResults = artworkResultsCache.get(cacheKey);
+  if (cachedResults) {
+    onResults(cachedResults);
+  }
+
+  const response = await fetch(
+    `${API_PREFIX}${API_VERSION_PATH}/artwork/search/stream?${params.toString()}`,
+    { signal },
+  );
+  if (!response.ok) {
+    await handleApiResponse(response, { context: "searchArtworkStream" });
+  }
+  if (!response.body) {
+    throw new Error("Artwork stream response had no body");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (line.trim()) {
+        const results = JSON.parse(line) as ArtworkSearchResult[];
+        artworkResultsCache.set(cacheKey, results);
+        onResults(results);
+      }
+    }
+
+    if (done) {
+      if (buffer.trim()) {
+        const results = JSON.parse(buffer) as ArtworkSearchResult[];
+        artworkResultsCache.set(cacheKey, results);
+        onResults(results);
+      }
+      break;
+    }
+  }
+}
+
+export function preloadArtworkSearch({
+  title,
+  artist,
+  album,
+}: {
+  title: string;
+  artist: string;
+  album?: string;
+}): () => void {
+  const cacheKey = artworkSearchCacheKey({ title, artist, album });
+  if (artworkResultsCache.has(cacheKey)) {
+    return () => {};
+  }
+
+  const controller = new AbortController();
+  void searchArtworkStream({
+    title,
+    artist,
+    album,
+    signal: controller.signal,
+    onResults: () => {},
+  }).catch((error) => {
+    if (!controller.signal.aborted) {
+      console.error("Error preloading artwork:", error);
+    }
+  });
+
+  return () => controller.abort();
+}
+
+function artworkSearchCacheKey({
+  title,
+  artist,
+  album,
+}: {
+  title: string;
+  artist: string;
+  album?: string;
+}): string {
+  return [title, artist, album ?? ""]
+    .map((value) => value.trim().toLowerCase())
+    .join("|");
 }
 
 export async function deleteTrack(trackId: number): Promise<void> {

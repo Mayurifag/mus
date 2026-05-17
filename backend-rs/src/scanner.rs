@@ -1,4 +1,10 @@
-use std::{collections::HashMap, collections::HashSet, fs, path::Path, time::Duration};
+use std::{
+    collections::HashMap,
+    collections::HashSet,
+    fs,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use anyhow::Result;
 use notify::{event::EventKind, Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
@@ -58,16 +64,63 @@ pub async fn watch_music_dir(state: AppState) {
         if !should_sync_event(&event) {
             continue;
         }
+        let mut paths = event.paths;
         time::sleep(Duration::from_millis(500)).await;
         while let Ok(event) = rx.try_recv() {
-            if let Err(error) = event {
-                tracing::warn!("failed to receive music directory event: {error}");
+            match event {
+                Ok(event) if should_sync_event(&event) => paths.extend(event.paths),
+                Ok(_) => {}
+                Err(error) => tracing::warn!("failed to receive music directory event: {error}"),
             }
         }
-        if let Err(error) = sync_tracks(state.clone(), true).await {
+        if let Err(error) = sync_changed_paths(state.clone(), paths).await {
             tracing::warn!("failed to sync music directory: {error}");
         }
     }
+}
+
+async fn sync_changed_paths(state: AppState, paths: Vec<PathBuf>) -> Result<()> {
+    let mut current = HashSet::new();
+    let mut existing = HashMap::new();
+    for track in db::list_tracks(&state)? {
+        existing.insert(track.file_path.clone(), track);
+    }
+
+    let mut removed_paths = Vec::new();
+    for path in paths {
+        if path.is_dir() {
+            for path in audio_paths_in_dir(&path)? {
+                sync_path(&state, &existing, &mut current, &path, true).await?;
+            }
+        } else if path.exists() && is_audio_path(&path) {
+            sync_path(&state, &existing, &mut current, &path, true).await?;
+        } else if is_audio_path(&path) {
+            removed_paths.push(path);
+        }
+    }
+    for path in removed_paths {
+        delete_track_path(&state, &path)?;
+    }
+    Ok(())
+}
+
+fn audio_paths_in_dir(dir: &Path) -> Result<Vec<PathBuf>> {
+    let mut paths = Vec::new();
+    let mut dirs = vec![dir.to_path_buf()];
+    while let Some(dir) = dirs.pop() {
+        if !dir.is_dir() {
+            continue;
+        }
+        for entry in fs::read_dir(&dir)? {
+            let path = entry?.path();
+            if path.is_dir() {
+                dirs.push(path);
+            } else if is_audio_path(&path) {
+                paths.push(path);
+            }
+        }
+    }
+    Ok(paths)
 }
 
 fn should_sync_event(event: &Event) -> bool {
@@ -142,7 +195,7 @@ async fn sync_path(
             if track.file_signature.as_deref() == Some(signature.as_str())
                 && track.content_hash.is_some() => {}
         Some(track) => {
-            let snapshot = file_snapshot_from_metadata(path, meta, mtime, signature)?;
+            let snapshot = file_snapshot_from_metadata(path, meta, mtime, signature).await?;
             if track.content_hash.is_none() && track.updated_at >= snapshot.mtime {
                 db::save_track_fingerprint(
                     state,
@@ -163,7 +216,7 @@ async fn sync_path(
                 )?;
                 return Ok(());
             }
-            let track = upsert_path_with_snapshot(state, path, None, None, snapshot).await?;
+            let track = upsert_path_with_snapshot(state, path, None, None, snapshot, None).await?;
             if broadcast_changes {
                 broadcast(
                     state,
@@ -175,16 +228,48 @@ async fn sync_path(
             }
         }
         None => {
-            let snapshot = file_snapshot_from_metadata(path, meta, mtime, signature)?;
-            let track = upsert_path_with_snapshot(state, path, None, None, snapshot).await?;
+            let snapshot = file_snapshot_from_metadata(path, meta, mtime, signature).await?;
+            let moved_track = snapshot
+                .meta
+                .is_file()
+                .then(|| {
+                    existing.values().find(|track| {
+                        track.inode == inode(&snapshot.meta)
+                            && track.inode.is_some()
+                            && !Path::new(&track.file_path).exists()
+                    })
+                })
+                .flatten();
+            if let Some(track) = moved_track {
+                current.insert(track.file_path.clone());
+            }
+            let track = upsert_path_with_snapshot(
+                state,
+                path,
+                moved_track.map(|track| track.title.clone()),
+                moved_track.map(|track| track.artist.clone()),
+                snapshot,
+                moved_track.map(|track| track.id),
+            )
+            .await?;
             if broadcast_changes {
-                broadcast(
-                    state,
-                    "track_added",
-                    Some(&format!("Added track '{}'", track.title)),
-                    Some("success"),
-                    Some(json!(track)),
-                );
+                if moved_track.is_some() {
+                    broadcast(
+                        state,
+                        "track_updated",
+                        None,
+                        Some("info"),
+                        Some(json!(track)),
+                    );
+                } else {
+                    broadcast(
+                        state,
+                        "track_added",
+                        Some(&format!("Added track '{}'", track.title)),
+                        Some("success"),
+                        Some(json!(track)),
+                    );
+                }
             }
         }
     }
@@ -202,22 +287,24 @@ fn file_metadata(path: &Path) -> Result<(fs::Metadata, i64, String)> {
     Ok((meta, mtime, signature))
 }
 
-fn file_snapshot(path: &Path) -> Result<FileSnapshot> {
+async fn file_snapshot(path: &Path) -> Result<FileSnapshot> {
     let (meta, mtime, signature) = file_metadata(path)?;
-    file_snapshot_from_metadata(path, meta, mtime, signature)
+    file_snapshot_from_metadata(path, meta, mtime, signature).await
 }
 
-fn file_snapshot_from_metadata(
+async fn file_snapshot_from_metadata(
     path: &Path,
     meta: fs::Metadata,
     mtime: i64,
     file_signature: String,
 ) -> Result<FileSnapshot> {
+    let path = path.to_path_buf();
+    let content_hash = tokio::task::spawn_blocking(move || file_content_hash(&path)).await??;
     Ok(FileSnapshot {
         meta,
         mtime,
         file_signature,
-        content_hash: file_content_hash(path)?,
+        content_hash,
     })
 }
 
@@ -227,8 +314,8 @@ pub async fn upsert_path(
     title_override: Option<String>,
     artist_override: Option<String>,
 ) -> Result<crate::models::TrackDto> {
-    let snapshot = file_snapshot(path)?;
-    upsert_path_with_snapshot(state, path, title_override, artist_override, snapshot).await
+    let snapshot = file_snapshot(path).await?;
+    upsert_path_with_snapshot(state, path, title_override, artist_override, snapshot, None).await
 }
 
 async fn upsert_path_with_snapshot(
@@ -237,9 +324,10 @@ async fn upsert_path_with_snapshot(
     title_override: Option<String>,
     artist_override: Option<String>,
     _snapshot: FileSnapshot,
+    existing_id: Option<i64>,
 ) -> Result<crate::models::TrackDto> {
     standardize_audio_tags(path).await?;
-    let snapshot = file_snapshot(path)?;
+    let snapshot = file_snapshot(path).await?;
     let metadata = read_metadata(path).await.unwrap_or_else(|_| MediaMetadata {
         title: path
             .file_stem()
@@ -255,17 +343,22 @@ async fn upsert_path_with_snapshot(
     let file_path = path.to_string_lossy().to_string();
     let (id, added_at) = {
         let conn = state.db.lock().unwrap();
-        conn.execute(
-            "INSERT INTO track (title, artist, duration, file_path, added_at, updated_at, has_cover, inode, file_signature, content_hash, processing_status)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?5, 0, ?6, ?7, ?8, 'COMPLETE')
-             ON CONFLICT(file_path) DO UPDATE SET title=excluded.title, artist=excluded.artist, duration=excluded.duration, updated_at=excluded.updated_at, inode=excluded.inode, file_signature=excluded.file_signature, content_hash=excluded.content_hash, processing_status='COMPLETE', last_error=NULL",
-            params![title, artist, metadata.duration, file_path, added_at, inode(&snapshot.meta), &snapshot.file_signature, &snapshot.content_hash],
-        )?;
-        let id = conn.query_row(
-            "SELECT id FROM track WHERE file_path = ?1",
-            params![path.to_string_lossy().to_string()],
-            |row| row.get::<_, i64>(0),
-        )?;
+        let id = if let Some(id) = existing_id {
+            conn.query_row(
+                "UPDATE track SET title=?1, artist=?2, duration=?3, file_path=?4, updated_at=?5, inode=?6, file_signature=?7, content_hash=?8, processing_status='COMPLETE', last_error=NULL WHERE id=?9 RETURNING id",
+                params![&title, &artist, metadata.duration, &file_path, added_at, inode(&snapshot.meta), &snapshot.file_signature, &snapshot.content_hash, id],
+                |row| row.get::<_, i64>(0),
+            )?
+        } else {
+            conn.query_row(
+                "INSERT INTO track (title, artist, duration, file_path, added_at, updated_at, has_cover, inode, file_signature, content_hash, processing_status)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?5, 0, ?6, ?7, ?8, 'COMPLETE')
+                 ON CONFLICT(file_path) DO UPDATE SET title=excluded.title, artist=excluded.artist, duration=excluded.duration, updated_at=excluded.updated_at, inode=excluded.inode, file_signature=excluded.file_signature, content_hash=excluded.content_hash, processing_status='COMPLETE', last_error=NULL
+                 RETURNING id",
+                params![&title, &artist, metadata.duration, &file_path, added_at, inode(&snapshot.meta), &snapshot.file_signature, &snapshot.content_hash],
+                |row| row.get::<_, i64>(0),
+            )?
+        };
         (id, added_at)
     };
     let has_cover = extract_cover(path, &state.covers_dir, id)
@@ -287,4 +380,13 @@ async fn upsert_path_with_snapshot(
         processing_status: "COMPLETE".into(),
         last_error: None,
     }))
+}
+
+fn delete_track_path(state: &AppState, path: &Path) -> Result<()> {
+    let conn = state.db.lock().unwrap();
+    conn.execute(
+        "DELETE FROM track WHERE file_path = ?1",
+        params![path.to_string_lossy().to_string()],
+    )?;
+    Ok(())
 }

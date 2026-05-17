@@ -3,8 +3,9 @@
   import * as Dialog from "$lib/components/ui/dialog";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
-  import { searchArtwork } from "$lib/services/apiClient";
+  import { searchArtworkStream } from "$lib/services/apiClient";
   import { toast } from "svelte-sonner";
+  import { onDestroy } from "svelte";
 
   let {
     open = $bindable(),
@@ -25,6 +26,9 @@
   let isLoading = $state(false);
   let lastSearch = $state("");
   let wasOpen = $state(false);
+  let activeSearch: AbortController | null = null;
+
+  onDestroy(cancelSearch);
 
   $effect(() => {
     if (open && !wasOpen) {
@@ -37,6 +41,8 @@
     open = newOpen;
     if (newOpen) {
       startInitialSearch();
+    } else {
+      cancelSearch();
     }
   }
 
@@ -48,21 +54,45 @@
 
   async function handleSearch(searchQuery = query) {
     const trimmedQuery = searchQuery.trim();
-    if (!trimmedQuery || isLoading || trimmedQuery === lastSearch) return;
+    if (!trimmedQuery || (isLoading && trimmedQuery === lastSearch)) return;
 
+    cancelSearch();
+    const controller = new AbortController();
+    activeSearch = controller;
+    results = [];
     isLoading = true;
     lastSearch = trimmedQuery;
     try {
-      results = await searchArtwork({ title: trimmedQuery, artist });
+      await searchArtworkStream({
+        title: trimmedQuery,
+        artist,
+        signal: controller.signal,
+        onResults: (nextResults) => {
+          if (activeSearch === controller) {
+            results = nextResults;
+          }
+        },
+      });
     } catch (error) {
+      if (controller.signal.aborted) return;
       console.error("Error searching artwork:", error);
       toast.error("Failed to search artwork");
     } finally {
-      isLoading = false;
+      if (activeSearch === controller) {
+        activeSearch = null;
+        isLoading = false;
+      }
     }
   }
 
+  function cancelSearch() {
+    activeSearch?.abort();
+    activeSearch = null;
+    isLoading = false;
+  }
+
   function handleSelect(result: ArtworkSearchResult) {
+    cancelSearch();
     onSelect(result);
     open = false;
   }
@@ -110,6 +140,7 @@
                   alt={result.title || "Artwork result"}
                   class="h-full w-full object-cover transition group-hover:scale-105"
                   loading="lazy"
+                  decoding="async"
                 />
               </div>
               <div class="space-y-1 p-2">

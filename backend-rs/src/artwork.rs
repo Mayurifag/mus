@@ -1,7 +1,19 @@
-use std::{collections::HashSet, path::PathBuf, process::Stdio, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    process::Stdio,
+    sync::{Mutex, OnceLock},
+    time::{Duration, Instant},
+};
 
 use anyhow::{anyhow, Result};
-use axum::{extract::Query, Json};
+use axum::{
+    body::{Body, Bytes},
+    extract::Query,
+    http::header,
+    response::Response,
+    Json,
+};
 use futures_util::{stream, StreamExt};
 use reqwest::Url;
 use serde::Deserialize;
@@ -14,12 +26,70 @@ use crate::{
 };
 
 const USER_AGENT: &str = "mus/0.1 artwork search";
+const ARTWORK_CACHE_TTL: Duration = Duration::from_secs(600);
+type ArtworkCacheEntry = (Instant, Vec<ArtworkSearchResult>);
+type ArtworkCache = Mutex<HashMap<String, ArtworkCacheEntry>>;
+static ARTWORK_CACHE: OnceLock<ArtworkCache> = OnceLock::new();
 
 pub async fn search_artwork(
     Query(query): Query<ArtworkSearchQuery>,
 ) -> Result<Json<Vec<ArtworkSearchResult>>, AppError> {
     let results = ArtworkProviders::default().search(&query).await?;
     Ok(Json(results))
+}
+
+pub async fn stream_artwork(Query(query): Query<ArtworkSearchQuery>) -> Result<Response, AppError> {
+    let stream = async_stream::stream! {
+        let cache_key = artwork_cache_key(&query);
+        if let Some(results) = cached_artwork_results(&cache_key) {
+            yield Ok::<Bytes, std::convert::Infallible>(artwork_chunk(results));
+            return;
+        }
+
+        let mut results = Vec::new();
+        match search_itunes_quick(&query).await {
+            Ok(mut quick_results) => {
+                results.append(&mut quick_results);
+                let sorted = dedupe_and_sort(results.clone(), &query);
+                if !sorted.is_empty() {
+                    yield Ok(artwork_chunk(sorted));
+                }
+            }
+            Err(error) => tracing::warn!(provider = "iTunes", %error, "artwork provider failed"),
+        }
+
+        match search_itunes_artist_catalog(&query).await {
+            Ok(mut artist_results) => {
+                results.append(&mut artist_results);
+                let sorted = dedupe_and_sort(results.clone(), &query);
+                if !sorted.is_empty() {
+                    yield Ok(artwork_chunk(sorted));
+                }
+            }
+            Err(error) => tracing::warn!(provider = "iTunes", %error, "artwork provider failed"),
+        }
+
+        if results.len() < 4 && !query_contains_apple_music_url(&query) {
+            match search_cover_art_archive(&query).await {
+                Ok(mut caa_results) => {
+                    results.append(&mut caa_results);
+                    let sorted = dedupe_and_sort(results.clone(), &query);
+                    if !sorted.is_empty() {
+                        yield Ok(artwork_chunk(sorted));
+                    }
+                }
+                Err(error) => tracing::warn!(provider = "Cover Art Archive", %error, "artwork provider failed"),
+            }
+        }
+
+        let results = dedupe_and_sort(results, &query);
+        cache_artwork_results(cache_key, results);
+    };
+
+    Ok(Response::builder()
+        .header(header::CONTENT_TYPE, "application/x-ndjson")
+        .body(Body::from_stream(stream))
+        .map_err(|error| anyhow!(error))?)
 }
 
 pub async fn download_artwork_as_jpeg(url: &str, cache_dir: PathBuf) -> Result<PathBuf> {
@@ -75,17 +145,31 @@ impl Default for ArtworkProviders {
 
 impl ArtworkProviders {
     async fn search(&self, query: &ArtworkSearchQuery) -> Result<Vec<ArtworkSearchResult>> {
+        let cache_key = artwork_cache_key(query);
+        if let Some(results) = cached_artwork_results(&cache_key) {
+            return Ok(results);
+        }
+
         let mut results = Vec::new();
         for provider in &self.providers {
             match provider.search(query).await {
-                Ok(mut provider_results) => results.append(&mut provider_results),
+                Ok(mut provider_results) => {
+                    results.append(&mut provider_results);
+                    if matches!(provider, ArtworkProvider::ITunes)
+                        && (results.len() >= 4 || query_contains_apple_music_url(query))
+                    {
+                        break;
+                    }
+                }
                 Err(error) => {
                     tracing::warn!(provider = provider.name(), %error, "artwork provider failed")
                 }
             }
         }
 
-        Ok(dedupe_and_sort(results, query))
+        let results = dedupe_and_sort(results, query);
+        cache_artwork_results(cache_key, results.clone());
+        Ok(results)
     }
 }
 
@@ -165,7 +249,66 @@ struct CoverArtArchiveThumbnails {
 }
 
 async fn search_itunes(query: &ArtworkSearchQuery) -> Result<Vec<ArtworkSearchResult>> {
-    let term = [
+    let mut results = Vec::new();
+    results.extend(search_itunes_quick(query).await?);
+    results.extend(search_itunes_artist_catalog(query).await?);
+
+    Ok(results)
+}
+
+async fn search_itunes_quick(query: &ArtworkSearchQuery) -> Result<Vec<ArtworkSearchResult>> {
+    let term = itunes_search_term(query);
+    if term.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let client = itunes_client()?;
+    let mut results = Vec::new();
+    if let Some(id) = apple_music_lookup_id(&term) {
+        results.extend(itunes_lookup(&client, id, None, None).await?);
+    }
+    let (song_results, album_results) = tokio::try_join!(
+        itunes_search(&client, &term, "song", "24"),
+        itunes_search(&client, &term, "album", "24"),
+    )?;
+    results.extend(song_results);
+    results.extend(album_results);
+
+    Ok(map_itunes_results(results, query))
+}
+
+async fn search_itunes_artist_catalog(
+    query: &ArtworkSearchQuery,
+) -> Result<Vec<ArtworkSearchResult>> {
+    let artist = query.artist.trim();
+    if artist.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let client = itunes_client()?;
+    let artist_results = itunes_search(&client, artist, "musicArtist", "3").await?;
+    let mut results = Vec::new();
+
+    for artist_result in artist_results {
+        let candidate_artist =
+            normalize_text(artist_result.artist_name.as_deref().unwrap_or_default());
+        let requested_artist = normalize_text(artist);
+        if candidate_artist != requested_artist && !candidate_artist.contains(&requested_artist) {
+            continue;
+        }
+        let Some(artist_id) = artist_result.artist_id else {
+            continue;
+        };
+        let song_results = itunes_lookup(&client, artist_id, Some("song"), Some("75")).await?;
+        results.extend(song_results);
+        break;
+    }
+
+    Ok(map_itunes_results(results, query))
+}
+
+fn itunes_search_term(query: &ArtworkSearchQuery) -> String {
+    [
         query.title.trim(),
         query.artist.trim(),
         query.album.as_deref().unwrap_or_default().trim(),
@@ -173,46 +316,26 @@ async fn search_itunes(query: &ArtworkSearchQuery) -> Result<Vec<ArtworkSearchRe
     .into_iter()
     .filter(|value| !value.is_empty())
     .collect::<Vec<_>>()
-    .join(" ");
+    .join(" ")
+}
 
-    if term.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let client = reqwest::Client::builder()
+fn itunes_client() -> Result<reqwest::Client> {
+    Ok(reqwest::Client::builder()
         .timeout(Duration::from_secs(20))
-        .build()?;
+        .build()?)
+}
 
-    let mut results = Vec::new();
-    if let Some(id) = apple_music_lookup_id(&term) {
-        results.extend(itunes_lookup(&client, id, None, None).await?);
-    }
-    results.extend(itunes_search(&client, &term, "song", "24").await?);
-    results.extend(itunes_search(&client, &term, "album", "24").await?);
-
-    let artist = query.artist.trim();
-    if !artist.is_empty() {
-        for artist_result in itunes_search(&client, artist, "musicArtist", "3").await? {
-            let candidate_artist = normalize_text(artist_result.artist_name.as_deref().unwrap_or_default());
-            let requested_artist = normalize_text(artist);
-            if candidate_artist != requested_artist && !candidate_artist.contains(&requested_artist) {
-                continue;
-            }
-            let Some(artist_id) = artist_result.artist_id else {
-                continue;
-            };
-            results.extend(itunes_lookup(&client, artist_id, Some("song"), Some("200")).await?);
-            results.extend(itunes_lookup(&client, artist_id, Some("album"), Some("200")).await?);
-        }
-    }
-
-    Ok(results
+fn map_itunes_results(
+    results: Vec<ITunesResult>,
+    query: &ArtworkSearchQuery,
+) -> Vec<ArtworkSearchResult> {
+    results
         .into_iter()
         .filter(|result| result.wrapper_type.as_deref() != Some("artist"))
         .filter(|result| itunes_result_matches_query(result, query))
         .filter_map(|result| {
             let artwork_url = result.artwork_url100?;
-            let thumbnail_url = artwork_url.replace("100x100bb", "600x600bb");
+            let thumbnail_url = artwork_url.replace("100x100bb", "400x400bb");
             let image_url = artwork_url.replace("100x100bb", "1200x1200bb");
             let id = result
                 .track_id
@@ -234,7 +357,7 @@ async fn search_itunes(query: &ArtworkSearchQuery) -> Result<Vec<ArtworkSearchRe
                 height: Some(1200),
             })
         })
-        .collect())
+        .collect()
 }
 
 async fn itunes_search(
@@ -302,6 +425,10 @@ fn apple_music_lookup_id(term: &str) -> Option<i64> {
         .next_back()
 }
 
+fn query_contains_apple_music_url(query: &ArtworkSearchQuery) -> bool {
+    apple_music_lookup_id(&itunes_search_term(query)).is_some()
+}
+
 fn itunes_result_matches_query(result: &ITunesResult, query: &ArtworkSearchQuery) -> bool {
     let title = normalized_query_title(query);
     let artist = normalize_text(&query.artist);
@@ -333,19 +460,27 @@ fn normalized_query_title(query: &ArtworkSearchQuery) -> String {
 }
 
 fn normalize_text(value: &str) -> String {
-    value
+    normalize_cyrillic_combining(value)
         .chars()
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() {
-                ch.to_ascii_lowercase()
+        .flat_map(|ch| {
+            if ch.is_alphanumeric() {
+                ch.to_lowercase().collect::<Vec<_>>()
             } else {
-                ' '
+                vec![' ']
             }
         })
         .collect::<String>()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+fn normalize_cyrillic_combining(value: &str) -> String {
+    value
+        .replace("и\u{0306}", "й")
+        .replace("И\u{0306}", "Й")
+        .replace("е\u{0308}", "ё")
+        .replace("Е\u{0308}", "Ё")
 }
 
 async fn search_cover_art_archive(query: &ArtworkSearchQuery) -> Result<Vec<ArtworkSearchResult>> {
@@ -503,4 +638,40 @@ fn artwork_relevance(result: &ArtworkSearchResult, query: &ArtworkSearchQuery) -
     }
 
     score
+}
+
+fn artwork_cache() -> &'static Mutex<HashMap<String, (Instant, Vec<ArtworkSearchResult>)>> {
+    ARTWORK_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn artwork_cache_key(query: &ArtworkSearchQuery) -> String {
+    [
+        normalize_text(&query.title),
+        normalize_text(&query.artist),
+        normalize_text(query.album.as_deref().unwrap_or_default()),
+    ]
+    .join("|")
+}
+
+fn cached_artwork_results(key: &str) -> Option<Vec<ArtworkSearchResult>> {
+    let cache = artwork_cache().lock().ok()?;
+    let (cached_at, results) = cache.get(key)?;
+    if cached_at.elapsed() <= ARTWORK_CACHE_TTL {
+        return Some(results.clone());
+    }
+    None
+}
+
+fn cache_artwork_results(key: String, results: Vec<ArtworkSearchResult>) {
+    if let Ok(mut cache) = artwork_cache().lock() {
+        cache.retain(|_, (cached_at, _)| cached_at.elapsed() <= ARTWORK_CACHE_TTL);
+        cache.insert(key, (Instant::now(), results));
+    }
+}
+
+fn artwork_chunk(results: Vec<ArtworkSearchResult>) -> Bytes {
+    Bytes::from(format!(
+        "{}\n",
+        serde_json::to_string(&results).unwrap_or_default()
+    ))
 }

@@ -17,10 +17,12 @@ use axum::{
 };
 use rusqlite::Connection;
 use serde_json::{json, Value};
+use tokio::fs as async_fs;
+use tower::ServiceExt;
 use tower_http::services::ServeFile;
 
 use crate::{
-    artwork::search_artwork,
+    artwork::{search_artwork, stream_artwork},
     db::init_db,
     downloads::{confirm_download, fetch_metadata, start_download},
     errors::{get_errored_tracks, requeue_track},
@@ -42,6 +44,7 @@ pub fn app(state: AppState) -> Router {
         .route("/api/healthcheck.json", get(healthcheck))
         .route("/api/v1/tracks", get(get_tracks))
         .route("/api/v1/artwork/search", get(search_artwork))
+        .route("/api/v1/artwork/search/stream", get(stream_artwork))
         .route("/api/v1/tracks/upload", post(upload_track))
         .route(
             "/api/v1/tracks/{id}",
@@ -142,19 +145,27 @@ async fn static_asset(
     };
 
     let requested = static_path(&static_dir, path).ok_or(StatusCode::NOT_FOUND)?;
-    let file_path = if requested.is_file() {
+    let file_path = if async_fs::metadata(&requested)
+        .await
+        .map(|meta| meta.is_file())
+        .unwrap_or(false)
+    {
         requested
     } else {
         static_dir.join("index.html")
     };
-    if !file_path.is_file() {
+    if !async_fs::metadata(&file_path)
+        .await
+        .map(|meta| meta.is_file())
+        .unwrap_or(false)
+    {
         return Err(StatusCode::NOT_FOUND);
     }
 
     let mut request = Request::new(Body::empty());
     *request.headers_mut() = headers;
     let mut response = ServeFile::new(file_path)
-        .try_call(request)
+        .oneshot(request)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .into_response();
