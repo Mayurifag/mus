@@ -248,16 +248,15 @@ async fn scan_music_dir_detects_preserved_mtime_content_changes() {
 }
 
 #[tokio::test]
-async fn scan_music_dir_does_not_rewrite_audio_files() {
+async fn scan_music_dir_standardizes_id3_tags() {
     let (_tmp, state) = make_state();
     let path = state.music_dir.join("song.mp3");
     fs::write(&path, b"").unwrap();
     let mut tag = Tag::new();
     tag.set_title("Tagged Song");
     tag.write_to_path(&path, Version::Id3v24).unwrap();
-    let before = fs::read(&path).unwrap();
-
     scan_music_dir(state.clone()).await.unwrap();
 
-    assert_eq!(fs::read(&path).unwrap(), before);
+    let tag = Tag::read_from_path(&path).unwrap();
+    assert_eq!(tag.version(), Version::Id3v23);
 }

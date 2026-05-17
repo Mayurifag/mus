@@ -10,6 +10,7 @@ import type { MusEvent, Track } from "$lib/types";
 vi.mock("./apiClient", () => ({
   connectTrackUpdateEvents: vi.fn(),
   createTrackWithUrls: vi.fn(),
+  fetchTracks: vi.fn(),
 }));
 
 vi.mock("$lib/stores/trackStore", () => ({
@@ -17,6 +18,7 @@ vi.mock("$lib/stores/trackStore", () => ({
     addTrack: vi.fn(),
     updateTrack: vi.fn(),
     deleteTrack: vi.fn(),
+    setTracks: vi.fn(),
   },
 }));
 
@@ -272,17 +274,25 @@ describe("eventHandlerService", () => {
   });
 
   describe("initEventHandlerService", () => {
-    it("should initialize the event source and return it", () => {
+    it("should initialize the event source and return it", async () => {
       const mockEventSource = { close: vi.fn() };
       vi.mocked(apiClient.connectTrackUpdateEvents).mockReturnValue(
         mockEventSource as unknown as EventSource,
       );
+      vi.mocked(apiClient.fetchTracks).mockResolvedValue([]);
 
       const result = initEventHandlerService();
 
       expect(apiClient.connectTrackUpdateEvents).toHaveBeenCalledWith(
         expect.any(Function),
+        expect.any(Function),
       );
+      const onOpen = vi.mocked(apiClient.connectTrackUpdateEvents).mock
+        .calls[0][1];
+      onOpen?.();
+      await vi.waitFor(() => {
+        expect(trackStore.setTracks).toHaveBeenCalledWith([]);
+      });
       expect(result).toBe(mockEventSource);
     });
   });

@@ -2,6 +2,7 @@ use std::env;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
 const DEFAULT_MODEL: &str = "gemini-flash-latest";
 const SYSTEM_PROMPT: &str = "Extract artist(s) and title from a YouTube video title. Strip junk words: Official Video/Audio/Music Video, Lyric Video, Lyrics, HD, 4K, HQ, Remastered, Live, Audio Only, Music Video, Fan Made, Visualizer, Topic, Extended Mix, Original Mix, Radio Edit, Album/Single Version, Provided to YouTube, Auto-generated. Multiple artists (feat./ft./featuring/x/&/and) -> comma-separated in 'artist', do NOT include feat./ft./featuring keyword itself but DO keep the featured artist name. Artist comes from the video title first; use channel name only if the title gives no artist.";
@@ -81,6 +82,7 @@ struct Part {
 #[serde(rename_all = "camelCase")]
 struct GenerationConfig {
     response_mime_type: &'static str,
+    response_schema: Value,
     max_output_tokens: u16,
 }
 
@@ -111,7 +113,15 @@ fn build_request(raw_title: &str, channel_name: &str) -> GenerateContentRequest 
         },
         generation_config: GenerationConfig {
             response_mime_type: "application/json",
-            max_output_tokens: 512,
+            response_schema: json!({
+                "type": "OBJECT",
+                "properties": {
+                    "artist": { "type": "STRING" },
+                    "title": { "type": "STRING" }
+                },
+                "required": ["artist", "title"]
+            }),
+            max_output_tokens: 2048,
         },
     }
 }

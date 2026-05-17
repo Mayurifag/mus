@@ -9,7 +9,7 @@ use tokio::{sync::mpsc, time};
 use crate::{
     db::{self, delete_track_row, set_track_cover_state, track_dto},
     events::broadcast,
-    media::{extract_cover, read_metadata, MediaMetadata},
+    media::{extract_cover, read_metadata, standardize_audio_tags, MediaMetadata},
     state::AppState,
     util::{file_content_hash, file_signature, inode, is_audio_path, now, system_time_secs},
 };
@@ -236,8 +236,10 @@ async fn upsert_path_with_snapshot(
     path: &Path,
     title_override: Option<String>,
     artist_override: Option<String>,
-    snapshot: FileSnapshot,
+    _snapshot: FileSnapshot,
 ) -> Result<crate::models::TrackDto> {
+    standardize_audio_tags(path).await?;
+    let snapshot = file_snapshot(path)?;
     let metadata = read_metadata(path).await.unwrap_or_else(|_| MediaMetadata {
         title: path
             .file_stem()
