@@ -1,1 +1,0 @@
-0 3 * * * appuser /home/appuser/.local/bin/yt-dlp --update-to nightly > /dev/null 2>&1

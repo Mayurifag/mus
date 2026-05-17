@@ -1,35 +1,15 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.pyc
-*.pdb
-*.egg-info/
-.eggs/
 dist/
 build/
-.env
-.venv
-venv/
-ENV/
-.env.*
-/backend/.env
 
 # Node.js
 node_modules/
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-.bun*
 
 # Vite
 .vite/
 
-# Tauri
-/tauri/target/
-/tauri/.cargo/
+# Rust
+target/
 
 # Docker
 *.log
@@ -62,41 +42,22 @@ $RECYCLE.BIN/
 *.rej
 
 # Misc
-*.log
 *.sqlite3
 *.db
 *.db-journal
 *.pid
 *.seed
-*.cover
 coverage/
-*.coveragerc
-htmlcov/
 
-# Test/Cache
-.pytest_cache/
 .cache/
-.ruff_cache/
 
 # CI/CD
 .github/workflows/*.log
 .aider*
 
 # E2E Testing
-/e2e/node_modules/
 /e2e/test-results/
 /e2e/playwright-report/
 /e2e/playwright/.cache/
 
-# ── GSD baseline (auto-generated) ──
-.gsd
 *.code-workspace
-!.env.example
-.next/
-.venv/
-target/
-vendor/
-tmp/
-
-# ── GSD baseline (auto-generated) ──
-.gsd-id

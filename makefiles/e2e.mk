@@ -1,5 +1,12 @@
 .PHONY: e2e
 e2e:
+	@$(DOCKER_PROD_CMD) -t mus:e2e-test .
+	@./e2e/run-tests.sh
+
+.PHONY: e2e-current-image
+e2e-current-image:
+	@docker image inspect mus:latest >/dev/null
+	@docker tag mus:latest mus:e2e-test
 	@./e2e/run-tests.sh
 
 .PHONY: e2e-clean

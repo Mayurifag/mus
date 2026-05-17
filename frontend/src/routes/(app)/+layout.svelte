@@ -4,10 +4,14 @@
   import { trackStore } from "$lib/stores/trackStore";
   import { audioServiceStore } from "$lib/stores/audioServiceStore";
   import { permissionsStore } from "$lib/stores/permissionsStore";
+  import type { PermissionsState } from "$lib/stores/permissionsStore";
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
   import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
   import {
     closeTrackUpdateEvents,
+    fetchPermissions,
+    fetchPlayerState,
+    fetchTracks,
     sendPlayerStateBeacon as apiSendPlayerStateBeacon,
   } from "$lib/services/apiClient";
   import { initEventHandlerService } from "$lib/services/eventHandlerService";
@@ -17,7 +21,6 @@
   import type { Track } from "$lib/types";
   import { browser } from "$app/environment";
   import { Toaster } from "$lib/components/ui/sonner";
-  import type { LayoutData } from "./$types";
   import DropzoneOverlay from "$lib/components/domain/DropzoneOverlay.svelte";
   import TrackMetadataModal from "$lib/components/domain/TrackMetadataModal.svelte";
   import {
@@ -25,6 +28,7 @@
     type ParsedFileInfo,
   } from "$lib/services/dragDropService";
   import { releaseCoverDataUrl } from "$lib/utils/audioFileAnalyzer";
+  import type { PlayerState } from "$lib/types";
 
   // Touch handling for swipe gestures
   let startX = $state<number | null>(null);
@@ -32,7 +36,7 @@
   const SWIPE_THRESHOLD = 50; // Minimum distance for swipe
   const EDGE_THRESHOLD = 30; // Distance from edge to detect edge swipe
 
-  let { data, children }: { data: LayoutData; children: Snippet } = $props();
+  let { children }: { children: Snippet } = $props();
 
   let audio: HTMLAudioElement;
   let audioService = $state<AudioService | undefined>(undefined);
@@ -55,7 +59,16 @@
     }
   }
 
-  function restorePlayerState() {
+  const defaultPlayerState: PlayerState = {
+    current_track_id: null,
+    progress_seconds: 0.0,
+    volume_level: 1.0,
+    is_muted: false,
+    is_shuffle: false,
+    is_repeat: false,
+  };
+
+  function restorePlayerState(tracks: Track[], playerState: PlayerState) {
     if (!audioService) return;
 
     const {
@@ -65,26 +78,26 @@
       is_muted,
       is_shuffle,
       is_repeat,
-    } = data.playerState;
+    } = playerState;
 
     audioService.initializeState(volume_level, is_muted, is_repeat);
     trackStore.setShuffle(is_shuffle);
 
     if (current_track_id !== null) {
-      const trackIndex = data.tracks.findIndex(
+      const trackIndex = tracks.findIndex(
         (track: Track) => track.id === current_track_id,
       );
       if (trackIndex >= 0) {
         trackStore.setCurrentTrackIndex(trackIndex);
         audioService.setTime(progress_seconds);
-        audioService.updateAudioSource(data.tracks[trackIndex], false);
+        audioService.updateAudioSource(tracks[trackIndex], false);
         lastCurrentTrackId = current_track_id;
       }
-    } else if (data.tracks.length > 0) {
+    } else if (tracks.length > 0) {
       // If no current track is set but tracks exist, set the first track as current
       trackStore.setCurrentTrackIndex(0);
-      audioService.updateAudioSource(data.tracks[0], false);
-      lastCurrentTrackId = data.tracks[0].id;
+      audioService.updateAudioSource(tracks[0], false);
+      lastCurrentTrackId = tracks[0].id;
     }
   }
 
@@ -119,13 +132,23 @@
   }
 
   onMount(async () => {
-    permissionsStore.set(data.permissions);
-    trackStore.setTracks(data.tracks);
+    const initialData: [Track[], PlayerState, PermissionsState] =
+      await Promise.all([
+        fetchTracks(),
+        fetchPlayerState(),
+        fetchPermissions(),
+      ]).catch((error): [Track[], PlayerState, PermissionsState] => {
+        console.error("Failed to load initial app data", error);
+        return [[], defaultPlayerState, { can_write_music_files: false }];
+      });
+    const [tracks, playerState, permissions] = initialData;
+
+    permissionsStore.set(permissions);
+    trackStore.setTracks(tracks);
     initializeAudioService();
-    restorePlayerState();
+    restorePlayerState(tracks, playerState);
     setupEventListeners();
 
-    lastCurrentTrackId = data.playerState.current_track_id;
     isInitializing = false;
   });
 

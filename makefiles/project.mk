@@ -27,7 +27,7 @@ build:
 
 .PHONY: rebuild-backend-image
 rebuild-backend-image:
-	@$(DOCKER_COMPOSE_CMD) build --pull --no-cache backend streaq-worker
+	@$(DOCKER_COMPOSE_CMD) build --pull --no-cache backend
 
 .PHONY: prod-image
 prod-image:

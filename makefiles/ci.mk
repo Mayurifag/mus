@@ -1,13 +1,11 @@
 .PHONY: ci
 ci:
 	@$(MAKE) markdown-lint && \
-	$(MAKE) back-ruff-fix && \
-	$(MAKE) back-lint && \
+	$(MAKE) back-ci && \
 	$(MAKE) front-lint && \
 	$(MAKE) e2e-lint && \
 	$(MAKE) front-svelte-check && \
-	$(MAKE) front-test && \
-	$(MAKE) back-test
+	$(MAKE) front-test
 
 .PHONY: full-ci
 full-ci:
