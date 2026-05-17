@@ -1,5 +1,6 @@
 use anyhow::Result;
 use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite_migration::{Migrations, M};
 use serde_json::Value;
 use std::path::Path;
 
@@ -8,46 +9,52 @@ use crate::{
     state::AppState,
 };
 
-pub fn init_db(conn: &Connection) -> Result<()> {
+const MIGRATIONS: &[M<'static>] = &[
+    M::up(
+        r#"
+    CREATE TABLE IF NOT EXISTS track (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        artist TEXT NOT NULL,
+        duration INTEGER NOT NULL,
+        file_path TEXT NOT NULL UNIQUE,
+        added_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL DEFAULT 0,
+        has_cover BOOLEAN NOT NULL DEFAULT 0,
+        inode INTEGER,
+        content_hash TEXT,
+        processing_status TEXT NOT NULL DEFAULT 'COMPLETE',
+        last_error JSON
+    );
+    CREATE TABLE IF NOT EXISTS playerstate (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        current_track_id INTEGER,
+        progress_seconds REAL NOT NULL DEFAULT 0,
+        volume_level REAL NOT NULL DEFAULT 1,
+        is_muted BOOLEAN NOT NULL DEFAULT 0,
+        is_shuffle BOOLEAN NOT NULL DEFAULT 0,
+        is_repeat BOOLEAN NOT NULL DEFAULT 0
+    );
+    "#,
+    ),
+    M::up("ALTER TABLE track ADD COLUMN file_signature TEXT"),
+];
+
+pub fn init_db(conn: &mut Connection) -> Result<()> {
     conn.execute_batch(
         r#"
         PRAGMA journal_mode = WAL;
         PRAGMA synchronous = NORMAL;
         PRAGMA busy_timeout = 5000;
-
-        CREATE TABLE IF NOT EXISTS track (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            artist TEXT NOT NULL,
-            duration INTEGER NOT NULL,
-            file_path TEXT NOT NULL UNIQUE,
-            added_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL DEFAULT 0,
-            has_cover BOOLEAN NOT NULL DEFAULT 0,
-            inode INTEGER,
-            content_hash TEXT,
-            processing_status TEXT NOT NULL DEFAULT 'COMPLETE',
-            last_error JSON
-        );
-        CREATE INDEX IF NOT EXISTS ix_track_file_path ON track(file_path);
-        CREATE INDEX IF NOT EXISTS ix_track_inode ON track(inode);
-        CREATE TABLE IF NOT EXISTS playerstate (
-            id INTEGER PRIMARY KEY DEFAULT 1,
-            current_track_id INTEGER,
-            progress_seconds REAL NOT NULL DEFAULT 0,
-            volume_level REAL NOT NULL DEFAULT 1,
-            is_muted BOOLEAN NOT NULL DEFAULT 0,
-            is_shuffle BOOLEAN NOT NULL DEFAULT 0,
-            is_repeat BOOLEAN NOT NULL DEFAULT 0
-        );
         "#,
     )?;
+    Migrations::from_slice(MIGRATIONS).to_latest(conn)?;
     Ok(())
 }
 
 pub fn list_tracks(state: &AppState) -> Result<Vec<Track>> {
     let conn = state.db.lock().unwrap();
-    let mut stmt = conn.prepare("SELECT id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,content_hash,processing_status,last_error FROM track ORDER BY added_at DESC")?;
+    let mut stmt = conn.prepare("SELECT id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,file_signature,content_hash,processing_status,last_error FROM track ORDER BY added_at DESC")?;
     let tracks = stmt
         .query_map([], row_to_track)?
         .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -57,7 +64,7 @@ pub fn list_tracks(state: &AppState) -> Result<Vec<Track>> {
 pub fn get_track(state: &AppState, id: i64) -> Result<Option<Track>> {
     let conn = state.db.lock().unwrap();
     conn.query_row(
-        "SELECT id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,content_hash,processing_status,last_error FROM track WHERE id = ?1",
+        "SELECT id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,file_signature,content_hash,processing_status,last_error FROM track WHERE id = ?1",
         params![id],
         row_to_track,
     ).optional().map_err(Into::into)
@@ -66,8 +73,23 @@ pub fn get_track(state: &AppState, id: i64) -> Result<Option<Track>> {
 pub fn save_track(state: &AppState, track: &Track) -> Result<()> {
     let conn = state.db.lock().unwrap();
     conn.execute(
-        "UPDATE track SET title=?1, artist=?2, duration=?3, file_path=?4, updated_at=?5, has_cover=?6, processing_status=?7, last_error=?8 WHERE id=?9",
-        params![track.title, track.artist, track.duration, track.file_path, track.updated_at, track.has_cover, track.processing_status, track.last_error.as_ref().map(Value::to_string), track.id],
+        "UPDATE track SET title=?1, artist=?2, duration=?3, file_path=?4, updated_at=?5, has_cover=?6, inode=?7, file_signature=?8, content_hash=?9, processing_status=?10, last_error=?11 WHERE id=?12",
+        params![track.title, track.artist, track.duration, track.file_path, track.updated_at, track.has_cover, track.inode, track.file_signature, track.content_hash, track.processing_status, track.last_error.as_ref().map(Value::to_string), track.id],
+    )?;
+    Ok(())
+}
+
+pub fn save_track_fingerprint(
+    state: &AppState,
+    id: i64,
+    inode: Option<i64>,
+    file_signature: &str,
+    content_hash: &str,
+) -> Result<()> {
+    let conn = state.db.lock().unwrap();
+    conn.execute(
+        "UPDATE track SET inode = ?1, file_signature = ?2, content_hash = ?3 WHERE id = ?4",
+        params![inode, file_signature, content_hash, id],
     )?;
     Ok(())
 }
@@ -139,7 +161,7 @@ pub fn save_player_state(state: &AppState, player_state: &PlayerState) -> Result
 
 pub fn errored_tracks(state: &AppState) -> Result<Vec<Track>> {
     let conn = state.db.lock().unwrap();
-    let mut stmt = conn.prepare("SELECT id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,content_hash,processing_status,last_error FROM track WHERE processing_status = 'ERROR'")?;
+    let mut stmt = conn.prepare("SELECT id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,file_signature,content_hash,processing_status,last_error FROM track WHERE processing_status = 'ERROR'")?;
     let tracks = stmt
         .query_map([], row_to_track)?
         .collect::<rusqlite::Result<Vec<_>>>()?;
@@ -177,7 +199,7 @@ pub fn track_dto(track: Track) -> TrackDto {
 }
 
 pub fn row_to_track(row: &rusqlite::Row<'_>) -> rusqlite::Result<Track> {
-    let last_error: Option<String> = row.get(11)?;
+    let last_error: Option<String> = row.get(12)?;
     Ok(Track {
         id: row.get(0)?,
         title: row.get(1)?,
@@ -188,8 +210,9 @@ pub fn row_to_track(row: &rusqlite::Row<'_>) -> rusqlite::Result<Track> {
         updated_at: row.get(6)?,
         has_cover: row.get(7)?,
         inode: row.get(8)?,
-        content_hash: row.get(9)?,
-        processing_status: row.get(10)?,
+        file_signature: row.get(9)?,
+        content_hash: row.get(10)?,
+        processing_status: row.get(11)?,
         last_error: last_error.and_then(|v| serde_json::from_str(&v).ok()),
     })
 }

@@ -130,17 +130,25 @@
     </span>
 
     {#if isSelected}
-      <Slider
-        bind:value={progressValue}
-        onValueCommit={handleProgressCommit}
-        onpointerdown={() => audioService?.startSeeking()}
-        onValueChange={(v: number[]) => audioService?.seek(v[0])}
-        max={duration || 100}
-        step={1}
-        class="relative z-10 mt-1 w-full cursor-pointer"
-        data-testid="track-progress-slider"
-        bufferedRanges={bufferedRanges || []}
-      />
+      <div
+        role="presentation"
+        onmousedown={(event) => event.stopPropagation()}
+        onmouseup={(event) => event.stopPropagation()}
+        onclick={(event) => event.stopPropagation()}
+        onkeydown={(event) => event.stopPropagation()}
+      >
+        <Slider
+          bind:value={progressValue}
+          onValueCommit={handleProgressCommit}
+          onpointerdown={() => audioService?.startSeeking()}
+          onValueChange={(v: number[]) => audioService?.seek(v[0])}
+          max={duration || 100}
+          step={1}
+          class="relative z-10 mt-1 w-full cursor-pointer"
+          data-testid="track-progress-slider"
+          bufferedRanges={bufferedRanges || []}
+        />
+      </div>
     {/if}
   </div>
 

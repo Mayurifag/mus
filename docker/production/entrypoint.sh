@@ -28,7 +28,9 @@ if [ -z "$user_name" ]; then
   adduser -D -H -u "$runtime_uid" -G "$group_name" "$user_name"
 fi
 
-mkdir -p "$data_dir/database" "$data_dir/covers" "$data_dir/.cache"
-chown -R "$runtime_uid:$runtime_gid" "$data_dir/database" "$data_dir/covers" "$data_dir/.cache"
+mkdir -p "$data_dir" "$data_dir/covers" "$data_dir/.cache"
+touch "$data_dir/mus.db"
+chown "$runtime_uid:$runtime_gid" "$data_dir" "$data_dir/mus.db"
+chown -R "$runtime_uid:$runtime_gid" "$data_dir/covers" "$data_dir/.cache"
 
 exec su-exec "$runtime_uid:$runtime_gid" "$@"

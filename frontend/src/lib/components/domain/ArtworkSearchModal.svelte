@@ -24,14 +24,26 @@
   let results = $state<ArtworkSearchResult[]>([]);
   let isLoading = $state(false);
   let lastSearch = $state("");
+  let wasOpen = $state(false);
+
+  $effect(() => {
+    if (open && !wasOpen) {
+      startInitialSearch();
+    }
+    wasOpen = open;
+  });
 
   function handleOpenChange(newOpen: boolean) {
     open = newOpen;
     if (newOpen) {
-      query = [title, artist].filter(Boolean).join(" ");
-      lastSearch = "";
-      void handleSearch(query);
+      startInitialSearch();
     }
+  }
+
+  function startInitialSearch() {
+    query = [title, artist].filter(Boolean).join(" ");
+    lastSearch = "";
+    void handleSearch(query);
   }
 
   async function handleSearch(searchQuery = query) {

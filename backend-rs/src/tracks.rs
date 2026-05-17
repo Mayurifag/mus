@@ -1,5 +1,5 @@
 use std::{
-    env, fs,
+    env, fs, io,
     path::{Path, PathBuf},
 };
 
@@ -11,7 +11,7 @@ use axum::{
     Json,
 };
 use serde_json::{json, Value};
-use tokio::{fs as async_fs, io::AsyncWriteExt};
+use tokio::{fs as async_fs, io as async_io, io::AsyncWriteExt};
 use tower_http::services::ServeFile;
 
 use crate::{
@@ -23,7 +23,9 @@ use crate::{
     models::{TrackDto, TrackUpdate},
     scanner::upsert_path,
     state::AppState,
-    util::{can_write, generate_filename, now},
+    util::{
+        can_write, file_content_hash, file_signature, generate_filename, inode, now, now_nanos,
+    },
 };
 
 pub async fn get_tracks(State(state): State<AppState>) -> Result<Json<Vec<TrackDto>>, AppError> {
@@ -146,14 +148,18 @@ pub async fn update_track(
         write_audio_tags(Path::new(&track.file_path), &new_title, &new_artist).await?;
     }
 
-    if rename_file {
-        fs::rename(&track.file_path, &new_path)?;
+    if rename_file && new_path != Path::new(&track.file_path) {
+        move_without_replace(Path::new(&track.file_path), &new_path).await?;
     }
 
     track.title = new_title;
     track.artist = new_artist;
     track.file_path = new_path.to_string_lossy().to_string();
     track.updated_at = now();
+    let file_meta = fs::metadata(&new_path)?;
+    track.inode = inode(&file_meta);
+    track.file_signature = Some(file_signature(&file_meta));
+    track.content_hash = Some(file_content_hash(&new_path)?);
     save_track(&state, &track)?;
     let dto = track_dto(track);
     tracing::info!(track_id = dto.id, rename_file, "track updated");
@@ -175,7 +181,11 @@ pub async fn delete_track(
         return Err(AppError::forbidden("Music directory is read-only"));
     }
     if let Some(track) = get_track(&state, id)? {
-        let _ = fs::remove_file(&track.file_path);
+        match fs::remove_file(&track.file_path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
         delete_track_row(&state, id)?;
         tracing::info!(track_id = id, "track deleted");
         broadcast(
@@ -227,8 +237,7 @@ pub async fn upload_track(
                 let max_bytes = max_size_mb * 1024 * 1024;
                 let upload_dir = state.data_dir.join(".cache");
                 async_fs::create_dir_all(&upload_dir).await?;
-                let path = upload_dir.join(format!("upload-{}.{ext}", now()));
-                let mut file = async_fs::File::create(&path).await?;
+                let (path, mut file) = create_upload_temp_file(&upload_dir, &ext).await?;
                 let mut written = 0usize;
                 let mut field = field;
                 while let Some(chunk) = field.chunk().await? {
@@ -291,7 +300,10 @@ pub async fn upload_track(
         return Err(AppError::conflict("A file with this name already exists"));
     }
     let temp_path = temp_path.ok_or_else(|| AppError::bad_request("Missing file"))?;
-    async_fs::rename(&temp_path, &path).await?;
+    if let Err(error) = move_without_replace(&temp_path, &path).await {
+        let _ = async_fs::remove_file(&temp_path).await;
+        return Err(error);
+    }
     if let Some(artwork_url) = artwork_url.filter(|url| !url.trim().is_empty()) {
         let jpeg_path =
             download_artwork_as_jpeg(&artwork_url, state.data_dir.join(".cache")).await?;
@@ -305,4 +317,52 @@ pub async fn upload_track(
     Ok(Json(
         json!({"success": true, "message": "File uploaded and queued for processing."}),
     ))
+}
+
+async fn create_upload_temp_file(
+    upload_dir: &Path,
+    ext: &str,
+) -> Result<(PathBuf, async_fs::File), AppError> {
+    for attempt in 0..100 {
+        let path = upload_dir.join(format!("upload-{}-{attempt}.{ext}", now_nanos()));
+        match async_fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .await
+        {
+            Ok(file) => return Ok((path, file)),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Err(AppError::from(anyhow::anyhow!(
+        "failed to allocate upload file"
+    )))
+}
+
+async fn move_without_replace(source: &Path, destination: &Path) -> Result<(), AppError> {
+    let mut input = async_fs::File::open(source).await?;
+    let mut output = async_fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(destination)
+        .await
+        .map_err(|error| {
+            if error.kind() == io::ErrorKind::AlreadyExists {
+                AppError::conflict("A file with this name already exists")
+            } else {
+                error.into()
+            }
+        })?;
+    if let Err(error) = async_io::copy(&mut input, &mut output).await {
+        let _ = async_fs::remove_file(destination).await;
+        return Err(error.into());
+    }
+    if let Err(error) = output.flush().await {
+        let _ = async_fs::remove_file(destination).await;
+        return Err(error.into());
+    }
+    async_fs::remove_file(source).await?;
+    Ok(())
 }

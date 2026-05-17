@@ -23,7 +23,7 @@ The old Python app is gone. MP3/WAV/AIFF ID3 tagging now uses Rust `id3`; other 
 - Keep MP3 ID3v2.3/UTF-8 and embedded-cover regression coverage.
 - Keep WAV ID3v2.4-to-ID3v2.3 regression coverage.
 - Add broader real-file coverage for FLAC/WAV files with covers and files inside folders.
-- Keep `yt-dlp`, `ffmpeg`, and `ffprobe`; they are on-demand media tools and `yt-dlp` is intentionally retained for ready-to-use YouTube and provider downloads.
+- Keep `yt-dlp`, `ffmpeg`, and `ffprobe`; they are on-demand media tools and `yt-dlp` is intentionally retained for ready-to-use YouTube/provider downloads with SponsorBlock removal.
 
 ### 2. Improve Contract Confidence
 
@@ -84,7 +84,7 @@ The old Python app is gone. MP3/WAV/AIFF ID3 tagging now uses Rust `id3`; other 
 
 ### Operations
 
-- Decide whether separate database/cover/music Docker volumes are still useful or whether one data volume is simpler.
+- Keep database and generated covers as derived container data unless a real persistence need appears.
 - Improve app-wide logging only where it helps diagnose real production issues.
 - Consider startup user/group ownership alignment for mounted music folders.
 - Log slow e2e steps if e2e time becomes a recurring problem.
@@ -100,7 +100,7 @@ The old Python app is gone. MP3/WAV/AIFF ID3 tagging now uses Rust `id3`; other 
 
 ## Cleanup Rules
 
-- Delete legacy code only after a passing contract/e2e/prod-smoke checkpoint.
+- Delete old unused code only after a passing contract/e2e/prod-smoke checkpoint.
 - Keep make target names stable where useful, but make implementations Rust-first.
 - Do not add new tooling unless it catches real bugs or removes maintenance burden.
 - Keep `AGENTS.md` small; add only durable project-specific rules.

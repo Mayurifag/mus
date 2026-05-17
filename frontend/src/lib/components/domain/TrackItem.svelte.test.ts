@@ -24,6 +24,7 @@ vi.mock("$lib/stores/playerStore", () => ({
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/svelte";
 import type { Track, TimeRange } from "$lib/types";
+import type { AudioService } from "$lib/services/AudioService";
 import "@testing-library/jest-dom/vitest";
 import TrackItem from "./TrackItem.svelte";
 import { trackStore } from "$lib/stores/trackStore";
@@ -82,6 +83,33 @@ describe("TrackItem component", () => {
 
     const progressSlider = screen.getByTestId("track-progress-slider");
     expect(progressSlider).toBeInTheDocument();
+  });
+
+  it("does not toggle playback when selected track slider is clicked", async () => {
+    const audioService = {
+      play: vi.fn(),
+      pause: vi.fn(),
+      startSeeking: vi.fn(),
+      seek: vi.fn(),
+      endSeeking: vi.fn(),
+    } as unknown as AudioService;
+
+    render(TrackItem, {
+      track: mockTrack,
+      index: 0,
+      isSelected: true,
+      isPlaying: false,
+      audioService,
+      duration: 180,
+      currentTime: 30,
+    });
+
+    const progressSlider = screen.getByTestId("track-progress-slider");
+    await fireEvent.mouseDown(progressSlider, { button: 0 });
+    await fireEvent.mouseUp(progressSlider, { button: 0 });
+
+    expect(audioService.play).not.toHaveBeenCalled();
+    expect(audioService.pause).not.toHaveBeenCalled();
   });
 
   it("does not render progress slider when track is not selected", () => {

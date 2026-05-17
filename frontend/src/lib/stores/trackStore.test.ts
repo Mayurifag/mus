@@ -150,12 +150,14 @@ describe("trackStore", () => {
     expect(get(trackStore).currentTrack).toEqual(mockTracks[1]);
     expect(get(trackStore).playHistory).toEqual([mockTracks[1]]);
     expect(get(trackStore).historyPosition).toBe(0);
+    expect(get(trackStore).playRequestId).toBe(1);
 
     trackStore.playTrack(2);
     expect(get(trackStore).currentTrackIndex).toBe(2);
     expect(get(trackStore).currentTrack).toEqual(mockTracks[2]);
     expect(get(trackStore).playHistory).toEqual([mockTracks[2]]);
     expect(get(trackStore).historyPosition).toBe(0);
+    expect(get(trackStore).playRequestId).toBe(2);
   });
 
   it("should handle nextTrack in regular (non-shuffle) mode", () => {

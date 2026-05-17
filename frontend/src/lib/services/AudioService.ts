@@ -138,17 +138,28 @@ export class AudioService {
     }
   }
 
-  updateAudioSource(track: Track | null, isPlaying: boolean): void {
+  updateAudioSource(
+    track: Track | null,
+    isPlaying: boolean,
+    initialTime = 0,
+  ): void {
     if (!track) return;
 
     const streamUrl = getStreamUrl(track.id);
     if (this.audio.src !== streamUrl) {
+      const seekAfterMetadata = () => this.setTime(initialTime);
       this.audio.src = streamUrl;
+      if (initialTime > 0) {
+        this.audio.addEventListener("loadedmetadata", seekAfterMetadata, {
+          once: true,
+        });
+      }
       this.audio.load();
       if (typeof document !== "undefined") {
         document.title = `${formatArtistsForDisplay(track.artist)} - ${track.title}`;
       }
-      this._currentTime.set(0);
+      this._currentTime.set(initialTime);
+      this._duration.set(0);
       this._currentBufferedRanges.set([]);
       updateMediaSessionMetadata(track);
 
@@ -160,6 +171,8 @@ export class AudioService {
           }
         });
       }
+    } else if (initialTime > 0) {
+      this.setTime(initialTime);
     }
   }
 

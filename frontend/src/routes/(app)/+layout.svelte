@@ -16,7 +16,6 @@
   import { initEventHandlerService } from "$lib/services/eventHandlerService";
   import { AudioService } from "$lib/services/AudioService";
   import {
-    defaultPlayerState,
     restorePlayerState,
     savePlayerState,
   } from "$lib/services/playerStateService";
@@ -46,7 +45,7 @@
   let eventSource = $state<EventSource | null>(null);
   let sheetOpen = $state(false);
   let lastCurrentTrackId: number | null = null;
-  let isInitializing = $state(true);
+  let lastPlayRequestId = 0;
 
   // Drag and drop state
   let isDraggingFile = $state(false);
@@ -117,9 +116,6 @@
         trackStore.setTracks([]);
         initializeAudioService();
         setupEventListeners();
-      })
-      .finally(() => {
-        isInitializing = false;
       });
   });
 
@@ -170,9 +166,12 @@
       $trackStore.currentTrack &&
       $trackStore.currentTrack.id !== lastCurrentTrackId
     ) {
-      const shouldAutoPlay = audioService.isPlaying || !isInitializing;
+      const shouldAutoPlay =
+        audioService.isPlaying ||
+        $trackStore.playRequestId !== lastPlayRequestId;
       audioService.updateAudioSource($trackStore.currentTrack, shouldAutoPlay);
       lastCurrentTrackId = $trackStore.currentTrack.id;
+      lastPlayRequestId = $trackStore.playRequestId;
     }
   });
 

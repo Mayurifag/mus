@@ -26,7 +26,8 @@ in alpha stage.
 - Upload/edit/download flows write artist/title tags; MP3/WAV/AIFF use Rust ID3
   and other supported media use ffmpeg when tags must be rewritten
 - Useful editor of artists/title metadata
-- Download new files using yt-dlp. Custom vk.ru support incoming
+- Download new files using yt-dlp with SponsorBlock segment removal. Custom vk.ru
+  support incoming
 - Mobile support via PWA app. No plans for natives yet
 - No dumb features like "Repeat all playlist" (repeat only current track)
 - Intelligently disable features requiring write support if mounted folder is
@@ -38,6 +39,8 @@ in alpha stage.
 
 This is dockerized single container (yes!) which contains a static Svelte
 frontend served by the Rust backend, sqlite, yt-dlp and ffmpeg.
+Only the music directory is meant to be mounted; sqlite and generated covers are
+derived app data under `/app_data`.
 
 In e2e folder I made setup to run playwright tests against production docker
 image, so it is not bound to Rust/Svelte source files.

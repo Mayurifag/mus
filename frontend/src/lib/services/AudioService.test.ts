@@ -324,6 +324,22 @@ describe("AudioService", () => {
     expect(mockAudio.play).not.toHaveBeenCalled();
   });
 
+  it("should seek to initial time after metadata loads", () => {
+    audioService.updateAudioSource(mockTrack, false, 42);
+
+    const addEventListenerMock =
+      mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
+    const loadedMetadataHandler = addEventListenerMock.mock.calls.find(
+      (call: unknown[]) =>
+        call[0] === "loadedmetadata" &&
+        (call[2] as { once?: boolean } | undefined)?.once,
+    )?.[1] as () => void;
+
+    loadedMetadataHandler();
+
+    expect(mockAudio.currentTime).toBe(42);
+  });
+
   describe("buffered ranges", () => {
     function setMockBuffered(mockBufferedData: {
       length: number;

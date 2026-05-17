@@ -20,13 +20,15 @@ logs:
 .PHONY: build
 build:
 	@$(MAKE) down
-	@echo "Removing app_data_database and app_data_covers volumes..."
-	@docker volume rm $$(docker volume ls -q | grep -E "(app_data_database|app_data_covers)") 2>/dev/null || true
 	@$(DOCKER_COMPOSE_CMD) build --pull
 	@$(MAKE) up
 
 .PHONY: rebuild-backend-image
 rebuild-backend-image:
+	@$(DOCKER_COMPOSE_CMD) build --pull backend
+
+.PHONY: rebuild-backend-image-fresh
+rebuild-backend-image-fresh:
 	@$(DOCKER_COMPOSE_CMD) build --pull --no-cache backend
 
 .PHONY: rebuild-frontend-image

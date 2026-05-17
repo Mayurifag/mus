@@ -12,6 +12,7 @@ pub struct Track {
     pub updated_at: i64,
     pub has_cover: bool,
     pub inode: Option<i64>,
+    pub file_signature: Option<String>,
     pub content_hash: Option<String>,
     pub processing_status: String,
     pub last_error: Option<Value>,

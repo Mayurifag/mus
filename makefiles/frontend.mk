@@ -25,12 +25,11 @@ front-build:
 	@$(DOCKER_COMPOSE_FRONTEND_CMD) npm run build
 
 .PHONY: front-lint
-front-lint: front-format
+front-lint:
 	@$(DOCKER_COMPOSE_FRONTEND_CMD) sh -c "rm -rf coverage/ && npm run lint"
 
 .PHONY: front-lint-only
-front-lint-only:
-	@$(DOCKER_COMPOSE_FRONTEND_CMD) npm run lint
+front-lint-only: front-lint
 
 .PHONY: front-format
 front-format:

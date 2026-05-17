@@ -4,6 +4,8 @@
 x-backend-environment: &x-backend-environment
   APP_ENV: development
   FRONTEND_ORIGIN: http://localhost:5173
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  GEMINI_MODEL: ${GEMINI_MODEL:-}
   LOG_LEVEL: INFO
 
 x-backend-volumes: &x-backend-volumes
@@ -11,8 +13,6 @@ x-backend-volumes: &x-backend-volumes
   - backend_cargo:/cargo
   - backend_target:/app/target
   - /path/to/your/music:/app_data/music
-  - app_data_database:/app_data/database
-  - app_data_covers:/app_data/covers
   # Optional: Mount cookies.txt for yt-dlp authenticated downloads
   # - ./cookies.txt:/app_data/cookies.txt:ro
 
@@ -20,6 +20,9 @@ services:
   backend:
     ports:
       - "8001:8001"
+    command: >
+      sh -c "sudo chown -R appuser:$$(id -gn appuser) /app/target /cargo 2>/dev/null || true;
+      cargo-watch -w src -w Cargo.toml -w Cargo.lock -x 'run --locked'"
     volumes: *x-backend-volumes
     environment:
       <<: *x-backend-environment
@@ -41,5 +44,3 @@ volumes:
   app_node_modules:
   backend_cargo:
   backend_target:
-  app_data_database:
-  app_data_covers:

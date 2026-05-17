@@ -1,9 +1,11 @@
-use std::{fs, path::Path, process::Stdio};
+use std::{fs, path::Path, process::Stdio, time::Duration};
 
 use anyhow::{anyhow, Result};
 use id3::{frame::Picture, frame::PictureType, Tag, TagLike, Version};
 use serde_json::Value;
 use tokio::process::Command;
+
+use crate::util::{run_command_output, run_command_status};
 
 #[derive(Debug)]
 pub struct MediaMetadata {
@@ -13,17 +15,16 @@ pub struct MediaMetadata {
 }
 
 pub async fn read_metadata(path: &Path) -> Result<MediaMetadata> {
-    let output = Command::new("ffprobe")
-        .args([
-            "-v",
-            "quiet",
-            "-print_format",
-            "json",
-            "-show_format",
-            path.to_str().unwrap_or_default(),
-        ])
-        .output()
-        .await?;
+    let mut command = Command::new("ffprobe");
+    command.args([
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
+        "-show_format",
+        path.to_str().unwrap_or_default(),
+    ]);
+    let output = run_command_output(command, Duration::from_secs(30)).await?;
     if !output.status.success() {
         return Err(anyhow!("ffprobe failed"));
     }
@@ -57,21 +58,22 @@ pub async fn read_metadata(path: &Path) -> Result<MediaMetadata> {
 pub async fn extract_cover(path: &Path, covers_dir: &Path, id: i64) -> Result<bool> {
     let original = covers_dir.join(format!("{id}_original.webp"));
     let small = covers_dir.join(format!("{id}_small.webp"));
-    let status = Command::new("ffmpeg")
+    let mut command = Command::new("ffmpeg");
+    command
         .args(["-y", "-i"])
         .arg(path)
         .args(["-an", "-vframes", "1", "-vcodec", "libwebp", "-q:v", "85"])
         .arg(&original)
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .await?;
+        .stderr(Stdio::null());
+    let status = run_command_status(command, Duration::from_secs(120)).await?;
     if !status.success() || !original.is_file() {
         let _ = fs::remove_file(original);
         let _ = fs::remove_file(small);
         return Ok(false);
     }
-    let small_status = Command::new("ffmpeg")
+    let mut command = Command::new("ffmpeg");
+    command
         .args(["-y", "-i"])
         .arg(&original)
         .args([
@@ -84,9 +86,8 @@ pub async fn extract_cover(path: &Path, covers_dir: &Path, id: i64) -> Result<bo
         ])
         .arg(&small)
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .await?;
+        .stderr(Stdio::null());
+    let small_status = run_command_status(command, Duration::from_secs(120)).await?;
     if !small_status.success() || !small.is_file() {
         let _ = fs::remove_file(original);
         let _ = fs::remove_file(small);
@@ -169,13 +170,12 @@ async fn rewrite_audio(path: &Path, extra_args: Vec<String>) -> Result<()> {
         .args(["-y", "-i"])
         .arg(path)
         .args(["-map", "0", "-map_metadata", "0", "-c", "copy"]);
-    let status = command
+    command
         .args(&extra_args)
         .arg(&tmp)
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .await?;
+        .stderr(Stdio::null());
+    let status = run_command_status(command, Duration::from_secs(300)).await?;
     if status.success() && tmp.is_file() {
         fs::rename(tmp, path)?;
     } else {
@@ -193,7 +193,8 @@ async fn rewrite_audio_cover(path: &Path, jpeg_path: &Path) -> Result<()> {
         return Ok(());
     };
     let tmp = parent.join(format!(".mus-cover-{file_name}"));
-    let status = Command::new("ffmpeg")
+    let mut command = Command::new("ffmpeg");
+    command
         .args(["-y", "-i"])
         .arg(path)
         .args(["-i"])
@@ -214,9 +215,8 @@ async fn rewrite_audio_cover(path: &Path, jpeg_path: &Path) -> Result<()> {
         ])
         .arg(&tmp)
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .await?;
+        .stderr(Stdio::null());
+    let status = run_command_status(command, Duration::from_secs(300)).await?;
     if status.success() && tmp.is_file() {
         fs::rename(tmp, path)?;
     } else {
