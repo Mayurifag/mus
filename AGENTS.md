@@ -10,3 +10,4 @@
 - Production deployments run the app behind external authentication; do not add app-level auth unless explicitly requested.
 - Local music mount is `/Volumes/sdcard-apfs/OpenCloud/Personal/Music:/app_data/music`.
 - Backend is Rust in `backend-rs`.
+- Keep Markdown docs and roadmap notes current when changes affect project behavior or durable guidance.

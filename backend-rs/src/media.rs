@@ -1,7 +1,7 @@
 use std::{fs, path::Path, process::Stdio};
 
 use anyhow::{anyhow, Result};
-use id3::{Tag, TagLike, Version};
+use id3::{frame::Picture, frame::PictureType, Tag, TagLike, Version};
 use serde_json::Value;
 use tokio::process::Command;
 
@@ -127,6 +127,24 @@ pub async fn write_audio_tags(path: &Path, title: &str, artist: &str) -> Result<
     .await
 }
 
+pub async fn write_audio_cover(path: &Path, jpeg_path: &Path) -> Result<()> {
+    if supports_id3(path) {
+        let mut tag = Tag::read_from_path(path).unwrap_or_else(|_| Tag::new());
+        tag.remove_all_pictures();
+        tag.add_frame(Picture {
+            mime_type: "image/jpeg".into(),
+            picture_type: PictureType::CoverFront,
+            description: String::new(),
+            data: fs::read(jpeg_path)?,
+        });
+        tag.write_to_path(path, Version::Id3v23)?;
+        drop(tag);
+        return Ok(());
+    }
+
+    rewrite_audio_cover(path, jpeg_path).await
+}
+
 fn supports_id3(path: &Path) -> bool {
     path.extension()
         .and_then(|v| v.to_str())
@@ -163,6 +181,47 @@ async fn rewrite_audio(path: &Path, extra_args: Vec<String>) -> Result<()> {
     } else {
         let _ = fs::remove_file(tmp);
         return Err(anyhow!("ffmpeg failed to rewrite audio tags"));
+    }
+    Ok(())
+}
+
+async fn rewrite_audio_cover(path: &Path, jpeg_path: &Path) -> Result<()> {
+    let Some(parent) = path.parent() else {
+        return Ok(());
+    };
+    let Some(file_name) = path.file_name().and_then(|v| v.to_str()) else {
+        return Ok(());
+    };
+    let tmp = parent.join(format!(".mus-cover-{file_name}"));
+    let status = Command::new("ffmpeg")
+        .args(["-y", "-i"])
+        .arg(path)
+        .args(["-i"])
+        .arg(jpeg_path)
+        .args([
+            "-map",
+            "0",
+            "-map",
+            "1",
+            "-map_metadata",
+            "0",
+            "-c",
+            "copy",
+            "-c:v",
+            "mjpeg",
+            "-disposition:v",
+            "attached_pic",
+        ])
+        .arg(&tmp)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .await?;
+    if status.success() && tmp.is_file() {
+        fs::rename(tmp, path)?;
+    } else {
+        let _ = fs::remove_file(tmp);
+        return Err(anyhow!("ffmpeg failed to embed cover art"));
     }
     Ok(())
 }

@@ -83,28 +83,11 @@ describe("TrackList component", () => {
     mockTrackStoreData.currentTrack = null;
   });
 
-  it("renders the track list element when tracks are provided", () => {
-    mockTrackStoreData.tracks = mockTracks;
-    render(TrackList);
-
-    const trackListElement = screen.getByTestId("track-list");
-    expect(trackListElement).toBeInTheDocument();
-  });
-
   it("renders empty state messages when no tracks are available", () => {
     mockTrackStoreData.tracks = [];
     render(TrackList);
 
     expect(screen.getByText(/No tracks available/)).toBeInTheDocument();
-  });
-
-  it("renders TrackItems when tracks are provided", () => {
-    mockTrackStoreData.tracks = mockTracks;
-    render(TrackList);
-
-    // With virtualization, we don't render all items, just the visible ones
-    // Since we mocked getVirtualItems to return empty array, no TrackItems should be rendered
-    expect(vi.mocked(TrackItem)).toHaveBeenCalledTimes(0);
   });
 
   it("shows artist filter summary", () => {

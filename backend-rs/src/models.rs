@@ -53,6 +53,26 @@ pub struct TrackUpdate {
     pub title: Option<String>,
     pub artist: Option<String>,
     pub rename_file: Option<bool>,
+    pub artwork_url: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct ArtworkSearchQuery {
+    pub title: String,
+    pub artist: String,
+    pub album: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ArtworkSearchResult {
+    pub id: String,
+    pub source: String,
+    pub title: String,
+    pub artist: Option<String>,
+    pub image_url: String,
+    pub thumbnail_url: String,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
 }
 
 #[derive(Deserialize)]
@@ -65,6 +85,7 @@ pub struct ConfirmDownloadRequest {
     pub url: String,
     pub title: String,
     pub artist: String,
+    pub artwork_url: Option<String>,
 }
 
 #[derive(Serialize)]

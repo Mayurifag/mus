@@ -1,4 +1,9 @@
-import type { Track, PlayerState, MusEvent } from "$lib/types";
+import type {
+  ArtworkSearchResult,
+  Track,
+  PlayerState,
+  MusEvent,
+} from "$lib/types";
 import {
   handleApiResponse,
   createFormData,
@@ -95,6 +100,7 @@ export async function updateTrack(
     title?: string;
     artist?: string;
     rename_file?: boolean;
+    artwork_url?: string;
   },
 ): Promise<{ status: string; track?: Track }> {
   try {
@@ -118,6 +124,28 @@ export async function updateTrack(
     console.error("Error updating track:", error);
     throw error;
   }
+}
+
+export async function searchArtwork({
+  title,
+  artist,
+  album,
+}: {
+  title: string;
+  artist: string;
+  album?: string;
+}): Promise<ArtworkSearchResult[]> {
+  const params = new URLSearchParams({ title, artist });
+  if (album) {
+    params.set("album", album);
+  }
+
+  const response = await fetch(
+    `${API_PREFIX}${API_VERSION_PATH}/artwork/search?${params.toString()}`,
+  );
+  return await handleApiResponse<ArtworkSearchResult[]>(response, {
+    context: "searchArtwork",
+  });
 }
 
 export async function deleteTrack(trackId: number): Promise<void> {
@@ -289,6 +317,7 @@ export async function confirmDownload(
   url: string,
   title: string,
   artist: string,
+  artworkUrl?: string,
 ): Promise<void> {
   const result = await safeApiCall(
     async () => {
@@ -299,7 +328,7 @@ export async function confirmDownload(
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ url, title, artist }),
+          body: JSON.stringify({ url, title, artist, artwork_url: artworkUrl }),
         },
       );
       await handleApiResponse(response);
@@ -370,12 +399,16 @@ export async function uploadTrack(
   file: File,
   title: string,
   artist: string,
+  artworkUrl?: string,
 ): Promise<{ success: boolean; message: string }> {
   const formData = createFormData({
     file,
     title,
     artist,
   });
+  if (artworkUrl) {
+    formData.append("artwork_url", artworkUrl);
+  }
 
   const response = await fetch(
     `${API_PREFIX}${API_VERSION_PATH}/tracks/upload`,

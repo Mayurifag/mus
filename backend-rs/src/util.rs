@@ -1,11 +1,13 @@
 use std::{
     fs,
+    io::Read,
     path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
+    process::{ExitStatus, Output},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{anyhow, Result};
-use tokio::process::Command;
+use tokio::{process::Command, time};
 
 use crate::error::AppError;
 
@@ -45,11 +47,49 @@ pub fn is_audio_path(path: &Path) -> bool {
 }
 
 pub async fn command_output(command: &str, args: &[&str]) -> Result<String> {
-    let output = Command::new(command).args(args).output().await?;
+    let output = command_output_with_timeout(command, args, Duration::from_secs(120)).await?;
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+pub async fn command_output_text_with_timeout(
+    command: &str,
+    args: &[&str],
+    timeout: Duration,
+) -> Result<String> {
+    let output = command_output_with_timeout(command, args, timeout).await?;
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+pub async fn command_output_with_timeout(
+    command: &str,
+    args: &[&str],
+    timeout: Duration,
+) -> Result<Output> {
+    let mut process = Command::new(command);
+    process.args(args).kill_on_drop(true);
+    let output = time::timeout(timeout, process.output())
+        .await
+        .map_err(|_| anyhow!("{command} timed out"))??;
     if !output.status.success() {
         return Err(anyhow!(String::from_utf8_lossy(&output.stderr).to_string()));
     }
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    Ok(output)
+}
+
+pub async fn run_command_output(mut command: Command, timeout: Duration) -> Result<Output> {
+    command.kill_on_drop(true);
+    time::timeout(timeout, command.output())
+        .await
+        .map_err(|_| anyhow!("command timed out"))?
+        .map_err(Into::into)
+}
+
+pub async fn run_command_status(mut command: Command, timeout: Duration) -> Result<ExitStatus> {
+    command.kill_on_drop(true);
+    time::timeout(timeout, command.status())
+        .await
+        .map_err(|_| anyhow!("command timed out"))?
+        .map_err(Into::into)
 }
 
 pub fn can_write(path: &Path) -> bool {
@@ -116,6 +156,30 @@ pub fn system_time_secs(time: SystemTime) -> Option<i64> {
     time.duration_since(UNIX_EPOCH)
         .ok()
         .map(|v| v.as_secs() as i64)
+}
+
+pub fn now_nanos() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos()
+}
+
+pub fn file_content_hash(path: &Path) -> Result<String> {
+    let mut file = fs::File::open(path)?;
+    let mut hash = 0xcbf29ce484222325u64;
+    let mut buffer = [0u8; 64 * 1024];
+    loop {
+        let read = file.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        for byte in &buffer[..read] {
+            hash ^= u64::from(*byte);
+            hash = hash.wrapping_mul(0x100000001b3);
+        }
+    }
+    Ok(format!("{hash:016x}"))
 }
 
 pub fn sanitize(value: &str) -> String {

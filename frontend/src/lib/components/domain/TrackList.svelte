@@ -41,6 +41,7 @@
   let virtualizer = $state<ReturnType<typeof createWindowVirtualizer> | null>(
     null,
   );
+  let virtualizerCount = -1;
   let editModalOpen = $state(false);
   let editingTrack = $state<Track | null>(null);
   let initialScrollDone = false;
@@ -102,7 +103,8 @@
   $effect(() => {
     updateEffectStats("TrackList_VirtualizerCountUpdate");
 
-    if (virtualizer) {
+    if (virtualizer && virtualizerCount !== visibleTrackCount) {
+      virtualizerCount = visibleTrackCount;
       $virtualizer!.setOptions(virtualizerOptions(visibleTrackCount));
     }
   });

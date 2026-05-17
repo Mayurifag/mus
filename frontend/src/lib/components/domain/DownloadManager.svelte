@@ -70,10 +70,14 @@
     }
   }
 
-  async function handleDownloadConfirm(title: string, artist: string) {
+  async function handleDownloadConfirm(
+    title: string,
+    artist: string,
+    artworkUrl?: string,
+  ) {
     const storeUrl = $downloadStore.url;
     if (!storeUrl) return;
-    await confirmDownload(storeUrl, title, artist);
+    await confirmDownload(storeUrl, title, artist, artworkUrl);
     url = "";
     downloadStore.startDownload();
     reviewModalOpen = false;

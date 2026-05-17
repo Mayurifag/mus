@@ -20,6 +20,7 @@ use serde_json::{json, Value};
 use tower_http::services::ServeFile;
 
 use crate::{
+    artwork::search_artwork,
     db::init_db,
     downloads::{confirm_download, fetch_metadata, start_download},
     errors::{get_errored_tracks, requeue_track},
@@ -40,6 +41,7 @@ pub fn app(state: AppState) -> Router {
     Router::new()
         .route("/api/healthcheck.json", get(healthcheck))
         .route("/api/v1/tracks", get(get_tracks))
+        .route("/api/v1/artwork/search", get(search_artwork))
         .route("/api/v1/tracks/upload", post(upload_track))
         .route(
             "/api/v1/tracks/{id}",

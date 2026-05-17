@@ -1,7 +1,7 @@
 use std::{collections::HashMap, collections::HashSet, fs, path::Path, time::Duration};
 
 use anyhow::Result;
-use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{event::EventKind, Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use rusqlite::params;
 use serde_json::json;
 use tokio::{sync::mpsc, time};
@@ -9,7 +9,7 @@ use tokio::{sync::mpsc, time};
 use crate::{
     db::{self, delete_track_row, set_track_cover_state, track_dto},
     events::broadcast,
-    media::{extract_cover, read_metadata, standardize_audio_tags, MediaMetadata},
+    media::{extract_cover, read_metadata, MediaMetadata},
     state::AppState,
     util::{inode, is_audio_path, now, system_time_secs},
 };
@@ -41,16 +41,37 @@ pub async fn watch_music_dir(state: AppState) {
         let Some(event) = rx.recv().await else {
             break;
         };
-        if let Err(error) = event {
-            tracing::warn!("failed to receive music directory event: {error}");
+        let event = match event {
+            Ok(event) => event,
+            Err(error) => {
+                tracing::warn!("failed to receive music directory event: {error}");
+                continue;
+            }
+        };
+        if !should_sync_event(&event) {
             continue;
         }
         time::sleep(Duration::from_millis(500)).await;
-        while rx.try_recv().is_ok() {}
+        while let Ok(event) = rx.try_recv() {
+            if let Err(error) = event {
+                tracing::warn!("failed to receive music directory event: {error}");
+            }
+        }
         if let Err(error) = sync_tracks(state.clone(), true).await {
             tracing::warn!("failed to sync music directory: {error}");
         }
     }
+}
+
+fn should_sync_event(event: &Event) -> bool {
+    match event.kind {
+        EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) => {}
+        _ => return false,
+    }
+    event
+        .paths
+        .iter()
+        .any(|path| is_audio_path(path) || path.is_dir())
 }
 
 async fn sync_tracks(state: AppState, broadcast_changes: bool) -> Result<()> {
@@ -153,9 +174,6 @@ pub async fn upsert_path(
     title_override: Option<String>,
     artist_override: Option<String>,
 ) -> Result<crate::models::TrackDto> {
-    if let Err(error) = standardize_audio_tags(path).await {
-        tracing::warn!("failed to standardize tags for {}: {error}", path.display());
-    }
     let metadata = read_metadata(path).await.unwrap_or_else(|_| MediaMetadata {
         title: path
             .file_stem()

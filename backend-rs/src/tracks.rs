@@ -15,10 +15,11 @@ use tokio::{fs as async_fs, io::AsyncWriteExt};
 use tower_http::services::ServeFile;
 
 use crate::{
+    artwork::download_artwork_as_jpeg,
     db::{self, delete_track_row, get_track, save_track, track_dto},
     error::AppError,
     events::broadcast,
-    media::write_audio_tags,
+    media::{extract_cover, write_audio_cover, write_audio_tags},
     models::{TrackDto, TrackUpdate},
     scanner::upsert_path,
     state::AppState,
@@ -104,8 +105,13 @@ pub async fn update_track(
     let new_title = update.title.unwrap_or_else(|| track.title.clone());
     let new_artist = update.artist.unwrap_or_else(|| track.artist.clone());
     let rename_file = update.rename_file.unwrap_or(false);
+    let artwork_url = update.artwork_url.filter(|url| !url.trim().is_empty());
 
-    if new_title == track.title && new_artist == track.artist && !rename_file {
+    if new_title == track.title
+        && new_artist == track.artist
+        && !rename_file
+        && artwork_url.is_none()
+    {
         return Ok(Json(json!({"status": "no_changes"})));
     }
 
@@ -120,6 +126,20 @@ pub async fn update_track(
         if new_path != Path::new(&track.file_path) && new_path.exists() {
             return Err(AppError::conflict("A file with this name already exists"));
         }
+    }
+
+    let jpeg_path = if let Some(artwork_url) = artwork_url {
+        Some(download_artwork_as_jpeg(&artwork_url, state.data_dir.join(".cache")).await?)
+    } else {
+        None
+    };
+
+    if let Some(jpeg_path) = jpeg_path {
+        let embed_result = write_audio_cover(Path::new(&track.file_path), &jpeg_path).await;
+        let _ = async_fs::remove_file(jpeg_path).await;
+        embed_result?;
+        track.has_cover =
+            extract_cover(Path::new(&track.file_path), &state.covers_dir, track.id).await?;
     }
 
     if new_title != track.title || new_artist != track.artist {
@@ -178,12 +198,14 @@ pub async fn upload_track(
     }
     let mut title = None;
     let mut artist = None;
+    let mut artwork_url = None;
     let mut file_name = None;
     let mut temp_path = None;
     while let Some(field) = multipart.next_field().await? {
         match field.name().unwrap_or_default() {
             "title" => title = Some(field.text().await?),
             "artist" => artist = Some(field.text().await?),
+            "artwork_url" => artwork_url = Some(field.text().await?),
             "file" => {
                 file_name = field.file_name().map(str::to_string);
                 let source_name = file_name.as_deref().unwrap_or_default();
@@ -270,6 +292,13 @@ pub async fn upload_track(
     }
     let temp_path = temp_path.ok_or_else(|| AppError::bad_request("Missing file"))?;
     async_fs::rename(&temp_path, &path).await?;
+    if let Some(artwork_url) = artwork_url.filter(|url| !url.trim().is_empty()) {
+        let jpeg_path =
+            download_artwork_as_jpeg(&artwork_url, state.data_dir.join(".cache")).await?;
+        let embed_result = write_audio_cover(&path, &jpeg_path).await;
+        let _ = async_fs::remove_file(jpeg_path).await;
+        embed_result?;
+    }
     write_audio_tags(&path, &title, &artist).await?;
     let track = upsert_path(&state, &path, Some(title), Some(artist)).await?;
     tracing::info!(track_id = track.id, "track uploaded");
