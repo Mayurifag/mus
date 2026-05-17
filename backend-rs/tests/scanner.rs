@@ -108,6 +108,37 @@ async fn scan_music_dir_handles_external_create_update_and_delete() {
 }
 
 #[tokio::test]
+async fn scan_music_dir_preserves_track_identity_after_move() {
+    let (_tmp, state) = make_state();
+    let path = state.music_dir.join("song.flac");
+    fs::write(&path, b"first").unwrap();
+    set_mtime(&path, 2_000);
+
+    scan_music_dir(state.clone()).await.unwrap();
+    let tracks = db::list_tracks(&state).unwrap();
+    let id = tracks[0].id;
+    {
+        let conn = state.db.lock().unwrap();
+        conn.execute(
+            "UPDATE track SET title = ?1, artist = ?2 WHERE id = ?3",
+            params!["Kept Title", "Kept Artist", id],
+        )
+        .unwrap();
+    }
+
+    let moved_path = state.music_dir.join("moved.flac");
+    fs::rename(&path, &moved_path).unwrap();
+    scan_music_dir(state.clone()).await.unwrap();
+
+    let tracks = db::list_tracks(&state).unwrap();
+    assert_eq!(tracks.len(), 1);
+    assert_eq!(tracks[0].id, id);
+    assert_eq!(tracks[0].title, "Kept Title");
+    assert_eq!(tracks[0].artist, "Kept Artist");
+    assert_eq!(tracks[0].file_path, moved_path.to_string_lossy());
+}
+
+#[tokio::test]
 async fn scan_music_dir_skips_unchanged_existing_tracks() {
     let (_tmp, state) = make_state();
     let path = state.music_dir.join("song.flac");

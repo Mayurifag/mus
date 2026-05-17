@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ArtworkSearchResult, Track } from "$lib/types";
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import * as Dialog from "$lib/components/ui/dialog";
   import { Input } from "$lib/components/ui/input";
   import { Checkbox } from "$lib/components/ui/checkbox";
@@ -10,6 +10,7 @@
     updateTrack,
     uploadTrack,
     deleteTrack,
+    preloadArtworkSearch,
   } from "$lib/services/apiClient";
   import { toast } from "svelte-sonner";
   import { Plus, X, HelpCircle, Save, Trash2 } from "@lucide/svelte";
@@ -56,6 +57,7 @@
   let isUploading = $state(false);
   let artworkSearchOpen = $state(false);
   let selectedArtwork = $state<ArtworkSearchResult | null>(null);
+  let cancelArtworkPreload: (() => void) | null = null;
 
   let formState = $state({
     title: "",
@@ -168,10 +170,23 @@
 
   onMount(() => {
     resetState();
+    if (mode === "edit" && track) {
+      cancelArtworkPreload = preloadArtworkSearch({
+        title: track.title,
+        artist: track.artist,
+      });
+    }
+  });
+
+  onDestroy(() => {
+    cancelArtworkPreload?.();
+    artworkSearchOpen = false;
   });
 
   function handleOpenChange(newOpen: boolean) {
     if (!newOpen) {
+      cancelArtworkPreload?.();
+      artworkSearchOpen = false;
       open = false;
       if (onClose) {
         onClose();
@@ -180,6 +195,8 @@
   }
 
   function closeModal() {
+    cancelArtworkPreload?.();
+    artworkSearchOpen = false;
     open = false;
     if (onClose) {
       onClose();
@@ -257,6 +274,7 @@
         currentArtistString,
         selectedArtwork?.image_url,
       );
+      artworkSearchOpen = false;
       open = false;
     } catch (error) {
       console.error("Error confirming download:", error);
@@ -278,6 +296,7 @@
         selectedArtwork?.image_url,
       );
       toast.success("File uploaded successfully");
+      artworkSearchOpen = false;
       open = false;
     } catch (error) {
       console.error("Error uploading file:", error);
@@ -316,6 +335,9 @@
       if (result.track) {
         trackStore.updateTrack(createTrackWithUrls(result.track));
       }
+      if (result.status === "queued") {
+        toast.info("Updating track...");
+      }
       closeModal();
     } catch (error) {
       console.error("Error updating track:", error);
@@ -331,6 +353,7 @@
     try {
       await deleteTrack(track.id);
       confirmDeleteOpen = false;
+      artworkSearchOpen = false;
       open = false;
     } catch (error) {
       console.error("Error deleting track:", error);
