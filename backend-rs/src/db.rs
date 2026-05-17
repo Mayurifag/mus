@@ -169,16 +169,21 @@ pub fn errored_tracks(state: &AppState) -> Result<Vec<Track>> {
 }
 
 pub fn track_dto(track: Track) -> TrackDto {
+    let cover_version = track
+        .content_hash
+        .as_deref()
+        .map(str::to_string)
+        .unwrap_or_else(|| track.updated_at.to_string());
     let cover_small_url = track.has_cover.then(|| {
         format!(
             "/api/v1/tracks/{}/covers/small.webp?v={}",
-            track.id, track.updated_at
+            track.id, cover_version
         )
     });
     let cover_original_url = track.has_cover.then(|| {
         format!(
             "/api/v1/tracks/{}/covers/original.webp?v={}",
-            track.id, track.updated_at
+            track.id, cover_version
         )
     });
     TrackDto {

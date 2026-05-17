@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/svelte";
-import { get } from "svelte/store";
+import { get, writable } from "svelte/store";
 import RightSidebar from "./RightSidebar.svelte";
 import { trackStore } from "$lib/stores/trackStore";
 import type { Track } from "$lib/types";
@@ -21,6 +21,7 @@ vi.mock("$lib/services/apiClient", () => ({
     },
     yt_dlp_version: null,
   }),
+  trackUpdatesConnectionStatus: writable("disconnected"),
   updateYtDlp: vi.fn().mockResolvedValue({ yt_dlp_version: null, output: "" }),
 }));
 

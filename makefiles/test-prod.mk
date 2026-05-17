@@ -2,7 +2,7 @@
 test-prod: test-prod-stop
 	@echo "Testing production Docker image..."
 	@echo "Building production image..."
-	@$(DOCKER_PROD_CMD) -t mus:test .
+	@docker build -f docker/production/production.Dockerfile -t mus:test .
 	@echo "Starting production container with music folder from override config..."
 	@MUSIC_PATH=$$(grep -A 15 "backend:" docker/docker-compose.override.yml | grep "/app_data/music" | sed 's/.*- \([^:]*\):.*/\1/' | xargs) && \
 	echo "Using music path: $$MUSIC_PATH" && \
@@ -45,6 +45,7 @@ prod-smoke:
 	curl -fsSI "http://localhost:4125/" >/dev/null; \
 	curl -fsSI "http://localhost:4125/some/spa/route" >/dev/null; \
 	curl -fsS "http://localhost:4125/api/v1/tracks" >/dev/null; \
+	curl -fsSI "http://localhost:4125/api/v1/events/track-updates" | grep -qi '^content-type: text/event-stream'; \
 	echo "Production smoke checks passed"
 
 .PHONY: prod-security-scan

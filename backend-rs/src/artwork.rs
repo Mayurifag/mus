@@ -22,7 +22,7 @@ use tokio::{fs, process::Command};
 use crate::{
     error::AppError,
     models::{ArtworkSearchQuery, ArtworkSearchResult},
-    util::{now_nanos, run_command_status},
+    util::{command_output_text_with_timeout, now_nanos, run_command_status},
 };
 
 const USER_AGENT: &str = "mus/0.1 artwork search";
@@ -69,6 +69,19 @@ pub async fn stream_artwork(Query(query): Query<ArtworkSearchQuery>) -> Result<R
             Err(error) => tracing::warn!(provider = "iTunes", %error, "artwork provider failed"),
         }
 
+        if results.len() < 4 {
+            match search_youtube(&query).await {
+                Ok(mut youtube_results) => {
+                    results.append(&mut youtube_results);
+                    let sorted = dedupe_and_sort(results.clone(), &query);
+                    if !sorted.is_empty() {
+                        yield Ok(artwork_chunk(sorted));
+                    }
+                }
+                Err(error) => tracing::warn!(provider = "YouTube", %error, "artwork provider failed"),
+            }
+        }
+
         if results.len() < 4 && !query_contains_apple_music_url(&query) {
             match search_cover_art_archive(&query).await {
                 Ok(mut caa_results) => {
@@ -110,11 +123,17 @@ pub async fn download_artwork_as_jpeg(url: &str, cache_dir: PathBuf) -> Result<P
     let jpeg = cache_dir.join(format!("artwork-{suffix}.jpg"));
     fs::write(&source, bytes).await?;
 
+    let filter = if is_youtube_thumbnail_url(url) {
+        "crop='min(iw,ih)':'min(iw,ih)',scale=1200:1200"
+    } else {
+        "scale='if(gt(a,1),1200,-2)':'if(gt(a,1),-2,1200)',pad=1200:1200:(ow-iw)/2:(oh-ih)/2"
+    };
+
     let mut command = Command::new("ffmpeg");
     command
         .args(["-y", "-i"])
         .arg(&source)
-        .args(["-frames:v", "1", "-q:v", "2"])
+        .args(["-frames:v", "1", "-vf", filter, "-q:v", "2"])
         .arg(&jpeg)
         .stdout(Stdio::null())
         .stderr(Stdio::null());
@@ -131,6 +150,13 @@ pub async fn download_artwork_as_jpeg(url: &str, cache_dir: PathBuf) -> Result<P
     Ok(jpeg)
 }
 
+fn is_youtube_thumbnail_url(url: &str) -> bool {
+    Url::parse(url)
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_string))
+        .is_some_and(|host| host == "i.ytimg.com" || host.ends_with(".ytimg.com"))
+}
+
 struct ArtworkProviders {
     providers: Vec<ArtworkProvider>,
 }
@@ -138,7 +164,11 @@ struct ArtworkProviders {
 impl Default for ArtworkProviders {
     fn default() -> Self {
         Self {
-            providers: vec![ArtworkProvider::ITunes, ArtworkProvider::CoverArtArchive],
+            providers: vec![
+                ArtworkProvider::ITunes,
+                ArtworkProvider::YouTube,
+                ArtworkProvider::CoverArtArchive,
+            ],
         }
     }
 }
@@ -175,6 +205,7 @@ impl ArtworkProviders {
 
 enum ArtworkProvider {
     ITunes,
+    YouTube,
     CoverArtArchive,
 }
 
@@ -182,6 +213,7 @@ impl ArtworkProvider {
     fn name(&self) -> &'static str {
         match self {
             Self::ITunes => "iTunes",
+            Self::YouTube => "YouTube",
             Self::CoverArtArchive => "Cover Art Archive",
         }
     }
@@ -189,6 +221,7 @@ impl ArtworkProvider {
     async fn search(&self, query: &ArtworkSearchQuery) -> Result<Vec<ArtworkSearchResult>> {
         match self {
             Self::ITunes => search_itunes(query).await,
+            Self::YouTube => search_youtube(query).await,
             Self::CoverArtArchive => search_cover_art_archive(query).await,
         }
     }
@@ -246,6 +279,14 @@ struct CoverArtArchiveImage {
 struct CoverArtArchiveThumbnails {
     small: Option<String>,
     large: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct YouTubeSearchResult {
+    title: Option<String>,
+    uploader: Option<String>,
+    thumbnail: Option<String>,
+    id: Option<String>,
 }
 
 async fn search_itunes(query: &ArtworkSearchQuery) -> Result<Vec<ArtworkSearchResult>> {
@@ -358,6 +399,40 @@ fn map_itunes_results(
             })
         })
         .collect()
+}
+
+async fn search_youtube(query: &ArtworkSearchQuery) -> Result<Vec<ArtworkSearchResult>> {
+    let term = itunes_search_term(query);
+    if term.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let search = format!("ytsearch3:{term}");
+    let output = command_output_text_with_timeout(
+        "yt-dlp",
+        &["--dump-json", "--skip-download", &search],
+        Duration::from_secs(20),
+    )
+    .await?;
+
+    Ok(output
+        .lines()
+        .filter_map(|line| serde_json::from_str::<YouTubeSearchResult>(line).ok())
+        .filter_map(|result| {
+            let image_url = result.thumbnail?;
+            let id = result.id.unwrap_or_else(|| image_url.clone());
+            Some(ArtworkSearchResult {
+                id: format!("youtube-{id}"),
+                source: "YouTube".into(),
+                title: result.title.unwrap_or_default(),
+                artist: result.uploader,
+                thumbnail_url: image_url.clone(),
+                image_url,
+                width: None,
+                height: None,
+            })
+        })
+        .collect())
 }
 
 async fn itunes_search(

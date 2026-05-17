@@ -10,12 +10,25 @@ pub async fn track_updates(
     State(state): State<AppState>,
 ) -> Sse<impl Stream<Item = Result<Event, std::convert::Infallible>>> {
     let mut rx = state.events.subscribe();
+    tracing::info!(
+        receivers = state.events.receiver_count(),
+        "sse track updates connected"
+    );
     Sse::new(stream! {
         loop {
             match rx.recv().await {
-                Ok(event) => yield Ok(Event::default().json_data(event).unwrap()),
-                Err(broadcast::error::RecvError::Lagged(_)) => continue,
-                Err(broadcast::error::RecvError::Closed) => break,
+                Ok(event) => {
+                    tracing::info!(action = event.action_key.as_deref().unwrap_or(""), "sse track update event sent");
+                    yield Ok(Event::default().json_data(event).unwrap());
+                }
+                Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                    tracing::warn!(skipped, "sse track updates lagged");
+                    continue;
+                }
+                Err(broadcast::error::RecvError::Closed) => {
+                    tracing::info!("sse track updates closed");
+                    break;
+                }
             }
         }
     })
@@ -37,10 +50,14 @@ pub fn broadcast(
     level: Option<&str>,
     payload: Option<Value>,
 ) {
-    let _ = state.events.send(MusEvent {
+    let event = MusEvent {
         message_to_show: message.map(str::to_string),
         message_level: level.map(str::to_string),
         action_key: Some(action.to_string()),
         action_payload: payload,
-    });
+    };
+    match state.events.send(event) {
+        Ok(receivers) => tracing::info!(action, receivers, "broadcast event queued"),
+        Err(error) => tracing::warn!(action, error = ?error, "broadcast event dropped"),
+    }
 }

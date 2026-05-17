@@ -41,6 +41,7 @@ export function handleMusEvent(payload: MusEvent): void {
         const track = apiClient.createTrackWithUrls(payload.action_payload);
         trackStore.updateTrack(track);
       }
+      void syncTracks();
       break;
     case "track_deleted":
       if (
@@ -76,7 +77,7 @@ export function handleMusEvent(payload: MusEvent): void {
   }
 }
 
-async function syncTracksAfterSseOpen(): Promise<void> {
+async function syncTracks(): Promise<void> {
   try {
     const tracks = await apiClient.fetchTracks();
     trackStore.setTracks(tracks);
@@ -91,7 +92,7 @@ async function syncTracksAfterSseOpen(): Promise<void> {
  */
 export function initEventHandlerService(): EventSource {
   const eventSource = apiClient.connectTrackUpdateEvents(handleMusEvent, () => {
-    void syncTracksAfterSseOpen();
+    void syncTracks();
   });
 
   return eventSource;

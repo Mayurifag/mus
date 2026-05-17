@@ -69,7 +69,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Trigger watchtower
-        uses: Mayurifag/multiple-watchtowers-update-action@6a98d6c7f807abecc82a358bb69978157077fee4
+        uses: Mayurifag/multiple-watchtowers-update-action@6a98d6c7f807abecc82a358bb69978157077fee4 # 1.0.1
         with:
           watchtower-urls: ${{ secrets.WATCHTOWER_URLS }}
           watchtower-tokens: ${{ secrets.WATCHTOWER_TOKENS }}

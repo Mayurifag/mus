@@ -1,0 +1,17 @@
+---
+services:
+  backend:
+    image: mus-backend-ci
+    volumes:
+      - ../backend-rs:/app
+      - ../.ci-cache/backend/cargo:/cargo
+      - ../.ci-cache/backend/target:/app/target
+
+  frontend:
+    image: mus-frontend-ci
+    environment:
+      NPM_CONFIG_CACHE: /app/.npm
+    volumes:
+      - ../frontend:/app
+      - ../.ci-cache/frontend/node_modules:/app/node_modules
+      - ../.ci-cache/frontend/npm:/app/.npm

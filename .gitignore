@@ -49,6 +49,8 @@ $RECYCLE.BIN/
 coverage/
 
 .cache/
+.ci-cache/
+.venv/
 
 # CI/CD
 .github/workflows/*.log

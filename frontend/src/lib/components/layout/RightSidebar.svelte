@@ -12,6 +12,7 @@
   import {
     fetchErroredTracks,
     fetchSystemInfo,
+    trackUpdatesConnectionStatus,
     updateYtDlp,
     type SystemInfo,
   } from "$lib/services/apiClient";
@@ -307,6 +308,7 @@
         <div class="truncate">
           yt-dlp {systemInfo.yt_dlp_version ?? "unknown"}
         </div>
+        <div class="truncate">SSE {$trackUpdatesConnectionStatus}</div>
       </div>
       <button
         type="button"

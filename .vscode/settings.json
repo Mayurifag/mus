@@ -1,12 +1,6 @@
 {
-  "python.analysis.extraPaths": [
-    "./backend"
-  ],
-  "python.defaultInterpreterPath": "./backend/.venv/bin/python",
-  "python.analysis.typeCheckingMode": "basic",
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.fixAll.ruff": "always",
     "source.fixAll.eslint": "always"
   },
   "[json]": {
@@ -27,44 +21,18 @@
     "**/.hg": true,
     "**/CVS": true,
     "**/.DS_Store": true,
-    "**/__pycache__": true,
-    "**/*.pyc": true,
-    "**/*.pyo": true,
-    "**/*.pyd": true,
     "**/*.so": true,
     "**/*.dylib": true,
     "**/*.dll": true,
     "**/*.exe": true,
-    "**/*.egg": true,
-    "**/*.egg-info": true,
     "**/dist": true,
     "**/build": true,
-    "**/.pytest_cache": true,
-    "**/.ruff_cache": true,
-    "**/.venv": true,
     "**/node_modules": true,
     "**/.svelte-kit": true,
     "**/.vite": true,
-    "**/.overmind.sock": true,
-    "**/backend/MagicMock/**": true,
     "**/backend/app_data/**": true,
     "**/e2e/test-results/**": true,
     "**/e2e/playwright-report/**": true
-  },
-  "python.testing.pytestEnabled": true,
-  "python.testing.unittestEnabled": false,
-  "python.testing.pytestArgs": [
-    "tests"
-  ],
-  "terminal.integrated.defaultProfile.osx": "bash",
-  "terminal.integrated.profiles.osx": {
-    "bash": {
-      "path": "/bin/bash",
-      "args": [
-        "-i",
-        "-l"
-      ]
-    }
   },
   "svelte.enable-ts-plugin": true
 }

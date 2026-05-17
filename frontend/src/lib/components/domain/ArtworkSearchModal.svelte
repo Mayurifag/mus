@@ -1,8 +1,6 @@
 <script lang="ts">
   import type { ArtworkSearchResult } from "$lib/types";
   import * as Dialog from "$lib/components/ui/dialog";
-  import { Button } from "$lib/components/ui/button";
-  import { Input } from "$lib/components/ui/input";
   import { searchArtworkStream } from "$lib/services/apiClient";
   import { toast } from "svelte-sonner";
   import { onDestroy } from "svelte";
@@ -21,7 +19,6 @@
     onSelect: (result: ArtworkSearchResult) => void;
   } = $props();
 
-  let query = $state("");
   let results = $state<ArtworkSearchResult[]>([]);
   let isLoading = $state(false);
   let lastSearch = $state("");
@@ -47,25 +44,31 @@
   }
 
   function startInitialSearch() {
-    query = [title, artist].filter(Boolean).join(" ");
     lastSearch = "";
-    void handleSearch(query);
+    void handleSearch();
   }
 
-  async function handleSearch(searchQuery = query) {
-    const trimmedQuery = searchQuery.trim();
-    if (!trimmedQuery || (isLoading && trimmedQuery === lastSearch)) return;
+  async function handleSearch() {
+    const trimmedTitle = title.trim();
+    const trimmedArtist = artist.trim();
+    const searchKey = `${trimmedTitle}|${trimmedArtist}`;
+    if (
+      (!trimmedTitle && !trimmedArtist) ||
+      (isLoading && searchKey === lastSearch)
+    ) {
+      return;
+    }
 
     cancelSearch();
     const controller = new AbortController();
     activeSearch = controller;
     results = [];
     isLoading = true;
-    lastSearch = trimmedQuery;
+    lastSearch = searchKey;
     try {
       await searchArtworkStream({
-        title: trimmedQuery,
-        artist,
+        title: trimmedTitle,
+        artist: trimmedArtist,
         signal: controller.signal,
         onResults: (nextResults) => {
           if (activeSearch === controller) {
@@ -108,19 +111,6 @@
     </Dialog.Header>
 
     <div class="space-y-4 py-4">
-      <form
-        class="flex gap-2"
-        onsubmit={(event) => {
-          event.preventDefault();
-          void handleSearch();
-        }}
-      >
-        <Input bind:value={query} placeholder="Search title and artist" />
-        <Button type="submit" disabled={isLoading || !query.trim()}>
-          {isLoading ? "Searching..." : "Search"}
-        </Button>
-      </form>
-
       {#if results.length > 0}
         <div
           class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
