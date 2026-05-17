@@ -92,25 +92,35 @@
     }
   }
 
-  onMount(async () => {
-    const initialData: [Track[], PlayerState, PermissionsState] =
-      await Promise.all([
-        fetchTracks(),
-        fetchPlayerState(),
-        fetchPermissions(),
-      ]).catch((error): [Track[], PlayerState, PermissionsState] => {
+  onMount(() => {
+    Promise.all([fetchTracks(), fetchPlayerState(), fetchPermissions()])
+      .then(
+        ([tracks, playerState, permissions]: [
+          Track[],
+          PlayerState,
+          PermissionsState,
+        ]) => {
+          permissionsStore.set(permissions);
+          trackStore.setTracks(tracks);
+          initializeAudioService();
+          lastCurrentTrackId = restorePlayerState(
+            audioService,
+            tracks,
+            playerState,
+          );
+          setupEventListeners();
+        },
+      )
+      .catch((error) => {
         console.error("Failed to load initial app data", error);
-        return [[], defaultPlayerState, { can_write_music_files: false }];
+        permissionsStore.set({ can_write_music_files: false });
+        trackStore.setTracks([]);
+        initializeAudioService();
+        setupEventListeners();
+      })
+      .finally(() => {
+        isInitializing = false;
       });
-    const [tracks, playerState, permissions] = initialData;
-
-    permissionsStore.set(permissions);
-    trackStore.setTracks(tracks);
-    initializeAudioService();
-    lastCurrentTrackId = restorePlayerState(audioService, tracks, playerState);
-    setupEventListeners();
-
-    isInitializing = false;
   });
 
   // Clean up event source on component destroy

@@ -6,9 +6,10 @@ use serde_json::{json, Value};
 use tokio::process::Command;
 
 use crate::{
+    artwork::download_artwork_as_jpeg,
     error::AppError,
     events::broadcast,
-    media::write_audio_tags,
+    media::{write_audio_cover, write_audio_tags},
     models::{ConfirmDownloadRequest, MetadataResponse, UrlRequest},
     scanner::upsert_path,
     state::AppState,
@@ -57,7 +58,7 @@ pub async fn start_download(
     State(state): State<AppState>,
     Json(req): Json<UrlRequest>,
 ) -> Result<(StatusCode, Json<Value>), AppError> {
-    spawn_download(state, req.url, None, None).await?;
+    spawn_download(state, req.url, None, None, None).await?;
     Ok((StatusCode::ACCEPTED, Json(json!({"status": "accepted"}))))
 }
 
@@ -69,7 +70,14 @@ pub async fn confirm_download(
     if state.music_dir.join(final_name).exists() {
         return Err(AppError::conflict("A file with this name already exists"));
     }
-    spawn_download(state, req.url, Some(req.title), Some(req.artist)).await?;
+    spawn_download(
+        state,
+        req.url,
+        Some(req.title),
+        Some(req.artist),
+        req.artwork_url.filter(|url| !url.trim().is_empty()),
+    )
+    .await?;
     Ok((StatusCode::ACCEPTED, Json(json!({"status": "accepted"}))))
 }
 
@@ -78,6 +86,7 @@ async fn spawn_download(
     url: String,
     title: Option<String>,
     artist: Option<String>,
+    artwork_url: Option<String>,
 ) -> Result<(), AppError> {
     if !can_write(&state.music_dir) {
         return Err(AppError::forbidden(
@@ -99,7 +108,7 @@ async fn spawn_download(
             Some("info"),
             Some(json!({"url": url})),
         );
-        let result = run_download(state.clone(), url, title, artist).await;
+        let result = run_download(state.clone(), url, title, artist, artwork_url).await;
         if let Err(error) = result {
             tracing::warn!(error = %error, "download failed");
             broadcast(
@@ -120,13 +129,14 @@ async fn run_download(
     url: String,
     title: Option<String>,
     artist: Option<String>,
+    artwork_url: Option<String>,
 ) -> Result<()> {
     let tmp = state
         .data_dir
         .join(".cache")
         .join(format!("download-{}", now()));
     fs::create_dir_all(&tmp)?;
-    let result = run_download_inner(&state, &url, title, artist, &tmp).await;
+    let result = run_download_inner(&state, &url, title, artist, artwork_url, &tmp).await;
     let _ = fs::remove_dir_all(tmp);
     result
 }
@@ -136,6 +146,7 @@ async fn run_download_inner(
     url: &str,
     title: Option<String>,
     artist: Option<String>,
+    artwork_url: Option<String>,
     tmp: &std::path::Path,
 ) -> Result<()> {
     let output_template = tmp.join("%(artist,uploader|Unknown Artist)s - %(title)s.%(ext)s");
@@ -184,6 +195,12 @@ async fn run_download_inner(
         return Err(anyhow!("A file with this name already exists"));
     }
     fs::rename(&downloaded, &final_path)?;
+    if let Some(artwork_url) = artwork_url {
+        let jpeg_path = download_artwork_as_jpeg(&artwork_url, tmp.to_path_buf()).await?;
+        let embed_result = write_audio_cover(&final_path, &jpeg_path).await;
+        let _ = fs::remove_file(jpeg_path);
+        embed_result?;
+    }
     if let (Some(title), Some(artist)) = (&title, &artist) {
         write_audio_tags(&final_path, title, artist).await?;
     }

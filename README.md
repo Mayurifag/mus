@@ -23,10 +23,10 @@ in alpha stage.
 - Minimal setup hussle - single docker container, little configuration
 - Easy new music upload flow
 - Auto-rename files to have single format
-- Every file gets ID3v2.3 tags with UTF-8 encoding enforced
+- Upload/edit/download flows write artist/title tags; MP3/WAV/AIFF use Rust ID3
+  and other supported media use ffmpeg when tags must be rewritten
 - Useful editor of artists/title metadata
-- Download new files using yt-dlp **respecting SponsorBlock Youtube segments**.
-  Custom vk.ru support incoming
+- Download new files using yt-dlp. Custom vk.ru support incoming
 - Mobile support via PWA app. No plans for natives yet
 - No dumb features like "Repeat all playlist" (repeat only current track)
 - Intelligently disable features requiring write support if mounted folder is

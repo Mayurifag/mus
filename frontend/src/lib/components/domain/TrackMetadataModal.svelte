@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Track } from "$lib/types";
+  import type { ArtworkSearchResult, Track } from "$lib/types";
   import { onMount } from "svelte";
   import * as Dialog from "$lib/components/ui/dialog";
   import { Input } from "$lib/components/ui/input";
@@ -15,6 +15,7 @@
   import { permissionsStore } from "$lib/stores/permissionsStore";
 
   import FilenameDisplay from "./FilenameDisplay.svelte";
+  import ArtworkSearchModal from "./ArtworkSearchModal.svelte";
 
   import type { AudioMetadata } from "$lib/utils/audioFileAnalyzer";
 
@@ -40,12 +41,18 @@
     coverDataUrl?: string | null;
     metadata?: AudioMetadata;
     isDownload?: boolean;
-    onDownloadConfirm?: (title: string, artist: string) => Promise<void>;
+    onDownloadConfirm?: (
+      title: string,
+      artist: string,
+      artworkUrl?: string,
+    ) => Promise<void>;
     onClose?: () => void;
   } = $props();
 
   let confirmDeleteOpen = $state(false);
   let isUploading = $state(false);
+  let artworkSearchOpen = $state(false);
+  let selectedArtwork = $state<ArtworkSearchResult | null>(null);
 
   let formState = $state({
     title: "",
@@ -93,6 +100,7 @@
     if (mode === "edit" && track) {
       formState.title = track.title;
       formState.renameFile = true;
+      selectedArtwork = null;
       const artistList = (track.artist?.split(";") ?? [])
         .map((a) => a.trim())
         .filter(Boolean);
@@ -103,6 +111,7 @@
 
       artists = artistList.map((value) => ({ id: artistIdCounter++, value }));
     } else if (mode === "create" && isDownload) {
+      selectedArtwork = null;
       // Download mode: pre-fill from metadata fetched by DownloadManager
       formState.title = suggestedTitle ?? "";
       formState.renameFile = false;
@@ -117,6 +126,7 @@
         artists = [{ id: artistIdCounter++, value: "" }];
       }
     } else if (mode === "create" && file) {
+      selectedArtwork = null;
       // Use suggested title and artist from parsed filename
       formState.title =
         suggestedTitle || metadata?.title || file.name.replace(/\.[^/.]+$/, "");
@@ -180,6 +190,7 @@
 
     const titleChanged = sanitizedTitle !== track.title;
     const artistChanged = currentArtistString !== track.artist;
+    const artworkChanged = selectedArtwork !== null;
     const hasTitle = sanitizedTitle.trim().length > 0;
     const hasPrimaryArtist =
       sanitizedArtists.length > 0 &&
@@ -189,7 +200,7 @@
     return {
       isFormValid: hasTitle && hasPrimaryArtist && filenameValid,
       hasSavableChanges:
-        (titleChanged || artistChanged) &&
+        (titleChanged || artistChanged || artworkChanged) &&
         hasTitle &&
         hasPrimaryArtist &&
         filenameValid,
@@ -211,7 +222,11 @@
 
     isUploading = true;
     try {
-      await onDownloadConfirm(sanitizedTitle, currentArtistString);
+      await onDownloadConfirm(
+        sanitizedTitle,
+        currentArtistString,
+        selectedArtwork?.image_url,
+      );
       open = false;
     } catch (error) {
       console.error("Error confirming download:", error);
@@ -226,7 +241,12 @@
 
     isUploading = true;
     try {
-      await uploadTrack(file, sanitizedTitle, currentArtistString);
+      await uploadTrack(
+        file,
+        sanitizedTitle,
+        currentArtistString,
+        selectedArtwork?.image_url,
+      );
       toast.success("File uploaded successfully");
       open = false;
     } catch (error) {
@@ -240,8 +260,12 @@
   async function handleUpdate() {
     if (!track) return;
 
-    const payload: { title?: string; artist?: string; rename_file?: boolean } =
-      {};
+    const payload: {
+      title?: string;
+      artist?: string;
+      rename_file?: boolean;
+      artwork_url?: string;
+    } = {};
 
     if (sanitizedTitle !== track.title) {
       payload.title = sanitizedTitle;
@@ -251,6 +275,9 @@
     }
     if (formState.renameFile) {
       payload.rename_file = true;
+    }
+    if (selectedArtwork) {
+      payload.artwork_url = selectedArtwork.image_url;
     }
 
     try {
@@ -274,6 +301,10 @@
       toast.error("Failed to delete track");
     }
   }
+
+  function handleArtworkSelect(result: ArtworkSearchResult) {
+    selectedArtwork = result;
+  }
 </script>
 
 <Dialog.Root {open} onOpenChange={handleOpenChange}>
@@ -286,10 +317,19 @@
         <!-- Left column: Cover image or file info -->
         <div class="space-y-3">
           {#if mode === "edit" && track}
-            <div
-              class="bg-muted group relative aspect-square w-full overflow-hidden rounded-lg"
+            <button
+              type="button"
+              class="bg-muted group relative aspect-square w-full overflow-hidden rounded-lg text-left"
+              onclick={() => (artworkSearchOpen = true)}
+              title="Find artwork"
             >
-              {#if track.has_cover && track.cover_original_url}
+              {#if selectedArtwork}
+                <img
+                  src={selectedArtwork.thumbnail_url}
+                  alt="Selected artwork"
+                  class="h-full w-full object-cover"
+                />
+              {:else if track.has_cover && track.cover_original_url}
                 <img
                   src={track.cover_original_url}
                   alt="Track cover"
@@ -302,33 +342,78 @@
                   class="h-full w-full object-cover"
                 />
               {/if}
-            </div>
+              <div
+                class="absolute inset-x-0 bottom-0 bg-black/60 px-3 py-2 text-center text-xs text-white opacity-0 transition group-hover:opacity-100"
+              >
+                Find artwork
+              </div>
+            </button>
           {:else if mode === "create" && isDownload}
             <!-- Thumbnail from fetched metadata -->
-            {#if coverDataUrl}
-              <div
-                class="bg-muted group relative aspect-square w-full overflow-hidden rounded-lg"
-              >
+            <button
+              type="button"
+              class="bg-muted group relative aspect-square w-full overflow-hidden rounded-lg text-left"
+              onclick={() => (artworkSearchOpen = true)}
+              title="Find artwork"
+            >
+              {#if selectedArtwork}
+                <img
+                  src={selectedArtwork.thumbnail_url}
+                  alt="Selected artwork"
+                  class="h-full w-full object-cover"
+                />
+              {:else if coverDataUrl}
                 <img
                   src={coverDataUrl}
                   alt="Track thumbnail"
                   class="h-full w-full object-cover"
                 />
+              {:else}
+                <img
+                  src="/images/no-cover.svg"
+                  alt="No cover"
+                  class="h-full w-full object-cover"
+                />
+              {/if}
+              <div
+                class="absolute inset-x-0 bottom-0 bg-black/60 px-3 py-2 text-center text-xs text-white opacity-0 transition group-hover:opacity-100"
+              >
+                Find artwork
               </div>
-            {/if}
+            </button>
           {:else if mode === "create" && file}
             <!-- Cover image if available -->
-            {#if coverDataUrl}
-              <div
-                class="bg-muted group relative aspect-square w-full overflow-hidden rounded-lg"
-              >
+            <button
+              type="button"
+              class="bg-muted group relative aspect-square w-full overflow-hidden rounded-lg text-left"
+              onclick={() => (artworkSearchOpen = true)}
+              title="Find artwork"
+            >
+              {#if selectedArtwork}
+                <img
+                  src={selectedArtwork.thumbnail_url}
+                  alt="Selected artwork"
+                  class="h-full w-full object-cover"
+                />
+              {:else if coverDataUrl}
                 <img
                   src={coverDataUrl}
                   alt="Extracted cover art"
                   class="h-full w-full object-cover"
                 />
+              {:else}
+                <img
+                  src="/images/no-cover.svg"
+                  alt="No cover"
+                  class="h-full w-full object-cover"
+                />
+              {/if}
+              <div
+                class="absolute inset-x-0 bottom-0 bg-black/60 px-3 py-2 text-center text-xs text-white opacity-0 transition group-hover:opacity-100"
+              >
+                Find artwork
               </div>
-            {/if}
+            </button>
           {/if}
         </div>
 
@@ -509,6 +594,16 @@
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
+
+{#if mode === "edit" || mode === "create"}
+  <ArtworkSearchModal
+    bind:open={artworkSearchOpen}
+    title={sanitizedTitle}
+    artist={currentArtistString}
+    selectedUrl={selectedArtwork?.image_url ?? null}
+    onSelect={handleArtworkSelect}
+  />
+{/if}
 
 <!-- Delete confirmation dialog -->
 <Dialog.Root bind:open={confirmDeleteOpen}>

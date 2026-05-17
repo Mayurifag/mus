@@ -1,4 +1,5 @@
 pub mod app;
+pub mod artwork;
 pub mod db;
 pub mod downloads;
 pub mod error;

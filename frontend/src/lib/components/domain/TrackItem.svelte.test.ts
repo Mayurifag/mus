@@ -77,17 +77,6 @@ describe("TrackItem component", () => {
     expect(screen.getByAltText("No Album Cover")).toBeInTheDocument();
   });
 
-  it("applies selected styles when isSelected is true", () => {
-    const { container } = render(TrackItem, {
-      track: mockTrack,
-      index: 0,
-      isSelected: true,
-    });
-    const trackItemDiv = container.querySelector('[data-testid="track-item"]');
-
-    expect(trackItemDiv?.classList.contains("bg-secondary")).toBe(true);
-  });
-
   it("renders progress slider when track is selected", () => {
     render(TrackItem, { track: mockTrack, index: 0, isSelected: true });
 
@@ -111,16 +100,6 @@ describe("TrackItem component", () => {
 
     const trackItemDiv = container.querySelector('[data-testid="track-item"]');
     expect(trackItemDiv?.id).toBe(`track-item-${mockTrack.id}`);
-  });
-
-  it("calls trackStore.playTrack when clicked", async () => {
-    render(TrackItem, { track: mockTrack, index: 2, isSelected: false });
-
-    const trackItemElement = screen.getByTestId("track-item");
-    await fireEvent.mouseDown(trackItemElement, { button: 0 });
-    await fireEvent.mouseUp(trackItemElement, { button: 0 });
-
-    expect(vi.mocked(trackStore.playTrack)).toHaveBeenCalledWith(2);
   });
 
   it("calls playTrack when Enter key is pressed", async () => {

@@ -1,6 +1,7 @@
 use std::{fs, time::Duration};
 
 use filetime::FileTime;
+use id3::{Tag, TagLike, Version};
 use mus_backend::{app::test_state, db, scanner::scan_music_dir};
 use rusqlite::{params, Connection};
 use tempfile::TempDir;
@@ -89,4 +90,19 @@ async fn scan_music_dir_skips_unchanged_existing_tracks() {
     let tracks = db::list_tracks(&state).unwrap();
     assert_eq!(tracks[0].title, "song");
     assert_eq!(tracks[0].updated_at, 4_000);
+}
+
+#[tokio::test]
+async fn scan_music_dir_does_not_rewrite_audio_files() {
+    let (_tmp, state) = make_state();
+    let path = state.music_dir.join("song.mp3");
+    fs::write(&path, b"").unwrap();
+    let mut tag = Tag::new();
+    tag.set_title("Tagged Song");
+    tag.write_to_path(&path, Version::Id3v24).unwrap();
+    let before = fs::read(&path).unwrap();
+
+    scan_music_dir(state.clone()).await.unwrap();
+
+    assert_eq!(fs::read(&path).unwrap(), before);
 }

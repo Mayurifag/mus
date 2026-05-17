@@ -10,6 +10,17 @@ export interface Track {
   cover_original_url: string | null;
 }
 
+export interface ArtworkSearchResult {
+  id: string;
+  source: string;
+  title: string;
+  artist: string | null;
+  image_url: string;
+  thumbnail_url: string;
+  width: number | null;
+  height: number | null;
+}
+
 export interface TimeRange {
   start: number;
   end: number;
