@@ -6,11 +6,8 @@ I made this project because I do not like any other projects to have visually
 simple yet very powerful selfhosted solution to listen, manage and download
 music.
 
-For now I do not want to show it to the public yet because there are tons of
-things I'd like to finish, for example better UI and vk.ru integration to
-search/download from.
 
-Yet I already use it daily from my PC and phone (as PWA app). There will be no
+I already use it daily yet I don't think its ready to use. There will be no
 instructions and demonstrations here yet, until I will be sure it is ready to be
 in alpha stage.
 
@@ -34,6 +31,9 @@ in alpha stage.
   read-only
 - Various little things to make experience smooth (virtual list of music files,
   automatic webp cover preview generation on upload and much more)
+- Fast, minimal server resource usage - project was already rewritten from
+  Python and SSR Node.js usage to simple frontend and Rust to reduce memory
+  usage 10x times.
 
 ## Technical details
 
