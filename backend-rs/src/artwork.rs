@@ -85,7 +85,7 @@ impl ArtworkProviders {
             }
         }
 
-        Ok(dedupe_and_sort(results))
+        Ok(dedupe_and_sort(results, query))
     }
 }
 
@@ -119,6 +119,8 @@ struct ITunesResponse {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ITunesResult {
+    wrapper_type: Option<String>,
+    artist_id: Option<i64>,
     track_id: Option<i64>,
     collection_id: Option<i64>,
     track_name: Option<String>,
@@ -177,33 +179,41 @@ async fn search_itunes(query: &ArtworkSearchQuery) -> Result<Vec<ArtworkSearchRe
         return Ok(Vec::new());
     }
 
-    let url = Url::parse_with_params(
-        "https://itunes.apple.com/search",
-        &[
-            ("term", term.as_str()),
-            ("media", "music"),
-            ("entity", "song"),
-            ("limit", "24"),
-        ],
-    )?;
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(20))
         .build()?;
-    let response: ITunesResponse = client
-        .get(url)
-        .header(reqwest::header::USER_AGENT, USER_AGENT)
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await?;
 
-    Ok(response
-        .results
+    let mut results = Vec::new();
+    if let Some(id) = apple_music_lookup_id(&term) {
+        results.extend(itunes_lookup(&client, id, None, None).await?);
+    }
+    results.extend(itunes_search(&client, &term, "song", "24").await?);
+    results.extend(itunes_search(&client, &term, "album", "24").await?);
+
+    let artist = query.artist.trim();
+    if !artist.is_empty() {
+        for artist_result in itunes_search(&client, artist, "musicArtist", "3").await? {
+            let candidate_artist = normalize_text(artist_result.artist_name.as_deref().unwrap_or_default());
+            let requested_artist = normalize_text(artist);
+            if candidate_artist != requested_artist && !candidate_artist.contains(&requested_artist) {
+                continue;
+            }
+            let Some(artist_id) = artist_result.artist_id else {
+                continue;
+            };
+            results.extend(itunes_lookup(&client, artist_id, Some("song"), Some("200")).await?);
+            results.extend(itunes_lookup(&client, artist_id, Some("album"), Some("200")).await?);
+        }
+    }
+
+    Ok(results
         .into_iter()
+        .filter(|result| result.wrapper_type.as_deref() != Some("artist"))
+        .filter(|result| itunes_result_matches_query(result, query))
         .filter_map(|result| {
-            let thumbnail_url = result.artwork_url100?;
-            let image_url = thumbnail_url.replace("100x100bb", "1200x1200bb");
+            let artwork_url = result.artwork_url100?;
+            let thumbnail_url = artwork_url.replace("100x100bb", "600x600bb");
+            let image_url = artwork_url.replace("100x100bb", "1200x1200bb");
             let id = result
                 .track_id
                 .or(result.collection_id)
@@ -225,6 +235,117 @@ async fn search_itunes(query: &ArtworkSearchQuery) -> Result<Vec<ArtworkSearchRe
             })
         })
         .collect())
+}
+
+async fn itunes_search(
+    client: &reqwest::Client,
+    term: &str,
+    entity: &str,
+    limit: &str,
+) -> Result<Vec<ITunesResult>> {
+    let url = Url::parse_with_params(
+        "https://itunes.apple.com/search",
+        &[
+            ("term", term),
+            ("media", "music"),
+            ("entity", entity),
+            ("limit", limit),
+        ],
+    )?;
+    let response: ITunesResponse = client
+        .get(url)
+        .header(reqwest::header::USER_AGENT, USER_AGENT)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    Ok(response.results)
+}
+
+async fn itunes_lookup(
+    client: &reqwest::Client,
+    id: i64,
+    entity: Option<&str>,
+    limit: Option<&str>,
+) -> Result<Vec<ITunesResult>> {
+    let id = id.to_string();
+    let mut params = vec![("id", id.as_str())];
+    if let Some(entity) = entity {
+        params.push(("entity", entity));
+    }
+    if let Some(limit) = limit {
+        params.push(("limit", limit));
+    }
+    let url = Url::parse_with_params("https://itunes.apple.com/lookup", &params)?;
+    let response: ITunesResponse = client
+        .get(url)
+        .header(reqwest::header::USER_AGENT, USER_AGENT)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    Ok(response.results)
+}
+
+fn apple_music_lookup_id(term: &str) -> Option<i64> {
+    let url = Url::parse(term).ok()?;
+    if !url.domain()?.ends_with("music.apple.com") {
+        return None;
+    }
+
+    url.path_segments()?
+        .filter_map(|segment| segment.parse::<i64>().ok())
+        .next_back()
+}
+
+fn itunes_result_matches_query(result: &ITunesResult, query: &ArtworkSearchQuery) -> bool {
+    let title = normalized_query_title(query);
+    let artist = normalize_text(&query.artist);
+    if title.is_empty() {
+        return true;
+    }
+
+    let result_title = normalize_text(
+        result
+            .track_name
+            .as_deref()
+            .or(result.collection_name.as_deref())
+            .unwrap_or_default(),
+    );
+    let result_artist = normalize_text(result.artist_name.as_deref().unwrap_or_default());
+
+    (!result_title.is_empty() && result_title.contains(&title))
+        || (!result_title.is_empty() && title.contains(&result_title))
+        || (!artist.is_empty() && result_artist.contains(&artist) && title.len() <= 4)
+}
+
+fn normalized_query_title(query: &ArtworkSearchQuery) -> String {
+    let mut title = normalize_text(&query.title);
+    let artist = normalize_text(&query.artist);
+    if !artist.is_empty() {
+        title = title.replace(&artist, " ");
+    }
+    normalize_text(&title)
+}
+
+fn normalize_text(value: &str) -> String {
+    value
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() {
+                ch.to_ascii_lowercase()
+            } else {
+                ' '
+            }
+        })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 async fn search_cover_art_archive(query: &ArtworkSearchQuery) -> Result<Vec<ArtworkSearchResult>> {
@@ -343,16 +464,43 @@ async fn cover_art_for_release(
     }))
 }
 
-fn dedupe_and_sort(results: Vec<ArtworkSearchResult>) -> Vec<ArtworkSearchResult> {
+fn dedupe_and_sort(
+    results: Vec<ArtworkSearchResult>,
+    query: &ArtworkSearchQuery,
+) -> Vec<ArtworkSearchResult> {
     let mut seen = HashSet::new();
     let mut deduped = results
         .into_iter()
         .filter(|result| seen.insert(result.image_url.clone()))
         .collect::<Vec<_>>();
 
-    deduped.sort_by_key(|result| {
-        std::cmp::Reverse(result.width.unwrap_or(0) * result.height.unwrap_or(0))
-    });
+    deduped.sort_by_key(|result| std::cmp::Reverse(artwork_relevance(result, query)));
     deduped.truncate(18);
     deduped
+}
+
+fn artwork_relevance(result: &ArtworkSearchResult, query: &ArtworkSearchQuery) -> u32 {
+    let query_title = normalized_query_title(query);
+    let query_artist = normalize_text(&query.artist);
+    let result_title = normalize_text(&result.title);
+    let result_artist = normalize_text(result.artist.as_deref().unwrap_or_default());
+    let area = result.width.unwrap_or(0) * result.height.unwrap_or(0);
+
+    let mut score = area.min(1_440_000) / 10_000;
+    if !query_title.is_empty() && result_title == query_title {
+        score += 400;
+    } else if !query_title.is_empty()
+        && (result_title.contains(&query_title) || query_title.contains(&result_title))
+    {
+        score += 250;
+    }
+    if !query_artist.is_empty() && result_artist == query_artist {
+        score += 300;
+    } else if !query_artist.is_empty()
+        && (result_artist.contains(&query_artist) || query_artist.contains(&result_artist))
+    {
+        score += 150;
+    }
+
+    score
 }

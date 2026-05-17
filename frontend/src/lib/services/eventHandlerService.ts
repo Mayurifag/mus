@@ -76,12 +76,23 @@ export function handleMusEvent(payload: MusEvent): void {
   }
 }
 
+async function syncTracksAfterSseOpen(): Promise<void> {
+  try {
+    const tracks = await apiClient.fetchTracks();
+    trackStore.setTracks(tracks);
+  } catch (error) {
+    console.error("Failed to sync tracks after SSE open", error);
+  }
+}
+
 /**
  * Initializes the event handler service by connecting to the SSE endpoint
  * @returns The EventSource instance for the SSE connection
  */
 export function initEventHandlerService(): EventSource {
-  const eventSource = apiClient.connectTrackUpdateEvents(handleMusEvent);
+  const eventSource = apiClient.connectTrackUpdateEvents(handleMusEvent, () => {
+    void syncTracksAfterSseOpen();
+  });
 
   return eventSource;
 }

@@ -6,6 +6,7 @@
   import { Checkbox } from "$lib/components/ui/checkbox";
   import { Button } from "$lib/components/ui/button";
   import {
+    createTrackWithUrls,
     updateTrack,
     uploadTrack,
     deleteTrack,
@@ -13,6 +14,7 @@
   import { toast } from "svelte-sonner";
   import { Plus, X, HelpCircle, Save, Trash2 } from "@lucide/svelte";
   import { permissionsStore } from "$lib/stores/permissionsStore";
+  import { trackStore } from "$lib/stores/trackStore";
 
   import FilenameDisplay from "./FilenameDisplay.svelte";
   import ArtworkSearchModal from "./ArtworkSearchModal.svelte";
@@ -308,12 +310,18 @@
       payload.artwork_url = selectedArtwork.image_url;
     }
 
+    isUploading = true;
     try {
-      await updateTrack(track.id, payload);
-      open = false;
+      const result = await updateTrack(track.id, payload);
+      if (result.track) {
+        trackStore.updateTrack(createTrackWithUrls(result.track));
+      }
+      closeModal();
     } catch (error) {
       console.error("Error updating track:", error);
       toast.error("Failed to update track");
+    } finally {
+      isUploading = false;
     }
   }
 

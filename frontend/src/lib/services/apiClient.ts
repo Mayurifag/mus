@@ -220,6 +220,7 @@ export function closeTrackUpdateEvents(
 
 export function connectTrackUpdateEvents(
   onMessageCallback: (eventData: MusEvent) => void,
+  onOpenCallback?: () => void,
 ): EventSource {
   if (globalEventSource) {
     closeTrackUpdateEvents(globalEventSource);
@@ -236,6 +237,10 @@ export function connectTrackUpdateEvents(
     } catch (error) {
       console.error("Error parsing SSE event:", error);
     }
+  };
+
+  eventSource.onopen = () => {
+    onOpenCallback?.();
   };
 
   eventSource.onerror = () => {
