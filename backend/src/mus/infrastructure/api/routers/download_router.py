@@ -14,11 +14,18 @@ from src.mus.domain.services.title_cleaning_service import (
     clean_video_title,
     extract_artist_title,
 )
-from src.mus.domain.services.gemini_service import parse_track_metadata
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/downloads", tags=["downloads"])
+
+
+async def parse_track_metadata(
+    raw_title: str, channel_name: str = ""
+) -> tuple[str, str] | None:
+    from src.mus.domain.services.gemini_service import parse_track_metadata as parse
+
+    return await parse(raw_title, channel_name)
 
 
 class DownloadUrlRequest(BaseModel):

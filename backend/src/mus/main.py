@@ -2,6 +2,7 @@ import asyncio
 import logging
 import time
 from contextlib import asynccontextmanager
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict
 
 from fastapi import FastAPI
@@ -30,6 +31,9 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    executor = ThreadPoolExecutor(max_workers=4)
+    asyncio.get_running_loop().set_default_executor(executor)
+
     await create_db_and_tables()
 
     await asyncio.to_thread(permissions_service.check_permissions)
@@ -48,6 +52,7 @@ async def lifespan(_: FastAPI):
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
+        executor.shutdown(wait=True, cancel_futures=True)
 
 
 app = FastAPI(

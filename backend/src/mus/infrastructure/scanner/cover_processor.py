@@ -5,6 +5,8 @@ from typing import Any, Optional
 from mutagen._file import File as MutagenFile
 import logging
 
+from src.mus.util.memory import release_process_memory
+
 logger = logging.getLogger(__name__)
 
 _pyvips_initialized = False
@@ -78,6 +80,8 @@ class CoverProcessor:
             error_msg += f": {e}"
             logger.error(error_msg)
             return False
+        finally:
+            release_process_memory()
 
     async def extract_cover_from_file(self, file_path: Path) -> Optional[bytes]:
         return await asyncio.to_thread(self._extract_cover_sync, file_path)

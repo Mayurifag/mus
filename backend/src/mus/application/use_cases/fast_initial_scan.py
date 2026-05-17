@@ -1,10 +1,12 @@
 import logging
+import asyncio
 from pathlib import Path
 from typing import List
 
 from src.mus.config import settings
 from src.mus.domain.entities.track import ProcessingStatus, Track
 from src.mus.util.db_utils import upsert_tracks_batch
+from src.mus.util.memory import release_process_memory
 from src.mus.util.metadata_extractor import extract_fast_metadata
 
 logger = logging.getLogger(__name__)
@@ -29,7 +31,7 @@ class FastInitialScanUseCase:
         logger.info(f"Found {len(audio_files)} audio files.")
 
         batch_size = 100
-        all_tracks = []
+        upserted_count = 0
 
         for i in range(0, len(audio_files), batch_size):
             batch = audio_files[i : i + batch_size]
@@ -50,14 +52,18 @@ class FastInitialScanUseCase:
                     )
                     batch_tracks.append(track)
 
-            all_tracks.extend(batch_tracks)
+            if batch_tracks:
+                await upsert_tracks_batch(batch_tracks)
+                upserted_count += len(batch_tracks)
+
             logger.info(
                 f"Processed batch {i // batch_size + 1}/{(len(audio_files) + batch_size - 1) // batch_size}"
             )
+            del batch, metadata_results, batch_tracks
+            await asyncio.to_thread(release_process_memory)
 
-        if all_tracks:
-            await upsert_tracks_batch(all_tracks)
-            logger.info(f"Phase 1 complete: {len(all_tracks)} tracks upserted.")
+        if upserted_count:
+            logger.info(f"Phase 1 complete: {upserted_count} tracks upserted.")
 
     def _find_audio_files(self) -> List[Path]:
         audio_files = []
