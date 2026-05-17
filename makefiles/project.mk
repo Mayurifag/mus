@@ -29,8 +29,16 @@ build:
 rebuild-backend-image:
 	@$(DOCKER_COMPOSE_CMD) build --pull --no-cache backend
 
+.PHONY: rebuild-frontend-image
+rebuild-frontend-image:
+	@$(DOCKER_COMPOSE_CMD) build --pull --no-cache frontend
+
 .PHONY: prod-image
 prod-image:
+	@$(DOCKER_PROD_CMD) --pull -t mus:latest .
+
+.PHONY: prod-image-fresh
+prod-image-fresh:
 	@$(DOCKER_PROD_CMD) --pull --no-cache -t mus:latest .
 
 .PHONY: ps

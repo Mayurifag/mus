@@ -1,12 +1,16 @@
 use std::{
     path::{Component, Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, Mutex,
+    },
 };
 
 use axum::{
     body::Body,
     extract::{Request, State},
     http::{header, HeaderMap, HeaderValue, StatusCode, Uri},
+    middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, patch, post},
     Json, Router,
@@ -29,6 +33,8 @@ use crate::{
     },
     util::now,
 };
+
+static REQUEST_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 pub fn app(state: AppState) -> Router {
     Router::new()
@@ -64,7 +70,38 @@ pub fn app(state: AppState) -> Router {
         .route("/api/v1/errors/tracks", get(get_errored_tracks))
         .route("/api/v1/errors/tracks/{id}/requeue", post(requeue_track))
         .fallback(static_asset)
+        .layer(middleware::from_fn(request_logging))
         .with_state(state)
+}
+
+async fn request_logging(request: Request, next: Next) -> Response {
+    let request_id_header_name = header::HeaderName::from_static("x-request-id");
+    let request_id = request
+        .headers()
+        .get(&request_id_header_name)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("req-{}", REQUEST_COUNTER.fetch_add(1, Ordering::Relaxed)));
+    let request_id_header = HeaderValue::from_str(&request_id).ok();
+    let method = request.method().clone();
+    let path = request.uri().path().to_string();
+    let mut response = next.run(request).await;
+
+    if let Some(value) = request_id_header {
+        response.headers_mut().insert(request_id_header_name, value);
+    }
+
+    if response.status().is_server_error() {
+        tracing::warn!(
+            request_id,
+            method = %method,
+            path,
+            status = response.status().as_u16(),
+            "request failed"
+        );
+    }
+
+    response
 }
 
 pub fn test_state(data_dir: PathBuf, conn: Connection) -> AppState {

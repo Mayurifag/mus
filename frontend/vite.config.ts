@@ -3,7 +3,6 @@ import { svelteTesting } from "@testing-library/svelte/vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vitest/config";
 import svgo from "vite-plugin-svgo";
-import viteCompression from "vite-plugin-compression";
 
 export default defineConfig({
   plugins: [
@@ -23,8 +22,6 @@ export default defineConfig({
         },
       ],
     }),
-    viteCompression({ algorithm: "gzip" }),
-    viteCompression({ algorithm: "brotliCompress", ext: ".br" }),
   ],
   optimizeDeps: {
     include: [
@@ -32,7 +29,6 @@ export default defineConfig({
       "@lucide/svelte",
       "@tanstack/svelte-virtual",
       "bits-ui",
-      "@castlenine/svelte-qrcode",
     ],
   },
   test: {

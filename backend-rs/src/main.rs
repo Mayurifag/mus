@@ -23,8 +23,15 @@ async fn main() -> Result<()> {
         .init();
 
     let state = build_state()?;
-    scan_music_dir(state.clone()).await?;
-    tokio::spawn(watch_music_dir(state.clone()));
+    tokio::spawn({
+        let state = state.clone();
+        async move {
+            if let Err(error) = scan_music_dir(state.clone()).await {
+                tracing::warn!("failed to scan music directory: {error}");
+            }
+            watch_music_dir(state).await;
+        }
+    });
 
     let mut app = app(state);
     if env::var("APP_ENV").unwrap_or_default() != "production" {
@@ -51,7 +58,6 @@ fn build_state() -> Result<AppState> {
         .map(PathBuf::from)
         .filter(|path| path.is_dir());
     fs::create_dir_all(data_dir.join("database"))?;
-    fs::create_dir_all(&music_dir)?;
     fs::create_dir_all(&covers_dir)?;
 
     let conn = Connection::open(data_dir.join("database").join("mus.db"))?;

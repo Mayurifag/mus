@@ -2,6 +2,7 @@
 /// <reference lib="webworker" />
 
 import { build, files, prerendered, version } from "$service-worker";
+import { isStaticAsset, shouldSkipCache } from "$lib/utils/serviceWorkerCache";
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -44,7 +45,7 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  if (url.pathname.startsWith("/_app/immutable/")) {
+  if (isStaticAsset(url.pathname)) {
     event.respondWith(
       caches.match(request).then(async (cachedResponse) => {
         if (cachedResponse) {
@@ -59,26 +60,22 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(
-    fetch(request)
-      .then(async (networkResponse) => {
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(request, networkResponse.clone());
-        return networkResponse;
-      })
-      .catch(async () => {
-        const cachedResponse = await caches.match(request);
-        if (request.mode === "navigate" && !cachedResponse) {
-          const rootResponse = await caches.match("/");
-          return (
-            rootResponse ??
-            new Response("You are currently offline.", {
-              status: 503,
-              headers: { "Content-Type": "text/plain" },
-            })
-          );
-        }
-        return cachedResponse ?? new Response(null, { status: 404 });
+  if (shouldSkipCache(url.pathname)) {
+    return;
+  }
+
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request).catch(async () => {
+        const rootResponse = await caches.match("/");
+        return (
+          rootResponse ??
+          new Response("You are currently offline.", {
+            status: 503,
+            headers: { "Content-Type": "text/plain" },
+          })
+        );
       }),
-  );
+    );
+  }
 });

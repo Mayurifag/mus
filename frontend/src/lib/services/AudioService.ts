@@ -3,6 +3,12 @@ import { getStreamUrl } from "$lib/services/apiClient";
 import { writable } from "svelte/store";
 import { trackStore } from "$lib/stores/trackStore";
 import { formatArtistsForDisplay } from "$lib/utils/formatters";
+import {
+  clearMediaSession,
+  setupMediaSessionHandlers,
+  updateMediaSessionMetadata,
+  updateMediaSessionPlaybackState,
+} from "$lib/services/mediaSessionService";
 
 export class AudioService {
   private audio: HTMLAudioElement;
@@ -64,12 +70,12 @@ export class AudioService {
 
   private handlePlay = (): void => {
     this._isPlaying.set(true);
-    this.updateMediaSessionPlaybackState();
+    updateMediaSessionPlaybackState(true);
   };
 
   private handlePause = (): void => {
     this._isPlaying.set(false);
-    this.updateMediaSessionPlaybackState();
+    updateMediaSessionPlaybackState(false);
   };
 
   private handleLoadedMetadata = (): void => {
@@ -144,7 +150,7 @@ export class AudioService {
       }
       this._currentTime.set(0);
       this._currentBufferedRanges.set([]);
-      this.updateMediaSessionMetadata(track);
+      updateMediaSessionMetadata(track);
 
       // Immediately attempt to play if requested to maintain user gesture context
       if (isPlaying) {
@@ -277,80 +283,14 @@ export class AudioService {
   }
 
   private setupActionHandlers = (): void => {
-    if (typeof navigator === "undefined" || !("mediaSession" in navigator))
-      return;
-
-    navigator.mediaSession.setActionHandler("play", () => {
-      this.play();
+    setupMediaSessionHandlers({
+      play: () => this.play(),
+      pause: () => this.pause(),
+      nextTrack: () => trackStore.nextTrack(),
+      previousTrack: () => trackStore.previousTrack(),
+      seekTo: (time) => this.setTime(time),
     });
-
-    navigator.mediaSession.setActionHandler("pause", () => {
-      this.pause();
-    });
-
-    navigator.mediaSession.setActionHandler("nexttrack", () => {
-      trackStore.nextTrack();
-    });
-
-    navigator.mediaSession.setActionHandler("previoustrack", () => {
-      trackStore.previousTrack();
-    });
-
-    navigator.mediaSession.setActionHandler("seekto", (details) => {
-      if (details.seekTime !== undefined) {
-        this.setTime(details.seekTime);
-      }
-    });
-
-    navigator.mediaSession.setActionHandler("seekforward", null);
-    navigator.mediaSession.setActionHandler("seekbackward", null);
   };
-
-  private updateMediaSessionMetadata(track: Track): void {
-    if (typeof navigator === "undefined" || !("mediaSession" in navigator))
-      return;
-
-    const artwork: MediaImage[] = [];
-    if (track.cover_original_url) {
-      artwork.push({
-        src: track.cover_original_url,
-        sizes: "512x512",
-        type: "image/webp",
-      });
-    }
-
-    const metadata: MediaMetadataInit = {
-      title: track.title,
-      artist: formatArtistsForDisplay(track.artist),
-    };
-
-    if (artwork.length > 0) {
-      metadata.artwork = artwork;
-    }
-
-    navigator.mediaSession.metadata = new MediaMetadata(metadata);
-  }
-
-  private updateMediaSessionPlaybackState(): void {
-    if (typeof navigator === "undefined" || !("mediaSession" in navigator))
-      return;
-    navigator.mediaSession.playbackState = this._currentIsPlaying
-      ? "playing"
-      : "paused";
-  }
-
-  private clearMediaSession(): void {
-    if (typeof navigator === "undefined" || !("mediaSession" in navigator))
-      return;
-
-    navigator.mediaSession.setActionHandler("play", null);
-    navigator.mediaSession.setActionHandler("pause", null);
-    navigator.mediaSession.setActionHandler("nexttrack", null);
-    navigator.mediaSession.setActionHandler("previoustrack", null);
-    navigator.mediaSession.setActionHandler("seekto", null);
-    navigator.mediaSession.metadata = null;
-    navigator.mediaSession.playbackState = "none";
-  }
 
   destroy(): void {
     this.pause();
@@ -366,7 +306,7 @@ export class AudioService {
     this.audio.removeEventListener("suspend", this.handleSuspend);
     this.storeUnsubscribers.forEach((unsubscribe) => unsubscribe());
     this.storeUnsubscribers = [];
-    this.clearMediaSession();
+    clearMediaSession();
     if (typeof this.audio.removeAttribute === "function") {
       this.audio.removeAttribute("src");
     } else {

@@ -71,7 +71,7 @@ pub async fn extract_cover(path: &Path, covers_dir: &Path, id: i64) -> Result<bo
         let _ = fs::remove_file(small);
         return Ok(false);
     }
-    let _ = Command::new("ffmpeg")
+    let small_status = Command::new("ffmpeg")
         .args(["-y", "-i"])
         .arg(&original)
         .args([
@@ -87,16 +87,24 @@ pub async fn extract_cover(path: &Path, covers_dir: &Path, id: i64) -> Result<bo
         .stderr(Stdio::null())
         .status()
         .await?;
+    if !small_status.success() || !small.is_file() {
+        let _ = fs::remove_file(original);
+        let _ = fs::remove_file(small);
+        return Ok(false);
+    }
     Ok(true)
 }
 
 pub async fn standardize_audio_tags(path: &Path) -> Result<()> {
     if supports_id3(path) {
         let tag = Tag::read_from_path(path).unwrap_or_else(|_| Tag::new());
+        if tag.version() == Version::Id3v23 {
+            return Ok(());
+        }
         tag.write_to_path(path, Version::Id3v23)?;
         return Ok(());
     }
-    rewrite_audio(path, Vec::new()).await
+    Ok(())
 }
 
 pub async fn write_audio_tags(path: &Path, title: &str, artist: &str) -> Result<()> {

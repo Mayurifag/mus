@@ -3,7 +3,7 @@ export interface Track {
   title: string;
   artist: string;
   duration: number;
-  file_path: string;
+  filename: string;
   updated_at: number;
   has_cover: boolean;
   cover_small_url: string | null;

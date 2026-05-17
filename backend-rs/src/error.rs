@@ -22,6 +22,13 @@ impl AppError {
         }
     }
 
+    pub fn conflict(message: &str) -> Self {
+        Self {
+            status: StatusCode::CONFLICT,
+            message: message.into(),
+        }
+    }
+
     pub fn not_found(message: &str) -> Self {
         Self {
             status: StatusCode::NOT_FOUND,

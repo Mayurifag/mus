@@ -120,11 +120,30 @@ async fn tracks_list_contract() {
     assert_eq!(body.as_array().unwrap().len(), 1);
     assert_eq!(body[0]["title"], "Song");
     assert_eq!(body[0]["artist"], "Artist");
+    assert_eq!(body[0]["filename"], "song.mp3");
     assert_eq!(body[0]["has_cover"], true);
     assert!(body[0].get("added_at").is_none());
+    assert!(body[0].get("file_path").is_none());
     assert_eq!(
         body[0]["cover_small_url"],
         "/api/v1/tracks/1/covers/small.webp?v=2001"
+    );
+}
+
+#[tokio::test]
+async fn system_info_reports_missing_music_directory() {
+    let app = TestApp::new();
+    fs::remove_dir(app.state.music_dir.clone()).unwrap();
+
+    let response = app
+        .request(Method::GET, "/api/v1/system/info", Body::empty())
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = body_json(response).await;
+    assert_eq!(body["music_dir"]["exists"], false);
+    assert_eq!(
+        body["music_dir"]["warning"],
+        "Music directory is missing. Check the /app_data/music mount."
     );
 }
 
@@ -247,6 +266,21 @@ async fn track_update_delete_upload_contract() {
     assert_eq!(unchanged.status(), StatusCode::OK);
     assert_eq!(body_json(unchanged).await, json!({"status": "no_changes"}));
 
+    let duplicate_path = app.state.music_dir.join("Artist - Taken.mp3");
+    fs::write(&duplicate_path, b"taken").unwrap();
+    let duplicate_rename = app
+        .json(
+            Method::PATCH,
+            "/api/v1/tracks/1",
+            json!({"title": "Taken", "artist": "Artist", "rename_file": true}),
+        )
+        .await;
+    assert_eq!(duplicate_rename.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        body_json(duplicate_rename).await,
+        json!({"detail": "A file with this name already exists"})
+    );
+
     let boundary = "mus-boundary";
     let body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nTitle\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"artist\"\r\n\r\nArtist\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"song.txt\"\r\nContent-Type: text/plain\r\n\r\ntext\r\n--{boundary}--\r\n"
@@ -271,6 +305,31 @@ async fn track_update_delete_upload_contract() {
     assert_eq!(
         body_json(upload).await,
         json!({"detail": "Unsupported file format. Only MP3, FLAC, and WAV are supported."})
+    );
+
+    let duplicate_upload_body = format!(
+        "--{boundary}\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nTaken\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"artist\"\r\n\r\nArtist\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"song.mp3\"\r\nContent-Type: audio/mpeg\r\n\r\naudio\r\n--{boundary}--\r\n"
+    );
+    let duplicate_upload = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/v1/tracks/upload")
+                .header(
+                    header::CONTENT_TYPE,
+                    format!("multipart/form-data; boundary={boundary}"),
+                )
+                .body(Body::from(duplicate_upload_body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(duplicate_upload.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        body_json(duplicate_upload).await,
+        json!({"detail": "A file with this name already exists"})
     );
 
     let deleted = app
@@ -366,6 +425,22 @@ async fn downloads_contract() {
         )
         .await;
     assert_eq!(confirm_locked.status(), StatusCode::TOO_MANY_REQUESTS);
+    *app.state.download_lock.lock().unwrap() = false;
+
+    let duplicate_download_path = app.state.music_dir.join("Artist - Existing.mp3");
+    fs::write(&duplicate_download_path, b"existing").unwrap();
+    let duplicate_download = app
+        .json(
+            Method::POST,
+            "/api/v1/downloads/confirm",
+            json!({"url": "https://example.com/video", "title": "Existing", "artist": "Artist"}),
+        )
+        .await;
+    assert_eq!(duplicate_download.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        body_json(duplicate_download).await,
+        json!({"detail": "A file with this name already exists"})
+    );
 
     let invalid_metadata = app
         .json(Method::POST, "/api/v1/downloads/metadata", json!({}))

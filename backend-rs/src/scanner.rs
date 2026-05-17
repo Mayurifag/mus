@@ -1,86 +1,133 @@
 use std::{collections::HashMap, collections::HashSet, fs, path::Path, time::Duration};
 
 use anyhow::Result;
+use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rusqlite::params;
 use serde_json::json;
-use tokio::time;
+use tokio::{sync::mpsc, time};
 
 use crate::{
     db::{self, delete_track_row, set_track_cover_state, track_dto},
     events::broadcast,
     media::{extract_cover, read_metadata, standardize_audio_tags, MediaMetadata},
     state::AppState,
-    util::{audio_paths, inode, now, system_time_secs},
+    util::{inode, is_audio_path, now, system_time_secs},
 };
 
 pub async fn scan_music_dir(state: AppState) -> Result<()> {
-    let paths = audio_paths(&state.music_dir)?;
-    tracing::info!("found {} audio files", paths.len());
-    let mut seen = HashSet::new();
-    for path in paths {
-        seen.insert(path.to_string_lossy().to_string());
-        if let Err(error) = upsert_path(&state, &path, None, None).await {
-            tracing::warn!("failed to scan {}: {error}", path.display());
-        }
-    }
-    let conn = state.db.lock().unwrap();
-    let mut stmt = conn.prepare("SELECT id,file_path FROM track")?;
-    let stale = stmt
-        .query_map([], |row| {
-            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
-        })?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
-    drop(stmt);
-    for (id, path) in stale {
-        if !seen.contains(&path) && !Path::new(&path).exists() {
-            conn.execute("DELETE FROM track WHERE id = ?1", params![id])?;
-        }
-    }
-    Ok(())
+    sync_tracks(state, false).await
 }
 
 pub async fn watch_music_dir(state: AppState) {
-    let mut interval = time::interval(Duration::from_secs(2));
+    let (tx, mut rx) = mpsc::channel(100);
+    let mut watcher = match RecommendedWatcher::new(
+        move |result| {
+            let _ = tx.blocking_send(result);
+        },
+        Config::default(),
+    ) {
+        Ok(watcher) => watcher,
+        Err(error) => {
+            tracing::warn!("failed to start music directory watcher: {error}");
+            return;
+        }
+    };
+    if let Err(error) = watcher.watch(&state.music_dir, RecursiveMode::Recursive) {
+        tracing::warn!("failed to watch music directory: {error}");
+        return;
+    }
+
     loop {
-        interval.tick().await;
-        if let Err(error) = sync_music_dir(state.clone()).await {
+        let Some(event) = rx.recv().await else {
+            break;
+        };
+        if let Err(error) = event {
+            tracing::warn!("failed to receive music directory event: {error}");
+            continue;
+        }
+        time::sleep(Duration::from_millis(500)).await;
+        while rx.try_recv().is_ok() {}
+        if let Err(error) = sync_tracks(state.clone(), true).await {
             tracing::warn!("failed to sync music directory: {error}");
         }
     }
 }
 
-async fn sync_music_dir(state: AppState) -> Result<()> {
-    let paths = audio_paths(&state.music_dir)?;
+async fn sync_tracks(state: AppState, broadcast_changes: bool) -> Result<()> {
     let mut current = HashSet::new();
     let mut existing = HashMap::new();
     for track in db::list_tracks(&state)? {
         existing.insert(track.file_path.clone(), track);
     }
 
-    for path in paths {
-        let path_string = path.to_string_lossy().to_string();
-        current.insert(path_string.clone());
-        let file_mtime = fs::metadata(&path)
-            .ok()
-            .and_then(|v| v.modified().ok())
-            .and_then(system_time_secs)
-            .unwrap_or_else(now);
-        match existing.get(&path_string) {
-            Some(track) if track.updated_at >= file_mtime => {}
-            Some(_) => {
-                let track = upsert_path(&state, &path, None, None).await?;
+    let mut dirs = vec![state.music_dir.clone()];
+    let mut found = 0usize;
+    while let Some(dir) = dirs.pop() {
+        if !dir.is_dir() {
+            continue;
+        }
+        for entry in fs::read_dir(&dir)? {
+            let path = entry?.path();
+            if path.is_dir() {
+                dirs.push(path);
+                continue;
+            }
+            if !is_audio_path(&path) {
+                continue;
+            }
+
+            found += 1;
+            sync_path(&state, &existing, &mut current, &path, broadcast_changes).await?;
+        }
+    }
+    tracing::info!("found {found} audio files");
+
+    for track in existing.values() {
+        if !current.contains(&track.file_path) && !Path::new(&track.file_path).exists() {
+            delete_track_row(&state, track.id)?;
+            if broadcast_changes {
                 broadcast(
                     &state,
+                    "track_deleted",
+                    Some(&format!("Deleted track '{}'", track.title)),
+                    Some("info"),
+                    Some(json!({"id": track.id})),
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn sync_path(
+    state: &AppState,
+    existing: &HashMap<String, crate::models::Track>,
+    current: &mut HashSet<String>,
+    path: &Path,
+    broadcast_changes: bool,
+) -> Result<()> {
+    let path_string = path.to_string_lossy().to_string();
+    current.insert(path_string.clone());
+    let file_mtime = file_mtime(path);
+    match existing.get(&path_string) {
+        Some(track) if track.updated_at >= file_mtime => {}
+        Some(_) => {
+            let track = upsert_path(state, path, None, None).await?;
+            if broadcast_changes {
+                broadcast(
+                    state,
                     "track_updated",
                     None,
                     Some("info"),
                     Some(json!(track)),
                 );
             }
-            None => {
-                let track = upsert_path(&state, &path, None, None).await?;
+        }
+        None => {
+            let track = upsert_path(state, path, None, None).await?;
+            if broadcast_changes {
                 broadcast(
-                    &state,
+                    state,
                     "track_added",
                     Some(&format!("Added track '{}'", track.title)),
                     Some("success"),
@@ -89,20 +136,15 @@ async fn sync_music_dir(state: AppState) -> Result<()> {
             }
         }
     }
-
-    for track in existing.values() {
-        if !current.contains(&track.file_path) && !Path::new(&track.file_path).exists() {
-            delete_track_row(&state, track.id)?;
-            broadcast(
-                &state,
-                "track_deleted",
-                Some(&format!("Deleted track '{}'", track.title)),
-                Some("info"),
-                Some(json!({"id": track.id})),
-            );
-        }
-    }
     Ok(())
+}
+
+fn file_mtime(path: &Path) -> i64 {
+    fs::metadata(path)
+        .ok()
+        .and_then(|v| v.modified().ok())
+        .and_then(system_time_secs)
+        .unwrap_or_else(now)
 }
 
 pub async fn upsert_path(

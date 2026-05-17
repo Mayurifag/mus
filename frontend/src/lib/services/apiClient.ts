@@ -315,6 +315,14 @@ export async function confirmDownload(
 export interface SystemInfo {
   app_date: string;
   commit_sha: string | null;
+  music_dir: {
+    path: string;
+    exists: boolean;
+    is_directory: boolean;
+    is_empty: boolean | null;
+    can_write: boolean;
+    warning: string | null;
+  };
   yt_dlp_version: string | null;
 }
 
@@ -331,7 +339,19 @@ export async function fetchSystemInfo(
     return await response.json();
   } catch (error) {
     console.error("Error fetching system info:", error);
-    return { app_date: "unknown", commit_sha: null, yt_dlp_version: null };
+    return {
+      app_date: "unknown",
+      commit_sha: null,
+      music_dir: {
+        path: "",
+        exists: false,
+        is_directory: false,
+        is_empty: null,
+        can_write: false,
+        warning: "System info unavailable",
+      },
+      yt_dlp_version: null,
+    };
   }
 }
 

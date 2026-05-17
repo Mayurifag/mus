@@ -1,6 +1,7 @@
 use anyhow::Result;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
+use std::path::Path;
 
 use crate::{
     models::{PlayerState, Track, TrackDto},
@@ -10,6 +11,10 @@ use crate::{
 pub fn init_db(conn: &Connection) -> Result<()> {
     conn.execute_batch(
         r#"
+        PRAGMA journal_mode = WAL;
+        PRAGMA synchronous = NORMAL;
+        PRAGMA busy_timeout = 5000;
+
         CREATE TABLE IF NOT EXISTS track (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
@@ -159,7 +164,11 @@ pub fn track_dto(track: Track) -> TrackDto {
         title: track.title,
         artist: track.artist,
         duration: track.duration,
-        file_path: track.file_path,
+        filename: Path::new(&track.file_path)
+            .file_name()
+            .and_then(|v| v.to_str())
+            .unwrap_or_default()
+            .to_string(),
         updated_at: track.updated_at,
         has_cover: track.has_cover,
         cover_small_url,

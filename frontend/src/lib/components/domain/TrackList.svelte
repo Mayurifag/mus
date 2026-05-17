@@ -13,21 +13,21 @@
   let { audioService }: { audioService?: AudioService } = $props();
 
   const selectedArtist = $derived($trackStore.selectedArtist);
-  const visibleTracks = $derived.by(() =>
-    selectedArtist
-      ? $trackStore.tracks.filter((track) =>
-          parseArtists(track.artist).includes(selectedArtist),
-        )
-      : $trackStore.tracks,
-  );
   const trackRows = $derived.by(() =>
-    visibleTracks
-      .map((track) => ({
-        track,
-        index: $trackStore.tracks.findIndex((item) => item.id === track.id),
-      }))
-      .filter((row) => row.index !== -1),
+    $trackStore.tracks.reduce<{ track: Track; index: number }[]>(
+      (rows, track, index) => {
+        if (
+          !selectedArtist ||
+          parseArtists(track.artist).includes(selectedArtist)
+        ) {
+          rows.push({ track, index });
+        }
+        return rows;
+      },
+      [],
+    ),
   );
+  const visibleTrackCount = $derived(trackRows.length);
   const currentVisibleIndex = $derived(
     trackRows.findIndex((row) => row.track.id === $trackStore.currentTrack?.id),
   );
@@ -44,6 +44,15 @@
   let editModalOpen = $state(false);
   let editingTrack = $state<Track | null>(null);
   let initialScrollDone = false;
+
+  function virtualizerOptions(count: number) {
+    return {
+      count,
+      estimateSize: () => 72,
+      overscan: 12,
+      getScrollElement: () => window,
+    };
+  }
 
   // Subscribe to audio service stores
   $effect(() => {
@@ -83,14 +92,18 @@
   $effect(() => {
     updateEffectStats("TrackList_VirtualizerSetup");
 
-    // TODO: we probably can use array length or size from backend
-    if (browser) {
-      virtualizer = createWindowVirtualizer({
-        count: trackRows.length,
-        estimateSize: () => 72,
-        overscan: 12,
-        getScrollElement: () => window,
-      });
+    if (browser && !virtualizer) {
+      virtualizer = createWindowVirtualizer(
+        virtualizerOptions(visibleTrackCount),
+      );
+    }
+  });
+
+  $effect(() => {
+    updateEffectStats("TrackList_VirtualizerCountUpdate");
+
+    if (virtualizer) {
+      $virtualizer!.setOptions(virtualizerOptions(visibleTrackCount));
     }
   });
 
@@ -138,8 +151,8 @@
       class="border-border/40 bg-muted/20 mx-2 mb-3 flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm"
     >
       <span class="text-muted-foreground min-w-0 truncate">
-        Showing {visibleTracks.length}
-        {visibleTracks.length === 1 ? "song" : "songs"} by {selectedArtist}
+        Showing {visibleTrackCount}
+        {visibleTrackCount === 1 ? "song" : "songs"} by {selectedArtist}
       </span>
       <button
         type="button"
@@ -157,7 +170,7 @@
         No tracks available. Wait a second, we are scanning your music library.
       </p>
     </div>
-  {:else if visibleTracks.length === 0}
+  {:else if visibleTrackCount === 0}
     <div class="flex h-32 w-full flex-col items-center justify-center">
       <p class="text-muted-foreground mb-2 text-center">
         No songs found for this artist.

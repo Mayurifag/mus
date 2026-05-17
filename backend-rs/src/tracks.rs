@@ -11,6 +11,7 @@ use axum::{
     Json,
 };
 use serde_json::{json, Value};
+use tokio::{fs as async_fs, io::AsyncWriteExt};
 use tower_http::services::ServeFile;
 
 use crate::{
@@ -108,10 +109,6 @@ pub async fn update_track(
         return Ok(Json(json!({"status": "no_changes"})));
     }
 
-    if new_title != track.title || new_artist != track.artist {
-        write_audio_tags(Path::new(&track.file_path), &new_title, &new_artist).await?;
-    }
-
     let mut new_path = PathBuf::from(&track.file_path);
     if rename_file {
         let ext = new_path
@@ -120,6 +117,16 @@ pub async fn update_track(
             .unwrap_or("mp3");
         let filename = generate_filename(&new_artist, &new_title, ext)?;
         new_path = new_path.parent().unwrap_or(&state.music_dir).join(filename);
+        if new_path != Path::new(&track.file_path) && new_path.exists() {
+            return Err(AppError::conflict("A file with this name already exists"));
+        }
+    }
+
+    if new_title != track.title || new_artist != track.artist {
+        write_audio_tags(Path::new(&track.file_path), &new_title, &new_artist).await?;
+    }
+
+    if rename_file {
         fs::rename(&track.file_path, &new_path)?;
     }
 
@@ -129,6 +136,7 @@ pub async fn update_track(
     track.updated_at = now();
     save_track(&state, &track)?;
     let dto = track_dto(track);
+    tracing::info!(track_id = dto.id, rename_file, "track updated");
     broadcast(
         &state,
         "track_updated",
@@ -149,6 +157,7 @@ pub async fn delete_track(
     if let Some(track) = get_track(&state, id)? {
         let _ = fs::remove_file(&track.file_path);
         delete_track_row(&state, id)?;
+        tracing::info!(track_id = id, "track deleted");
         broadcast(
             &state,
             "track_deleted",
@@ -170,46 +179,100 @@ pub async fn upload_track(
     let mut title = None;
     let mut artist = None;
     let mut file_name = None;
-    let mut file_bytes = None;
+    let mut temp_path = None;
     while let Some(field) = multipart.next_field().await? {
         match field.name().unwrap_or_default() {
             "title" => title = Some(field.text().await?),
             "artist" => artist = Some(field.text().await?),
             "file" => {
                 file_name = field.file_name().map(str::to_string);
-                file_bytes = Some(field.bytes().await?);
+                let source_name = file_name.as_deref().unwrap_or_default();
+                let ext = Path::new(source_name)
+                    .extension()
+                    .and_then(|v| v.to_str())
+                    .unwrap_or("")
+                    .to_ascii_lowercase();
+                if !matches!(ext.as_str(), "mp3" | "flac" | "wav") {
+                    return Err(AppError::bad_request(
+                        "Unsupported file format. Only MP3, FLAC, and WAV are supported.",
+                    ));
+                }
+
+                let max_size_mb = env::var("MAX_UPLOAD_SIZE_MB")
+                    .ok()
+                    .and_then(|v| v.parse::<usize>().ok())
+                    .unwrap_or(30);
+                let max_bytes = max_size_mb * 1024 * 1024;
+                let upload_dir = state.data_dir.join(".cache");
+                async_fs::create_dir_all(&upload_dir).await?;
+                let path = upload_dir.join(format!("upload-{}.{ext}", now()));
+                let mut file = async_fs::File::create(&path).await?;
+                let mut written = 0usize;
+                let mut field = field;
+                while let Some(chunk) = field.chunk().await? {
+                    written += chunk.len();
+                    if written > max_bytes {
+                        let _ = async_fs::remove_file(&path).await;
+                        return Err(AppError {
+                            status: StatusCode::PAYLOAD_TOO_LARGE,
+                            message: format!(
+                                "File size exceeds maximum allowed size ({max_size_mb}MB)"
+                            ),
+                        });
+                    }
+                    file.write_all(&chunk).await?;
+                }
+                file.flush().await?;
+                temp_path = Some(path);
             }
             _ => {}
         }
     }
-    let title = title.ok_or_else(|| AppError::bad_request("Missing title"))?;
-    let artist = artist.ok_or_else(|| AppError::bad_request("Missing artist"))?;
-    let source_name = file_name.ok_or_else(|| AppError::bad_request("Missing file"))?;
+    let title = match title {
+        Some(title) => title,
+        None => {
+            if let Some(temp_path) = temp_path {
+                let _ = async_fs::remove_file(temp_path).await;
+            }
+            return Err(AppError::bad_request("Missing title"));
+        }
+    };
+    let artist = match artist {
+        Some(artist) => artist,
+        None => {
+            if let Some(temp_path) = temp_path {
+                let _ = async_fs::remove_file(temp_path).await;
+            }
+            return Err(AppError::bad_request("Missing artist"));
+        }
+    };
+    let source_name = match file_name {
+        Some(file_name) => file_name,
+        None => {
+            if let Some(temp_path) = temp_path {
+                let _ = async_fs::remove_file(temp_path).await;
+            }
+            return Err(AppError::bad_request("Missing file"));
+        }
+    };
     let ext = Path::new(&source_name)
         .extension()
         .and_then(|v| v.to_str())
-        .unwrap_or("");
-    if !matches!(ext, "mp3" | "flac" | "wav") {
-        return Err(AppError::bad_request(
-            "Unsupported file format. Only MP3, FLAC, and WAV are supported.",
-        ));
-    }
-    let filename = generate_filename(&artist, &title, ext)?;
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let filename = generate_filename(&artist, &title, &ext)?;
     let path = state.music_dir.join(filename);
-    let file_bytes = file_bytes.ok_or_else(|| AppError::bad_request("Missing file"))?;
-    let max_size_mb = env::var("MAX_UPLOAD_SIZE_MB")
-        .ok()
-        .and_then(|v| v.parse::<usize>().ok())
-        .unwrap_or(30);
-    if file_bytes.len() > max_size_mb * 1024 * 1024 {
-        return Err(AppError {
-            status: StatusCode::PAYLOAD_TOO_LARGE,
-            message: format!("File size exceeds maximum allowed size ({max_size_mb}MB)"),
-        });
+    if path.exists() {
+        if let Some(temp_path) = temp_path {
+            let _ = async_fs::remove_file(temp_path).await;
+        }
+        return Err(AppError::conflict("A file with this name already exists"));
     }
-    fs::write(&path, file_bytes)?;
+    let temp_path = temp_path.ok_or_else(|| AppError::bad_request("Missing file"))?;
+    async_fs::rename(&temp_path, &path).await?;
     write_audio_tags(&path, &title, &artist).await?;
-    upsert_path(&state, &path, Some(title), Some(artist)).await?;
+    let track = upsert_path(&state, &path, Some(title), Some(artist)).await?;
+    tracing::info!(track_id = track.id, "track uploaded");
     Ok(Json(
         json!({"success": true, "message": "File uploaded and queued for processing."}),
     ))

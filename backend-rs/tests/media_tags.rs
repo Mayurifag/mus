@@ -1,7 +1,11 @@
+use std::time::SystemTime;
 use std::{fs, path::Path, process::Command};
 
-use id3::{Tag, TagLike, Version};
-use mus_backend::media::{standardize_audio_tags, write_audio_tags};
+use id3::{
+    frame::{Picture, PictureType},
+    Tag, TagLike, Version,
+};
+use mus_backend::media::{extract_cover, standardize_audio_tags, write_audio_tags};
 use serde_json::Value;
 use tempfile::TempDir;
 
@@ -38,11 +42,11 @@ fn create_mp3_with_cover(path: &Path) {
             "-f",
             "lavfi",
             "-i",
-            "sine=frequency=1000:duration=1",
+            "sine=frequency=1000:duration=0.1",
             "-f",
             "lavfi",
             "-i",
-            "color=c=red:s=32x32:d=1",
+            "color=c=red:s=32x32:d=0.1",
             "-map",
             "0:a",
             "-map",
@@ -72,7 +76,7 @@ fn create_wav_with_id3v24(path: &Path) {
             "-f",
             "lavfi",
             "-i",
-            "sine=frequency=1000:duration=1",
+            "sine=frequency=1000:duration=0.1",
             "-c:a",
             "pcm_s16le",
         ])
@@ -81,6 +85,63 @@ fn create_wav_with_id3v24(path: &Path) {
     tag.set_title("Old title");
     tag.set_artist("Old artist");
     tag.write_to_path(path, Version::Id3v24).unwrap();
+}
+
+fn create_flac_with_cover(path: &Path) {
+    run(Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=1000:duration=0.1",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=blue:s=32x32:d=0.1",
+            "-map",
+            "0:a",
+            "-map",
+            "1:v",
+            "-c:a",
+            "flac",
+            "-c:v",
+            "mjpeg",
+            "-disposition:v",
+            "attached_pic",
+            "-metadata",
+            "title=FLAC title",
+            "-metadata",
+            "artist=FLAC artist",
+        ])
+        .arg(path));
+}
+
+fn create_jpeg(path: &Path) {
+    run(Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=green:s=32x32:d=0.1",
+            "-frames:v",
+            "1",
+            "-c:v",
+            "mjpeg",
+        ])
+        .arg(path));
+}
+
+fn add_id3_cover(path: &Path, cover_path: &Path) {
+    let mut tag = Tag::read_from_path(path).unwrap_or_else(|_| Tag::new());
+    tag.add_frame(Picture {
+        mime_type: "image/jpeg".to_string(),
+        picture_type: PictureType::CoverFront,
+        description: String::new(),
+        data: fs::read(cover_path).unwrap(),
+    });
+    tag.write_to_path(path, Version::Id3v23).unwrap();
 }
 
 fn assert_id3v23(path: &Path) {
@@ -134,4 +195,70 @@ async fn id3_tag_rewrite_standardizes_wav_to_id3v23() {
     assert_eq!(tag.title(), Some("Тестовый трек"));
     assert_eq!(tag.artist(), Some("アーティスト"));
     assert!(probe(&path)["format"]["duration"].as_str().is_some());
+}
+
+#[tokio::test]
+async fn standardize_audio_tags_skips_already_standard_id3_files() {
+    let tmp = TempDir::new().unwrap();
+    let path = tmp.path().join("song.wav");
+    create_wav_with_id3v24(&path);
+    standardize_audio_tags(&path).await.unwrap();
+    let before = fs::metadata(&path).unwrap().modified().unwrap();
+
+    standardize_audio_tags(&path).await.unwrap();
+    let after = fs::metadata(&path).unwrap().modified().unwrap();
+
+    assert_eq!(before, after);
+}
+
+#[tokio::test]
+async fn standardize_audio_tags_skips_non_id3_formats() {
+    let tmp = TempDir::new().unwrap();
+    let path = tmp.path().join("song.flac");
+    run(Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=1000:duration=0.1",
+            "-c:a",
+            "flac",
+        ])
+        .arg(&path));
+    let original = SystemTime::UNIX_EPOCH;
+    filetime::set_file_mtime(&path, filetime::FileTime::from_system_time(original)).unwrap();
+
+    standardize_audio_tags(&path).await.unwrap();
+
+    assert_eq!(fs::metadata(&path).unwrap().modified().unwrap(), original);
+}
+
+#[tokio::test]
+async fn extract_cover_supports_flac_embedded_cover() {
+    let tmp = TempDir::new().unwrap();
+    let path = tmp.path().join("song.flac");
+    let covers_dir = tmp.path().join("covers");
+    fs::create_dir(&covers_dir).unwrap();
+    create_flac_with_cover(&path);
+
+    assert!(extract_cover(&path, &covers_dir, 1).await.unwrap());
+    assert!(covers_dir.join("1_original.webp").is_file());
+    assert!(covers_dir.join("1_small.webp").is_file());
+}
+
+#[tokio::test]
+async fn extract_cover_supports_wav_id3_cover() {
+    let tmp = TempDir::new().unwrap();
+    let path = tmp.path().join("song.wav");
+    let covers_dir = tmp.path().join("covers");
+    let cover_path = tmp.path().join("cover.jpg");
+    fs::create_dir(&covers_dir).unwrap();
+    create_wav_with_id3v24(&path);
+    create_jpeg(&cover_path);
+    add_id3_cover(&path, &cover_path);
+
+    assert!(extract_cover(&path, &covers_dir, 1).await.unwrap());
+    assert!(covers_dir.join("1_original.webp").is_file());
+    assert!(covers_dir.join("1_small.webp").is_file());
 }
