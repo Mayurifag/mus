@@ -1,0 +1,216 @@
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
+
+use axum::{
+    body::Body,
+    extract::{Multipart, Path as AxumPath, State},
+    http::{header, HeaderMap, HeaderValue, Request, StatusCode},
+    response::{IntoResponse, Response},
+    Json,
+};
+use serde_json::{json, Value};
+use tower_http::services::ServeFile;
+
+use crate::{
+    db::{self, delete_track_row, get_track, save_track, track_dto},
+    error::AppError,
+    events::broadcast,
+    media::write_audio_tags,
+    models::{TrackDto, TrackUpdate},
+    scanner::upsert_path,
+    state::AppState,
+    util::{can_write, generate_filename, now},
+};
+
+pub async fn get_tracks(State(state): State<AppState>) -> Result<Json<Vec<TrackDto>>, AppError> {
+    let tracks = db::list_tracks(&state)?;
+    Ok(Json(tracks.into_iter().map(track_dto).collect()))
+}
+
+pub async fn stream_track(
+    request_headers: HeaderMap,
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<i64>,
+) -> Result<Response, AppError> {
+    let track = get_track(&state, id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
+    if !Path::new(&track.file_path).is_file() {
+        return Err(AppError::not_found("Audio file not found"));
+    }
+    let content_type = mime_guess::from_path(&track.file_path).first_or_octet_stream();
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("public, max-age=86400"),
+    );
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_str(content_type.as_ref()).unwrap(),
+    );
+    let mut request = Request::new(Body::empty());
+    *request.headers_mut() = request_headers;
+    Ok((
+        headers,
+        ServeFile::new(track.file_path).try_call(request).await?,
+    )
+        .into_response())
+}
+
+pub async fn get_cover_small(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<i64>,
+) -> Result<Response, AppError> {
+    cover_response(state, id, "small").await
+}
+
+pub async fn get_cover_original(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<i64>,
+) -> Result<Response, AppError> {
+    cover_response(state, id, "original").await
+}
+
+async fn cover_response(state: AppState, id: i64, size: &str) -> Result<Response, AppError> {
+    let cover_path = state.covers_dir.join(format!("{id}_{size}.webp"));
+    if !cover_path.is_file() {
+        return Err(AppError::not_found("Cover not found"));
+    }
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("public, max-age=31536000, immutable"),
+    );
+    headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("image/webp"));
+    Ok((
+        headers,
+        ServeFile::new(cover_path)
+            .try_call(Request::new(Body::empty()))
+            .await?,
+    )
+        .into_response())
+}
+
+pub async fn update_track(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<i64>,
+    Json(update): Json<TrackUpdate>,
+) -> Result<Json<Value>, AppError> {
+    if !can_write(&state.music_dir) {
+        return Err(AppError::forbidden("Music directory is read-only"));
+    }
+    let mut track = get_track(&state, id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
+    let new_title = update.title.unwrap_or_else(|| track.title.clone());
+    let new_artist = update.artist.unwrap_or_else(|| track.artist.clone());
+    let rename_file = update.rename_file.unwrap_or(false);
+
+    if new_title == track.title && new_artist == track.artist && !rename_file {
+        return Ok(Json(json!({"status": "no_changes"})));
+    }
+
+    if new_title != track.title || new_artist != track.artist {
+        write_audio_tags(Path::new(&track.file_path), &new_title, &new_artist).await?;
+    }
+
+    let mut new_path = PathBuf::from(&track.file_path);
+    if rename_file {
+        let ext = new_path
+            .extension()
+            .and_then(|v| v.to_str())
+            .unwrap_or("mp3");
+        let filename = generate_filename(&new_artist, &new_title, ext)?;
+        new_path = new_path.parent().unwrap_or(&state.music_dir).join(filename);
+        fs::rename(&track.file_path, &new_path)?;
+    }
+
+    track.title = new_title;
+    track.artist = new_artist;
+    track.file_path = new_path.to_string_lossy().to_string();
+    track.updated_at = now();
+    save_track(&state, &track)?;
+    let dto = track_dto(track);
+    broadcast(
+        &state,
+        "track_updated",
+        Some("Updated track"),
+        Some("info"),
+        Some(json!(dto.clone())),
+    );
+    Ok(Json(json!({"status": "success", "track": dto})))
+}
+
+pub async fn delete_track(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<i64>,
+) -> Result<StatusCode, AppError> {
+    if !can_write(&state.music_dir) {
+        return Err(AppError::forbidden("Music directory is read-only"));
+    }
+    if let Some(track) = get_track(&state, id)? {
+        let _ = fs::remove_file(&track.file_path);
+        delete_track_row(&state, id)?;
+        broadcast(
+            &state,
+            "track_deleted",
+            Some("Deleted track"),
+            Some("info"),
+            Some(json!({"id": id})),
+        );
+    }
+    Ok(StatusCode::ACCEPTED)
+}
+
+pub async fn upload_track(
+    State(state): State<AppState>,
+    mut multipart: Multipart,
+) -> Result<Json<Value>, AppError> {
+    if !can_write(&state.music_dir) {
+        return Err(AppError::forbidden("Music directory is read-only"));
+    }
+    let mut title = None;
+    let mut artist = None;
+    let mut file_name = None;
+    let mut file_bytes = None;
+    while let Some(field) = multipart.next_field().await? {
+        match field.name().unwrap_or_default() {
+            "title" => title = Some(field.text().await?),
+            "artist" => artist = Some(field.text().await?),
+            "file" => {
+                file_name = field.file_name().map(str::to_string);
+                file_bytes = Some(field.bytes().await?);
+            }
+            _ => {}
+        }
+    }
+    let title = title.ok_or_else(|| AppError::bad_request("Missing title"))?;
+    let artist = artist.ok_or_else(|| AppError::bad_request("Missing artist"))?;
+    let source_name = file_name.ok_or_else(|| AppError::bad_request("Missing file"))?;
+    let ext = Path::new(&source_name)
+        .extension()
+        .and_then(|v| v.to_str())
+        .unwrap_or("");
+    if !matches!(ext, "mp3" | "flac" | "wav") {
+        return Err(AppError::bad_request(
+            "Unsupported file format. Only MP3, FLAC, and WAV are supported.",
+        ));
+    }
+    let filename = generate_filename(&artist, &title, ext)?;
+    let path = state.music_dir.join(filename);
+    let file_bytes = file_bytes.ok_or_else(|| AppError::bad_request("Missing file"))?;
+    let max_size_mb = env::var("MAX_UPLOAD_SIZE_MB")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(30);
+    if file_bytes.len() > max_size_mb * 1024 * 1024 {
+        return Err(AppError {
+            status: StatusCode::PAYLOAD_TOO_LARGE,
+            message: format!("File size exceeds maximum allowed size ({max_size_mb}MB)"),
+        });
+    }
+    fs::write(&path, file_bytes)?;
+    write_audio_tags(&path, &title, &artist).await?;
+    upsert_path(&state, &path, Some(title), Some(artist)).await?;
+    Ok(Json(
+        json!({"success": true, "message": "File uploaded and queued for processing."}),
+    ))
+}

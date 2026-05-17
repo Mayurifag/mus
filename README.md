@@ -7,8 +7,8 @@ simple yet very powerful selfhosted solution to listen, manage and download
 music.
 
 For now I do not want to show it to the public yet because there are tons of
-things I'd like to finish (see ROADMAP.md), for example better UI and vk.ru
-integration to search/download from.
+things I'd like to finish, for example better UI and vk.ru integration to
+search/download from.
 
 Yet I already use it daily from my PC and phone (as PWA app). There will be no
 instructions and demonstrations here yet, until I will be sure it is ready to be
@@ -24,11 +24,10 @@ in alpha stage.
 - Easy new music upload flow
 - Auto-rename files to have single format
 - Every file gets ID3v2.3 tags with UTF-8 encoding enforced
-- Useful editor of artists/title with AI cleaning via Google Gemini (optional, requires GEMINI_API_KEY)
+- Useful editor of artists/title metadata
 - Download new files using yt-dlp **respecting SponsorBlock Youtube segments**.
   Custom vk.ru support incoming
-- Mobile support via PWA app and fast QR code setup. No plans for natives yet
-- Simple secure authentication via token supported
+- Mobile support via PWA app. No plans for natives yet
 - No dumb features like "Repeat all playlist" (repeat only current track)
 - Intelligently disable features requiring write support if mounted folder is
   read-only
@@ -37,8 +36,8 @@ in alpha stage.
 
 ## Technical details
 
-This is dockerized single container (yes!) which contains Svelte frontend,
-FastAPI backend, worker, sqlite, redis, nginx, cron updater and supervisor.
+This is dockerized single container (yes!) which contains a static Svelte
+frontend served by the Rust backend, sqlite, yt-dlp and ffmpeg.
 
 In e2e folder I made setup to run playwright tests against production docker
-image, so its not bounded to python/js src files.
+image, so it is not bound to Rust/Svelte source files.

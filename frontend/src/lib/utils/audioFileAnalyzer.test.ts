@@ -22,10 +22,17 @@ Object.defineProperty(global, "URL", {
 });
 
 // Mock Blob
-global.Blob = vi.fn().mockImplementation((data, options) => ({
-  data,
-  type: options?.type || "application/octet-stream",
-})) as unknown as typeof Blob;
+class MockBlob {
+  data: BlobPart[];
+  type: string;
+
+  constructor(data: BlobPart[], options?: BlobPropertyBag) {
+    this.data = data;
+    this.type = options?.type || "application/octet-stream";
+  }
+}
+
+global.Blob = MockBlob as unknown as typeof Blob;
 
 describe("audioFileAnalyzer", () => {
   const mockFile = new File(["test content"], "test.mp3", {
