@@ -16,6 +16,7 @@
 
   import FilenameDisplay from "./FilenameDisplay.svelte";
   import ArtworkSearchModal from "./ArtworkSearchModal.svelte";
+  import ArtworkPickerButton from "./ArtworkPickerButton.svelte";
 
   import type { AudioMetadata } from "$lib/utils/audioFileAnalyzer";
 
@@ -96,6 +97,26 @@
     })),
   );
 
+  const fallbackArtworkUrl = $derived.by(() => {
+    if (mode === "edit" && track?.has_cover) {
+      return track.cover_original_url;
+    }
+    if (mode === "create") {
+      return coverDataUrl ?? null;
+    }
+    return null;
+  });
+
+  const fallbackArtworkAlt = $derived.by(() => {
+    if (mode === "edit") {
+      return track?.has_cover ? "Track cover" : "No cover";
+    }
+    if (coverDataUrl) {
+      return isDownload ? "Track thumbnail" : "Extracted cover art";
+    }
+    return "No cover";
+  });
+
   function resetState() {
     if (mode === "edit" && track) {
       formState.title = track.title;
@@ -153,6 +174,13 @@
       if (onClose) {
         onClose();
       }
+    }
+  }
+
+  function closeModal() {
+    open = false;
+    if (onClose) {
+      onClose();
     }
   }
 
@@ -314,106 +342,14 @@
     <div class="grid gap-6 py-6">
       <!-- 2-column layout: Cover image + Edit fields -->
       <div class="grid grid-cols-1 gap-6 md:grid-cols-[200px_1fr]">
-        <!-- Left column: Cover image or file info -->
         <div class="space-y-3">
-          {#if mode === "edit" && track}
-            <button
-              type="button"
-              class="bg-muted group relative aspect-square w-full overflow-hidden rounded-lg text-left"
-              onclick={() => (artworkSearchOpen = true)}
-              title="Find artwork"
-            >
-              {#if selectedArtwork}
-                <img
-                  src={selectedArtwork.thumbnail_url}
-                  alt="Selected artwork"
-                  class="h-full w-full object-cover"
-                />
-              {:else if track.has_cover && track.cover_original_url}
-                <img
-                  src={track.cover_original_url}
-                  alt="Track cover"
-                  class="h-full w-full object-cover"
-                />
-              {:else}
-                <img
-                  src="/images/no-cover.svg"
-                  alt="No cover"
-                  class="h-full w-full object-cover"
-                />
-              {/if}
-              <div
-                class="absolute inset-x-0 bottom-0 bg-black/60 px-3 py-2 text-center text-xs text-white opacity-0 transition group-hover:opacity-100"
-              >
-                Find artwork
-              </div>
-            </button>
-          {:else if mode === "create" && isDownload}
-            <!-- Thumbnail from fetched metadata -->
-            <button
-              type="button"
-              class="bg-muted group relative aspect-square w-full overflow-hidden rounded-lg text-left"
-              onclick={() => (artworkSearchOpen = true)}
-              title="Find artwork"
-            >
-              {#if selectedArtwork}
-                <img
-                  src={selectedArtwork.thumbnail_url}
-                  alt="Selected artwork"
-                  class="h-full w-full object-cover"
-                />
-              {:else if coverDataUrl}
-                <img
-                  src={coverDataUrl}
-                  alt="Track thumbnail"
-                  class="h-full w-full object-cover"
-                />
-              {:else}
-                <img
-                  src="/images/no-cover.svg"
-                  alt="No cover"
-                  class="h-full w-full object-cover"
-                />
-              {/if}
-              <div
-                class="absolute inset-x-0 bottom-0 bg-black/60 px-3 py-2 text-center text-xs text-white opacity-0 transition group-hover:opacity-100"
-              >
-                Find artwork
-              </div>
-            </button>
-          {:else if mode === "create" && file}
-            <!-- Cover image if available -->
-            <button
-              type="button"
-              class="bg-muted group relative aspect-square w-full overflow-hidden rounded-lg text-left"
-              onclick={() => (artworkSearchOpen = true)}
-              title="Find artwork"
-            >
-              {#if selectedArtwork}
-                <img
-                  src={selectedArtwork.thumbnail_url}
-                  alt="Selected artwork"
-                  class="h-full w-full object-cover"
-                />
-              {:else if coverDataUrl}
-                <img
-                  src={coverDataUrl}
-                  alt="Extracted cover art"
-                  class="h-full w-full object-cover"
-                />
-              {:else}
-                <img
-                  src="/images/no-cover.svg"
-                  alt="No cover"
-                  class="h-full w-full object-cover"
-                />
-              {/if}
-              <div
-                class="absolute inset-x-0 bottom-0 bg-black/60 px-3 py-2 text-center text-xs text-white opacity-0 transition group-hover:opacity-100"
-              >
-                Find artwork
-              </div>
-            </button>
+          {#if mode === "edit" || mode === "create"}
+            <ArtworkPickerButton
+              {selectedArtwork}
+              fallbackUrl={fallbackArtworkUrl}
+              fallbackAlt={fallbackArtworkAlt}
+              onOpen={() => (artworkSearchOpen = true)}
+            />
           {/if}
         </div>
 
@@ -567,7 +503,7 @@
       <div class="flex gap-2">
         <Button
           variant="outline"
-          onclick={() => (open = false)}
+          onclick={closeModal}
           class="cursor-pointer"
           disabled={isUploading}
         >

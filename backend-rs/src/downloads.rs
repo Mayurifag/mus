@@ -1,4 +1,4 @@
-use std::{fs, process::Stdio};
+use std::{fs, io, path::Path, path::PathBuf, process::Stdio, time::Duration};
 
 use anyhow::{anyhow, Result};
 use axum::{extract::State, http::StatusCode, Json};
@@ -9,13 +9,14 @@ use crate::{
     artwork::download_artwork_as_jpeg,
     error::AppError,
     events::broadcast,
+    gemini::parse_track_metadata,
     media::{write_audio_cover, write_audio_tags},
     models::{ConfirmDownloadRequest, MetadataResponse, UrlRequest},
     scanner::upsert_path,
     state::AppState,
     util::{
         audio_paths, can_write, clean_title, command_output, extract_artist_title,
-        generate_filename, now,
+        generate_filename, now_nanos, run_command_output,
     },
 };
 
@@ -40,9 +41,12 @@ pub async fn fetch_metadata(
         .or_else(|| data.get("uploader"))
         .and_then(Value::as_str)
         .unwrap_or("");
-    let (artist, title) = raw_artist
-        .map(|artist| (artist.to_string(), clean_title(raw_title)))
-        .unwrap_or_else(|| extract_artist_title(raw_title, channel));
+    let (artist, title) = match parse_track_metadata(raw_title, channel).await {
+        Some(metadata) => (metadata.artist, metadata.title),
+        None => raw_artist
+            .map(|artist| (artist.to_string(), clean_title(raw_title)))
+            .unwrap_or_else(|| extract_artist_title(raw_title, channel)),
+    };
     Ok(Json(MetadataResponse {
         title,
         artist,
@@ -131,11 +135,9 @@ async fn run_download(
     artist: Option<String>,
     artwork_url: Option<String>,
 ) -> Result<()> {
-    let tmp = state
-        .data_dir
-        .join(".cache")
-        .join(format!("download-{}", now()));
-    fs::create_dir_all(&tmp)?;
+    let cache_dir = state.data_dir.join(".cache");
+    fs::create_dir_all(&cache_dir)?;
+    let tmp = unique_download_dir(&cache_dir)?;
     let result = run_download_inner(&state, &url, title, artist, artwork_url, &tmp).await;
     let _ = fs::remove_dir_all(tmp);
     result
@@ -167,12 +169,25 @@ async fn run_download_inner(
         "--convert-thumbnails",
         "jpg",
         "--embed-metadata",
+        "--parse-metadata",
+        "title:%(title)s",
+        "--parse-metadata",
+        "artist:%(artist,uploader|Unknown Artist)s",
+        "--sponsorblock-remove",
+        "all",
+        "--embed-chapters",
+        "--concurrent-fragments",
+        "3",
+        "--throttled-rate",
+        "100K",
+        "--retries",
+        "10",
         "--no-playlist",
         url,
     ])
     .stdout(Stdio::null())
     .stderr(Stdio::piped());
-    let output = cmd.output().await?;
+    let output = run_command_output(cmd, Duration::from_secs(600)).await?;
     if !output.status.success() {
         return Err(anyhow!(String::from_utf8_lossy(&output.stderr).to_string()));
     }
@@ -191,10 +206,7 @@ async fn run_download_inner(
             .to_string(),
     };
     let final_path = state.music_dir.join(final_name);
-    if final_path.exists() {
-        return Err(anyhow!("A file with this name already exists"));
-    }
-    fs::rename(&downloaded, &final_path)?;
+    move_without_replace(&downloaded, &final_path)?;
     if let Some(artwork_url) = artwork_url {
         let jpeg_path = download_artwork_as_jpeg(&artwork_url, tmp.to_path_buf()).await?;
         let embed_result = write_audio_cover(&final_path, &jpeg_path).await;
@@ -213,5 +225,38 @@ async fn run_download_inner(
         Some("success"),
         Some(json!({"file_path": final_path})),
     );
+    Ok(())
+}
+
+fn unique_download_dir(cache_dir: &Path) -> Result<PathBuf> {
+    for attempt in 0..100 {
+        let path = cache_dir.join(format!("download-{}-{attempt}", now_nanos()));
+        match fs::create_dir(&path) {
+            Ok(()) => return Ok(path),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Err(anyhow!("failed to allocate download directory"))
+}
+
+fn move_without_replace(source: &Path, destination: &Path) -> Result<()> {
+    let mut input = fs::File::open(source)?;
+    let mut output = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(destination)
+        .map_err(|error| {
+            if error.kind() == io::ErrorKind::AlreadyExists {
+                anyhow!("A file with this name already exists")
+            } else {
+                error.into()
+            }
+        })?;
+    if let Err(error) = io::copy(&mut input, &mut output).and_then(|_| output.sync_all()) {
+        let _ = fs::remove_file(destination);
+        return Err(error.into());
+    }
+    fs::remove_file(source)?;
     Ok(())
 }

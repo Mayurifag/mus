@@ -182,6 +182,30 @@ pub fn file_content_hash(path: &Path) -> Result<String> {
     Ok(format!("{hash:016x}"))
 }
 
+pub fn file_signature(meta: &fs::Metadata) -> String {
+    let modified = meta
+        .modified()
+        .ok()
+        .and_then(system_time_nanos)
+        .unwrap_or_default();
+    format!("{}:{modified}:{}", meta.len(), metadata_changed_nanos(meta))
+}
+
+fn system_time_nanos(time: SystemTime) -> Option<u128> {
+    time.duration_since(UNIX_EPOCH).ok().map(|v| v.as_nanos())
+}
+
+#[cfg(unix)]
+fn metadata_changed_nanos(meta: &fs::Metadata) -> i128 {
+    use std::os::unix::fs::MetadataExt;
+    i128::from(meta.ctime()) * 1_000_000_000 + i128::from(meta.ctime_nsec())
+}
+
+#[cfg(not(unix))]
+fn metadata_changed_nanos(_: &fs::Metadata) -> i128 {
+    0
+}
+
 pub fn sanitize(value: &str) -> String {
     value
         .chars()

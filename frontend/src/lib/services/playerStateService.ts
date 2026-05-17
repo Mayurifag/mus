@@ -37,8 +37,11 @@ export function restorePlayerState(
     );
     if (trackIndex >= 0) {
       trackStore.setCurrentTrackIndex(trackIndex);
-      audioService.setTime(progress_seconds);
-      audioService.updateAudioSource(tracks[trackIndex], false);
+      audioService.updateAudioSource(
+        tracks[trackIndex],
+        false,
+        progress_seconds,
+      );
       return current_track_id;
     }
   } else if (tracks.length > 0) {

@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, time::Duration};
 
 use axum::{extract::State, Json};
 use serde_json::{json, Value};
@@ -8,7 +8,7 @@ use crate::{
     models::MusicDirectoryStatus,
     scanner::scan_music_dir,
     state::AppState,
-    util::{can_write, command_output},
+    util::{can_write, command_output_text_with_timeout},
 };
 
 pub async fn get_permissions(State(state): State<AppState>) -> Json<Value> {
@@ -20,7 +20,7 @@ pub async fn get_system_info(State(state): State<AppState>) -> Json<Value> {
         "app_date": state.app_date,
         "commit_sha": state.commit_sha,
         "music_dir": music_directory_status(&state),
-        "yt_dlp_version": command_output("yt-dlp", &["--version"]).await.ok(),
+        "yt_dlp_version": command_output_text_with_timeout("yt-dlp", &["--version"], Duration::from_secs(10)).await.ok(),
     }))
 }
 
@@ -52,8 +52,16 @@ fn music_directory_status(state: &AppState) -> MusicDirectoryStatus {
 
 pub async fn update_yt_dlp() -> Result<Json<Value>, AppError> {
     tracing::info!("yt-dlp update started");
-    let output = command_output("yt-dlp", &["--update-to", "nightly"]).await?;
-    let version = command_output("yt-dlp", &["--version"]).await.ok();
+    let output = command_output_text_with_timeout(
+        "yt-dlp",
+        &["--update-to", "nightly"],
+        Duration::from_secs(300),
+    )
+    .await?;
+    let version =
+        command_output_text_with_timeout("yt-dlp", &["--version"], Duration::from_secs(10))
+            .await
+            .ok();
     tracing::info!(
         yt_dlp_version = version.as_deref().unwrap_or("unknown"),
         "yt-dlp update completed"

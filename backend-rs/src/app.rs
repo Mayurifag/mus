@@ -106,10 +106,10 @@ async fn request_logging(request: Request, next: Next) -> Response {
     response
 }
 
-pub fn test_state(data_dir: PathBuf, conn: Connection) -> AppState {
+pub fn test_state(data_dir: PathBuf, mut conn: Connection) -> AppState {
     let music_dir = data_dir.join("music");
     let covers_dir = data_dir.join("covers");
-    init_db(&conn).unwrap();
+    init_db(&mut conn).unwrap();
     let (events, _) = tokio::sync::broadcast::channel(100);
     AppState {
         db: Arc::new(Mutex::new(conn)),

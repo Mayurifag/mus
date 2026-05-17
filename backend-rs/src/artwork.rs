@@ -1,4 +1,4 @@
-use std::{collections::HashSet, path::PathBuf, process::Stdio};
+use std::{collections::HashSet, path::PathBuf, process::Stdio, time::Duration};
 
 use anyhow::{anyhow, Result};
 use axum::{extract::Query, Json};
@@ -10,7 +10,7 @@ use tokio::{fs, process::Command};
 use crate::{
     error::AppError,
     models::{ArtworkSearchQuery, ArtworkSearchResult},
-    util::now,
+    util::{now_nanos, run_command_status},
 };
 
 const USER_AGENT: &str = "mus/0.1 artwork search";
@@ -25,26 +25,30 @@ pub async fn search_artwork(
 pub async fn download_artwork_as_jpeg(url: &str, cache_dir: PathBuf) -> Result<PathBuf> {
     fs::create_dir_all(&cache_dir).await?;
 
-    let response = reqwest::Client::new()
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()?;
+    let response = client
         .get(url)
         .header(reqwest::header::USER_AGENT, USER_AGENT)
         .send()
         .await?
         .error_for_status()?;
     let bytes = response.bytes().await?;
-    let source = cache_dir.join(format!("artwork-{}", now()));
-    let jpeg = cache_dir.join(format!("artwork-{}.jpg", now()));
+    let suffix = now_nanos();
+    let source = cache_dir.join(format!("artwork-{suffix}"));
+    let jpeg = cache_dir.join(format!("artwork-{suffix}.jpg"));
     fs::write(&source, bytes).await?;
 
-    let status = Command::new("ffmpeg")
+    let mut command = Command::new("ffmpeg");
+    command
         .args(["-y", "-i"])
         .arg(&source)
         .args(["-frames:v", "1", "-q:v", "2"])
         .arg(&jpeg)
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .await;
+        .stderr(Stdio::null());
+    let status = run_command_status(command, Duration::from_secs(60)).await;
     let _ = fs::remove_file(source).await;
 
     let status = status?;
@@ -182,7 +186,10 @@ async fn search_itunes(query: &ArtworkSearchQuery) -> Result<Vec<ArtworkSearchRe
             ("limit", "24"),
         ],
     )?;
-    let response: ITunesResponse = reqwest::Client::new()
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(20))
+        .build()?;
+    let response: ITunesResponse = client
         .get(url)
         .header(reqwest::header::USER_AGENT, USER_AGENT)
         .send()

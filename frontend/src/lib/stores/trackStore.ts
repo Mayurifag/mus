@@ -16,6 +16,7 @@ export interface TrackStoreState {
   currentTrack: Track | null;
   is_shuffle: boolean;
   selectedArtist: string | null;
+  playRequestId: number;
 }
 
 const initialState: TrackStoreState = {
@@ -26,6 +27,7 @@ const initialState: TrackStoreState = {
   currentTrack: null,
   is_shuffle: false,
   selectedArtist: null,
+  playRequestId: 0,
 };
 
 function createTrackStore() {
@@ -163,6 +165,7 @@ function createTrackStore() {
           currentTrack: track,
           playHistory: newHistory,
           historyPosition: newHistory.length - 1,
+          playRequestId: state.playRequestId + 1,
         };
       });
     },
@@ -184,6 +187,7 @@ function createTrackStore() {
           currentTrack: track,
           playHistory: [track],
           historyPosition: 0,
+          playRequestId: state.playRequestId + 1,
         };
       });
     },

@@ -57,11 +57,11 @@ fn build_state() -> Result<AppState> {
         .ok()
         .map(PathBuf::from)
         .filter(|path| path.is_dir());
-    fs::create_dir_all(data_dir.join("database"))?;
+    fs::create_dir_all(&data_dir)?;
     fs::create_dir_all(&covers_dir)?;
 
-    let conn = Connection::open(data_dir.join("database").join("mus.db"))?;
-    init_db(&conn)?;
+    let mut conn = Connection::open(data_dir.join("mus.db"))?;
+    init_db(&mut conn)?;
 
     let (events, _) = broadcast::channel(100);
     Ok(AppState {

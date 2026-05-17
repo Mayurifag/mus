@@ -11,8 +11,15 @@ use crate::{
     events::broadcast,
     media::{extract_cover, read_metadata, MediaMetadata},
     state::AppState,
-    util::{inode, is_audio_path, now, system_time_secs},
+    util::{file_content_hash, file_signature, inode, is_audio_path, now, system_time_secs},
 };
+
+struct FileSnapshot {
+    meta: fs::Metadata,
+    mtime: i64,
+    file_signature: String,
+    content_hash: String,
+}
 
 pub async fn scan_music_dir(state: AppState) -> Result<()> {
     sync_tracks(state, false).await
@@ -129,11 +136,34 @@ async fn sync_path(
 ) -> Result<()> {
     let path_string = path.to_string_lossy().to_string();
     current.insert(path_string.clone());
-    let file_mtime = file_mtime(path);
+    let (meta, mtime, signature) = file_metadata(path)?;
     match existing.get(&path_string) {
-        Some(track) if track.updated_at >= file_mtime => {}
-        Some(_) => {
-            let track = upsert_path(state, path, None, None).await?;
+        Some(track)
+            if track.file_signature.as_deref() == Some(signature.as_str())
+                && track.content_hash.is_some() => {}
+        Some(track) => {
+            let snapshot = file_snapshot_from_metadata(path, meta, mtime, signature)?;
+            if track.content_hash.is_none() && track.updated_at >= snapshot.mtime {
+                db::save_track_fingerprint(
+                    state,
+                    track.id,
+                    inode(&snapshot.meta),
+                    &snapshot.file_signature,
+                    &snapshot.content_hash,
+                )?;
+                return Ok(());
+            }
+            if track.content_hash.as_deref() == Some(snapshot.content_hash.as_str()) {
+                db::save_track_fingerprint(
+                    state,
+                    track.id,
+                    inode(&snapshot.meta),
+                    &snapshot.file_signature,
+                    &snapshot.content_hash,
+                )?;
+                return Ok(());
+            }
+            let track = upsert_path_with_snapshot(state, path, None, None, snapshot).await?;
             if broadcast_changes {
                 broadcast(
                     state,
@@ -145,7 +175,8 @@ async fn sync_path(
             }
         }
         None => {
-            let track = upsert_path(state, path, None, None).await?;
+            let snapshot = file_snapshot_from_metadata(path, meta, mtime, signature)?;
+            let track = upsert_path_with_snapshot(state, path, None, None, snapshot).await?;
             if broadcast_changes {
                 broadcast(
                     state,
@@ -160,12 +191,34 @@ async fn sync_path(
     Ok(())
 }
 
-fn file_mtime(path: &Path) -> i64 {
-    fs::metadata(path)
+fn file_metadata(path: &Path) -> Result<(fs::Metadata, i64, String)> {
+    let meta = fs::metadata(path)?;
+    let mtime = meta
+        .modified()
         .ok()
-        .and_then(|v| v.modified().ok())
         .and_then(system_time_secs)
-        .unwrap_or_else(now)
+        .unwrap_or_else(now);
+    let signature = file_signature(&meta);
+    Ok((meta, mtime, signature))
+}
+
+fn file_snapshot(path: &Path) -> Result<FileSnapshot> {
+    let (meta, mtime, signature) = file_metadata(path)?;
+    file_snapshot_from_metadata(path, meta, mtime, signature)
+}
+
+fn file_snapshot_from_metadata(
+    path: &Path,
+    meta: fs::Metadata,
+    mtime: i64,
+    file_signature: String,
+) -> Result<FileSnapshot> {
+    Ok(FileSnapshot {
+        meta,
+        mtime,
+        file_signature,
+        content_hash: file_content_hash(path)?,
+    })
 }
 
 pub async fn upsert_path(
@@ -173,6 +226,17 @@ pub async fn upsert_path(
     path: &Path,
     title_override: Option<String>,
     artist_override: Option<String>,
+) -> Result<crate::models::TrackDto> {
+    let snapshot = file_snapshot(path)?;
+    upsert_path_with_snapshot(state, path, title_override, artist_override, snapshot).await
+}
+
+async fn upsert_path_with_snapshot(
+    state: &AppState,
+    path: &Path,
+    title_override: Option<String>,
+    artist_override: Option<String>,
+    snapshot: FileSnapshot,
 ) -> Result<crate::models::TrackDto> {
     let metadata = read_metadata(path).await.unwrap_or_else(|_| MediaMetadata {
         title: path
@@ -183,22 +247,17 @@ pub async fn upsert_path(
         artist: "Unknown Artist".into(),
         duration: 0,
     });
-    let file_meta = fs::metadata(path)?;
-    let added_at = file_meta
-        .modified()
-        .ok()
-        .and_then(system_time_secs)
-        .unwrap_or_else(now);
+    let added_at = snapshot.mtime;
     let title = title_override.unwrap_or(metadata.title);
     let artist = artist_override.unwrap_or(metadata.artist);
     let file_path = path.to_string_lossy().to_string();
     let (id, added_at) = {
         let conn = state.db.lock().unwrap();
         conn.execute(
-            "INSERT INTO track (title, artist, duration, file_path, added_at, updated_at, has_cover, inode, processing_status)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?5, 0, ?6, 'COMPLETE')
-             ON CONFLICT(file_path) DO UPDATE SET title=excluded.title, artist=excluded.artist, duration=excluded.duration, updated_at=excluded.updated_at, processing_status='COMPLETE', last_error=NULL",
-            params![title, artist, metadata.duration, file_path, added_at, inode(&file_meta)],
+            "INSERT INTO track (title, artist, duration, file_path, added_at, updated_at, has_cover, inode, file_signature, content_hash, processing_status)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?5, 0, ?6, ?7, ?8, 'COMPLETE')
+             ON CONFLICT(file_path) DO UPDATE SET title=excluded.title, artist=excluded.artist, duration=excluded.duration, updated_at=excluded.updated_at, inode=excluded.inode, file_signature=excluded.file_signature, content_hash=excluded.content_hash, processing_status='COMPLETE', last_error=NULL",
+            params![title, artist, metadata.duration, file_path, added_at, inode(&snapshot.meta), &snapshot.file_signature, &snapshot.content_hash],
         )?;
         let id = conn.query_row(
             "SELECT id FROM track WHERE file_path = ?1",
@@ -220,8 +279,9 @@ pub async fn upsert_path(
         added_at,
         updated_at: added_at,
         has_cover,
-        inode: inode(&file_meta),
-        content_hash: None,
+        inode: inode(&snapshot.meta),
+        file_signature: Some(snapshot.file_signature),
+        content_hash: Some(snapshot.content_hash),
         processing_status: "COMPLETE".into(),
         last_error: None,
     }))
