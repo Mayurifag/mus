@@ -23,7 +23,7 @@ pub struct TrackDto {
     pub title: String,
     pub artist: String,
     pub duration: i64,
-    pub file_path: String,
+    pub filename: String,
     pub updated_at: i64,
     pub has_cover: bool,
     pub cover_small_url: Option<String>,
@@ -73,4 +73,14 @@ pub struct MetadataResponse {
     pub artist: String,
     pub thumbnail_url: Option<String>,
     pub duration: Option<f64>,
+}
+
+#[derive(Serialize)]
+pub struct MusicDirectoryStatus {
+    pub path: String,
+    pub exists: bool,
+    pub is_directory: bool,
+    pub is_empty: Option<bool>,
+    pub can_write: bool,
+    pub warning: Option<String>,
 }

@@ -41,3 +41,8 @@ frontend served by the Rust backend, sqlite, yt-dlp and ffmpeg.
 
 In e2e folder I made setup to run playwright tests against production docker
 image, so it is not bound to Rust/Svelte source files.
+
+## Production
+
+Production deployments are expected to sit behind external authentication. Use
+`make prod-verify` before shipping image changes.

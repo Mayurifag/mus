@@ -27,6 +27,15 @@ RUN group_name="$(awk -F: -v gid="$GROUP_ID" '$3 == gid { print $1; exit }' /etc
 
 RUN rustup component add rustfmt clippy
 
+COPY backend-rs/Cargo.toml backend-rs/Cargo.lock ./
+RUN mkdir src \
+    && printf 'fn main() {}\n' > src/main.rs \
+    && cargo build --locked \
+    && rm -rf src
+
+RUN CARGO_TARGET_DIR=/tmp/cargo-install-target cargo install --locked cargo-audit cargo-machete \
+    && rm -rf /tmp/cargo-install-target
+
 USER appuser
 
 ENV PATH="/cargo/bin:/home/appuser/.local/bin:${PATH}"

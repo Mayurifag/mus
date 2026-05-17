@@ -24,6 +24,14 @@
   let systemInfo = $state<SystemInfo>({
     app_date: "unknown",
     commit_sha: null,
+    music_dir: {
+      path: "",
+      exists: false,
+      is_directory: false,
+      is_empty: null,
+      can_write: false,
+      warning: null,
+    },
     yt_dlp_version: null,
   });
   let isUpdatingYtDlp = $state(false);
@@ -150,6 +158,20 @@
     <div class="border-border/30 border-b p-4">
       <DownloadManager />
     </div>
+
+    {#if systemInfo.music_dir.warning}
+      <div class="border-border/30 border-b p-4">
+        <div class="text-destructive flex gap-2 text-sm">
+          <AlertTriangle size={16} class="mt-0.5 shrink-0" />
+          <div>
+            <div class="font-medium">Music folder unavailable</div>
+            <div class="text-muted-foreground mt-1 text-xs">
+              {systemInfo.music_dir.warning}
+            </div>
+          </div>
+        </div>
+      </div>
+    {/if}
 
     {#if topArtists.length > 0 || selectedArtist}
       <div class="border-border/30 border-b p-4">

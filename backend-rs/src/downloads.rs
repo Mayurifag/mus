@@ -65,6 +65,10 @@ pub async fn confirm_download(
     State(state): State<AppState>,
     Json(req): Json<ConfirmDownloadRequest>,
 ) -> Result<(StatusCode, Json<Value>), AppError> {
+    let final_name = generate_filename(&req.artist, &req.title, "mp3")?;
+    if state.music_dir.join(final_name).exists() {
+        return Err(AppError::conflict("A file with this name already exists"));
+    }
     spawn_download(state, req.url, Some(req.title), Some(req.artist)).await?;
     Ok((StatusCode::ACCEPTED, Json(json!({"status": "accepted"}))))
 }
@@ -97,6 +101,7 @@ async fn spawn_download(
         );
         let result = run_download(state.clone(), url, title, artist).await;
         if let Err(error) = result {
+            tracing::warn!(error = %error, "download failed");
             broadcast(
                 &state,
                 "download_failed",
@@ -121,6 +126,18 @@ async fn run_download(
         .join(".cache")
         .join(format!("download-{}", now()));
     fs::create_dir_all(&tmp)?;
+    let result = run_download_inner(&state, &url, title, artist, &tmp).await;
+    let _ = fs::remove_dir_all(tmp);
+    result
+}
+
+async fn run_download_inner(
+    state: &AppState,
+    url: &str,
+    title: Option<String>,
+    artist: Option<String>,
+    tmp: &std::path::Path,
+) -> Result<()> {
     let output_template = tmp.join("%(artist,uploader|Unknown Artist)s - %(title)s.%(ext)s");
     let mut cmd = Command::new("yt-dlp");
     cmd.args([
@@ -140,17 +157,15 @@ async fn run_download(
         "jpg",
         "--embed-metadata",
         "--no-playlist",
-        "--newline",
-        "--progress",
-        &url,
+        url,
     ])
-    .stdout(Stdio::piped())
+    .stdout(Stdio::null())
     .stderr(Stdio::piped());
     let output = cmd.output().await?;
     if !output.status.success() {
         return Err(anyhow!(String::from_utf8_lossy(&output.stderr).to_string()));
     }
-    let downloaded = audio_paths(&tmp)?
+    let downloaded = audio_paths(tmp)?
         .into_iter()
         .next()
         .ok_or_else(|| anyhow!("Downloaded file not found"))?;
@@ -165,18 +180,21 @@ async fn run_download(
             .to_string(),
     };
     let final_path = state.music_dir.join(final_name);
+    if final_path.exists() {
+        return Err(anyhow!("A file with this name already exists"));
+    }
     fs::rename(&downloaded, &final_path)?;
     if let (Some(title), Some(artist)) = (&title, &artist) {
         write_audio_tags(&final_path, title, artist).await?;
     }
-    upsert_path(&state, &final_path, title, artist).await?;
+    let track = upsert_path(state, &final_path, title, artist).await?;
+    tracing::info!(track_id = track.id, "download completed");
     broadcast(
-        &state,
+        state,
         "download_completed",
         Some("Download completed successfully"),
         Some("success"),
         Some(json!({"file_path": final_path})),
     );
-    let _ = fs::remove_dir_all(tmp);
     Ok(())
 }

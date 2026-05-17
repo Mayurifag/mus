@@ -1,5 +1,5 @@
 use async_stream::stream;
-use axum::{extract::State, response::sse::Event, response::Sse, Json};
+use axum::{extract::State, response::sse::Event, response::sse::KeepAlive, response::Sse, Json};
 use futures_util::Stream;
 use serde_json::{json, Value};
 use tokio::sync::broadcast;
@@ -19,6 +19,7 @@ pub async fn track_updates(
             }
         }
     })
+    .keep_alive(KeepAlive::default())
 }
 
 pub async fn trigger_event(

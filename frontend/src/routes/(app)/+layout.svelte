@@ -12,13 +12,16 @@
     fetchPermissions,
     fetchPlayerState,
     fetchTracks,
-    sendPlayerStateBeacon as apiSendPlayerStateBeacon,
   } from "$lib/services/apiClient";
   import { initEventHandlerService } from "$lib/services/eventHandlerService";
   import { AudioService } from "$lib/services/AudioService";
+  import {
+    defaultPlayerState,
+    restorePlayerState,
+    savePlayerState,
+  } from "$lib/services/playerStateService";
   import { updateEffectStats } from "$lib/utils/monitoredEffect";
   import * as Sheet from "$lib/components/ui/sheet";
-  import type { Track } from "$lib/types";
   import { browser } from "$app/environment";
   import { Toaster } from "$lib/components/ui/sonner";
   import DropzoneOverlay from "$lib/components/domain/DropzoneOverlay.svelte";
@@ -28,7 +31,7 @@
     type ParsedFileInfo,
   } from "$lib/services/dragDropService";
   import { releaseCoverDataUrl } from "$lib/utils/audioFileAnalyzer";
-  import type { PlayerState } from "$lib/types";
+  import type { PlayerState, Track } from "$lib/types";
 
   // Touch handling for swipe gestures
   let startX = $state<number | null>(null);
@@ -56,48 +59,6 @@
     if (audio) {
       audioService = new AudioService(audio);
       audioServiceStore.set(audioService);
-    }
-  }
-
-  const defaultPlayerState: PlayerState = {
-    current_track_id: null,
-    progress_seconds: 0.0,
-    volume_level: 1.0,
-    is_muted: false,
-    is_shuffle: false,
-    is_repeat: false,
-  };
-
-  function restorePlayerState(tracks: Track[], playerState: PlayerState) {
-    if (!audioService) return;
-
-    const {
-      current_track_id,
-      progress_seconds,
-      volume_level,
-      is_muted,
-      is_shuffle,
-      is_repeat,
-    } = playerState;
-
-    audioService.initializeState(volume_level, is_muted, is_repeat);
-    trackStore.setShuffle(is_shuffle);
-
-    if (current_track_id !== null) {
-      const trackIndex = tracks.findIndex(
-        (track: Track) => track.id === current_track_id,
-      );
-      if (trackIndex >= 0) {
-        trackStore.setCurrentTrackIndex(trackIndex);
-        audioService.setTime(progress_seconds);
-        audioService.updateAudioSource(tracks[trackIndex], false);
-        lastCurrentTrackId = current_track_id;
-      }
-    } else if (tracks.length > 0) {
-      // If no current track is set but tracks exist, set the first track as current
-      trackStore.setCurrentTrackIndex(0);
-      audioService.updateAudioSource(tracks[0], false);
-      lastCurrentTrackId = tracks[0].id;
     }
   }
 
@@ -146,7 +107,7 @@
     permissionsStore.set(permissions);
     trackStore.setTracks(tracks);
     initializeAudioService();
-    restorePlayerState(tracks, playerState);
+    lastCurrentTrackId = restorePlayerState(audioService, tracks, playerState);
     setupEventListeners();
 
     isInitializing = false;
@@ -180,24 +141,14 @@
     }
   });
 
-  function savePlayerState() {
-    if (!$trackStore.currentTrack || !audioService) return null;
-    const playerStateDto = {
-      current_track_id: $trackStore.currentTrack.id,
-      progress_seconds: audioService.currentTime,
-      volume_level: audioService.volume,
-      is_muted: audioService.isMuted,
-      is_shuffle: $trackStore.is_shuffle,
-      is_repeat: audioService.isRepeat,
-    };
-
-    apiSendPlayerStateBeacon(playerStateDto);
-  }
-
   // Handle visibility change events
   function handleVisibilityChange() {
     if (document.visibilityState === "hidden") {
-      savePlayerState();
+      savePlayerState(
+        audioService,
+        $trackStore.currentTrack,
+        $trackStore.is_shuffle,
+      );
     }
   }
 
@@ -219,7 +170,11 @@
     updateEffectStats("Layout_PeriodicStateSave");
     if ($trackStore.currentTrack && audioService && audioService.isPlaying) {
       const interval = setInterval(() => {
-        savePlayerState();
+        savePlayerState(
+          audioService,
+          $trackStore.currentTrack,
+          $trackStore.is_shuffle,
+        );
       }, 5000);
       return () => clearInterval(interval);
     }

@@ -430,7 +430,7 @@
               ? generatedFilename
               : formState.renameFile
                 ? generatedFilename
-                : track?.file_path.split("/").pop() || ""}
+                : track?.filename || ""}
             fileSize={mode === "create" ? file?.size : undefined}
             duration={mode === "create"
               ? (metadata?.duration as number | undefined)

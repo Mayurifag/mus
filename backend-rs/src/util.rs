@@ -13,24 +13,35 @@ pub const AUDIO_EXTENSIONS: &[&str] = &["mp3", "flac", "m4a", "ogg", "wav"];
 
 pub fn audio_paths(dir: &Path) -> Result<Vec<PathBuf>> {
     let mut paths = Vec::new();
+    visit_audio_paths(dir, &mut |path| paths.push(path.to_path_buf()))?;
+    Ok(paths)
+}
+
+pub fn visit_audio_paths(dir: &Path, visit: &mut impl FnMut(&Path)) -> Result<()> {
     if !dir.is_dir() {
-        return Ok(paths);
+        return Ok(());
     }
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
-            paths.extend(audio_paths(&path)?);
-        } else if path
-            .extension()
-            .and_then(|v| v.to_str())
-            .map(|v| AUDIO_EXTENSIONS.contains(&v.to_ascii_lowercase().as_str()))
-            .unwrap_or(false)
-        {
-            paths.push(path);
+            visit_audio_paths(&path, visit)?;
+        } else if is_audio_path(&path) {
+            visit(&path);
         }
     }
-    Ok(paths)
+    Ok(())
+}
+
+pub fn is_audio_path(path: &Path) -> bool {
+    path.extension()
+        .and_then(|v| v.to_str())
+        .map(|v| {
+            AUDIO_EXTENSIONS
+                .iter()
+                .any(|ext| ext.eq_ignore_ascii_case(v))
+        })
+        .unwrap_or(false)
 }
 
 pub async fn command_output(command: &str, args: &[&str]) -> Result<String> {

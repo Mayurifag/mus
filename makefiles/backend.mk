@@ -1,5 +1,4 @@
 DOCKER_COMPOSE_BACKEND_CMD := $(DOCKER_COMPOSE_CMD) run --rm --no-TTY backend
-CARGO_INSTALL := CARGO_TARGET_DIR=/tmp/cargo-install-target cargo install --locked
 
 .PHONY: back-ci
 back-ci: back-format-check back-check back-lint back-test back-machete back-audit
@@ -32,14 +31,12 @@ back-test:
 .PHONY: back-machete
 back-machete:
 	@echo "Checking backend dependencies..."
-	@$(DOCKER_COMPOSE_BACKEND_CMD) sh -c 'test -x /cargo/bin/cargo-machete || $(CARGO_INSTALL) cargo-machete'
-	@$(DOCKER_COMPOSE_BACKEND_CMD) /cargo/bin/cargo-machete
+	@$(DOCKER_COMPOSE_BACKEND_CMD) cargo machete
 
 .PHONY: back-audit
 back-audit:
 	@echo "Auditing backend dependencies..."
-	@$(DOCKER_COMPOSE_BACKEND_CMD) sh -c 'test -x /cargo/bin/cargo-audit || $(CARGO_INSTALL) cargo-audit'
-	@$(DOCKER_COMPOSE_BACKEND_CMD) /cargo/bin/cargo-audit audit --deny warnings
+	@$(DOCKER_COMPOSE_BACKEND_CMD) cargo audit --deny warnings
 
 .PHONY: back-clean
 back-clean:

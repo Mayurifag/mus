@@ -1,5 +1,12 @@
 import { writable } from "svelte/store";
 import type { Track } from "$lib/types";
+import {
+  calculateNextIndex,
+  calculatePreviousIndex,
+  clearShuffleHistory,
+  handleShuffleNext,
+  handleShufflePrevious,
+} from "$lib/stores/trackNavigation";
 
 export interface TrackStoreState {
   tracks: Track[];
@@ -61,150 +68,6 @@ function createTrackStore() {
       playHistory: newHistory,
       historyPosition: newPosition,
     };
-  };
-
-  // Navigation helper functions
-  const calculatePreviousIndex = (
-    currentIndex: number,
-    tracksLength: number,
-  ): number => (currentIndex === 0 ? tracksLength - 1 : currentIndex - 1);
-
-  const calculateNextIndex = (
-    currentIndex: number,
-    tracksLength: number,
-  ): number => (currentIndex + 1) % tracksLength;
-
-  const findTrackIndex = (tracks: Track[], targetTrack: Track): number =>
-    tracks.findIndex((track) => track.id === targetTrack.id);
-
-  const moveInHistory = (
-    state: TrackStoreState,
-    newPosition: number,
-  ): Partial<TrackStoreState> => {
-    const targetTrack = state.playHistory[newPosition];
-    const targetIndex = findTrackIndex(state.tracks, targetTrack);
-
-    if (targetIndex === -1) return {};
-
-    return {
-      currentTrackIndex: targetIndex,
-      currentTrack: targetTrack,
-      historyPosition: newPosition,
-    };
-  };
-
-  const handleShuffleNext = (
-    state: TrackStoreState,
-  ): Partial<TrackStoreState> => {
-    // Try to move forward in existing history first
-    if (state.historyPosition < state.playHistory.length - 1) {
-      return moveInHistory(state, state.historyPosition + 1);
-    }
-
-    // Generate new random track
-    const availableTracks = state.tracks.filter(
-      (_, i) => i !== state.currentTrackIndex,
-    );
-    if (availableTracks.length === 0) return {};
-
-    const randomIndex = Math.floor(Math.random() * availableTracks.length);
-    const selectedTrack = availableTracks[randomIndex];
-    const newIndex = findTrackIndex(state.tracks, selectedTrack);
-
-    const newHistory = [...state.playHistory];
-
-    // Add current track to history if this is the first shuffle move
-    if (state.currentTrackIndex !== null && state.historyPosition === -1) {
-      newHistory.push(state.tracks[state.currentTrackIndex]);
-    }
-
-    newHistory.push(selectedTrack);
-
-    return {
-      currentTrackIndex: newIndex,
-      currentTrack: selectedTrack,
-      playHistory: newHistory,
-      historyPosition: newHistory.length - 1,
-    };
-  };
-
-  const handleShufflePrevious = (
-    state: TrackStoreState,
-  ): Partial<TrackStoreState> => {
-    // Move backward in existing history
-    if (state.historyPosition > 0) {
-      return moveInHistory(state, state.historyPosition - 1);
-    }
-
-    // No history or only current track - fall back to sequential navigation
-    const isMinimalHistory =
-      state.playHistory.length === 0 ||
-      (state.playHistory.length === 1 && state.historyPosition === 0);
-
-    if (isMinimalHistory) {
-      return handleSequentialPreviousWithHistory(state);
-    }
-
-    // At beginning of history - extend with sequential navigation
-    return extendHistoryBackward(state);
-  };
-
-  const handleSequentialPreviousWithHistory = (
-    state: TrackStoreState,
-  ): Partial<TrackStoreState> => {
-    if (state.currentTrackIndex === null) return {};
-
-    const previousIndex = calculatePreviousIndex(
-      state.currentTrackIndex,
-      state.tracks.length,
-    );
-    const previousTrack = state.tracks[previousIndex];
-
-    return {
-      currentTrackIndex: previousIndex,
-      currentTrack: previousTrack,
-      playHistory: [previousTrack, state.currentTrack!],
-      historyPosition: 0,
-    };
-  };
-
-  const extendHistoryBackward = (
-    state: TrackStoreState,
-  ): Partial<TrackStoreState> => {
-    if (state.currentTrackIndex === null) return {};
-
-    const previousIndex = calculatePreviousIndex(
-      state.currentTrackIndex,
-      state.tracks.length,
-    );
-    const previousTrack = state.tracks[previousIndex];
-
-    return {
-      currentTrackIndex: previousIndex,
-      currentTrack: previousTrack,
-      playHistory: [previousTrack, ...state.playHistory],
-      historyPosition: 0,
-    };
-  };
-
-  /**
-   * Clears shuffle history when disabling shuffle mode to ensure clean state.
-   */
-  const clearShuffleHistory = (
-    state: TrackStoreState,
-    newShuffleState: boolean,
-  ): Partial<TrackStoreState> => {
-    const isDisablingShuffle = state.is_shuffle && !newShuffleState;
-
-    if (isDisablingShuffle && state.currentTrack) {
-      return {
-        is_shuffle: newShuffleState,
-        playHistory: [state.currentTrack],
-        historyPosition: 0,
-      };
-    }
-
-    return { is_shuffle: newShuffleState };
   };
 
   return {
