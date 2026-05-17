@@ -1,11 +1,13 @@
-FROM node:24-alpine
+# syntax=docker/dockerfile:1.7
+
+FROM node:24-alpine3.22
 
 WORKDIR /app
 
 RUN npm install -g npm@11.14.1 markdownlint-cli2
 
 COPY frontend/package*.json ./
-RUN npm ci --no-fund
+RUN --mount=type=cache,target=/root/.npm npm ci --no-fund
 
 EXPOSE 5173
 

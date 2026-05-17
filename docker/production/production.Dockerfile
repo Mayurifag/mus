@@ -1,19 +1,31 @@
-FROM node:24-alpine AS frontend-builder
+# syntax=docker/dockerfile:1.7
+
+FROM node:24-alpine3.22 AS frontend-builder
 WORKDIR /app/frontend
-COPY frontend/ ./
+COPY frontend/package*.json ./
 ENV VITE_INTERNAL_API_HOST=""
 ENV VITE_PUBLIC_API_HOST=""
-RUN npm install -g npm@11.14.1 \
-    && npm ci --no-fund --prefer-offline \
-    && npm run build
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g npm@11.14.1 \
+    && npm ci --no-fund --prefer-offline
+COPY frontend/ ./
+RUN npm run build
 
 FROM rust:1-alpine3.22 AS backend-builder
 WORKDIR /app/backend-rs
 RUN apk add --no-cache build-base
 COPY backend-rs/Cargo.toml backend-rs/Cargo.lock ./
-RUN mkdir src && printf 'fn main() {}\n' > src/main.rs && cargo build --locked --release && rm -rf src
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/app/backend-rs/target \
+    mkdir src && printf 'fn main() {}\n' > src/main.rs && cargo build --locked --release && rm -rf src
 COPY backend-rs/src ./src
-RUN cargo clean --release -p mus-backend && cargo build --locked --release
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/app/backend-rs/target \
+    cargo clean --release -p mus-backend \
+    && cargo build --locked --release \
+    && cp target/release/mus-backend /tmp/mus-backend
 
 FROM alpine:3.22
 ARG TARGETARCH
@@ -44,7 +56,7 @@ RUN apk add --no-cache \
 
 WORKDIR /app
 
-COPY --from=backend-builder /app/backend-rs/target/release/mus-backend /app/mus-backend
+COPY --from=backend-builder /tmp/mus-backend /app/mus-backend
 COPY --from=frontend-builder /app/frontend/build /app/frontend/build
 COPY docker/production/entrypoint.sh /app/entrypoint.sh
 
