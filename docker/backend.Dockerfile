@@ -19,13 +19,17 @@ RUN apk add --no-cache \
         curl \
         cargo-audit \
         cargo-watch \
+        python3 \
+        sqlite \
         sudo \
-        yt-dlp
+    && curl -fsSL https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
+    && chmod a+rx /usr/local/bin/yt-dlp
 
 RUN group_name="$(awk -F: -v gid="$GROUP_ID" '$3 == gid { print $1; exit }' /etc/group)" \
     && if [ -z "$group_name" ]; then addgroup -g "$GROUP_ID" appgroup && group_name=appgroup; fi \
     && adduser -D -u "$USER_ID" -G "$group_name" appuser \
     && mkdir -p $DATA_DIR_PATH/covers $DATA_DIR_PATH/music $DATA_DIR_PATH/.cache /home/appuser/.local/bin /cargo /app/target \
+    && chown appuser:"$group_name" /usr/local/bin/yt-dlp \
     && chown -R appuser:"$group_name" /app $DATA_DIR_PATH /home/appuser /cargo /usr/local/cargo \
     && echo "appuser ALL=(ALL) NOPASSWD: /bin/chown -R appuser* /app/target* /cargo*" >> /etc/sudoers
 

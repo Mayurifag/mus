@@ -32,5 +32,6 @@ mkdir -p "$data_dir" "$data_dir/covers" "$data_dir/.cache"
 touch "$data_dir/mus.db"
 chown "$runtime_uid:$runtime_gid" "$data_dir" "$data_dir/mus.db"
 chown -R "$runtime_uid:$runtime_gid" "$data_dir/covers" "$data_dir/.cache"
+chown "$runtime_uid:$runtime_gid" /usr/local/bin/yt-dlp
 
 exec su-exec "$runtime_uid:$runtime_gid" "$@"

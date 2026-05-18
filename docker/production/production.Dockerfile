@@ -51,8 +51,11 @@ ENV BUILD_DATE=$BUILD_DATE
 RUN apk add --no-cache \
         curl \
         ffmpeg \
+        python3 \
+        sqlite \
         su-exec \
-        yt-dlp
+    && curl -fsSL https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
+    && chmod a+rx /usr/local/bin/yt-dlp
 
 WORKDIR /app
 

@@ -29,6 +29,7 @@
     ),
   );
   const visibleTrackCount = $derived(trackRows.length);
+  const shouldVirtualize = $derived(visibleTrackCount >= 500);
   const currentVisibleIndex = $derived(
     trackRows.findIndex((row) => row.track.id === $trackStore.currentTrack?.id),
   );
@@ -94,7 +95,11 @@
   $effect(() => {
     updateEffectStats("TrackList_VirtualizerCountUpdate");
 
-    if (virtualizer && virtualizerCount !== visibleTrackCount) {
+    if (
+      virtualizer &&
+      shouldVirtualize &&
+      virtualizerCount !== visibleTrackCount
+    ) {
       virtualizerCount = visibleTrackCount;
       $virtualizer!.setOptions(virtualizerOptions(visibleTrackCount));
     }
@@ -119,7 +124,12 @@
   $effect(() => {
     updateEffectStats("TrackList_InitialScroll");
 
-    if (!initialScrollDone && virtualizer && currentVisibleIndex !== -1) {
+    if (
+      !initialScrollDone &&
+      virtualizer &&
+      shouldVirtualize &&
+      currentVisibleIndex !== -1
+    ) {
       const currentVirtualizer = virtualizer;
       tick().then(() => {
         if (currentVisibleIndex !== -1) {
@@ -133,11 +143,35 @@
   });
 
   function measureElement(node: HTMLElement) {
-    if (virtualizer) {
+    if (virtualizer && shouldVirtualize) {
       get(virtualizer).measureElement(node);
     }
   }
 </script>
+
+{#snippet renderTrack(row: { track: Track; index: number })}
+  {#if $trackStore.currentTrack?.id === row.track.id}
+    <TrackItem
+      track={row.track}
+      index={row.index}
+      isSelected={true}
+      {audioService}
+      {currentTime}
+      {duration}
+      {isPlaying}
+      {bufferedRanges}
+      onEdit={openEditModal}
+    />
+  {:else}
+    <TrackItem
+      track={row.track}
+      index={row.index}
+      isSelected={false}
+      {audioService}
+      onEdit={openEditModal}
+    />
+  {/if}
+{/snippet}
 
 <div class="flex flex-col" data-testid="track-list">
   {#if selectedArtist}
@@ -170,7 +204,7 @@
         No songs found for this artist.
       </p>
     </div>
-  {:else if virtualizer}
+  {:else if shouldVirtualize && virtualizer}
     <div class="relative" style="height: {$virtualizer!.getTotalSize()}px">
       {#each $virtualizer!.getVirtualItems() as item (trackRows[item.index]?.track.id || `missing-${item.index}`)}
         {#if trackRows[item.index]}
@@ -179,31 +213,15 @@
             data-index={item.index}
             use:measureElement
           >
-            {#if $trackStore.currentTrack?.id === trackRows[item.index].track.id}
-              <TrackItem
-                track={trackRows[item.index].track}
-                index={trackRows[item.index].index}
-                isSelected={true}
-                {audioService}
-                {currentTime}
-                {duration}
-                {isPlaying}
-                {bufferedRanges}
-                onEdit={openEditModal}
-              />
-            {:else}
-              <TrackItem
-                track={trackRows[item.index].track}
-                index={trackRows[item.index].index}
-                isSelected={false}
-                {audioService}
-                onEdit={openEditModal}
-              />
-            {/if}
+            {@render renderTrack(trackRows[item.index])}
           </div>
         {/if}
       {/each}
     </div>
+  {:else}
+    {#each trackRows as row (row.track.id)}
+      {@render renderTrack(row)}
+    {/each}
   {/if}
 </div>
 

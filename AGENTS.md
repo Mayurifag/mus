@@ -4,6 +4,7 @@
 - Main targets: `make up`, `make down`, `make logs [backend|frontend]`, `make ci`, `make back-ci`, `make back-test`, `make front-test`, `make back-lint`, `make front-lint`, `make back-sh`, `make e2e`, `make ps`.
 - Production verification targets: `make prod-image`, `make prod-smoke`, `make e2e-current-image`, `make prod-security-scan`, `make prod-verify`.
 - Use `make rebuild-backend-image` to refresh baked backend tools like yt-dlp without deleting volumes.
+- Install yt-dlp from the official upstream nightly zipapp in all backend images, not distro packages; the app expects `yt-dlp --update-to nightly` to work.
 - Use `make rebuild-frontend-image` to refresh baked frontend tools like npm.
 - Use `make prod-image` to rebuild the production image locally.
 - Use `make prod-image-fresh` only when Docker cache must be bypassed.
@@ -12,5 +13,6 @@
 - Production deployments run the app behind external authentication; do not add app-level auth unless explicitly requested.
 - Database and generated covers are derived container data; do not add Docker volumes for them unless explicitly requested.
 - Local music mount is `/Volumes/sdcard-apfs/OpenCloud/Personal/Music:/app_data/music`.
+- Production OpenCloud uses PosixFS and stores metadata in `user.oc.*` xattrs. If `mus` edits MP3 tags/artwork directly, OpenCloud sync can break with stale `user.oc.blobsize`/checksums or stuck `user.oc.nodestatus=processing:*`; `touch`, `opencloud posixfs consistency`, and restarting OpenCloud did not repair it. To diagnose, compare `stat -c %s` with `getfattr -n user.oc.blobsize --only-values` and inspect `user.oc.nodestatus`; manual repair may require recomputing `user.oc.cs.sha1`, `user.oc.cs.md5`, `user.oc.cs.adler32`, updating `user.oc.blobsize`/`user.oc.mtime`, and removing stale `user.oc.nodestatus`.
 - Backend is Rust in `backend-rs`.
 - Keep Markdown docs and roadmap notes current when changes affect project behavior or durable guidance.
