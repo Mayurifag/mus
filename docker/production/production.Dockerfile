@@ -12,17 +12,17 @@ COPY frontend/ ./
 RUN npm run build
 
 FROM rust:1-alpine3.22 AS backend-builder
-WORKDIR /app/backend-rs
+WORKDIR /app/backend
 RUN apk add --no-cache build-base
-COPY backend-rs/Cargo.toml backend-rs/Cargo.lock ./
+COPY backend/Cargo.toml backend/Cargo.lock ./
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,target=/app/backend-rs/target \
+    --mount=type=cache,target=/app/backend/target \
     mkdir src && printf 'fn main() {}\n' > src/main.rs && cargo build --locked --release && rm -rf src
-COPY backend-rs/src ./src
+COPY backend/src ./src
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,target=/app/backend-rs/target \
+    --mount=type=cache,target=/app/backend/target \
     cargo clean --release -p mus-backend \
     && cargo build --locked --release \
     && cp target/release/mus-backend /tmp/mus-backend

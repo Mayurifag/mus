@@ -35,7 +35,7 @@ RUN group_name="$(awk -F: -v gid="$GROUP_ID" '$3 == gid { print $1; exit }' /etc
 
 RUN rustup component add rustfmt clippy
 
-COPY backend-rs/Cargo.toml backend-rs/Cargo.lock ./
+COPY backend/Cargo.toml backend/Cargo.lock ./
 RUN --mount=type=cache,target=/cargo/registry \
     --mount=type=cache,target=/cargo/git \
     mkdir src \

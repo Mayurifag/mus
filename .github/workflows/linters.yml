@@ -65,9 +65,9 @@ jobs:
           path: |
             .ci-cache/backend/cargo
             .ci-cache/backend/target
-          key: ${{ runner.os }}-cargo-backend-${{ hashFiles('backend-rs/Cargo.lock') }}-${{ hashFiles('backend-rs/**/*.rs') }}
+          key: ${{ runner.os }}-cargo-backend-${{ hashFiles('backend/Cargo.lock') }}-${{ hashFiles('backend/**/*.rs') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-backend-${{ hashFiles('backend-rs/Cargo.lock') }}-
+            ${{ runner.os }}-cargo-backend-${{ hashFiles('backend/Cargo.lock') }}-
             ${{ runner.os }}-cargo-backend-
       - name: Fix Cargo cache ownership
         run: sudo chown -R "$(id -u):$(id -g)" .ci-cache/backend

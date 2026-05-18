@@ -13,6 +13,10 @@
 - Production deployments run the app behind external authentication; do not add app-level auth unless explicitly requested.
 - Database and generated covers are derived container data; do not add Docker volumes for them unless explicitly requested.
 - Local music mount is `/Volumes/sdcard-apfs/OpenCloud/Personal/Music:/app_data/music`.
-- Production OpenCloud uses PosixFS and stores metadata in `user.oc.*` xattrs. If `mus` edits MP3 tags/artwork directly, OpenCloud sync can break with stale `user.oc.blobsize`/checksums or stuck `user.oc.nodestatus=processing:*`; `touch`, `opencloud posixfs consistency`, and restarting OpenCloud did not repair it. To diagnose, compare `stat -c %s` with `getfattr -n user.oc.blobsize --only-values` and inspect `user.oc.nodestatus`; manual repair may require recomputing `user.oc.cs.sha1`, `user.oc.cs.md5`, `user.oc.cs.adler32`, updating `user.oc.blobsize`/`user.oc.mtime`, and removing stale `user.oc.nodestatus`.
-- Backend is Rust in `backend-rs`.
+- Production OpenCloud uses PosixFS and stores metadata in `user.oc.*` xattrs.
+- If `mus` edits MP3 tags/artwork directly, OpenCloud sync can break with stale `user.oc.blobsize`/checksums or stuck `user.oc.nodestatus=processing:*`.
+- `touch`, `opencloud posixfs consistency`, and restarting OpenCloud did not repair stale OpenCloud sync metadata.
+- To diagnose OpenCloud sync issues, compare `stat -c %s` with `getfattr -n user.oc.blobsize --only-values` and inspect `user.oc.nodestatus`.
+- Manual OpenCloud repair may require recomputing `user.oc.cs.sha1`, `user.oc.cs.md5`, `user.oc.cs.adler32`, updating `user.oc.blobsize`/`user.oc.mtime`, and removing stale `user.oc.nodestatus`.
+- Backend is Rust in `backend`.
 - Keep Markdown docs and roadmap notes current when changes affect project behavior or durable guidance.

@@ -9,7 +9,7 @@ x-backend-environment: &x-backend-environment
   LOG_LEVEL: INFO
 
 x-backend-volumes: &x-backend-volumes
-  - ../backend-rs:/app
+  - ../backend:/app
   - backend_cargo:/cargo
   - backend_target:/app/target
   - /path/to/your/music:/app_data/music

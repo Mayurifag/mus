@@ -6,7 +6,6 @@ I made this project because I do not like any other projects to have visually
 simple yet very powerful selfhosted solution to listen, manage and download
 music.
 
-
 I already use it daily yet I don't think its ready to use. There will be no
 instructions and demonstrations here yet, until I will be sure it is ready to be
 in alpha stage.

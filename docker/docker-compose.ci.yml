@@ -3,7 +3,7 @@ services:
   backend:
     image: mus-backend-ci
     volumes:
-      - ../backend-rs:/app
+      - ../backend:/app
       - ../.ci-cache/backend/cargo:/cargo
       - ../.ci-cache/backend/target:/app/target
 
