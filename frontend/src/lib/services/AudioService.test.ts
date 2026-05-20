@@ -98,6 +98,37 @@ describe("AudioService", () => {
     expect(mockAudio.load).toHaveBeenCalled();
   });
 
+  it("should preload another track", () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
+    } as unknown as Response);
+    const nextTrack = { ...mockTrack, id: 2 };
+
+    audioService.updateAudioSource(mockTrack, false);
+    audioService.preloadTrack(nextTrack);
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "http://localhost:8001/api/v1/tracks/2/stream",
+      expect.objectContaining({
+        headers: { Range: "bytes=0-65535" },
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    globalThis.fetch = originalFetch;
+  });
+
+  it("should not preload the active track", () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn();
+
+    audioService.updateAudioSource(mockTrack, false);
+    audioService.preloadTrack(mockTrack);
+
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    globalThis.fetch = originalFetch;
+  });
+
   it("should not update audio source if track is null", () => {
     audioService.updateAudioSource(null, true);
 

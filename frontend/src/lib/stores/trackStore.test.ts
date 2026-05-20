@@ -160,6 +160,37 @@ describe("trackStore", () => {
     expect(get(trackStore).playRequestId).toBe(2);
   });
 
+  it("should add tracks from scan events without duplicating existing tracks", () => {
+    trackStore.setTracks(mockTracks);
+
+    const scannedTrack: Track = {
+      id: 4,
+      title: "Scanned Track",
+      artist: "Scanned Artist",
+      duration: 220,
+      filename: "scanned.mp3",
+      has_cover: false,
+      cover_small_url: null,
+      cover_original_url: null,
+      updated_at: 1640995500,
+    };
+
+    trackStore.addTrack(scannedTrack);
+    expect(get(trackStore).tracks).toEqual([scannedTrack, ...mockTracks]);
+    expect(get(trackStore).currentTrackIndex).toBe(1);
+
+    const updatedScannedTrack = {
+      ...scannedTrack,
+      title: "Updated Scanned Track",
+    };
+    trackStore.addTrack(updatedScannedTrack);
+
+    const state = get(trackStore);
+    expect(state.tracks).toHaveLength(4);
+    expect(state.tracks[0]).toEqual(updatedScannedTrack);
+    expect(state.currentTrackIndex).toBe(1);
+  });
+
   it("should handle nextTrack in regular (non-shuffle) mode", () => {
     trackStore.setTracks(mockTracks);
     trackStore.setCurrentTrackIndex(0);
@@ -211,6 +242,50 @@ describe("trackStore", () => {
 
     trackStore.clearArtistFilter();
     expect(get(trackStore).selectedArtist).toBeNull();
+  });
+
+  it("should keep next and previous navigation inside selected artist", () => {
+    const artistTracks: Track[] = [
+      { ...mockTracks[0], artist: "Artist A" },
+      { ...mockTracks[1], artist: "Artist B" },
+      { ...mockTracks[2], artist: "Artist A; Artist C" },
+    ];
+
+    trackStore.setTracks(artistTracks);
+    trackStore.setCurrentTrackIndex(0);
+    trackStore.setArtistFilter("Artist A");
+
+    trackStore.nextTrack();
+    expect(get(trackStore).currentTrackIndex).toBe(2);
+    expect(get(trackStore).currentTrack).toEqual(artistTracks[2]);
+
+    trackStore.nextTrack();
+    expect(get(trackStore).currentTrackIndex).toBe(0);
+    expect(get(trackStore).currentTrack).toEqual(artistTracks[0]);
+
+    trackStore.previousTrack();
+    expect(get(trackStore).currentTrackIndex).toBe(2);
+    expect(get(trackStore).currentTrack).toEqual(artistTracks[2]);
+  });
+
+  it("should keep shuffle navigation inside selected artist", () => {
+    const artistTracks: Track[] = [
+      { ...mockTracks[0], artist: "Artist A" },
+      { ...mockTracks[1], artist: "Artist B" },
+      { ...mockTracks[2], artist: "Artist A" },
+    ];
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    trackStore.setTracks(artistTracks);
+    trackStore.setCurrentTrackIndex(0);
+    trackStore.setArtistFilter("Artist A");
+    trackStore.setShuffle(true);
+
+    trackStore.nextTrack();
+    expect(get(trackStore).currentTrackIndex).toBe(2);
+    expect(get(trackStore).currentTrack).toEqual(artistTracks[2]);
+
+    vi.restoreAllMocks();
   });
 
   describe("shuffle mode navigation", () => {

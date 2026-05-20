@@ -16,7 +16,7 @@ use crate::{
     state::AppState,
     util::{
         audio_paths, can_write, clean_title, command_output, extract_artist_title,
-        generate_filename, now_nanos, run_command_output,
+        generate_filename, normalize_artists, now_nanos, run_command_output,
     },
 };
 
@@ -49,7 +49,7 @@ pub async fn fetch_metadata(
     };
     Ok(Json(MetadataResponse {
         title,
-        artist,
+        artist: normalize_artists(&artist),
         thumbnail_url: data
             .get("thumbnail")
             .and_then(Value::as_str)
@@ -70,7 +70,8 @@ pub async fn confirm_download(
     State(state): State<AppState>,
     Json(req): Json<ConfirmDownloadRequest>,
 ) -> Result<(StatusCode, Json<Value>), AppError> {
-    let final_name = generate_filename(&req.artist, &req.title, "mp3")?;
+    let artist = normalize_artists(&req.artist);
+    let final_name = generate_filename(&artist, &req.title, "mp3")?;
     if state.music_dir.join(final_name).exists() {
         return Err(AppError::conflict("A file with this name already exists"));
     }
@@ -78,7 +79,7 @@ pub async fn confirm_download(
         state,
         req.url,
         Some(req.title),
-        Some(req.artist),
+        Some(artist),
         req.artwork_url.filter(|url| !url.trim().is_empty()),
     )
     .await?;
@@ -151,6 +152,7 @@ async fn run_download_inner(
     artwork_url: Option<String>,
     tmp: &std::path::Path,
 ) -> Result<()> {
+    let artist = artist.map(|artist| normalize_artists(&artist));
     let output_template = tmp.join("%(artist,uploader|Unknown Artist)s - %(title)s.%(ext)s");
     let mut cmd = Command::new("yt-dlp");
     cmd.args([

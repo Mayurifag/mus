@@ -33,8 +33,7 @@ ARG BUILD_DATE
 ARG COMMIT_SHA
 ARG COMMIT_TITLE
 
-ENV APP_ENV=production \
-    LOG_LEVEL=info \
+ENV LOG_LEVEL=info \
     PORT=8000 \
     DATA_DIR_PATH=/app_data \
     STATIC_DIR_PATH=/app/frontend/build \

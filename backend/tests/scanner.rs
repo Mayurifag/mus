@@ -1,10 +1,11 @@
-use std::{fs, time::Duration};
+use std::{fs, path::Path, process::Command, time::Duration};
 
 use filetime::FileTime;
 use id3::{Tag, TagLike, Version};
 use mus_backend::{app::test_state, db, scanner::scan_music_dir};
 use rusqlite::{params, Connection};
 use tempfile::TempDir;
+use tokio::time::timeout;
 
 fn make_state() -> (TempDir, mus_backend::state::AppState) {
     let tmp = TempDir::new().unwrap();
@@ -21,6 +22,33 @@ fn set_mtime(path: &std::path::Path, seconds: u64) {
         FileTime::from_system_time(std::time::UNIX_EPOCH + Duration::from_secs(seconds)),
     )
     .unwrap();
+}
+
+fn create_mp3(path: &Path, title: &str, artist: &str) {
+    let output = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=1000:duration=0.1",
+            "-c:a",
+            "libmp3lame",
+            "-q:a",
+            "9",
+            "-metadata",
+            &format!("title={title}"),
+            "-metadata",
+            &format!("artist={artist}"),
+        ])
+        .arg(path)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "ffmpeg failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
 
 #[test]
@@ -81,6 +109,79 @@ async fn scan_music_dir_finds_nested_audio_files() {
     assert_eq!(tracks.len(), 1);
     assert_eq!(tracks[0].title, "song");
     assert_eq!(tracks[0].file_path, path.to_string_lossy());
+}
+
+#[tokio::test]
+async fn scan_music_dir_broadcasts_added_tracks() {
+    let (_tmp, state) = make_state();
+    let path = state.music_dir.join("song.flac");
+    fs::write(&path, b"not real audio").unwrap();
+    let mut events = state.events.subscribe();
+
+    scan_music_dir(state.clone()).await.unwrap();
+
+    let event = timeout(Duration::from_secs(1), events.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(event.action_key.as_deref(), Some("track_added"));
+    assert!(event.message_to_show.is_none());
+    assert_eq!(event.action_payload.unwrap()["title"], "song");
+}
+
+#[tokio::test]
+async fn scan_music_dir_normalizes_comma_artists_and_renames_filename() {
+    let (_tmp, state) = make_state();
+    let path = state
+        .music_dir
+        .join("aikko,katanacss,INSPACE,playingtheangel - song.mp3");
+    create_mp3(&path, "song", "aikko,katanacss,INSPACE,playingtheangel");
+
+    scan_music_dir(state.clone()).await.unwrap();
+
+    let renamed_path = state
+        .music_dir
+        .join("aikko, katanacss, INSPACE, playingtheangel - song.mp3");
+    let tracks = db::list_tracks(&state).unwrap();
+    assert_eq!(tracks.len(), 1);
+    assert_eq!(
+        tracks[0].artist,
+        "aikko; katanacss; INSPACE; playingtheangel"
+    );
+    assert_eq!(tracks[0].file_path, renamed_path.to_string_lossy());
+    assert!(!path.exists());
+    assert!(renamed_path.exists());
+}
+
+#[tokio::test]
+async fn scan_music_dir_normalizes_unchanged_existing_tracks() {
+    let (_tmp, state) = make_state();
+    let path = state
+        .music_dir
+        .join("aikko, katanacss, INSPACE, playingtheange - song.mp3");
+    create_mp3(&path, "song", "aikko; katanacss; INSPACE; playingtheange");
+    scan_music_dir(state.clone()).await.unwrap();
+
+    {
+        let conn = state.db.lock().unwrap();
+        conn.execute(
+            "UPDATE track SET artist = ?1 WHERE file_path = ?2",
+            params![
+                "aikko,katanacss,INSPACE,playingtheange",
+                path.to_string_lossy()
+            ],
+        )
+        .unwrap();
+    }
+
+    scan_music_dir(state.clone()).await.unwrap();
+
+    let tracks = db::list_tracks(&state).unwrap();
+    assert_eq!(tracks.len(), 1);
+    assert_eq!(
+        tracks[0].artist,
+        "aikko; katanacss; INSPACE; playingtheange"
+    );
 }
 
 #[tokio::test]

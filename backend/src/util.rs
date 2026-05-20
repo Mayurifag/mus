@@ -103,13 +103,21 @@ pub fn can_write(path: &Path) -> bool {
     }
 }
 
-pub fn generate_filename(artist: &str, title: &str, ext: &str) -> Result<String, AppError> {
-    let artists = artist
-        .split(';')
+pub fn parse_artists(artist: &str) -> Vec<String> {
+    artist
+        .split([';', ','])
         .map(str::trim)
         .filter(|v| !v.is_empty())
-        .collect::<Vec<_>>()
-        .join(", ");
+        .map(str::to_string)
+        .collect()
+}
+
+pub fn normalize_artists(artist: &str) -> String {
+    parse_artists(artist).join("; ")
+}
+
+pub fn generate_filename(artist: &str, title: &str, ext: &str) -> Result<String, AppError> {
+    let artists = parse_artists(artist).join(", ");
     let filename = format!(
         "{} - {}.{}",
         sanitize(&artists),
@@ -132,15 +140,14 @@ pub fn clean_title(raw: &str) -> String {
 
 pub fn extract_artist_title(raw_title: &str, channel: &str) -> (String, String) {
     if let Some((artist, title)) = raw_title.split_once(" - ") {
-        return (artist.trim().to_string(), clean_title(title));
+        return (normalize_artists(artist), clean_title(title));
     }
     (
-        if channel.is_empty() {
+        normalize_artists(if channel.is_empty() {
             "Unknown Artist"
         } else {
             channel
-        }
-        .to_string(),
+        }),
         clean_title(raw_title),
     )
 }
@@ -222,4 +229,33 @@ pub fn inode(meta: &fs::Metadata) -> Option<i64> {
 #[cfg(not(unix))]
 pub fn inode(_: &fs::Metadata) -> Option<i64> {
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{generate_filename, normalize_artists, parse_artists};
+
+    #[test]
+    fn parses_semicolon_and_comma_separated_artists() {
+        assert_eq!(
+            parse_artists("aikko,katanacss; INSPACE, playingtheangel"),
+            vec!["aikko", "katanacss", "INSPACE", "playingtheangel"]
+        );
+    }
+
+    #[test]
+    fn normalizes_artists_for_storage() {
+        assert_eq!(
+            normalize_artists("aikko,katanacss,INSPACE"),
+            "aikko; katanacss; INSPACE"
+        );
+    }
+
+    #[test]
+    fn generates_filename_with_readable_artist_spacing() {
+        assert_eq!(
+            generate_filename("aikko,katanacss,INSPACE", "song", "mp3").unwrap(),
+            "aikko, katanacss, INSPACE - song.mp3"
+        );
+    }
 }

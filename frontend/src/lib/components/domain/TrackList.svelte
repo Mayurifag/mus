@@ -10,6 +10,7 @@
   import { updateEffectStats } from "$lib/utils/monitoredEffect";
   import { parseArtists } from "$lib/utils/formatters";
   import { get } from "svelte/store";
+  import { ArrowLeft } from "@lucide/svelte";
 
   let { audioService }: { audioService?: AudioService } = $props();
 
@@ -175,21 +176,32 @@
 
 <div class="flex flex-col" data-testid="track-list">
   {#if selectedArtist}
-    <div
-      class="border-border/40 bg-muted/20 mx-2 mb-3 flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm"
+    <button
+      type="button"
+      class="border-border/40 bg-card/60 hover:bg-muted/30 mx-3 mb-3 flex w-[calc(100%-1.5rem)] cursor-pointer items-center gap-3 rounded-xl border px-3 py-3 text-left shadow-sm transition-colors"
+      onclick={() => trackStore.clearArtistFilter()}
+      aria-label="Back to all songs"
     >
-      <span class="text-muted-foreground min-w-0 truncate">
-        Showing {visibleTrackCount}
-        {visibleTrackCount === 1 ? "song" : "songs"} by {selectedArtist}
-      </span>
-      <button
-        type="button"
-        class="text-accent hover:text-accent/80 shrink-0 text-xs font-medium transition-colors"
-        onclick={() => trackStore.clearArtistFilter()}
+      <span
+        class="bg-muted/50 text-muted-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
       >
-        Clear
-      </button>
-    </div>
+        <ArrowLeft class="h-5 w-5" />
+      </span>
+      <span class="min-w-0 flex-1">
+        <span class="text-muted-foreground block text-xs font-medium">
+          Back to all songs
+        </span>
+        <span class="block truncate text-base font-semibold">
+          {selectedArtist}
+        </span>
+      </span>
+      <span
+        class="border-border/50 text-muted-foreground shrink-0 rounded-full border px-2.5 py-1 text-xs"
+      >
+        {visibleTrackCount}
+        {visibleTrackCount === 1 ? "song" : "songs"}
+      </span>
+    </button>
   {/if}
 
   {#if $trackStore.tracks.length === 0}

@@ -124,4 +124,56 @@ describe("RightSidebar", () => {
 
     expect(get(trackStore).selectedArtist).toBe("Artist A");
   });
+
+  it("should not show selected artist summary in the sidebar", () => {
+    const tracks: Track[] = [
+      {
+        id: 1,
+        title: "Song 1",
+        artist: "Artist A",
+        duration: 180,
+        filename: "path1.mp3",
+        updated_at: Date.now(),
+        has_cover: false,
+        cover_small_url: null,
+        cover_original_url: null,
+      },
+    ];
+
+    trackStore.setTracks(tracks);
+    trackStore.setArtistFilter("Artist A");
+    render(RightSidebar);
+
+    expect(screen.queryByText("Showing Artist A")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Show Artist A songs" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("should not filter artists with one song", async () => {
+    const tracks: Track[] = [
+      {
+        id: 1,
+        title: "Song 1",
+        artist: "Artist A",
+        duration: 180,
+        filename: "path1.mp3",
+        updated_at: Date.now(),
+        has_cover: false,
+        cover_small_url: null,
+        cover_original_url: null,
+      },
+    ];
+
+    trackStore.setTracks(tracks);
+    render(RightSidebar);
+
+    expect(
+      screen.queryByRole("button", { name: "Show Artist A songs" }),
+    ).not.toBeInTheDocument();
+
+    await fireEvent.click(screen.getByText("Artist A"));
+
+    expect(get(trackStore).selectedArtist).toBeNull();
+  });
 });

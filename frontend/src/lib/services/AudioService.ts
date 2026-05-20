@@ -13,6 +13,9 @@ import {
 export class AudioService {
   private audio: HTMLAudioElement;
   private isSeeking = false;
+  private currentTrackId: number | null = null;
+  private preloadedTrackId: number | null = null;
+  private preloadController: AbortController | null = null;
 
   // Convert internal state to reactive stores
   private _volume = writable(1.0);
@@ -146,7 +149,9 @@ export class AudioService {
     if (!track) return;
 
     const streamUrl = getStreamUrl(track.id);
-    if (this.audio.src !== streamUrl) {
+    const shouldUpdateSource = this.currentTrackId !== track.id;
+    this.currentTrackId = track.id;
+    if (shouldUpdateSource) {
       const seekAfterMetadata = () => this.setTime(initialTime);
       this.audio.src = streamUrl;
       if (initialTime > 0) {
@@ -174,6 +179,47 @@ export class AudioService {
     } else if (initialTime > 0) {
       this.setTime(initialTime);
     }
+  }
+
+  preloadTrack(track: Track | null): void {
+    if (!track || this.currentTrackId === track.id) {
+      this.clearPreload();
+      return;
+    }
+
+    if (this.preloadedTrackId === track.id) {
+      return;
+    }
+
+    this.clearPreload();
+    this.preloadedTrackId = track.id;
+    const controller = new AbortController();
+    this.preloadController = controller;
+
+    fetch(getStreamUrl(track.id), {
+      headers: { Range: "bytes=0-65535" },
+      signal: controller.signal,
+    })
+      .then((response) => response.arrayBuffer())
+      .catch((error) => {
+        if (
+          error.name !== "AbortError" &&
+          this.preloadController === controller
+        ) {
+          this.preloadedTrackId = null;
+        }
+      })
+      .finally(() => {
+        if (this.preloadController === controller) {
+          this.preloadController = null;
+        }
+      });
+  }
+
+  private clearPreload(): void {
+    this.preloadController?.abort();
+    this.preloadController = null;
+    this.preloadedTrackId = null;
   }
 
   play(): void {
@@ -307,6 +353,7 @@ export class AudioService {
 
   destroy(): void {
     this.pause();
+    this.clearPreload();
     this.audio.controls = false;
     this.audio.removeEventListener("loadedmetadata", this.handleLoadedMetadata);
     this.audio.removeEventListener("timeupdate", this.handleTimeUpdate);
@@ -325,6 +372,7 @@ export class AudioService {
     } else {
       this.audio.src = "";
     }
+    this.currentTrackId = null;
     this.audio.load();
   }
 }

@@ -19,6 +19,7 @@ export function handleMusEvent(payload: MusEvent): void {
     payload.action_key !== "download_completed" &&
     (payload.action_key !== "track_updated" || payload.message_to_show)
   ) {
+    console.log("Recent event", payload);
     recentEventsStore.addEvent(payload);
   }
 

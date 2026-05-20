@@ -26,7 +26,8 @@ use crate::{
     scanner::upsert_path,
     state::AppState,
     util::{
-        can_write, file_content_hash, file_signature, generate_filename, inode, now, now_nanos,
+        can_write, file_content_hash, file_signature, generate_filename, inode, normalize_artists,
+        now, now_nanos,
     },
 };
 
@@ -111,7 +112,7 @@ pub async fn update_track(
     }
     let track = get_track(&state, id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
     let new_title = update.title.unwrap_or_else(|| track.title.clone());
-    let new_artist = update.artist.unwrap_or_else(|| track.artist.clone());
+    let new_artist = normalize_artists(&update.artist.unwrap_or_else(|| track.artist.clone()));
     let rename_file = update.rename_file.unwrap_or(false);
     let artwork_url = update.artwork_url.filter(|url| !url.trim().is_empty());
 
@@ -347,6 +348,7 @@ pub async fn upload_track(
             return Err(AppError::bad_request("Missing artist"));
         }
     };
+    let artist = normalize_artists(&artist);
     let source_name = match file_name {
         Some(file_name) => file_name,
         None => {

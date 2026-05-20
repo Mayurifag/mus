@@ -7,6 +7,7 @@ import {
   handleShuffleNext,
   handleShufflePrevious,
 } from "$lib/stores/trackNavigation";
+import { parseArtists } from "$lib/utils/formatters";
 
 export interface TrackStoreState {
   tracks: Track[];
@@ -69,6 +70,156 @@ function createTrackStore() {
       currentTrack: tracks[newIndex],
       playHistory: newHistory,
       historyPosition: newPosition,
+    };
+  };
+
+  const trackMatchesArtist = (track: Track, artist: string): boolean =>
+    parseArtists(track.artist).includes(artist);
+
+  const getSelectedArtistTrackIndexes = (state: TrackStoreState): number[] => {
+    const selectedArtist = state.selectedArtist;
+    if (!selectedArtist) return [];
+
+    return state.tracks.reduce<number[]>((indexes, track, index) => {
+      if (trackMatchesArtist(track, selectedArtist)) {
+        indexes.push(index);
+      }
+      return indexes;
+    }, []);
+  };
+
+  const findScopedTrackIndex = (
+    state: TrackStoreState,
+    scopedIndexes: number[],
+    targetTrack: Track,
+  ): number =>
+    scopedIndexes.find(
+      (trackIndex) => state.tracks[trackIndex].id === targetTrack.id,
+    ) ?? -1;
+
+  const getScopedHistoryMove = (
+    state: TrackStoreState,
+    scopedIndexes: number[],
+    startPosition: number,
+    direction: 1 | -1,
+  ): { trackIndex: number; historyPosition: number } | null => {
+    for (
+      let position = startPosition;
+      position >= 0 && position < state.playHistory.length;
+      position += direction
+    ) {
+      const trackIndex = findScopedTrackIndex(
+        state,
+        scopedIndexes,
+        state.playHistory[position],
+      );
+      if (trackIndex !== -1) {
+        return { trackIndex, historyPosition: position };
+      }
+    }
+
+    return null;
+  };
+
+  const getSequentialScopedTrackIndex = (
+    state: TrackStoreState,
+    scopedIndexes: number[],
+    direction: 1 | -1,
+  ): number => {
+    const currentPosition =
+      state.currentTrackIndex === null
+        ? -1
+        : scopedIndexes.indexOf(state.currentTrackIndex);
+    const scopedPosition =
+      currentPosition === -1
+        ? direction === 1
+          ? 0
+          : scopedIndexes.length - 1
+        : (currentPosition + direction + scopedIndexes.length) %
+          scopedIndexes.length;
+
+    return scopedIndexes[scopedPosition];
+  };
+
+  const getRandomScopedTrackIndex = (
+    state: TrackStoreState,
+    scopedIndexes: number[],
+  ): number => {
+    const currentInScope =
+      state.currentTrackIndex !== null &&
+      scopedIndexes.includes(state.currentTrackIndex);
+    const availableIndexes =
+      currentInScope && scopedIndexes.length > 1
+        ? scopedIndexes.filter(
+            (trackIndex) => trackIndex !== state.currentTrackIndex,
+          )
+        : scopedIndexes;
+
+    return availableIndexes[
+      Math.floor(Math.random() * availableIndexes.length)
+    ];
+  };
+
+  const navigateSelectedArtistTrack = (
+    state: TrackStoreState,
+    scopedIndexes: number[],
+    direction: 1 | -1,
+  ): Partial<TrackStoreState> => {
+    if (state.is_shuffle) {
+      const historyMove = getScopedHistoryMove(
+        state,
+        scopedIndexes,
+        state.historyPosition + direction,
+        direction,
+      );
+
+      if (historyMove) {
+        return {
+          currentTrackIndex: historyMove.trackIndex,
+          currentTrack: state.tracks[historyMove.trackIndex],
+          historyPosition: historyMove.historyPosition,
+        };
+      }
+    }
+
+    const trackIndex =
+      state.is_shuffle && direction === 1
+        ? getRandomScopedTrackIndex(state, scopedIndexes)
+        : getSequentialScopedTrackIndex(state, scopedIndexes, direction);
+    const track = state.tracks[trackIndex];
+
+    if (!state.is_shuffle) {
+      return {
+        currentTrackIndex: trackIndex,
+        currentTrack: track,
+      };
+    }
+
+    const currentInScope =
+      state.currentTrackIndex !== null &&
+      scopedIndexes.includes(state.currentTrackIndex);
+    if (direction === 1 && currentInScope && scopedIndexes.length === 1) {
+      return {};
+    }
+
+    const scopedHistory = state.playHistory
+      .slice(0, Math.max(state.historyPosition + 1, 0))
+      .filter(
+        (track) => findScopedTrackIndex(state, scopedIndexes, track) !== -1,
+      );
+
+    if (scopedHistory.length === 0 && currentInScope && state.currentTrack) {
+      scopedHistory.push(state.currentTrack);
+    }
+
+    const playHistory =
+      direction === 1 ? [...scopedHistory, track] : [track, ...scopedHistory];
+
+    return {
+      currentTrackIndex: trackIndex,
+      currentTrack: track,
+      playHistory,
+      historyPosition: direction === 1 ? playHistory.length - 1 : 0,
     };
   };
 
@@ -193,7 +344,21 @@ function createTrackStore() {
     },
     nextTrack: () => {
       update((state) => {
-        if (state.currentTrackIndex === null || state.tracks.length === 0) {
+        if (state.tracks.length === 0) {
+          return state;
+        }
+
+        if (state.selectedArtist) {
+          const scopedIndexes = getSelectedArtistTrackIndexes(state);
+          if (scopedIndexes.length === 0) return state;
+
+          return {
+            ...state,
+            ...navigateSelectedArtistTrack(state, scopedIndexes, 1),
+          };
+        }
+
+        if (state.currentTrackIndex === null) {
           return state;
         }
 
@@ -215,7 +380,21 @@ function createTrackStore() {
     },
     previousTrack: () => {
       update((state) => {
-        if (state.currentTrackIndex === null || state.tracks.length === 0) {
+        if (state.tracks.length === 0) {
+          return state;
+        }
+
+        if (state.selectedArtist) {
+          const scopedIndexes = getSelectedArtistTrackIndexes(state);
+          if (scopedIndexes.length === 0) return state;
+
+          return {
+            ...state,
+            ...navigateSelectedArtistTrack(state, scopedIndexes, -1),
+          };
+        }
+
+        if (state.currentTrackIndex === null) {
           return state;
         }
 
@@ -246,10 +425,14 @@ function createTrackStore() {
         ...clearShuffleHistory(state, is_shuffle),
       })),
     setArtistFilter: (artist: string) =>
-      update((state) => ({
-        ...state,
-        selectedArtist: artist,
-      })),
+      update((state) =>
+        state.selectedArtist === artist
+          ? state
+          : {
+              ...state,
+              selectedArtist: artist,
+            },
+      ),
     clearArtistFilter: () =>
       update((state) => ({
         ...state,
@@ -257,6 +440,24 @@ function createTrackStore() {
       })),
     addTrack: (track: Track) =>
       update((state) => {
+        const existingIndex = state.tracks.findIndex((t) => t.id === track.id);
+        if (existingIndex !== -1) {
+          const newTracks = [...state.tracks];
+          newTracks[existingIndex] = track;
+          const newCurrentTrack =
+            state.currentTrack?.id === track.id ? track : state.currentTrack;
+          const newPlayHistory = state.playHistory.map((t) =>
+            t.id === track.id ? track : t,
+          );
+
+          return {
+            ...state,
+            tracks: newTracks,
+            currentTrack: newCurrentTrack,
+            playHistory: newPlayHistory,
+          };
+        }
+
         const newTracks = [track, ...state.tracks];
         const newCurrentTrackIndex =
           state.currentTrackIndex !== null ? state.currentTrackIndex + 1 : null;

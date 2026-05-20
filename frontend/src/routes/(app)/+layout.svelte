@@ -46,6 +46,9 @@
   let sheetOpen = $state(false);
   let lastCurrentTrackId: number | null = null;
   let lastPlayRequestId = 0;
+  let isPlaying = $state(false);
+  let currentTime = $state(0);
+  let duration = $state(0);
 
   // Drag and drop state
   let isDraggingFile = $state(false);
@@ -59,6 +62,24 @@
       audioService = new AudioService(audio);
       audioServiceStore.set(audioService);
     }
+  }
+
+  function nextTrackToPreload(): Track | null {
+    if (
+      $trackStore.currentTrackIndex === null ||
+      $trackStore.tracks.length < 2
+    ) {
+      return null;
+    }
+    if ($trackStore.is_shuffle) {
+      return $trackStore.historyPosition < $trackStore.playHistory.length - 1
+        ? $trackStore.playHistory[$trackStore.historyPosition + 1]
+        : null;
+    }
+
+    return $trackStore.tracks[
+      ($trackStore.currentTrackIndex + 1) % $trackStore.tracks.length
+    ];
   }
 
   // Initialize drag and drop service
@@ -190,6 +211,38 @@
   });
 
   $effect(() => {
+    if (!audioService) return;
+
+    return audioService.isPlayingStore.subscribe((value) => {
+      isPlaying = value;
+    });
+  });
+
+  $effect(() => {
+    if (!audioService) return;
+
+    const unsubscribers = [
+      audioService.currentTimeStore.subscribe((value) => {
+        currentTime = value;
+      }),
+      audioService.durationStore.subscribe((value) => {
+        duration = value;
+      }),
+    ];
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+  });
+
+  $effect(() => {
+    if (!audioService) return;
+    if (!isPlaying || duration < 30 || duration - currentTime > 20) {
+      audioService.preloadTrack(null);
+      return;
+    }
+
+    audioService.preloadTrack(nextTrackToPreload());
+  });
+
+  $effect(() => {
     if (!uploadModalOpen && (fileToUpload || parsedFileInfo)) {
       if (parsedFileInfo?.coverInfo?.dataUrl) {
         releaseCoverDataUrl(parsedFileInfo.coverInfo.dataUrl);
@@ -254,7 +307,7 @@
 
   <!-- Desktop Sidebar - positioned fixed on the right -->
   <aside
-    class="desktop:block fixed top-0 right-0 hidden w-64"
+    class="desktop:block fixed top-0 right-0 bottom-[var(--footer-height-desktop)] hidden w-64"
     style="padding-top: var(--safe-area-inset-top); padding-right: var(--safe-area-inset-right);"
   >
     <RightSidebar />

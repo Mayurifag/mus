@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { initEventHandlerService, handleMusEvent } from "./eventHandlerService";
 import * as apiClient from "./apiClient";
 import { trackStore } from "$lib/stores/trackStore";
@@ -54,6 +54,7 @@ vi.mock("$app/environment", () => ({
 describe("eventHandlerService", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
 
     // Set up createTrackWithUrls mock to return the input data
     const apiClient = await import("./apiClient");
@@ -61,6 +62,10 @@ describe("eventHandlerService", () => {
       (data) => data as Track,
     );
     vi.mocked(apiClient.fetchTracks).mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe("handleMusEvent", () => {
@@ -77,6 +82,7 @@ describe("eventHandlerService", () => {
       handleMusEvent(payload);
 
       expect(toast.success).toHaveBeenCalledWith("Test message");
+      expect(console.log).toHaveBeenCalledWith("Recent event", payload);
       expect(recentEventsStore.addEvent).toHaveBeenCalledWith(payload);
     });
 

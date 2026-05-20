@@ -90,12 +90,16 @@ describe("TrackList component", () => {
     expect(screen.getByText(/No tracks available/)).toBeInTheDocument();
   });
 
-  it("shows artist filter summary", () => {
+  it("shows artist back button", () => {
     mockTrackStoreData.tracks = mockTracks;
     mockTrackStoreData.selectedArtist = "Artist 1";
 
     render(TrackList);
 
-    expect(screen.getByText(/Showing 1 song by Artist 1/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Back to all songs" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Artist 1")).toBeInTheDocument();
+    expect(screen.getByText("1 song")).toBeInTheDocument();
   });
 });

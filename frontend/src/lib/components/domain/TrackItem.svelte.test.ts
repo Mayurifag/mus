@@ -1,11 +1,21 @@
 import { vi } from "vitest";
 
-// Mock the trackStore
+const mockTrackStoreState = vi.hoisted(() => ({
+  selectedArtist: null as string | null,
+  tracks: [] as { artist: string }[],
+}));
+
+const mockTrackStore = vi.hoisted(() => ({
+  subscribe: vi.fn((callback: (value: typeof mockTrackStoreState) => void) => {
+    callback(mockTrackStoreState);
+    return () => {};
+  }),
+  playTrack: vi.fn(),
+  setArtistFilter: vi.fn(),
+}));
+
 vi.mock("$lib/stores/trackStore", () => ({
-  trackStore: {
-    playTrack: vi.fn(),
-    setArtistFilter: vi.fn(),
-  },
+  trackStore: mockTrackStore,
 }));
 
 // Mock the playerStore (now only UI state)
@@ -48,6 +58,8 @@ describe("TrackItem component", () => {
     // Clear the mocks
     vi.mocked(trackStore.playTrack).mockClear();
     vi.mocked(trackStore.setArtistFilter).mockClear();
+    mockTrackStoreState.selectedArtist = null;
+    mockTrackStoreState.tracks = [mockTrack, { ...mockTrack, id: 2 }];
   });
 
   it("renders track details correctly", () => {
@@ -162,6 +174,42 @@ describe("TrackItem component", () => {
       "Test Artist",
     );
     expect(vi.mocked(trackStore.playTrack)).not.toHaveBeenCalled();
+  });
+
+  it("plays the row when selected artist text is clicked", async () => {
+    mockTrackStoreState.selectedArtist = "Test Artist";
+    render(TrackItem, { track: mockTrack, index: 0, isSelected: false });
+
+    expect(
+      screen.queryByRole("button", {
+        name: "Show Test Artist songs",
+      }),
+    ).not.toBeInTheDocument();
+
+    const artistText = screen.getByText("Test Artist");
+    await fireEvent.mouseDown(artistText, { button: 0 });
+    await fireEvent.mouseUp(artistText, { button: 0 });
+
+    expect(vi.mocked(trackStore.setArtistFilter)).not.toHaveBeenCalled();
+    expect(vi.mocked(trackStore.playTrack)).toHaveBeenCalledWith(0);
+  });
+
+  it("plays the row when a one-song artist is clicked", async () => {
+    mockTrackStoreState.tracks = [mockTrack];
+    render(TrackItem, { track: mockTrack, index: 0, isSelected: false });
+
+    expect(
+      screen.queryByRole("button", {
+        name: "Show Test Artist songs",
+      }),
+    ).not.toBeInTheDocument();
+
+    const artistText = screen.getByText("Test Artist");
+    await fireEvent.mouseDown(artistText, { button: 0 });
+    await fireEvent.mouseUp(artistText, { button: 0 });
+
+    expect(vi.mocked(trackStore.setArtistFilter)).not.toHaveBeenCalled();
+    expect(vi.mocked(trackStore.playTrack)).toHaveBeenCalledWith(0);
   });
 
   describe("buffered ranges integration", () => {

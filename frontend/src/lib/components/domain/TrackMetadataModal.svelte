@@ -16,6 +16,7 @@
   import { Plus, X, HelpCircle, Save, Trash2 } from "@lucide/svelte";
   import { permissionsStore } from "$lib/stores/permissionsStore";
   import { trackStore } from "$lib/stores/trackStore";
+  import { parseArtists } from "$lib/utils/formatters";
 
   import FilenameDisplay from "./FilenameDisplay.svelte";
   import ArtworkSearchModal from "./ArtworkSearchModal.svelte";
@@ -121,35 +122,29 @@
     return "No cover";
   });
 
+  function artistRows(value: string | undefined) {
+    const artistList = parseArtists(value ?? "");
+
+    if (artistList.length === 0) {
+      artistList.push("");
+    }
+
+    return artistList.map((value) => ({ id: artistIdCounter++, value }));
+  }
+
   function resetState() {
     if (mode === "edit" && track) {
       formState.title = track.title;
       formState.renameFile = true;
       selectedArtwork = null;
-      const artistList = (track.artist?.split(";") ?? [])
-        .map((a) => a.trim())
-        .filter(Boolean);
-
-      if (artistList.length === 0) {
-        artistList.push("");
-      }
-
-      artists = artistList.map((value) => ({ id: artistIdCounter++, value }));
+      artists = artistRows(track.artist);
     } else if (mode === "create" && isDownload) {
       selectedArtwork = null;
       // Download mode: pre-fill from metadata fetched by DownloadManager
       formState.title = suggestedTitle ?? "";
       formState.renameFile = false;
 
-      if (suggestedArtist && suggestedArtist.trim()) {
-        const artistList = suggestedArtist
-          .split(",")
-          .map((a) => a.trim())
-          .filter(Boolean);
-        artists = artistList.map((value) => ({ id: artistIdCounter++, value }));
-      } else {
-        artists = [{ id: artistIdCounter++, value: "" }];
-      }
+      artists = artistRows(suggestedArtist);
     } else if (mode === "create" && file) {
       selectedArtwork = null;
       // Use suggested title and artist from parsed filename
@@ -159,9 +154,9 @@
 
       // Set up artists with suggested artist or empty field
       if (suggestedArtist && suggestedArtist.trim()) {
-        artists = [{ id: artistIdCounter++, value: suggestedArtist.trim() }];
+        artists = artistRows(suggestedArtist);
       } else if (metadata?.artist) {
-        artists = [{ id: artistIdCounter++, value: metadata.artist }];
+        artists = artistRows(metadata.artist);
       } else {
         artists = [{ id: artistIdCounter++, value: "" }];
       }

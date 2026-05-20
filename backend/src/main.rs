@@ -26,17 +26,13 @@ async fn main() -> Result<()> {
     tokio::spawn({
         let state = state.clone();
         async move {
-            if let Err(error) = scan_music_dir(state.clone()).await {
+            if let Err(error) = scan_music_dir(state).await {
                 tracing::warn!("failed to scan music directory: {error}");
             }
-            watch_music_dir(state).await;
         }
     });
-
-    let mut app = app(state);
-    if env::var("APP_ENV").unwrap_or_default() != "production" {
-        app = app.layer(CorsLayer::permissive());
-    }
+    tokio::spawn(watch_music_dir(state.clone()));
+    let app = app(state).layer(CorsLayer::permissive());
 
     let port = env::var("PORT")
         .ok()

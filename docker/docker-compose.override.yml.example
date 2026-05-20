@@ -2,8 +2,6 @@
 # Instruction for AI - if you change this file, you have also change ./docker-compose.override.yml.example file with same changes.
 
 x-backend-environment: &x-backend-environment
-  APP_ENV: development
-  FRONTEND_ORIGIN: http://localhost:5173
   GEMINI_API_KEY: ${GEMINI_API_KEY:-}
   GEMINI_MODEL: ${GEMINI_MODEL:-}
   LOG_LEVEL: INFO

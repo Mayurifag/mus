@@ -1,13 +1,15 @@
 use std::{
     collections::HashMap,
     collections::HashSet,
-    fs,
+    env, fs,
     path::{Path, PathBuf},
     time::Duration,
 };
 
 use anyhow::Result;
-use notify::{event::EventKind, Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{
+    event::EventKind, Config, Event, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
+};
 use rusqlite::params;
 use serde_json::json;
 use tokio::{sync::mpsc, time};
@@ -15,9 +17,14 @@ use tokio::{sync::mpsc, time};
 use crate::{
     db::{self, delete_track_row, set_track_cover_state, track_dto},
     events::broadcast,
-    media::{extract_cover, read_metadata, standardize_audio_tags, MediaMetadata},
+    media::{
+        extract_cover, read_metadata, standardize_audio_tags, write_audio_tags, MediaMetadata,
+    },
     state::AppState,
-    util::{file_content_hash, file_signature, inode, is_audio_path, now, system_time_secs},
+    util::{
+        file_content_hash, file_signature, generate_filename, inode, is_audio_path,
+        normalize_artists, now, parse_artists, system_time_secs,
+    },
 };
 
 struct FileSnapshot {
@@ -28,17 +35,12 @@ struct FileSnapshot {
 }
 
 pub async fn scan_music_dir(state: AppState) -> Result<()> {
-    sync_tracks(state, false).await
+    sync_tracks(state, true).await
 }
 
 pub async fn watch_music_dir(state: AppState) {
     let (tx, mut rx) = mpsc::channel(100);
-    let mut watcher = match RecommendedWatcher::new(
-        move |result| {
-            let _ = tx.blocking_send(result);
-        },
-        Config::default(),
-    ) {
+    let mut watcher = match music_watcher(tx) {
         Ok(watcher) => watcher,
         Err(error) => {
             tracing::warn!("failed to start music directory watcher: {error}");
@@ -79,6 +81,46 @@ pub async fn watch_music_dir(state: AppState) {
     }
 }
 
+enum MusicWatcher {
+    Recommended(RecommendedWatcher),
+    Poll(PollWatcher),
+}
+
+impl MusicWatcher {
+    fn watch(&mut self, path: &Path, recursive_mode: RecursiveMode) -> notify::Result<()> {
+        match self {
+            Self::Recommended(watcher) => watcher.watch(path, recursive_mode),
+            Self::Poll(watcher) => watcher.watch(path, recursive_mode),
+        }
+    }
+}
+
+fn music_watcher(tx: mpsc::Sender<notify::Result<Event>>) -> notify::Result<MusicWatcher> {
+    if force_polling_watcher() {
+        PollWatcher::new(
+            move |result| {
+                let _ = tx.blocking_send(result);
+            },
+            Config::default().with_poll_interval(Duration::from_secs(1)),
+        )
+        .map(MusicWatcher::Poll)
+    } else {
+        RecommendedWatcher::new(
+            move |result| {
+                let _ = tx.blocking_send(result);
+            },
+            Config::default(),
+        )
+        .map(MusicWatcher::Recommended)
+    }
+}
+
+fn force_polling_watcher() -> bool {
+    env::var("WATCHFILES_FORCE_POLLING")
+        .ok()
+        .is_some_and(|value| matches!(value.as_str(), "1" | "true" | "TRUE" | "True"))
+}
+
 async fn sync_changed_paths(state: AppState, paths: Vec<PathBuf>) -> Result<()> {
     let mut current = HashSet::new();
     let mut existing = HashMap::new();
@@ -86,7 +128,6 @@ async fn sync_changed_paths(state: AppState, paths: Vec<PathBuf>) -> Result<()> 
         existing.insert(track.file_path.clone(), track);
     }
 
-    let mut removed_paths = Vec::new();
     for path in paths {
         if path.is_dir() {
             for path in audio_paths_in_dir(&path)? {
@@ -94,12 +135,12 @@ async fn sync_changed_paths(state: AppState, paths: Vec<PathBuf>) -> Result<()> 
             }
         } else if path.exists() && is_audio_path(&path) {
             sync_path(&state, &existing, &mut current, &path, true).await?;
-        } else if is_audio_path(&path) {
-            removed_paths.push(path);
         }
     }
-    for path in removed_paths {
-        delete_track_path(&state, &path)?;
+    for track in existing.values() {
+        if !current.contains(&track.file_path) && !Path::new(&track.file_path).exists() {
+            delete_missing_track(&state, track, true)?;
+        }
     }
     Ok(())
 }
@@ -165,17 +206,26 @@ async fn sync_tracks(state: AppState, broadcast_changes: bool) -> Result<()> {
 
     for track in existing.values() {
         if !current.contains(&track.file_path) && !Path::new(&track.file_path).exists() {
-            delete_track_row(&state, track.id)?;
-            if broadcast_changes {
-                broadcast(
-                    &state,
-                    "track_deleted",
-                    Some(&format!("Deleted track '{}'", track.title)),
-                    Some("info"),
-                    Some(json!({"id": track.id})),
-                );
-            }
+            delete_missing_track(&state, track, broadcast_changes)?;
         }
+    }
+    Ok(())
+}
+
+fn delete_missing_track(
+    state: &AppState,
+    track: &crate::models::Track,
+    broadcast_changes: bool,
+) -> Result<()> {
+    delete_track_row(state, track.id)?;
+    if broadcast_changes {
+        broadcast(
+            state,
+            "track_deleted",
+            Some(&format!("Deleted track '{}'", track.title)),
+            Some("info"),
+            Some(json!({"id": track.id})),
+        );
     }
     Ok(())
 }
@@ -193,7 +243,21 @@ async fn sync_path(
     match existing.get(&path_string) {
         Some(track)
             if track.file_signature.as_deref() == Some(signature.as_str())
-                && track.content_hash.is_some() => {}
+                && track.content_hash.is_some() =>
+        {
+            if let Some((track, file_path)) = normalize_existing_track(state, track, path).await? {
+                current.insert(file_path);
+                if broadcast_changes {
+                    broadcast(
+                        state,
+                        "track_updated",
+                        None,
+                        Some("info"),
+                        Some(json!(track)),
+                    );
+                }
+            }
+        }
         Some(track) => {
             let snapshot = file_snapshot_from_metadata(path, meta, mtime, signature).await?;
             if track.content_hash.is_none() && track.updated_at >= snapshot.mtime {
@@ -262,13 +326,7 @@ async fn sync_path(
                         Some(json!(track)),
                     );
                 } else {
-                    broadcast(
-                        state,
-                        "track_added",
-                        Some(&format!("Added track '{}'", track.title)),
-                        Some("success"),
-                        Some(json!(track)),
-                    );
+                    broadcast(state, "track_added", None, None, Some(json!(track)));
                 }
             }
         }
@@ -327,7 +385,6 @@ async fn upsert_path_with_snapshot(
     existing_id: Option<i64>,
 ) -> Result<crate::models::TrackDto> {
     standardize_audio_tags(path).await?;
-    let snapshot = file_snapshot(path).await?;
     let metadata = read_metadata(path).await.unwrap_or_else(|_| MediaMetadata {
         title: path
             .file_stem()
@@ -337,9 +394,11 @@ async fn upsert_path_with_snapshot(
         artist: "Unknown Artist".into(),
         duration: 0,
     });
-    let added_at = snapshot.mtime;
     let title = title_override.unwrap_or(metadata.title);
-    let artist = artist_override.unwrap_or(metadata.artist);
+    let artist = normalize_artists(&artist_override.unwrap_or(metadata.artist));
+    let path = auto_rename_artist_filename(path, &artist, &title)?;
+    let snapshot = file_snapshot(&path).await?;
+    let added_at = snapshot.mtime;
     let file_path = path.to_string_lossy().to_string();
     let (id, added_at) = {
         let conn = state.db.lock().unwrap();
@@ -361,7 +420,7 @@ async fn upsert_path_with_snapshot(
         };
         (id, added_at)
     };
-    let has_cover = extract_cover(path, &state.covers_dir, id)
+    let has_cover = extract_cover(&path, &state.covers_dir, id)
         .await
         .unwrap_or(false);
     set_track_cover_state(state, id, has_cover)?;
@@ -382,11 +441,89 @@ async fn upsert_path_with_snapshot(
     }))
 }
 
-fn delete_track_path(state: &AppState, path: &Path) -> Result<()> {
-    let conn = state.db.lock().unwrap();
-    conn.execute(
-        "DELETE FROM track WHERE file_path = ?1",
-        params![path.to_string_lossy().to_string()],
-    )?;
-    Ok(())
+fn auto_rename_artist_filename(path: &Path, artist: &str, title: &str) -> Result<PathBuf> {
+    let Some(target_path) = normalized_artist_filename(path, artist, title)? else {
+        return Ok(path.to_path_buf());
+    };
+    if target_path.exists() {
+        return Ok(path.to_path_buf());
+    }
+
+    fs::rename(path, &target_path)?;
+    Ok(target_path)
+}
+
+async fn normalize_existing_track(
+    state: &AppState,
+    track: &crate::models::Track,
+    path: &Path,
+) -> Result<Option<(crate::models::TrackDto, String)>> {
+    let normalized_artist = normalize_artists(&track.artist);
+    let mut new_path = path.to_path_buf();
+
+    if let Some(target_path) = normalized_artist_filename(path, &normalized_artist, &track.title)? {
+        if !target_path.exists() {
+            fs::rename(path, &target_path)?;
+            new_path = target_path;
+        }
+    }
+
+    if normalized_artist == track.artist && new_path == path {
+        return Ok(None);
+    }
+
+    if normalized_artist != track.artist {
+        write_audio_tags(&new_path, &track.title, &normalized_artist).await?;
+    }
+
+    let snapshot = file_snapshot(&new_path).await?;
+    let mut track = track.clone();
+    track.artist = normalized_artist;
+    track.file_path = new_path.to_string_lossy().to_string();
+    track.updated_at = now();
+    track.inode = inode(&snapshot.meta);
+    track.file_signature = Some(snapshot.file_signature);
+    track.content_hash = Some(snapshot.content_hash);
+    db::save_track(state, &track)?;
+
+    Ok(Some((
+        track_dto(track),
+        new_path.to_string_lossy().to_string(),
+    )))
+}
+
+fn normalized_artist_filename(path: &Path, artist: &str, title: &str) -> Result<Option<PathBuf>> {
+    let Some(ext) = path.extension().and_then(|v| v.to_str()) else {
+        return Ok(None);
+    };
+    let filename =
+        generate_filename(artist, title, ext).map_err(|error| anyhow::anyhow!(error.message))?;
+    let target_path = path
+        .parent()
+        .unwrap_or_else(|| Path::new(""))
+        .join(filename);
+    if target_path == path {
+        return Ok(None);
+    }
+
+    let Some(current_stem) = path.file_stem().and_then(|v| v.to_str()) else {
+        return Ok(None);
+    };
+    let Some(target_stem) = target_path.file_stem().and_then(|v| v.to_str()) else {
+        return Ok(None);
+    };
+    let Some((current_artist, current_title)) = current_stem.split_once(" - ") else {
+        return Ok(None);
+    };
+    let Some((target_artist, target_title)) = target_stem.split_once(" - ") else {
+        return Ok(None);
+    };
+
+    if current_title == target_title
+        && parse_artists(current_artist) == parse_artists(target_artist)
+    {
+        return Ok(Some(target_path));
+    }
+
+    Ok(None)
 }

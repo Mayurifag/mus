@@ -3,7 +3,6 @@
 
   import { AlertTriangle, Play } from "@lucide/svelte";
   import EffectMonitor from "$lib/components/debug/EffectMonitor.svelte";
-  import RecentEvents from "$lib/components/debug/RecentEvents.svelte";
   import ErrorItem from "$lib/components/domain/ErrorItem.svelte";
   import DownloadManager from "$lib/components/domain/DownloadManager.svelte";
   import ArtistLinks from "$lib/components/domain/ArtistLinks.svelte";
@@ -84,8 +83,12 @@
     return Object.entries(counts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-      .slice(0, 5);
+      .slice(0, 12);
   });
+
+  function canSelectArtist(name: string, count: number): boolean {
+    return selectedArtist !== name && count > 1;
+  }
 
   const timelineItems = $derived.by(() => {
     const items: Array<{
@@ -189,26 +192,30 @@
           {/if}
         </div>
 
-        {#if selectedArtist}
-          <div class="text-muted-foreground mb-2 truncate text-xs">
-            Showing {selectedArtist}
-          </div>
-        {/if}
-
         <div class="space-y-1">
           {#each topArtists as artist (artist.name)}
-            <button
-              type="button"
-              class="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors {selectedArtist ===
-              artist.name
-                ? 'bg-accent/10 text-accent'
-                : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'}"
-              title="Show {artist.name} songs"
-              onclick={() => trackStore.setArtistFilter(artist.name)}
-            >
-              <span class="truncate">{artist.name}</span>
-              <span class="text-xs opacity-70">{artist.count}</span>
-            </button>
+            {#if canSelectArtist(artist.name, artist.count)}
+              <button
+                type="button"
+                class="text-muted-foreground hover:bg-muted/30 hover:text-foreground flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors"
+                title="Show {artist.name} songs"
+                aria-label="Show {artist.name} songs"
+                onclick={() => trackStore.setArtistFilter(artist.name)}
+              >
+                <span class="truncate">{artist.name}</span>
+                <span class="text-xs opacity-70">{artist.count}</span>
+              </button>
+            {:else}
+              <div
+                class="text-muted-foreground flex w-full cursor-default items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm {selectedArtist ===
+                artist.name
+                  ? 'bg-muted/20'
+                  : ''}"
+              >
+                <span class="truncate">{artist.name}</span>
+                <span class="text-xs opacity-70">{artist.count}</span>
+              </div>
+            {/if}
           {/each}
         </div>
       </div>
@@ -284,11 +291,6 @@
         </div>
       </div>
     {/if}
-
-    <!-- Debug Sections -->
-    <div class="border-border/30 border-b p-4">
-      <RecentEvents />
-    </div>
 
     {#if shouldShowEffectsMonitor}
       <div class="p-4">
