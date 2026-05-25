@@ -11,6 +11,7 @@
   import { parseArtists } from "$lib/utils/formatters";
   import { get } from "svelte/store";
   import { ArrowLeft } from "@lucide/svelte";
+  import { clearArtistFilter } from "$lib/utils/artistFilterNavigation";
 
   let { audioService }: { audioService?: AudioService } = $props();
 
@@ -179,7 +180,7 @@
     <button
       type="button"
       class="border-border/40 bg-card/60 hover:bg-muted/30 mx-3 mb-3 flex w-[calc(100%-1.5rem)] cursor-pointer items-center gap-3 rounded-xl border px-3 py-3 text-left shadow-sm transition-colors"
-      onclick={() => trackStore.clearArtistFilter()}
+      onclick={clearArtistFilter}
       aria-label="Back to all songs"
     >
       <span

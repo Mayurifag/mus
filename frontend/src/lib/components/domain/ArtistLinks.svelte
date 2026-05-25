@@ -1,5 +1,6 @@
 <script lang="ts">
   import { trackStore } from "$lib/stores/trackStore";
+  import { selectArtistFilter } from "$lib/utils/artistFilterNavigation";
   import { parseArtists } from "$lib/utils/formatters";
 
   let {
@@ -30,7 +31,7 @@
 
   function selectArtist(event: MouseEvent, artistName: string) {
     event.stopPropagation();
-    trackStore.setArtistFilter(artistName);
+    selectArtistFilter(artistName);
   }
 </script>
 

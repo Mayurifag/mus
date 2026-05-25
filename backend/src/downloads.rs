@@ -211,12 +211,12 @@ async fn run_download_inner(
     move_without_replace(&downloaded, &final_path)?;
     if let Some(artwork_url) = artwork_url {
         let jpeg_path = download_artwork_as_jpeg(&artwork_url, tmp.to_path_buf()).await?;
-        let embed_result = write_audio_cover(&final_path, &jpeg_path).await;
+        let embed_result = write_audio_cover(&final_path, tmp, &jpeg_path).await;
         let _ = fs::remove_file(jpeg_path);
         embed_result?;
     }
     if let (Some(title), Some(artist)) = (&title, &artist) {
-        write_audio_tags(&final_path, title, artist).await?;
+        write_audio_tags(&final_path, tmp, title, artist).await?;
     }
     let track = upsert_path(state, &final_path, title, artist).await?;
     tracing::info!(track_id = track.id, "download completed");

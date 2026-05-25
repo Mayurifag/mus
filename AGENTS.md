@@ -12,7 +12,10 @@
 - `docker/docker-compose.override.yml` is gitignored and required for local dev. Create it from `docker/docker-compose.override.yml.example` when missing.
 - Production deployments run the app behind external authentication; do not add app-level auth unless explicitly requested.
 - Database and generated covers are derived container data; do not add Docker volumes for them unless explicitly requested.
-- Local music mount is `/Volumes/sdcard-apfs/OpenCloud/Personal/Music:/app_data/music`.
+- Mounted folders must have the least possible file changes; use `/app_data/.cache` for transient upload/download/rewrite files.
+- Never create staging or replacement files inside mounted music folders.
+- Local music mount is `/Volumes/sdcard/Personal/Music:/app_data/music`.
+- Rewrite cache stays container-internal at `/app_data/.cache`; do not bind mount it locally.
 - Production OpenCloud uses PosixFS and stores metadata in `user.oc.*` xattrs.
 - If `mus` edits MP3 tags/artwork directly, OpenCloud sync can break with stale `user.oc.blobsize`/checksums or stuck `user.oc.nodestatus=processing:*`.
 - `touch`, `opencloud posixfs consistency`, and restarting OpenCloud did not repair stale OpenCloud sync metadata.

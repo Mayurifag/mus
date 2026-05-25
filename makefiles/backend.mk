@@ -4,12 +4,12 @@ back-ci: back-format-check back-lint back-test back-audit
 .PHONY: back-lint
 back-lint:
 	@echo "Linting backend code..."
-	@$(COMPOSE) run --rm --no-TTY backend cargo clippy --locked --all-targets --all-features -- -D warnings
+	@$(COMPOSE) run --rm --no-TTY backend cargo clippy --locked --all-targets --all-features --target-dir /app/target/clippy -- -D warnings
 
 .PHONY: back-check
 back-check:
 	@echo "Checking backend code..."
-	@$(COMPOSE) run --rm --no-TTY backend cargo check --locked --all-targets --all-features
+	@$(COMPOSE) run --rm --no-TTY backend cargo check --locked --all-targets --all-features --target-dir /app/target/check
 
 .PHONY: back-format
 back-format:
@@ -24,7 +24,7 @@ back-format-check:
 .PHONY: back-test
 back-test:
 	@echo "Running backend tests..."
-	@$(COMPOSE) run --rm --no-TTY backend cargo test --locked --all-targets --all-features
+	@$(COMPOSE) run --rm --no-TTY backend cargo test --locked --all-targets --all-features --target-dir /app/target/test
 
 .PHONY: back-audit
 back-audit:

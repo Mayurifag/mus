@@ -473,7 +473,13 @@ async fn normalize_existing_track(
     }
 
     if normalized_artist != track.artist {
-        write_audio_tags(&new_path, &track.title, &normalized_artist).await?;
+        write_audio_tags(
+            &new_path,
+            &state.data_dir.join(".cache"),
+            &track.title,
+            &normalized_artist,
+        )
+        .await?;
     }
 
     let snapshot = file_snapshot(&new_path).await?;

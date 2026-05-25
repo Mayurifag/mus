@@ -157,6 +157,13 @@ fn assert_has_attached_cover(data: &Value) {
     assert!(has_cover);
 }
 
+fn assert_no_mus_files(dir: &Path) {
+    for entry in fs::read_dir(dir).unwrap() {
+        let file_name = entry.unwrap().file_name();
+        assert!(!file_name.to_string_lossy().starts_with(".mus-"));
+    }
+}
+
 #[tokio::test]
 async fn ffmpeg_tag_rewrite_preserves_mp3_id3v23_utf8_and_cover() {
     let tmp = TempDir::new().unwrap();
@@ -167,9 +174,14 @@ async fn ffmpeg_tag_rewrite_preserves_mp3_id3v23_utf8_and_cover() {
     assert_id3v23(&path);
     assert_has_attached_cover(&probe(&path));
 
-    write_audio_tags(&path, "Тестовый трек", "アーティスト")
-        .await
-        .unwrap();
+    write_audio_tags(
+        &path,
+        &tmp.path().join("cache"),
+        "Тестовый трек",
+        "アーティスト",
+    )
+    .await
+    .unwrap();
     assert_id3v23(&path);
     let data = probe(&path);
     assert_eq!(data["format"]["tags"]["title"], "Тестовый трек");
@@ -187,9 +199,14 @@ async fn id3_tag_rewrite_standardizes_wav_to_id3v23() {
     let tag = Tag::read_from_path(&path).unwrap();
     assert_eq!(tag.version(), Version::Id3v23);
 
-    write_audio_tags(&path, "Тестовый трек", "アーティスト")
-        .await
-        .unwrap();
+    write_audio_tags(
+        &path,
+        &tmp.path().join("cache"),
+        "Тестовый трек",
+        "アーティスト",
+    )
+    .await
+    .unwrap();
     let tag = Tag::read_from_path(&path).unwrap();
     assert_eq!(tag.version(), Version::Id3v23);
     assert_eq!(tag.title(), Some("Тестовый трек"));
@@ -232,6 +249,46 @@ async fn standardize_audio_tags_skips_non_id3_formats() {
     standardize_audio_tags(&path).await.unwrap();
 
     assert_eq!(fs::metadata(&path).unwrap().modified().unwrap(), original);
+}
+
+#[tokio::test]
+async fn ffmpeg_tag_rewrite_uses_cache_dir_with_long_filename() {
+    let tmp = TempDir::new().unwrap();
+    let music_dir = tmp.path().join("music");
+    let cache_dir = tmp.path().join("cache");
+    fs::create_dir(&music_dir).unwrap();
+    let path = music_dir.join(format!("{}.flac", "a".repeat(250)));
+    create_flac_with_cover(&path);
+
+    write_audio_tags(&path, &cache_dir, "New title", "New artist")
+        .await
+        .unwrap();
+
+    let data = probe(&path);
+    assert_eq!(data["format"]["tags"]["title"], "New title");
+    assert_eq!(data["format"]["tags"]["artist"], "New artist");
+    assert_has_attached_cover(&data);
+    assert_no_mus_files(&music_dir);
+    assert!(fs::read_dir(&cache_dir).unwrap().next().is_none());
+}
+
+#[tokio::test]
+async fn ffmpeg_tag_rewrite_cleans_cache_after_failure() {
+    let tmp = TempDir::new().unwrap();
+    let music_dir = tmp.path().join("music");
+    let cache_dir = tmp.path().join("cache");
+    fs::create_dir(&music_dir).unwrap();
+    let path = music_dir.join("song.flac");
+    fs::write(&path, b"not audio").unwrap();
+
+    assert!(
+        write_audio_tags(&path, &cache_dir, "New title", "New artist")
+            .await
+            .is_err()
+    );
+
+    assert_no_mus_files(&music_dir);
+    assert!(fs::read_dir(&cache_dir).unwrap().next().is_none());
 }
 
 #[tokio::test]

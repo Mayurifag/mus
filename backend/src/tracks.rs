@@ -188,6 +188,7 @@ async fn apply_track_update(
     artwork_url: Option<String>,
 ) -> Result<TrackDto, AppError> {
     let mut track = get_track(&state, id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
+    let cache_dir = state.data_dir.join(".cache");
     let mut new_path = PathBuf::from(&track.file_path);
     if rename_file {
         let ext = new_path
@@ -202,13 +203,14 @@ async fn apply_track_update(
     }
 
     let jpeg_path = if let Some(artwork_url) = artwork_url {
-        Some(download_artwork_as_jpeg(&artwork_url, state.data_dir.join(".cache")).await?)
+        Some(download_artwork_as_jpeg(&artwork_url, cache_dir.clone()).await?)
     } else {
         None
     };
 
     if let Some(jpeg_path) = jpeg_path {
-        let embed_result = write_audio_cover(Path::new(&track.file_path), &jpeg_path).await;
+        let embed_result =
+            write_audio_cover(Path::new(&track.file_path), &cache_dir, &jpeg_path).await;
         let _ = async_fs::remove_file(jpeg_path).await;
         embed_result?;
         track.has_cover =
@@ -218,7 +220,13 @@ async fn apply_track_update(
     let metadata_changed = new_title != track.title || new_artist != track.artist || rename_file;
 
     if new_title != track.title || new_artist != track.artist {
-        write_audio_tags(Path::new(&track.file_path), &new_title, &new_artist).await?;
+        write_audio_tags(
+            Path::new(&track.file_path),
+            &cache_dir,
+            &new_title,
+            &new_artist,
+        )
+        .await?;
     }
 
     if rename_file && new_path != Path::new(&track.file_path) {
@@ -277,6 +285,7 @@ pub async fn upload_track(
     if !can_write(&state.music_dir) {
         return Err(AppError::forbidden("Music directory is read-only"));
     }
+    let cache_dir = state.data_dir.join(".cache");
     let mut title = None;
     let mut artist = None;
     let mut artwork_url = None;
@@ -306,9 +315,8 @@ pub async fn upload_track(
                     .and_then(|v| v.parse::<usize>().ok())
                     .unwrap_or(30);
                 let max_bytes = max_size_mb * 1024 * 1024;
-                let upload_dir = state.data_dir.join(".cache");
-                async_fs::create_dir_all(&upload_dir).await?;
-                let (path, mut file) = create_upload_temp_file(&upload_dir, &ext).await?;
+                async_fs::create_dir_all(&cache_dir).await?;
+                let (path, mut file) = create_upload_temp_file(&cache_dir, &ext).await?;
                 let mut written = 0usize;
                 let mut field = field;
                 while let Some(chunk) = field.chunk().await? {
@@ -377,13 +385,12 @@ pub async fn upload_track(
         return Err(error);
     }
     if let Some(artwork_url) = artwork_url.filter(|url| !url.trim().is_empty()) {
-        let jpeg_path =
-            download_artwork_as_jpeg(&artwork_url, state.data_dir.join(".cache")).await?;
-        let embed_result = write_audio_cover(&path, &jpeg_path).await;
+        let jpeg_path = download_artwork_as_jpeg(&artwork_url, cache_dir.clone()).await?;
+        let embed_result = write_audio_cover(&path, &cache_dir, &jpeg_path).await;
         let _ = async_fs::remove_file(jpeg_path).await;
         embed_result?;
     }
-    write_audio_tags(&path, &title, &artist).await?;
+    write_audio_tags(&path, &cache_dir, &title, &artist).await?;
     let track = upsert_path(&state, &path, Some(title), Some(artist)).await?;
     tracing::info!(track_id = track.id, "track uploaded");
     Ok(Json(

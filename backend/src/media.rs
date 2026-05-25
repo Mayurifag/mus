@@ -1,11 +1,16 @@
-use std::{fs, path::Path, process::Stdio, time::Duration};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+    process::Stdio,
+    time::Duration,
+};
 
 use anyhow::{anyhow, Result};
 use id3::{frame::Picture, frame::PictureType, Tag, TagLike, Version};
 use serde_json::Value;
 use tokio::process::Command;
 
-use crate::util::{run_command_output, run_command_status};
+use crate::util::{now_nanos, run_command_output, run_command_status};
 
 #[derive(Debug)]
 pub struct MediaMetadata {
@@ -108,7 +113,12 @@ pub async fn standardize_audio_tags(path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub async fn write_audio_tags(path: &Path, title: &str, artist: &str) -> Result<()> {
+pub async fn write_audio_tags(
+    path: &Path,
+    cache_dir: &Path,
+    title: &str,
+    artist: &str,
+) -> Result<()> {
     if supports_id3(path) {
         let mut tag = Tag::read_from_path(path).unwrap_or_else(|_| Tag::new());
         tag.set_title(title);
@@ -118,6 +128,7 @@ pub async fn write_audio_tags(path: &Path, title: &str, artist: &str) -> Result<
     }
     rewrite_audio(
         path,
+        cache_dir,
         vec![
             "-metadata".to_string(),
             format!("title={title}"),
@@ -128,7 +139,7 @@ pub async fn write_audio_tags(path: &Path, title: &str, artist: &str) -> Result<
     .await
 }
 
-pub async fn write_audio_cover(path: &Path, jpeg_path: &Path) -> Result<()> {
+pub async fn write_audio_cover(path: &Path, cache_dir: &Path, jpeg_path: &Path) -> Result<()> {
     if supports_id3(path) {
         let mut tag = Tag::read_from_path(path).unwrap_or_else(|_| Tag::new());
         tag.remove_all_pictures();
@@ -143,7 +154,7 @@ pub async fn write_audio_cover(path: &Path, jpeg_path: &Path) -> Result<()> {
         return Ok(());
     }
 
-    rewrite_audio_cover(path, jpeg_path).await
+    rewrite_audio_cover(path, cache_dir, jpeg_path).await
 }
 
 fn supports_id3(path: &Path) -> bool {
@@ -157,14 +168,8 @@ fn supports_id3(path: &Path) -> bool {
         })
 }
 
-async fn rewrite_audio(path: &Path, extra_args: Vec<String>) -> Result<()> {
-    let Some(parent) = path.parent() else {
-        return Ok(());
-    };
-    let Some(file_name) = path.file_name().and_then(|v| v.to_str()) else {
-        return Ok(());
-    };
-    let tmp = parent.join(format!(".mus-tags-{file_name}"));
+async fn rewrite_audio(path: &Path, cache_dir: &Path, extra_args: Vec<String>) -> Result<()> {
+    let tmp = allocate_path(cache_dir, "tags", path)?;
     let mut command = Command::new("ffmpeg");
     command
         .args(["-y", "-i"])
@@ -175,9 +180,18 @@ async fn rewrite_audio(path: &Path, extra_args: Vec<String>) -> Result<()> {
         .arg(&tmp)
         .stdout(Stdio::null())
         .stderr(Stdio::null());
-    let status = run_command_status(command, Duration::from_secs(300)).await?;
+    let status = match run_command_status(command, Duration::from_secs(300)).await {
+        Ok(status) => status,
+        Err(error) => {
+            let _ = fs::remove_file(&tmp);
+            return Err(error);
+        }
+    };
     if status.success() && tmp.is_file() {
-        fs::rename(tmp, path)?;
+        if let Err(error) = replace_file(&tmp, path) {
+            let _ = fs::remove_file(tmp);
+            return Err(error);
+        }
     } else {
         let _ = fs::remove_file(tmp);
         return Err(anyhow!("ffmpeg failed to rewrite audio tags"));
@@ -185,14 +199,8 @@ async fn rewrite_audio(path: &Path, extra_args: Vec<String>) -> Result<()> {
     Ok(())
 }
 
-async fn rewrite_audio_cover(path: &Path, jpeg_path: &Path) -> Result<()> {
-    let Some(parent) = path.parent() else {
-        return Ok(());
-    };
-    let Some(file_name) = path.file_name().and_then(|v| v.to_str()) else {
-        return Ok(());
-    };
-    let tmp = parent.join(format!(".mus-cover-{file_name}"));
+async fn rewrite_audio_cover(path: &Path, cache_dir: &Path, jpeg_path: &Path) -> Result<()> {
+    let tmp = allocate_path(cache_dir, "cover", path)?;
     let mut command = Command::new("ffmpeg");
     command
         .args(["-y", "-i"])
@@ -216,12 +224,70 @@ async fn rewrite_audio_cover(path: &Path, jpeg_path: &Path) -> Result<()> {
         .arg(&tmp)
         .stdout(Stdio::null())
         .stderr(Stdio::null());
-    let status = run_command_status(command, Duration::from_secs(300)).await?;
+    let status = match run_command_status(command, Duration::from_secs(300)).await {
+        Ok(status) => status,
+        Err(error) => {
+            let _ = fs::remove_file(&tmp);
+            return Err(error);
+        }
+    };
     if status.success() && tmp.is_file() {
-        fs::rename(tmp, path)?;
+        if let Err(error) = replace_file(&tmp, path) {
+            let _ = fs::remove_file(tmp);
+            return Err(error);
+        }
     } else {
         let _ = fs::remove_file(tmp);
         return Err(anyhow!("ffmpeg failed to embed cover art"));
     }
     Ok(())
+}
+
+fn replace_file(source: &Path, destination: &Path) -> Result<()> {
+    match fs::rename(source, destination) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == io::ErrorKind::CrossesDevices => {
+            copy_over(source, destination)?;
+            let _ = fs::remove_file(source);
+            Ok(())
+        }
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn copy_over(source: &Path, destination: &Path) -> Result<()> {
+    let mut input = fs::File::open(source)?;
+    let mut output = fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(destination)?;
+    io::copy(&mut input, &mut output)?;
+    output.sync_all()?;
+    Ok(())
+}
+
+fn allocate_path(dir: &Path, kind: &str, path: &Path) -> Result<PathBuf> {
+    fs::create_dir_all(dir)?;
+    for attempt in 0..100 {
+        let mut file_name = format!(".mus-{kind}-{}-{attempt}", now_nanos());
+        if let Some(ext) = path
+            .extension()
+            .and_then(|v| v.to_str())
+            .filter(|v| !v.is_empty())
+        {
+            file_name.push('.');
+            file_name.push_str(ext);
+        }
+        let path = dir.join(file_name);
+        match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+        {
+            Ok(_) => return Ok(path),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Err(anyhow!("failed to allocate rewrite file"))
 }

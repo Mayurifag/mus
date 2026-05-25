@@ -93,14 +93,31 @@ pub async fn run_command_status(mut command: Command, timeout: Duration) -> Resu
 }
 
 pub fn can_write(path: &Path) -> bool {
-    let probe = path.join(format!(".mus-write-test-{}", now()));
-    match fs::write(&probe, b"") {
-        Ok(_) => {
-            let _ = fs::remove_file(probe);
-            true
-        }
+    path.is_dir() && can_write_dir(path)
+}
+
+#[cfg(unix)]
+fn can_write_dir(path: &Path) -> bool {
+    can_access(path, "-w") && can_access(path, "-x")
+}
+
+#[cfg(unix)]
+fn can_access(path: &Path, flag: &str) -> bool {
+    match std::process::Command::new("test")
+        .arg(flag)
+        .arg(path)
+        .status()
+    {
+        Ok(status) => status.success(),
         Err(_) => false,
     }
+}
+
+#[cfg(not(unix))]
+fn can_write_dir(path: &Path) -> bool {
+    fs::metadata(path)
+        .map(|meta| !meta.permissions().readonly())
+        .unwrap_or(false)
 }
 
 pub fn parse_artists(artist: &str) -> Vec<String> {
@@ -233,7 +250,19 @@ pub fn inode(_: &fs::Metadata) -> Option<i64> {
 
 #[cfg(test)]
 mod tests {
-    use super::{generate_filename, normalize_artists, parse_artists};
+    use std::fs;
+
+    use tempfile::TempDir;
+
+    use super::{can_write, generate_filename, normalize_artists, parse_artists};
+
+    #[test]
+    fn can_write_does_not_create_probe_files() {
+        let tmp = TempDir::new().unwrap();
+
+        assert!(can_write(tmp.path()));
+        assert!(fs::read_dir(tmp.path()).unwrap().next().is_none());
+    }
 
     #[test]
     fn parses_semicolon_and_comma_separated_artists() {

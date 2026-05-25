@@ -7,6 +7,10 @@
   import DownloadManager from "$lib/components/domain/DownloadManager.svelte";
   import ArtistLinks from "$lib/components/domain/ArtistLinks.svelte";
   import type { Track } from "$lib/types";
+  import {
+    clearArtistFilter,
+    selectArtistFilter,
+  } from "$lib/utils/artistFilterNavigation";
   import { parseArtists } from "$lib/utils/formatters";
   import {
     fetchErroredTracks,
@@ -185,7 +189,7 @@
             <button
               type="button"
               class="text-muted-foreground hover:text-foreground text-xs transition-colors"
-              onclick={() => trackStore.clearArtistFilter()}
+              onclick={clearArtistFilter}
             >
               Clear
             </button>
@@ -200,7 +204,7 @@
                 class="text-muted-foreground hover:bg-muted/30 hover:text-foreground flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors"
                 title="Show {artist.name} songs"
                 aria-label="Show {artist.name} songs"
-                onclick={() => trackStore.setArtistFilter(artist.name)}
+                onclick={() => selectArtistFilter(artist.name)}
               >
                 <span class="truncate">{artist.name}</span>
                 <span class="text-xs opacity-70">{artist.count}</span>

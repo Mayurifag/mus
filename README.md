@@ -38,8 +38,8 @@ in alpha stage.
 
 This is dockerized single container (yes!) which contains a static Svelte
 frontend served by the Rust backend, sqlite, official yt-dlp nightly zipapp and ffmpeg.
-Only the music directory is meant to be mounted; sqlite and generated covers are
-derived app data under `/app_data`.
+Only the music directory is meant to be mounted; sqlite, generated covers, and
+rewrite staging files are derived app data under `/app_data`.
 
 In e2e folder I made setup to run playwright tests against production docker
 image, so it is not bound to Rust/Svelte source files.
