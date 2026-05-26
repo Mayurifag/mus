@@ -2,9 +2,6 @@
   import type { ArtworkSearchResult, Track } from "$lib/types";
   import { onDestroy, onMount } from "svelte";
   import * as Dialog from "$lib/components/ui/dialog";
-  import { Input } from "$lib/components/ui/input";
-  import { Checkbox } from "$lib/components/ui/checkbox";
-  import { Button } from "$lib/components/ui/button";
   import {
     createTrackWithUrls,
     updateTrack,
@@ -13,14 +10,23 @@
     preloadArtworkSearch,
   } from "$lib/services/apiClient";
   import { toast } from "svelte-sonner";
-  import { Plus, X, HelpCircle, Save, Trash2 } from "@lucide/svelte";
   import { permissionsStore } from "$lib/stores/permissionsStore";
   import { trackStore } from "$lib/stores/trackStore";
   import { parseArtists } from "$lib/utils/formatters";
 
-  import FilenameDisplay from "./FilenameDisplay.svelte";
   import ArtworkSearchModal from "./ArtworkSearchModal.svelte";
-  import ArtworkPickerButton from "./ArtworkPickerButton.svelte";
+  import TrackDeleteDialog from "./TrackDeleteDialog.svelte";
+  import TrackMetadataFooter from "./TrackMetadataFooter.svelte";
+  import TrackMetadataForm from "./TrackMetadataForm.svelte";
+  import {
+    buildTrackUpdatePayload,
+    formatArtistString,
+    isTrackMetadataFormValid,
+    previewFilename,
+    sanitizeArtistRows,
+    sanitizeMetadataInput,
+    type ArtistRow,
+  } from "./trackMetadataForm";
 
   import type { AudioMetadata } from "$lib/utils/audioFileAnalyzer";
 
@@ -59,47 +65,39 @@
   let artworkSearchOpen = $state(false);
   let selectedArtwork = $state<ArtworkSearchResult | null>(null);
   let cancelArtworkPreload: (() => void) | null = null;
-
-  let formState = $state({
-    title: "",
-    renameFile: true,
-  });
-
+  let title = $state("");
+  let renameFile = $state(true);
   let artistIdCounter = 0;
-  let artists = $state<{ id: number; value: string }[]>([]);
+  let artists = $state<ArtistRow[]>([]);
 
-  // Generate filename based on artists and title
-  const generatedFilename = $derived.by(() => {
-    const artistNames = sanitizedArtists
-      .filter((a) => a.value.trim())
-      .map((a) => a.value.trim())
-      .join(", ");
-    const title = sanitizedTitle.trim();
-
-    if (!artistNames && !title) return file?.name || "untitled.mp3";
-    if (!artistNames) return `${title}.mp3`;
-    if (!title) return `${artistNames}.mp3`;
-
-    return `${artistNames} - ${title}.mp3`;
-  });
-
-  // Check if filename is too long
-  const isFilenameTooLong = $derived.by(() => {
-    return generatedFilename.length > 255;
-  });
-
-  // Sanitize input by removing invalid filename characters
-  function sanitizeInput(value: string): string {
-    return value.replace(/[<>:"/\\|?*]/g, "");
-  }
-
-  // Sanitized versions for filename generation
-  const sanitizedTitle = $derived(sanitizeInput(formState.title));
-  const sanitizedArtists = $derived(
-    artists.map((artist) => ({
-      ...artist,
-      value: sanitizeInput(artist.value),
-    })),
+  const sanitizedTitle = $derived(sanitizeMetadataInput(title));
+  const sanitizedArtists = $derived(sanitizeArtistRows(artists));
+  const generatedFilename = $derived(
+    previewFilename(sanitizedArtists, sanitizedTitle, file?.name),
+  );
+  const isFilenameTooLong = $derived(generatedFilename.length > 255);
+  const currentArtistString = $derived(formatArtistString(sanitizedArtists));
+  const updatePayload = $derived(
+    buildTrackUpdatePayload({
+      track,
+      title: sanitizedTitle,
+      artist: currentArtistString,
+      renameFile,
+      filename: generatedFilename,
+      artworkUrl: selectedArtwork?.image_url,
+    }),
+  );
+  const isFormValid = $derived(
+    isTrackMetadataFormValid({
+      mode,
+      title: sanitizedTitle,
+      primaryArtist: sanitizedArtists[0]?.value,
+      renameFile,
+      filenameTooLong: isFilenameTooLong,
+    }),
+  );
+  const hasSavableChanges = $derived(
+    isFormValid && (mode === "create" || Object.keys(updatePayload).length > 0),
   );
 
   const fallbackArtworkUrl = $derived.by(() => {
@@ -124,42 +122,27 @@
 
   function artistRows(value: string | undefined) {
     const artistList = parseArtists(value ?? "");
-
-    if (artistList.length === 0) {
-      artistList.push("");
-    }
-
-    return artistList.map((value) => ({ id: artistIdCounter++, value }));
+    return (artistList.length ? artistList : [""]).map((value) => ({
+      id: artistIdCounter++,
+      value,
+    }));
   }
 
   function resetState() {
+    selectedArtwork = null;
+    renameFile = false;
     if (mode === "edit" && track) {
-      formState.title = track.title;
-      formState.renameFile = true;
-      selectedArtwork = null;
+      title = track.title;
       artists = artistRows(track.artist);
     } else if (mode === "create" && isDownload) {
-      selectedArtwork = null;
-      // Download mode: pre-fill from metadata fetched by DownloadManager
-      formState.title = suggestedTitle ?? "";
-      formState.renameFile = false;
-
+      title = suggestedTitle ?? "";
       artists = artistRows(suggestedArtist);
     } else if (mode === "create" && file) {
-      selectedArtwork = null;
-      // Use suggested title and artist from parsed filename
-      formState.title =
+      title =
         suggestedTitle || metadata?.title || file.name.replace(/\.[^/.]+$/, "");
-      formState.renameFile = false; // Not applicable for create mode
-
-      // Set up artists with suggested artist or empty field
-      if (suggestedArtist && suggestedArtist.trim()) {
-        artists = artistRows(suggestedArtist);
-      } else if (metadata?.artist) {
-        artists = artistRows(metadata.artist);
-      } else {
-        artists = [{ id: artistIdCounter++, value: "" }];
-      }
+      artists = artistRows(
+        suggestedArtist?.trim() ? suggestedArtist : metadata?.artist,
+      );
     }
   }
 
@@ -179,20 +162,17 @@
   });
 
   function handleOpenChange(newOpen: boolean) {
-    if (!newOpen) {
-      cancelArtworkPreload?.();
-      artworkSearchOpen = false;
-      open = false;
-      if (onClose) {
-        onClose();
-      }
-    }
+    if (!newOpen) closeModal();
+  }
+
+  function hideModal() {
+    artworkSearchOpen = false;
+    open = false;
   }
 
   function closeModal() {
     cancelArtworkPreload?.();
-    artworkSearchOpen = false;
-    open = false;
+    hideModal();
     if (onClose) {
       onClose();
     }
@@ -208,54 +188,13 @@
     }
   }
 
-  const currentArtistString = $derived(
-    sanitizedArtists
-      .map((a) => a.value.trim())
-      .filter(Boolean)
-      .join("; "),
-  );
-
-  const changes = $derived.by(() => {
-    if (mode === "create") {
-      const hasTitle = sanitizedTitle.trim().length > 0;
-      const hasPrimaryArtist =
-        sanitizedArtists.length > 0 &&
-        sanitizedArtists[0].value.trim().length > 0;
-      const filenameValid = !isFilenameTooLong;
-      return {
-        isFormValid: hasTitle && hasPrimaryArtist && filenameValid,
-        hasSavableChanges: hasTitle && hasPrimaryArtist && filenameValid,
-      };
-    }
-
-    if (!track) return { isFormValid: false, hasSavableChanges: false };
-
-    const titleChanged = sanitizedTitle !== track.title;
-    const artistChanged = currentArtistString !== track.artist;
-    const artworkChanged = selectedArtwork !== null;
-    const hasTitle = sanitizedTitle.trim().length > 0;
-    const hasPrimaryArtist =
-      sanitizedArtists.length > 0 &&
-      sanitizedArtists[0].value.trim().length > 0;
-    const filenameValid = !formState.renameFile || !isFilenameTooLong;
-
-    return {
-      isFormValid: hasTitle && hasPrimaryArtist && filenameValid,
-      hasSavableChanges:
-        (titleChanged || artistChanged || artworkChanged) &&
-        hasTitle &&
-        hasPrimaryArtist &&
-        filenameValid,
-    };
-  });
-
   async function handleSave() {
-    if (mode === "create" && isDownload && onDownloadConfirm) {
-      await handleDownloadConfirm();
-    } else if (mode === "create" && file) {
-      await handleUpload();
-    } else if (mode === "edit" && track) {
+    if (mode === "edit") {
       await handleUpdate();
+    } else if (isDownload) {
+      await handleDownloadConfirm();
+    } else {
+      await handleUpload();
     }
   }
 
@@ -269,8 +208,7 @@
         currentArtistString,
         selectedArtwork?.image_url,
       );
-      artworkSearchOpen = false;
-      open = false;
+      hideModal();
     } catch (error) {
       console.error("Error confirming download:", error);
       toast.error("Failed to start download");
@@ -291,8 +229,7 @@
         selectedArtwork?.image_url,
       );
       toast.success("File uploaded successfully");
-      artworkSearchOpen = false;
-      open = false;
+      hideModal();
     } catch (error) {
       console.error("Error uploading file:", error);
       toast.error("Failed to upload file");
@@ -304,29 +241,9 @@
   async function handleUpdate() {
     if (!track) return;
 
-    const payload: {
-      title?: string;
-      artist?: string;
-      rename_file?: boolean;
-      artwork_url?: string;
-    } = {};
-
-    if (sanitizedTitle !== track.title) {
-      payload.title = sanitizedTitle;
-    }
-    if (currentArtistString !== track.artist) {
-      payload.artist = currentArtistString;
-    }
-    if (formState.renameFile) {
-      payload.rename_file = true;
-    }
-    if (selectedArtwork) {
-      payload.artwork_url = selectedArtwork.image_url;
-    }
-
     isUploading = true;
     try {
-      const result = await updateTrack(track.id, payload);
+      const result = await updateTrack(track.id, updatePayload);
       if (result.track) {
         trackStore.updateTrack(createTrackWithUrls(result.track));
       }
@@ -348,8 +265,7 @@
     try {
       await deleteTrack(track.id);
       confirmDeleteOpen = false;
-      artworkSearchOpen = false;
-      open = false;
+      hideModal();
     } catch (error) {
       console.error("Error deleting track:", error);
       toast.error("Failed to delete track");
@@ -365,223 +281,46 @@
   <Dialog.Content
     class="max-h-[95vh] overflow-y-auto sm:max-w-[700px] lg:max-w-[1000px]"
   >
-    <div class="grid gap-6 py-6">
-      <!-- 2-column layout: Cover image + Edit fields -->
-      <div class="grid grid-cols-1 gap-6 md:grid-cols-[200px_1fr]">
-        <div class="space-y-3">
-          {#if mode === "edit" || mode === "create"}
-            <ArtworkPickerButton
-              {selectedArtwork}
-              fallbackUrl={fallbackArtworkUrl}
-              fallbackAlt={fallbackArtworkAlt}
-              onOpen={() => (artworkSearchOpen = true)}
-            />
-          {/if}
-        </div>
+    <TrackMetadataForm
+      {mode}
+      {track}
+      {file}
+      {metadata}
+      bind:title
+      bind:renameFile
+      bind:artists
+      {sanitizedTitle}
+      {sanitizedArtists}
+      {generatedFilename}
+      {isFilenameTooLong}
+      {isFormValid}
+      {selectedArtwork}
+      {fallbackArtworkUrl}
+      {fallbackArtworkAlt}
+      onOpenArtwork={() => (artworkSearchOpen = true)}
+      onAddArtist={addArtist}
+      onRemoveArtist={removeArtist}
+    />
 
-        <!-- Right column: Form fields -->
-        <div class="space-y-6">
-          <!-- Title field -->
-          <div class="space-y-2">
-            <div class="flex items-center gap-2">
-              <label for="title" class="text-sm font-medium">Title</label>
-              <div class="group relative">
-                <HelpCircle
-                  class="text-muted-foreground hover:text-foreground h-4 w-4 cursor-help transition-colors"
-                />
-                <div
-                  class="absolute top-0 left-6 z-50 hidden group-hover:block"
-                >
-                  <div
-                    class="bg-popover text-popover-foreground w-64 rounded-md border p-2 text-xs shadow-md"
-                  >
-                    Invalid characters for filenames (&lt;, &gt;, :, ", /, \, |,
-                    ?, *) are automatically removed.
-                  </div>
-                </div>
-              </div>
-            </div>
-            <Input
-              id="title"
-              bind:value={formState.title}
-              placeholder="Enter track title"
-              class={!changes.isFormValid && sanitizedTitle.trim() === ""
-                ? "border-red-500"
-                : ""}
-            />
-          </div>
-
-          <!-- Artists section -->
-          <div class="space-y-3">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <span class="text-sm font-medium">Artists</span>
-                <div class="group relative">
-                  <HelpCircle
-                    class="text-muted-foreground hover:text-foreground h-4 w-4 cursor-help transition-colors"
-                  />
-                  <div
-                    class="absolute top-0 left-6 z-50 hidden group-hover:block"
-                  >
-                    <div
-                      class="bg-popover text-popover-foreground w-64 rounded-md border p-2 text-xs shadow-md"
-                    >
-                      Invalid characters for filenames (&lt;, &gt;, :, ", /, \,
-                      |, ?, *) are automatically removed.
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onclick={addArtist}
-                class="h-8 w-8 p-0"
-              >
-                <Plus class="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div class="space-y-2">
-              {#each artists as artist, index (artist.id)}
-                <div class="flex gap-2">
-                  <Input
-                    bind:value={artist.value}
-                    placeholder={index === 0
-                      ? "Primary artist (required)"
-                      : "Additional artist"}
-                    class={!changes.isFormValid &&
-                    index === 0 &&
-                    sanitizedArtists[index]?.value.trim() === ""
-                      ? "border-red-500"
-                      : ""}
-                  />
-                  {#if artists.length > 1}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onclick={() => removeArtist(artist.id)}
-                      class="h-10 w-10 flex-shrink-0 p-0"
-                    >
-                      <X class="h-4 w-4" />
-                    </Button>
-                  {/if}
-                </div>
-              {/each}
-            </div>
-          </div>
-
-          <!-- Filename display -->
-          <FilenameDisplay
-            filename={mode === "create"
-              ? generatedFilename
-              : formState.renameFile
-                ? generatedFilename
-                : track?.filename || ""}
-            fileSize={mode === "create" ? file?.size : undefined}
-            duration={mode === "create"
-              ? (metadata?.duration as number | undefined)
-              : track?.duration}
-          />
-
-          <!-- Filename length warning -->
-          {#if isFilenameTooLong}
-            <div class="rounded-lg border border-red-200 bg-red-50 p-3">
-              <div class="text-sm font-medium text-red-800">
-                Filename is too long (max 255 characters)
-              </div>
-              <div class="mt-1 text-xs text-red-600">
-                Current length: {generatedFilename.length} characters
-              </div>
-            </div>
-          {/if}
-
-          {#if mode === "edit"}
-            <!-- Rename file checkbox (only in edit mode) -->
-            <div class="flex items-center space-x-2">
-              <Checkbox id="rename-file" bind:checked={formState.renameFile} />
-              <label for="rename-file" class="text-sm">
-                Rename file to match title
-              </label>
-            </div>
-          {/if}
-        </div>
-      </div>
-    </div>
-
-    <Dialog.Footer class="!justify-between">
-      <div class="mr-auto">
-        {#if mode === "edit" && $permissionsStore.can_write_music_files}
-          <Button
-            variant="outline"
-            size="sm"
-            onclick={() => (confirmDeleteOpen = true)}
-            disabled={isUploading}
-            title="Delete track"
-            class="border-destructive/20 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-          >
-            <Trash2 class="mr-2 h-4 w-4" />
-            Delete
-          </Button>
-        {/if}
-      </div>
-
-      <div class="flex gap-2">
-        <Button
-          variant="outline"
-          onclick={closeModal}
-          class="cursor-pointer"
-          disabled={isUploading}
-        >
-          Cancel
-        </Button>
-        <Button
-          onclick={handleSave}
-          disabled={!changes.hasSavableChanges || isUploading}
-          class="cursor-pointer"
-          title={!changes.isFormValid
-            ? "Please fill in required fields (title and primary artist)"
-            : !changes.hasSavableChanges
-              ? "No changes to save"
-              : "Save"}
-        >
-          {#if isUploading}
-            Saving...
-          {:else}
-            <Save class="mr-2 h-4 w-4" />
-            Save
-          {/if}
-        </Button>
-      </div>
-    </Dialog.Footer>
+    <TrackMetadataFooter
+      {mode}
+      canDelete={$permissionsStore.can_write_music_files}
+      {isUploading}
+      {isFormValid}
+      {hasSavableChanges}
+      onCancel={closeModal}
+      onSave={handleSave}
+      onDeleteClick={() => (confirmDeleteOpen = true)}
+    />
   </Dialog.Content>
 </Dialog.Root>
 
-{#if mode === "edit" || mode === "create"}
-  <ArtworkSearchModal
-    bind:open={artworkSearchOpen}
-    title={sanitizedTitle}
-    artist={currentArtistString}
-    selectedUrl={selectedArtwork?.image_url ?? null}
-    onSelect={handleArtworkSelect}
-  />
-{/if}
+<ArtworkSearchModal
+  bind:open={artworkSearchOpen}
+  title={sanitizedTitle}
+  artist={currentArtistString}
+  selectedUrl={selectedArtwork?.image_url ?? null}
+  onSelect={handleArtworkSelect}
+/>
 
-<!-- Delete confirmation dialog -->
-<Dialog.Root bind:open={confirmDeleteOpen}>
-  <Dialog.Content class="sm:max-w-[425px]">
-    <Dialog.Header>
-      <Dialog.Title>Are you sure?</Dialog.Title>
-      <Dialog.Description>
-        This action cannot be undone. This will permanently delete the track
-        from your library and remove the associated files from your system.
-      </Dialog.Description>
-    </Dialog.Header>
-    <Dialog.Footer>
-      <Button variant="outline" onclick={() => (confirmDeleteOpen = false)}>
-        Cancel
-      </Button>
-      <Button variant="destructive" onclick={handleDelete}>Delete</Button>
-    </Dialog.Footer>
-  </Dialog.Content>
-</Dialog.Root>
+<TrackDeleteDialog bind:open={confirmDeleteOpen} onDelete={handleDelete} />
