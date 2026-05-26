@@ -314,7 +314,9 @@
         <div class="truncate">
           yt-dlp {systemInfo.yt_dlp_version ?? "unknown"}
         </div>
-        <div class="truncate">SSE {$trackUpdatesConnectionStatus}</div>
+        {#if $trackUpdatesConnectionStatus !== "connected"}
+          <div class="truncate">SSE {$trackUpdatesConnectionStatus}</div>
+        {/if}
       </div>
       <button
         type="button"

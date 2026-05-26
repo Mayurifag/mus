@@ -16,7 +16,6 @@ import type {
 export function handleMusEvent(payload: MusEvent): void {
   if (
     payload.action_key !== "download_progress" &&
-    payload.action_key !== "download_completed" &&
     (payload.action_key !== "track_updated" || payload.message_to_show)
   ) {
     console.log("Recent event", payload);
@@ -57,6 +56,7 @@ export function handleMusEvent(payload: MusEvent): void {
       break;
     case "download_completed":
       downloadStore.setCompleted();
+      void syncTracks();
       break;
     case "download_failed":
       if (payload.action_payload) {
@@ -83,7 +83,7 @@ async function syncTracks(): Promise<void> {
     const tracks = await apiClient.fetchTracks();
     trackStore.setTracks(tracks);
   } catch (error) {
-    console.error("Failed to sync tracks after SSE open", error);
+    console.error("Failed to sync tracks", error);
   }
 }
 

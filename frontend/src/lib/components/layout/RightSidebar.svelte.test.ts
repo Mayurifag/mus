@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/svelte";
 import { get, writable } from "svelte/store";
 import RightSidebar from "./RightSidebar.svelte";
 import { trackStore } from "$lib/stores/trackStore";
+import { trackUpdatesConnectionStatus } from "$lib/services/apiClient";
 import type { Track } from "$lib/types";
 
 // Mock the API client
@@ -28,6 +29,7 @@ vi.mock("$lib/services/apiClient", () => ({
 describe("RightSidebar", () => {
   beforeEach(() => {
     trackStore.reset();
+    trackUpdatesConnectionStatus.set("disconnected");
   });
 
   it("should be defined", () => {
@@ -175,5 +177,19 @@ describe("RightSidebar", () => {
     await fireEvent.click(screen.getByText("Artist A"));
 
     expect(get(trackStore).selectedArtist).toBeNull();
+  });
+
+  it("should show SSE status when disconnected", () => {
+    render(RightSidebar);
+
+    expect(screen.getByText("SSE disconnected")).toBeInTheDocument();
+  });
+
+  it("should hide SSE status when connected", () => {
+    trackUpdatesConnectionStatus.set("connected");
+
+    render(RightSidebar);
+
+    expect(screen.queryByText(/^SSE /)).not.toBeInTheDocument();
   });
 });

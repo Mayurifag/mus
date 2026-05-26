@@ -128,17 +128,35 @@ describe("eventHandlerService", () => {
       expect(recentEventsStore.addEvent).toHaveBeenCalledWith(payload);
     });
 
-    it("should not add download_completed to recent events store", () => {
+    it("should handle download_completed event", async () => {
+      const tracks: Track[] = [
+        {
+          id: 1,
+          title: "Downloaded Track",
+          artist: "Downloaded Artist",
+          duration: 180,
+          filename: "downloaded.mp3",
+          has_cover: false,
+          cover_small_url: null,
+          cover_original_url: null,
+          updated_at: 1,
+        },
+      ];
       const payload: MusEvent = {
         message_to_show: "Download completed successfully",
         message_level: "success",
         action_key: "download_completed",
         action_payload: null,
       };
+      vi.mocked(apiClient.fetchTracks).mockResolvedValue(tracks);
 
       handleMusEvent(payload);
 
-      expect(recentEventsStore.addEvent).not.toHaveBeenCalled();
+      expect(recentEventsStore.addEvent).toHaveBeenCalledWith(payload);
+      expect(downloadStore.setCompleted).toHaveBeenCalled();
+      await vi.waitFor(() => {
+        expect(trackStore.setTracks).toHaveBeenCalledWith(tracks);
+      });
     });
 
     it("should handle track_added event", () => {
