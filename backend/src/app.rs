@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     path::{Component, Path, PathBuf},
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -122,6 +123,7 @@ pub fn test_state(data_dir: PathBuf, mut conn: Connection) -> AppState {
         covers_dir,
         events,
         download_lock: Arc::new(Mutex::new(false)),
+        mutation_locks: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
         app_date: "2026-05-17".into(),
         commit_sha: Some("test-sha".into()),
     }

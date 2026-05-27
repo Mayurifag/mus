@@ -10,7 +10,7 @@ use crate::{
     error::AppError,
     events::broadcast,
     gemini::parse_track_metadata,
-    media::{write_audio_cover, write_audio_tags},
+    media::{apply_audio_update, AudioUpdate},
     models::{ConfirmDownloadRequest, MetadataResponse, UrlRequest},
     scanner::upsert_path,
     state::AppState,
@@ -208,16 +208,28 @@ async fn run_download_inner(
             .to_string(),
     };
     let final_path = state.music_dir.join(final_name);
-    move_without_replace(&downloaded, &final_path)?;
-    if let Some(artwork_url) = artwork_url {
-        let jpeg_path = download_artwork_as_jpeg(&artwork_url, tmp.to_path_buf()).await?;
-        let embed_result = write_audio_cover(&final_path, tmp, &jpeg_path).await;
+    let jpeg_path = if let Some(artwork_url) = artwork_url {
+        Some(download_artwork_as_jpeg(&artwork_url, tmp.to_path_buf()).await?)
+    } else {
+        None
+    };
+    let update_result = apply_audio_update(
+        &downloaded,
+        tmp,
+        AudioUpdate {
+            title: title.as_deref(),
+            artist: artist.as_deref(),
+            cover_jpeg_path: jpeg_path.as_deref(),
+            target_path: Some(&final_path),
+            standardize_tags: false,
+            update_mtime: true,
+        },
+    )
+    .await;
+    if let Some(jpeg_path) = jpeg_path {
         let _ = fs::remove_file(jpeg_path);
-        embed_result?;
     }
-    if let (Some(title), Some(artist)) = (&title, &artist) {
-        write_audio_tags(&final_path, tmp, title, artist).await?;
-    }
+    update_result?;
     let track = upsert_path(state, &final_path, title, artist).await?;
     tracing::info!(track_id = track.id, "download completed");
     broadcast(
@@ -240,25 +252,4 @@ fn unique_download_dir(cache_dir: &Path) -> Result<PathBuf> {
         }
     }
     Err(anyhow!("failed to allocate download directory"))
-}
-
-fn move_without_replace(source: &Path, destination: &Path) -> Result<()> {
-    let mut input = fs::File::open(source)?;
-    let mut output = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(destination)
-        .map_err(|error| {
-            if error.kind() == io::ErrorKind::AlreadyExists {
-                anyhow!("A file with this name already exists")
-            } else {
-                error.into()
-            }
-        })?;
-    if let Err(error) = io::copy(&mut input, &mut output).and_then(|_| output.sync_all()) {
-        let _ = fs::remove_file(destination);
-        return Err(error.into());
-    }
-    fs::remove_file(source)?;
-    Ok(())
 }

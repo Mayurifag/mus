@@ -5,7 +5,9 @@ use id3::{
     frame::{Picture, PictureType},
     Tag, TagLike, Version,
 };
-use mus_backend::media::{extract_cover, standardize_audio_tags, write_audio_tags};
+use mus_backend::media::{
+    apply_audio_update, extract_cover, standardize_audio_tags, write_audio_tags, AudioUpdate,
+};
 use serde_json::Value;
 use tempfile::TempDir;
 
@@ -170,7 +172,9 @@ async fn ffmpeg_tag_rewrite_preserves_mp3_id3v23_utf8_and_cover() {
     let path = tmp.path().join("song.mp3");
     create_mp3_with_cover(&path);
 
-    standardize_audio_tags(&path).await.unwrap();
+    standardize_audio_tags(&path, &tmp.path().join("cache"))
+        .await
+        .unwrap();
     assert_id3v23(&path);
     assert_has_attached_cover(&probe(&path));
 
@@ -190,12 +194,56 @@ async fn ffmpeg_tag_rewrite_preserves_mp3_id3v23_utf8_and_cover() {
 }
 
 #[tokio::test]
+async fn combined_audio_update_publishes_tags_cover_rename_and_mtime() {
+    let tmp = TempDir::new().unwrap();
+    let music_dir = tmp.path().join("music");
+    let cache_dir = tmp.path().join("cache");
+    fs::create_dir(&music_dir).unwrap();
+    let path = music_dir.join("song.flac");
+    let cover_path = tmp.path().join("cover.jpg");
+    let target_path = music_dir.join("New artist - New title.flac");
+    create_flac_with_cover(&path);
+    create_jpeg(&cover_path);
+    let original = SystemTime::UNIX_EPOCH;
+    filetime::set_file_mtime(&path, filetime::FileTime::from_system_time(original)).unwrap();
+
+    let result = apply_audio_update(
+        &path,
+        &cache_dir,
+        AudioUpdate {
+            title: Some("New title"),
+            artist: Some("New artist"),
+            cover_jpeg_path: Some(&cover_path),
+            target_path: Some(&target_path),
+            standardize_tags: false,
+            update_mtime: true,
+        },
+    )
+    .await
+    .unwrap();
+
+    assert!(result.changed);
+    assert_eq!(result.path, target_path);
+    assert!(!path.exists());
+    assert!(target_path.is_file());
+    assert!(fs::metadata(&target_path).unwrap().modified().unwrap() > original);
+    let data = probe(&target_path);
+    assert_eq!(data["format"]["tags"]["title"], "New title");
+    assert_eq!(data["format"]["tags"]["artist"], "New artist");
+    assert_has_attached_cover(&data);
+    assert_no_mus_files(&music_dir);
+    assert!(fs::read_dir(&cache_dir).unwrap().next().is_none());
+}
+
+#[tokio::test]
 async fn id3_tag_rewrite_standardizes_wav_to_id3v23() {
     let tmp = TempDir::new().unwrap();
     let path = tmp.path().join("song.wav");
     create_wav_with_id3v24(&path);
 
-    standardize_audio_tags(&path).await.unwrap();
+    standardize_audio_tags(&path, &tmp.path().join("cache"))
+        .await
+        .unwrap();
     let tag = Tag::read_from_path(&path).unwrap();
     assert_eq!(tag.version(), Version::Id3v23);
 
@@ -219,10 +267,14 @@ async fn standardize_audio_tags_skips_already_standard_id3_files() {
     let tmp = TempDir::new().unwrap();
     let path = tmp.path().join("song.wav");
     create_wav_with_id3v24(&path);
-    standardize_audio_tags(&path).await.unwrap();
+    standardize_audio_tags(&path, &tmp.path().join("cache"))
+        .await
+        .unwrap();
     let before = fs::metadata(&path).unwrap().modified().unwrap();
 
-    standardize_audio_tags(&path).await.unwrap();
+    standardize_audio_tags(&path, &tmp.path().join("cache"))
+        .await
+        .unwrap();
     let after = fs::metadata(&path).unwrap().modified().unwrap();
 
     assert_eq!(before, after);
@@ -246,7 +298,9 @@ async fn standardize_audio_tags_skips_non_id3_formats() {
     let original = SystemTime::UNIX_EPOCH;
     filetime::set_file_mtime(&path, filetime::FileTime::from_system_time(original)).unwrap();
 
-    standardize_audio_tags(&path).await.unwrap();
+    standardize_audio_tags(&path, &tmp.path().join("cache"))
+        .await
+        .unwrap();
 
     assert_eq!(fs::metadata(&path).unwrap().modified().unwrap(), original);
 }

@@ -12,7 +12,7 @@ use axum::{
     Json,
 };
 use serde_json::{json, Value};
-use tokio::{fs as async_fs, io as async_io, io::AsyncWriteExt};
+use tokio::{fs as async_fs, io::AsyncWriteExt};
 use tower::ServiceExt;
 use tower_http::services::ServeFile;
 
@@ -21,13 +21,13 @@ use crate::{
     db::{self, delete_track_row, get_track, save_track, track_dto},
     error::AppError,
     events::broadcast,
-    media::{extract_cover, write_audio_cover, write_audio_tags},
+    media::{apply_audio_update, extract_cover, AudioUpdate},
     models::{TrackDto, TrackUpdate},
     scanner::upsert_path,
     state::AppState,
     util::{
         can_write, file_content_hash, file_signature, generate_filename, inode, normalize_artists,
-        now, now_nanos,
+        now, now_nanos, system_time_secs,
     },
 };
 
@@ -111,10 +111,18 @@ pub async fn update_track(
         return Err(AppError::forbidden("Music directory is read-only"));
     }
     let track = get_track(&state, id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
-    let new_title = update.title.unwrap_or_else(|| track.title.clone());
-    let new_artist = normalize_artists(&update.artist.unwrap_or_else(|| track.artist.clone()));
+    let new_title = update.title.clone().unwrap_or_else(|| track.title.clone());
+    let new_artist = normalize_artists(
+        &update
+            .artist
+            .clone()
+            .unwrap_or_else(|| track.artist.clone()),
+    );
     let rename_file = update.rename_file.unwrap_or(false);
-    let artwork_url = update.artwork_url.filter(|url| !url.trim().is_empty());
+    let artwork_url = update
+        .artwork_url
+        .as_deref()
+        .filter(|url| !url.trim().is_empty());
 
     if new_title == track.title
         && new_artist == track.artist
@@ -138,16 +146,7 @@ pub async fn update_track(
     }
 
     tokio::spawn(async move {
-        match apply_track_update(
-            state.clone(),
-            id,
-            new_title,
-            new_artist,
-            rename_file,
-            artwork_url,
-        )
-        .await
-        {
+        match apply_track_update(state.clone(), id, update).await {
             Ok(dto) => {
                 tracing::info!(track_id = dto.id, rename_file, "track updated");
                 broadcast(
@@ -182,12 +181,14 @@ pub async fn update_track(
 async fn apply_track_update(
     state: AppState,
     id: i64,
-    new_title: String,
-    new_artist: String,
-    rename_file: bool,
-    artwork_url: Option<String>,
+    update: TrackUpdate,
 ) -> Result<TrackDto, AppError> {
+    let _guard = state.mutation_lock(format!("track:{id}")).await;
     let mut track = get_track(&state, id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
+    let new_title = update.title.unwrap_or_else(|| track.title.clone());
+    let new_artist = normalize_artists(&update.artist.unwrap_or_else(|| track.artist.clone()));
+    let rename_file = update.rename_file.unwrap_or(false);
+    let artwork_url = update.artwork_url.filter(|url| !url.trim().is_empty());
     let cache_dir = state.data_dir.join(".cache");
     let mut new_path = PathBuf::from(&track.file_path);
     if rename_file {
@@ -208,38 +209,45 @@ async fn apply_track_update(
         None
     };
 
+    let tags_changed = new_title != track.title || new_artist != track.artist;
+    let target_path =
+        (rename_file && new_path != Path::new(&track.file_path)).then_some(new_path.as_path());
+    let update_result = apply_audio_update(
+        Path::new(&track.file_path),
+        &cache_dir,
+        AudioUpdate {
+            title: tags_changed.then_some(new_title.as_str()),
+            artist: tags_changed.then_some(new_artist.as_str()),
+            cover_jpeg_path: jpeg_path.as_deref(),
+            target_path,
+            standardize_tags: false,
+            update_mtime: true,
+        },
+    )
+    .await;
     if let Some(jpeg_path) = jpeg_path {
-        let embed_result =
-            write_audio_cover(Path::new(&track.file_path), &cache_dir, &jpeg_path).await;
         let _ = async_fs::remove_file(jpeg_path).await;
-        embed_result?;
-        track.has_cover =
-            extract_cover(Path::new(&track.file_path), &state.covers_dir, track.id).await?;
     }
+    let update_result = update_result?;
+    new_path = update_result.path;
 
-    let metadata_changed = new_title != track.title || new_artist != track.artist || rename_file;
-
-    if new_title != track.title || new_artist != track.artist {
-        write_audio_tags(
-            Path::new(&track.file_path),
-            &cache_dir,
-            &new_title,
-            &new_artist,
-        )
-        .await?;
-    }
-
-    if rename_file && new_path != Path::new(&track.file_path) {
-        move_without_replace(Path::new(&track.file_path), &new_path).await?;
+    track.file_path = new_path.to_string_lossy().to_string();
+    if update_result.changed {
+        track.has_cover = extract_cover(&new_path, &state.covers_dir, track.id)
+            .await
+            .unwrap_or(false);
     }
 
     track.title = new_title;
     track.artist = new_artist;
-    track.file_path = new_path.to_string_lossy().to_string();
-    if metadata_changed {
-        track.updated_at = now();
-    }
     let file_meta = fs::metadata(&new_path)?;
+    if update_result.changed {
+        track.updated_at = file_meta
+            .modified()
+            .ok()
+            .and_then(system_time_secs)
+            .unwrap_or_else(now);
+    }
     track.inode = inode(&file_meta);
     track.file_signature = Some(file_signature(&file_meta));
     let hash_path = new_path.clone();
@@ -380,17 +388,37 @@ pub async fn upload_track(
         return Err(AppError::conflict("A file with this name already exists"));
     }
     let temp_path = temp_path.ok_or_else(|| AppError::bad_request("Missing file"))?;
-    if let Err(error) = move_without_replace(&temp_path, &path).await {
-        let _ = async_fs::remove_file(&temp_path).await;
-        return Err(error);
-    }
-    if let Some(artwork_url) = artwork_url.filter(|url| !url.trim().is_empty()) {
-        let jpeg_path = download_artwork_as_jpeg(&artwork_url, cache_dir.clone()).await?;
-        let embed_result = write_audio_cover(&path, &cache_dir, &jpeg_path).await;
+    let jpeg_path = if let Some(artwork_url) = artwork_url.filter(|url| !url.trim().is_empty()) {
+        match download_artwork_as_jpeg(&artwork_url, cache_dir.clone()).await {
+            Ok(jpeg_path) => Some(jpeg_path),
+            Err(error) => {
+                let _ = async_fs::remove_file(&temp_path).await;
+                return Err(error.into());
+            }
+        }
+    } else {
+        None
+    };
+    let update_result = apply_audio_update(
+        &temp_path,
+        &cache_dir,
+        AudioUpdate {
+            title: Some(&title),
+            artist: Some(&artist),
+            cover_jpeg_path: jpeg_path.as_deref(),
+            target_path: Some(&path),
+            standardize_tags: false,
+            update_mtime: true,
+        },
+    )
+    .await;
+    if let Some(jpeg_path) = jpeg_path {
         let _ = async_fs::remove_file(jpeg_path).await;
-        embed_result?;
     }
-    write_audio_tags(&path, &cache_dir, &title, &artist).await?;
+    if let Err(error) = update_result {
+        let _ = async_fs::remove_file(&temp_path).await;
+        return Err(error.into());
+    }
     let track = upsert_path(&state, &path, Some(title), Some(artist)).await?;
     tracing::info!(track_id = track.id, "track uploaded");
     Ok(Json(
@@ -418,30 +446,4 @@ async fn create_upload_temp_file(
     Err(AppError::from(anyhow::anyhow!(
         "failed to allocate upload file"
     )))
-}
-
-async fn move_without_replace(source: &Path, destination: &Path) -> Result<(), AppError> {
-    let mut input = async_fs::File::open(source).await?;
-    let mut output = async_fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(destination)
-        .await
-        .map_err(|error| {
-            if error.kind() == io::ErrorKind::AlreadyExists {
-                AppError::conflict("A file with this name already exists")
-            } else {
-                error.into()
-            }
-        })?;
-    if let Err(error) = async_io::copy(&mut input, &mut output).await {
-        let _ = async_fs::remove_file(destination).await;
-        return Err(error.into());
-    }
-    if let Err(error) = output.flush().await {
-        let _ = async_fs::remove_file(destination).await;
-        return Err(error.into());
-    }
-    async_fs::remove_file(source).await?;
-    Ok(())
 }

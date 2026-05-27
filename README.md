@@ -21,6 +21,8 @@ in alpha stage.
 - Auto-rename files to have single format
 - Upload/edit/download flows write artist/title tags; MP3/WAV/AIFF use Rust ID3
   and other supported media use ffmpeg when tags must be rewritten
+- File edits combine tag, artwork, rename, and mtime updates before publishing the
+  final file, so the library order stays tied to the track's first database id
 - Useful editor of artists/title metadata
 - Download new files using yt-dlp with SponsorBlock segment removal. Custom vk.ru
   support incoming

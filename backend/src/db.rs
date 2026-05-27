@@ -54,7 +54,7 @@ pub fn init_db(conn: &mut Connection) -> Result<()> {
 
 pub fn list_tracks(state: &AppState) -> Result<Vec<Track>> {
     let conn = state.db.lock().unwrap();
-    let mut stmt = conn.prepare("SELECT id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,file_signature,content_hash,processing_status,last_error FROM track ORDER BY added_at DESC")?;
+    let mut stmt = conn.prepare("SELECT id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,file_signature,content_hash,processing_status,last_error FROM track ORDER BY id DESC")?;
     let tracks = stmt
         .query_map([], row_to_track)?
         .collect::<rusqlite::Result<Vec<_>>>()?;

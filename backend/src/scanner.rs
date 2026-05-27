@@ -17,9 +17,7 @@ use tokio::{sync::mpsc, time};
 use crate::{
     db::{self, delete_track_row, set_track_cover_state, track_dto},
     events::broadcast,
-    media::{
-        extract_cover, read_metadata, standardize_audio_tags, write_audio_tags, MediaMetadata,
-    },
+    media::{apply_audio_update, extract_cover, read_metadata, AudioUpdate, MediaMetadata},
     state::AppState,
     util::{
         file_content_hash, file_signature, generate_filename, inode, is_audio_path,
@@ -280,7 +278,9 @@ async fn sync_path(
                 )?;
                 return Ok(());
             }
-            let track = upsert_path_with_snapshot(state, path, None, None, snapshot, None).await?;
+            let track =
+                upsert_path_with_snapshot(state, path, None, None, snapshot, Some(track.id))
+                    .await?;
             if broadcast_changes {
                 broadcast(
                     state,
@@ -384,7 +384,13 @@ async fn upsert_path_with_snapshot(
     _snapshot: FileSnapshot,
     existing_id: Option<i64>,
 ) -> Result<crate::models::TrackDto> {
-    standardize_audio_tags(path).await?;
+    let _guard = state
+        .mutation_lock(
+            existing_id
+                .map(|id| format!("track:{id}"))
+                .unwrap_or_else(|| format!("path:{}", path.to_string_lossy())),
+        )
+        .await;
     let metadata = read_metadata(path).await.unwrap_or_else(|_| MediaMetadata {
         title: path
             .file_stem()
@@ -396,29 +402,47 @@ async fn upsert_path_with_snapshot(
     });
     let title = title_override.unwrap_or(metadata.title);
     let artist = normalize_artists(&artist_override.unwrap_or(metadata.artist));
-    let path = auto_rename_artist_filename(path, &artist, &title)?;
-    let snapshot = file_snapshot(&path).await?;
-    let added_at = snapshot.mtime;
+    let target_path =
+        normalized_artist_filename(path, &artist, &title)?.filter(|path| !path.exists());
+    let update = apply_audio_update(
+        path,
+        &state.data_dir.join(".cache"),
+        AudioUpdate {
+            title: None,
+            artist: None,
+            cover_jpeg_path: None,
+            target_path: target_path.as_deref(),
+            standardize_tags: true,
+            update_mtime: true,
+        },
+    )
+    .await?;
+    let path = update.path;
+    let snapshot = if update.changed {
+        file_snapshot(&path).await?
+    } else {
+        _snapshot
+    };
     let file_path = path.to_string_lossy().to_string();
+    let updated_at = snapshot.mtime;
     let (id, added_at) = {
         let conn = state.db.lock().unwrap();
-        let id = if let Some(id) = existing_id {
+        if let Some(id) = existing_id {
             conn.query_row(
-                "UPDATE track SET title=?1, artist=?2, duration=?3, file_path=?4, updated_at=?5, inode=?6, file_signature=?7, content_hash=?8, processing_status='COMPLETE', last_error=NULL WHERE id=?9 RETURNING id",
-                params![&title, &artist, metadata.duration, &file_path, added_at, inode(&snapshot.meta), &snapshot.file_signature, &snapshot.content_hash, id],
-                |row| row.get::<_, i64>(0),
+                "UPDATE track SET title=?1, artist=?2, duration=?3, file_path=?4, updated_at=?5, inode=?6, file_signature=?7, content_hash=?8, processing_status='COMPLETE', last_error=NULL WHERE id=?9 RETURNING id, added_at",
+                params![&title, &artist, metadata.duration, &file_path, updated_at, inode(&snapshot.meta), &snapshot.file_signature, &snapshot.content_hash, id],
+                |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
             )?
         } else {
             conn.query_row(
                 "INSERT INTO track (title, artist, duration, file_path, added_at, updated_at, has_cover, inode, file_signature, content_hash, processing_status)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?5, 0, ?6, ?7, ?8, 'COMPLETE')
                  ON CONFLICT(file_path) DO UPDATE SET title=excluded.title, artist=excluded.artist, duration=excluded.duration, updated_at=excluded.updated_at, inode=excluded.inode, file_signature=excluded.file_signature, content_hash=excluded.content_hash, processing_status='COMPLETE', last_error=NULL
-                 RETURNING id",
-                params![&title, &artist, metadata.duration, &file_path, added_at, inode(&snapshot.meta), &snapshot.file_signature, &snapshot.content_hash],
-                |row| row.get::<_, i64>(0),
+                 RETURNING id, added_at",
+                params![&title, &artist, metadata.duration, &file_path, updated_at, inode(&snapshot.meta), &snapshot.file_signature, &snapshot.content_hash],
+                |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
             )?
-        };
-        (id, added_at)
+        }
     };
     let has_cover = extract_cover(&path, &state.covers_dir, id)
         .await
@@ -431,7 +455,7 @@ async fn upsert_path_with_snapshot(
         duration: metadata.duration,
         file_path,
         added_at,
-        updated_at: added_at,
+        updated_at,
         has_cover,
         inode: inode(&snapshot.meta),
         file_signature: Some(snapshot.file_signature),
@@ -441,52 +465,40 @@ async fn upsert_path_with_snapshot(
     }))
 }
 
-fn auto_rename_artist_filename(path: &Path, artist: &str, title: &str) -> Result<PathBuf> {
-    let Some(target_path) = normalized_artist_filename(path, artist, title)? else {
-        return Ok(path.to_path_buf());
-    };
-    if target_path.exists() {
-        return Ok(path.to_path_buf());
-    }
-
-    fs::rename(path, &target_path)?;
-    Ok(target_path)
-}
-
 async fn normalize_existing_track(
     state: &AppState,
     track: &crate::models::Track,
     path: &Path,
 ) -> Result<Option<(crate::models::TrackDto, String)>> {
+    let _guard = state.mutation_lock(format!("track:{}", track.id)).await;
     let normalized_artist = normalize_artists(&track.artist);
-    let mut new_path = path.to_path_buf();
+    let target_path = normalized_artist_filename(path, &normalized_artist, &track.title)?
+        .filter(|path| !path.exists());
 
-    if let Some(target_path) = normalized_artist_filename(path, &normalized_artist, &track.title)? {
-        if !target_path.exists() {
-            fs::rename(path, &target_path)?;
-            new_path = target_path;
-        }
-    }
-
-    if normalized_artist == track.artist && new_path == path {
+    if normalized_artist == track.artist && target_path.is_none() {
         return Ok(None);
     }
 
-    if normalized_artist != track.artist {
-        write_audio_tags(
-            &new_path,
-            &state.data_dir.join(".cache"),
-            &track.title,
-            &normalized_artist,
-        )
-        .await?;
-    }
+    let update = apply_audio_update(
+        path,
+        &state.data_dir.join(".cache"),
+        AudioUpdate {
+            title: (normalized_artist != track.artist).then_some(track.title.as_str()),
+            artist: (normalized_artist != track.artist).then_some(normalized_artist.as_str()),
+            cover_jpeg_path: None,
+            target_path: target_path.as_deref(),
+            standardize_tags: false,
+            update_mtime: true,
+        },
+    )
+    .await?;
 
+    let new_path = update.path;
     let snapshot = file_snapshot(&new_path).await?;
     let mut track = track.clone();
     track.artist = normalized_artist;
     track.file_path = new_path.to_string_lossy().to_string();
-    track.updated_at = now();
+    track.updated_at = snapshot.mtime;
     track.inode = inode(&snapshot.meta);
     track.file_signature = Some(snapshot.file_signature);
     track.content_hash = Some(snapshot.content_hash);

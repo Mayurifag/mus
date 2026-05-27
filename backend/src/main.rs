@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     env, fs,
     net::SocketAddr,
     path::PathBuf,
@@ -68,6 +69,7 @@ fn build_state() -> Result<AppState> {
         covers_dir,
         events,
         download_lock: Arc::new(Mutex::new(false)),
+        mutation_locks: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
         app_date: env::var("BUILD_DATE")
             .ok()
             .and_then(|v| v.get(..10).map(str::to_string))

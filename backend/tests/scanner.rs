@@ -112,6 +112,52 @@ async fn scan_music_dir_finds_nested_audio_files() {
 }
 
 #[tokio::test]
+async fn list_tracks_keeps_discovery_order_when_updated_at_changes() {
+    let (_tmp, state) = make_state();
+    let first = state.music_dir.join("first.flac");
+    let second = state.music_dir.join("second.flac");
+    fs::write(&first, b"first").unwrap();
+    fs::write(&second, b"second").unwrap();
+    {
+        let conn = state.db.lock().unwrap();
+        conn.execute(
+            "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,has_cover,processing_status) VALUES (?1,?2,?3,?4,?5,?6,?7,0,'COMPLETE')",
+            params![1, "First", "Artist", 1, first.to_string_lossy(), 100, 100],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,has_cover,processing_status) VALUES (?1,?2,?3,?4,?5,?6,?7,0,'COMPLETE')",
+            params![2, "Second", "Artist", 1, second.to_string_lossy(), 200, 200],
+        )
+        .unwrap();
+    }
+
+    assert_eq!(
+        db::list_tracks(&state)
+            .unwrap()
+            .into_iter()
+            .map(|track| track.id)
+            .collect::<Vec<_>>(),
+        vec![2, 1]
+    );
+
+    {
+        let conn = state.db.lock().unwrap();
+        conn.execute("UPDATE track SET updated_at = 9999 WHERE id = 1", [])
+            .unwrap();
+    }
+
+    assert_eq!(
+        db::list_tracks(&state)
+            .unwrap()
+            .into_iter()
+            .map(|track| track.id)
+            .collect::<Vec<_>>(),
+        vec![2, 1]
+    );
+}
+
+#[tokio::test]
 async fn scan_music_dir_broadcasts_added_tracks() {
     let (_tmp, state) = make_state();
     let path = state.music_dir.join("song.flac");

@@ -49,7 +49,7 @@ pub struct MusEvent {
     pub action_payload: Option<Value>,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct TrackUpdate {
     pub title: Option<String>,
     pub artist: Option<String>,
