@@ -47,8 +47,6 @@
   let lastCurrentTrackId: number | null = null;
   let lastPlayRequestId = 0;
   let isPlaying = $state(false);
-  let currentTime = $state(0);
-  let duration = $state(0);
 
   // Drag and drop state
   let isDraggingFile = $state(false);
@@ -220,21 +218,7 @@
 
   $effect(() => {
     if (!audioService) return;
-
-    const unsubscribers = [
-      audioService.currentTimeStore.subscribe((value) => {
-        currentTime = value;
-      }),
-      audioService.durationStore.subscribe((value) => {
-        duration = value;
-      }),
-    ];
-    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
-  });
-
-  $effect(() => {
-    if (!audioService) return;
-    if (!isPlaying || duration < 30 || duration - currentTime > 20) {
+    if (!isPlaying) {
       audioService.preloadTrack(null);
       return;
     }

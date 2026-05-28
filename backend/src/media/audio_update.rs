@@ -237,45 +237,23 @@ fn publish_updated_file(
     destination: &Path,
     modified: Option<FileTime>,
 ) -> Result<()> {
-    if destination == original {
-        return replace_file(source, destination, modified);
+    if destination != original && destination.exists() {
+        return Err(anyhow!("A file with this name already exists"));
     }
-    move_prepared_file(source, destination, modified)?;
-    fs::remove_file(original)?;
+    replace_file(source, original, modified)?;
+    if destination != original {
+        move_path_and_touch(original, destination, None)?;
+    }
     Ok(())
 }
 
 fn replace_file(source: &Path, destination: &Path, modified: Option<FileTime>) -> Result<()> {
-    match fs::rename(source, destination) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == io::ErrorKind::CrossesDevices => {
-            copy_over(source, destination)?;
-            let _ = fs::remove_file(source);
-            if let Some(modified) = modified {
-                set_file_mtime(destination, modified)?;
-            }
-            Ok(())
-        }
-        Err(error) => Err(error.into()),
+    copy_over(source, destination)?;
+    let _ = fs::remove_file(source);
+    if let Some(modified) = modified {
+        set_file_mtime(destination, modified)?;
     }
-}
-
-fn move_prepared_file(source: &Path, destination: &Path, modified: Option<FileTime>) -> Result<()> {
-    if destination.exists() {
-        return Err(anyhow!("A file with this name already exists"));
-    }
-    match fs::rename(source, destination) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == io::ErrorKind::CrossesDevices => {
-            copy_without_replace(source, destination)?;
-            let _ = fs::remove_file(source);
-            if let Some(modified) = modified {
-                set_file_mtime(destination, modified)?;
-            }
-            Ok(())
-        }
-        Err(error) => Err(error.into()),
-    }
+    Ok(())
 }
 
 fn move_path_and_touch(

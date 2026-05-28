@@ -206,6 +206,16 @@ describe("trackStore", () => {
     expect(get(trackStore).currentTrack).toEqual(mockTracks[0]);
   });
 
+  it("should mark nextTrack as a play request when requested", () => {
+    trackStore.setTracks(mockTracks);
+    trackStore.setCurrentTrackIndex(0);
+
+    trackStore.nextTrack(true);
+
+    expect(get(trackStore).currentTrackIndex).toBe(1);
+    expect(get(trackStore).playRequestId).toBe(1);
+  });
+
   it("should handle previousTrack in regular (non-shuffle) mode", () => {
     trackStore.setTracks(mockTracks);
     trackStore.setCurrentTrackIndex(1);

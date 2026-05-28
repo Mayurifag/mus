@@ -1,6 +1,9 @@
 use std::time::SystemTime;
 use std::{fs, path::Path, process::Command};
 
+#[cfg(unix)]
+use std::os::unix::fs::MetadataExt;
+
 use id3::{
     frame::{Picture, PictureType},
     Tag, TagLike, Version,
@@ -166,6 +169,11 @@ fn assert_no_mus_files(dir: &Path) {
     }
 }
 
+#[cfg(unix)]
+fn file_id(path: &Path) -> u64 {
+    fs::metadata(path).unwrap().ino()
+}
+
 #[tokio::test]
 async fn ffmpeg_tag_rewrite_preserves_mp3_id3v23_utf8_and_cover() {
     let tmp = TempDir::new().unwrap();
@@ -204,6 +212,8 @@ async fn combined_audio_update_publishes_tags_cover_rename_and_mtime() {
     let target_path = music_dir.join("New artist - New title.flac");
     create_flac_with_cover(&path);
     create_jpeg(&cover_path);
+    #[cfg(unix)]
+    let original_file_id = file_id(&path);
     let original = SystemTime::UNIX_EPOCH;
     filetime::set_file_mtime(&path, filetime::FileTime::from_system_time(original)).unwrap();
 
@@ -226,11 +236,37 @@ async fn combined_audio_update_publishes_tags_cover_rename_and_mtime() {
     assert_eq!(result.path, target_path);
     assert!(!path.exists());
     assert!(target_path.is_file());
+    #[cfg(unix)]
+    assert_eq!(file_id(&target_path), original_file_id);
     assert!(fs::metadata(&target_path).unwrap().modified().unwrap() > original);
     let data = probe(&target_path);
     assert_eq!(data["format"]["tags"]["title"], "New title");
     assert_eq!(data["format"]["tags"]["artist"], "New artist");
     assert_has_attached_cover(&data);
+    assert_no_mus_files(&music_dir);
+    assert!(fs::read_dir(&cache_dir).unwrap().next().is_none());
+}
+
+#[tokio::test]
+async fn ffmpeg_tag_rewrite_preserves_existing_file_identity() {
+    let tmp = TempDir::new().unwrap();
+    let music_dir = tmp.path().join("music");
+    let cache_dir = tmp.path().join("cache");
+    fs::create_dir(&music_dir).unwrap();
+    let path = music_dir.join("song.flac");
+    create_flac_with_cover(&path);
+    #[cfg(unix)]
+    let original_file_id = file_id(&path);
+
+    write_audio_tags(&path, &cache_dir, "New title", "New artist")
+        .await
+        .unwrap();
+
+    #[cfg(unix)]
+    assert_eq!(file_id(&path), original_file_id);
+    let data = probe(&path);
+    assert_eq!(data["format"]["tags"]["title"], "New title");
+    assert_eq!(data["format"]["tags"]["artist"], "New artist");
     assert_no_mus_files(&music_dir);
     assert!(fs::read_dir(&cache_dir).unwrap().next().is_none());
 }

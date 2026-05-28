@@ -200,6 +200,24 @@ async fn scan_music_dir_normalizes_comma_artists_and_renames_filename() {
 }
 
 #[tokio::test]
+async fn scan_music_dir_renames_unstructured_filename_from_metadata() {
+    let (_tmp, state) = make_state();
+    let path = state.music_dir.join("random-name.mp3");
+    create_mp3(&path, "song", "Artist");
+
+    scan_music_dir(state.clone()).await.unwrap();
+
+    let renamed_path = state.music_dir.join("Artist - song.mp3");
+    let tracks = db::list_tracks(&state).unwrap();
+    assert_eq!(tracks.len(), 1);
+    assert_eq!(tracks[0].title, "song");
+    assert_eq!(tracks[0].artist, "Artist");
+    assert_eq!(tracks[0].file_path, renamed_path.to_string_lossy());
+    assert!(!path.exists());
+    assert!(renamed_path.exists());
+}
+
+#[tokio::test]
 async fn scan_music_dir_normalizes_unchanged_existing_tracks() {
     let (_tmp, state) = make_state();
     let path = state
@@ -277,12 +295,15 @@ async fn scan_music_dir_preserves_track_identity_after_move() {
     fs::rename(&path, &moved_path).unwrap();
     scan_music_dir(state.clone()).await.unwrap();
 
+    let renamed_path = state.music_dir.join("Kept Artist - Kept Title.flac");
     let tracks = db::list_tracks(&state).unwrap();
     assert_eq!(tracks.len(), 1);
     assert_eq!(tracks[0].id, id);
     assert_eq!(tracks[0].title, "Kept Title");
     assert_eq!(tracks[0].artist, "Kept Artist");
-    assert_eq!(tracks[0].file_path, moved_path.to_string_lossy());
+    assert_eq!(tracks[0].file_path, renamed_path.to_string_lossy());
+    assert!(!moved_path.exists());
+    assert!(renamed_path.exists());
 }
 
 #[tokio::test]

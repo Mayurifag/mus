@@ -342,20 +342,34 @@ function createTrackStore() {
         };
       });
     },
-    nextTrack: () => {
+    nextTrack: (play = false) => {
       update((state) => {
         if (state.tracks.length === 0) {
           return state;
         }
 
+        const nextState = (partial: Partial<TrackStoreState>) => {
+          if (
+            play &&
+            partial.currentTrackIndex !== undefined &&
+            partial.currentTrackIndex !== state.currentTrackIndex
+          ) {
+            return {
+              ...state,
+              ...partial,
+              playRequestId: state.playRequestId + 1,
+            };
+          }
+          return { ...state, ...partial };
+        };
+
         if (state.selectedArtist) {
           const scopedIndexes = getSelectedArtistTrackIndexes(state);
           if (scopedIndexes.length === 0) return state;
 
-          return {
-            ...state,
-            ...navigateSelectedArtistTrack(state, scopedIndexes, 1),
-          };
+          return nextState(
+            navigateSelectedArtistTrack(state, scopedIndexes, 1),
+          );
         }
 
         if (state.currentTrackIndex === null) {
@@ -364,18 +378,17 @@ function createTrackStore() {
 
         if (state.is_shuffle) {
           const shuffleResult = handleShuffleNext(state);
-          return shuffleResult ? { ...state, ...shuffleResult } : state;
+          return shuffleResult ? nextState(shuffleResult) : state;
         }
 
         const nextIndex = calculateNextIndex(
           state.currentTrackIndex,
           state.tracks.length,
         );
-        return {
-          ...state,
+        return nextState({
           currentTrackIndex: nextIndex,
           currentTrack: state.tracks[nextIndex],
-        };
+        });
       });
     },
     previousTrack: () => {

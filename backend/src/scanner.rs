@@ -391,19 +391,33 @@ async fn upsert_path_with_snapshot(
                 .unwrap_or_else(|| format!("path:{}", path.to_string_lossy())),
         )
         .await;
-    let metadata = read_metadata(path).await.unwrap_or_else(|_| MediaMetadata {
-        title: path
-            .file_stem()
-            .and_then(|v| v.to_str())
-            .unwrap_or("Unknown Title")
-            .to_string(),
-        artist: "Unknown Artist".into(),
-        duration: 0,
-    });
+    let has_metadata_override = title_override.is_some() || artist_override.is_some();
+    let (metadata, read_metadata_succeeded) = match read_metadata(path).await {
+        Ok(metadata) => (metadata, true),
+        Err(_) => (
+            MediaMetadata {
+                title: path
+                    .file_stem()
+                    .and_then(|v| v.to_str())
+                    .unwrap_or("Unknown Title")
+                    .to_string(),
+                artist: "Unknown Artist".into(),
+                duration: 0,
+                has_artist: false,
+            },
+            false,
+        ),
+    };
+    let can_broadly_rename =
+        has_metadata_override || (read_metadata_succeeded && metadata.has_artist);
     let title = title_override.unwrap_or(metadata.title);
     let artist = normalize_artists(&artist_override.unwrap_or(metadata.artist));
-    let target_path =
-        normalized_artist_filename(path, &artist, &title)?.filter(|path| !path.exists());
+    let target_path = if can_broadly_rename {
+        generated_filename_path(path, &artist, &title)?
+    } else {
+        normalized_artist_filename(path, &artist, &title)?
+    }
+    .filter(|path| !path.exists());
     let update = apply_audio_update(
         path,
         &state.data_dir.join(".cache"),
@@ -472,8 +486,20 @@ async fn normalize_existing_track(
 ) -> Result<Option<(crate::models::TrackDto, String)>> {
     let _guard = state.mutation_lock(format!("track:{}", track.id)).await;
     let normalized_artist = normalize_artists(&track.artist);
-    let target_path = normalized_artist_filename(path, &normalized_artist, &track.title)?
-        .filter(|path| !path.exists());
+    let target_path = normalized_artist_filename(path, &normalized_artist, &track.title)?;
+    let target_path = if target_path.is_some() {
+        target_path
+    } else {
+        let broad_target_path = generated_filename_path(path, &normalized_artist, &track.title)?;
+        if broad_target_path.is_some()
+            && matches!(read_metadata(path).await, Ok(metadata) if metadata.has_artist)
+        {
+            broad_target_path
+        } else {
+            None
+        }
+    }
+    .filter(|path| !path.exists());
 
     if normalized_artist == track.artist && target_path.is_none() {
         return Ok(None);
@@ -511,18 +537,9 @@ async fn normalize_existing_track(
 }
 
 fn normalized_artist_filename(path: &Path, artist: &str, title: &str) -> Result<Option<PathBuf>> {
-    let Some(ext) = path.extension().and_then(|v| v.to_str()) else {
+    let Some(target_path) = generated_filename_path(path, artist, title)? else {
         return Ok(None);
     };
-    let filename =
-        generate_filename(artist, title, ext).map_err(|error| anyhow::anyhow!(error.message))?;
-    let target_path = path
-        .parent()
-        .unwrap_or_else(|| Path::new(""))
-        .join(filename);
-    if target_path == path {
-        return Ok(None);
-    }
 
     let Some(current_stem) = path.file_stem().and_then(|v| v.to_str()) else {
         return Ok(None);
@@ -544,4 +561,21 @@ fn normalized_artist_filename(path: &Path, artist: &str, title: &str) -> Result<
     }
 
     Ok(None)
+}
+
+fn generated_filename_path(path: &Path, artist: &str, title: &str) -> Result<Option<PathBuf>> {
+    let Some(ext) = path.extension().and_then(|v| v.to_str()) else {
+        return Ok(None);
+    };
+    let filename =
+        generate_filename(artist, title, ext).map_err(|error| anyhow::anyhow!(error.message))?;
+    let target_path = path
+        .parent()
+        .unwrap_or_else(|| Path::new(""))
+        .join(filename);
+    if target_path == path {
+        return Ok(None);
+    }
+
+    Ok(Some(target_path))
 }

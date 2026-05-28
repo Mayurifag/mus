@@ -18,6 +18,7 @@ pub struct MediaMetadata {
     pub title: String,
     pub artist: String,
     pub duration: i64,
+    pub has_artist: bool,
 }
 
 pub async fn read_metadata(path: &Path) -> Result<MediaMetadata> {
@@ -37,27 +38,24 @@ pub async fn read_metadata(path: &Path) -> Result<MediaMetadata> {
     let data: Value = serde_json::from_slice(&output.stdout)?;
     let format = data.get("format").unwrap_or(&Value::Null);
     let tags = format.get("tags").unwrap_or(&Value::Null);
+    let title = tags.get("title").and_then(Value::as_str);
+    let artist = tags.get("artist").and_then(Value::as_str);
     Ok(MediaMetadata {
-        title: tags
-            .get("title")
-            .and_then(Value::as_str)
+        title: title
             .unwrap_or_else(|| {
                 path.file_stem()
                     .and_then(|v| v.to_str())
                     .unwrap_or("Unknown Title")
             })
             .to_string(),
-        artist: tags
-            .get("artist")
-            .and_then(Value::as_str)
-            .unwrap_or("Unknown Artist")
-            .to_string(),
+        artist: artist.unwrap_or("Unknown Artist").to_string(),
         duration: format
             .get("duration")
             .and_then(Value::as_str)
             .and_then(|v| v.parse::<f64>().ok())
             .map(|v| v as i64)
             .unwrap_or(0),
+        has_artist: artist.is_some(),
     })
 }
 

@@ -10,6 +10,8 @@ import {
   updateMediaSessionPlaybackState,
 } from "$lib/services/mediaSessionService";
 
+const PRELOAD_RANGE = "bytes=0-1048575";
+
 export class AudioService {
   private audio: HTMLAudioElement;
   private isSeeking = false;
@@ -105,8 +107,7 @@ export class AudioService {
         });
       }
     } else {
-      // Move to next track directly instead of using callback
-      trackStore.nextTrack();
+      trackStore.nextTrack(true);
     }
   };
 
@@ -197,7 +198,7 @@ export class AudioService {
     this.preloadController = controller;
 
     fetch(getStreamUrl(track.id), {
-      headers: { Range: "bytes=0-65535" },
+      headers: { Range: PRELOAD_RANGE },
       signal: controller.signal,
     })
       .then((response) => response.arrayBuffer())

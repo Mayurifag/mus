@@ -111,11 +111,25 @@ describe("AudioService", () => {
     expect(globalThis.fetch).toHaveBeenCalledWith(
       "http://localhost:8001/api/v1/tracks/2/stream",
       expect.objectContaining({
-        headers: { Range: "bytes=0-65535" },
+        headers: { Range: "bytes=0-1048575" },
         signal: expect.any(AbortSignal),
       }),
     );
     globalThis.fetch = originalFetch;
+  });
+
+  it("should request playback when advancing after track end", () => {
+    audioService.setRepeat(false);
+
+    const addEventListenerMock =
+      mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
+    const endedHandler = addEventListenerMock.mock.calls.find(
+      (call: unknown[]) => call[0] === "ended",
+    )?.[1] as () => void;
+
+    endedHandler();
+
+    expect(trackStore.nextTrack).toHaveBeenCalledWith(true);
   });
 
   it("should not preload the active track", () => {

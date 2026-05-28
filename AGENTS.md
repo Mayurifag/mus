@@ -17,6 +17,7 @@
 - Local music mount is `/Volumes/sdcard/Personal/Music:/app_data/music`.
 - Rewrite cache stays container-internal at `/app_data/.cache`; do not bind mount it locally.
 - Production OpenCloud uses PosixFS and stores metadata in `user.oc.*` xattrs.
+- For OpenCloud-mounted music, update existing files in place to preserve inode/xattrs; if renaming too, copy bytes into the original path first, then rename that original file.
 - If `mus` edits MP3 tags/artwork directly, OpenCloud sync can break with stale `user.oc.blobsize`/checksums or stuck `user.oc.nodestatus=processing:*`.
 - `touch`, `opencloud posixfs consistency`, and restarting OpenCloud did not repair stale OpenCloud sync metadata.
 - To diagnose OpenCloud sync issues, compare `stat -c %s` with `getfattr -n user.oc.blobsize --only-values` and inspect `user.oc.nodestatus`.
