@@ -50,3 +50,10 @@ image, so it is not bound to Rust/Svelte source files.
 
 Production deployments are expected to sit behind external authentication. Use
 `make prod-verify` before shipping image changes.
+
+The backend keeps a bounded 256 MiB RAM cache of the first 512 KiB of recently
+prewarmed audio files. It fills that cache after startup scan and prewarms the
+backend-selected next shuffle track before returning it to the browser. Set
+`AUDIO_PREWARM_BYTES=0` to disable or another byte value to tune the per-track
+read-ahead size. Set `AUDIO_MEMORY_CACHE_BYTES=0` to disable the RAM cache or
+another byte value to tune the total cache size.

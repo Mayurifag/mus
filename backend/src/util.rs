@@ -8,6 +8,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use tokio::{process::Command, time};
+use unicode_normalization::UnicodeNormalization;
 
 use crate::error::AppError;
 
@@ -125,7 +126,7 @@ pub fn parse_artists(artist: &str) -> Vec<String> {
         .split([';', ','])
         .map(str::trim)
         .filter(|v| !v.is_empty())
-        .map(str::to_string)
+        .map(normalize_text)
         .collect()
 }
 
@@ -147,12 +148,17 @@ pub fn generate_filename(artist: &str, title: &str, ext: &str) -> Result<String,
     Ok(filename)
 }
 
+pub fn normalize_text(value: &str) -> String {
+    value.nfc().collect()
+}
+
 pub fn clean_title(raw: &str) -> String {
-    raw.replace("Official Video", "")
-        .replace("Official Audio", "")
-        .trim_matches(|c| c == '-' || c == ' ' || c == '[' || c == ']')
-        .trim()
-        .to_string()
+    normalize_text(
+        raw.replace("Official Video", "")
+            .replace("Official Audio", "")
+            .trim_matches(|c| c == '-' || c == ' ' || c == '[' || c == ']')
+            .trim(),
+    )
 }
 
 pub fn extract_artist_title(raw_title: &str, channel: &str) -> (String, String) {
@@ -231,7 +237,7 @@ fn metadata_changed_nanos(_: &fs::Metadata) -> i128 {
 }
 
 pub fn sanitize(value: &str) -> String {
-    value
+    normalize_text(value)
         .chars()
         .filter(|c| !matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*'))
         .collect()
@@ -254,7 +260,7 @@ mod tests {
 
     use tempfile::TempDir;
 
-    use super::{can_write, generate_filename, normalize_artists, parse_artists};
+    use super::{can_write, generate_filename, normalize_artists, normalize_text, parse_artists};
 
     #[test]
     fn can_write_does_not_create_probe_files() {
@@ -285,6 +291,24 @@ mod tests {
         assert_eq!(
             generate_filename("aikko,katanacss,INSPACE", "song", "mp3").unwrap(),
             "aikko, katanacss, INSPACE - song.mp3"
+        );
+    }
+
+    #[test]
+    fn normalizes_unicode_to_nfc() {
+        assert_eq!(normalize_text("Бедныи\u{0306}"), "Бедный");
+        assert_eq!(
+            generate_filename("Слава КПСС", "Бедныи\u{0306} Русскии\u{0306}", "mp3").unwrap(),
+            "Слава КПСС - Бедный Русский.mp3"
+        );
+    }
+
+    #[test]
+    fn preserves_requested_artist_casing() {
+        assert_eq!(normalize_artists("LIL KRYSTALLL"), "LIL KRYSTALLL");
+        assert_eq!(
+            generate_filename("LIL KRYSTALLL", "Air Force 1", "mp3").unwrap(),
+            "LIL KRYSTALLL - Air Force 1.mp3"
         );
     }
 }

@@ -248,6 +248,39 @@ async fn combined_audio_update_publishes_tags_cover_rename_and_mtime() {
 }
 
 #[tokio::test]
+async fn combined_audio_update_normalizes_rename_and_tag_text() {
+    let tmp = TempDir::new().unwrap();
+    let music_dir = tmp.path().join("music");
+    let cache_dir = tmp.path().join("cache");
+    fs::create_dir(&music_dir).unwrap();
+    let path = music_dir.join("song.mp3");
+    let target_path = music_dir.join("LIL KRYSTALLL - Бедный Русский.mp3");
+    create_mp3_with_cover(&path);
+
+    let result = apply_audio_update(
+        &path,
+        &cache_dir,
+        AudioUpdate {
+            title: Some("Бедныи\u{0306} Русскии\u{0306}"),
+            artist: Some("LIL KRYSTALLL"),
+            cover_jpeg_path: None,
+            target_path: Some(&target_path),
+            standardize_tags: false,
+            update_mtime: true,
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(result.path, target_path);
+    assert!(!path.exists());
+    assert!(target_path.is_file());
+    let data = probe(&target_path);
+    assert_eq!(data["format"]["tags"]["title"], "Бедный Русский");
+    assert_eq!(data["format"]["tags"]["artist"], "LIL KRYSTALLL");
+}
+
+#[tokio::test]
 async fn ffmpeg_tag_rewrite_preserves_existing_file_identity() {
     let tmp = TempDir::new().unwrap();
     let music_dir = tmp.path().join("music");

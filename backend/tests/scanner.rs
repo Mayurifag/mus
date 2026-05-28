@@ -218,6 +218,23 @@ async fn scan_music_dir_renames_unstructured_filename_from_metadata() {
 }
 
 #[tokio::test]
+async fn scan_music_dir_normalizes_unicode_filenames_to_nfc() {
+    let (_tmp, state) = make_state();
+    let path = state.music_dir.join("random-name.mp3");
+    create_mp3(&path, "Бедныи\u{0306} Русскии\u{0306}", "Слава КПСС");
+
+    scan_music_dir(state.clone()).await.unwrap();
+
+    let renamed_path = state.music_dir.join("Слава КПСС - Бедный Русский.mp3");
+    let tracks = db::list_tracks(&state).unwrap();
+    assert_eq!(tracks.len(), 1);
+    assert_eq!(tracks[0].title, "Бедный Русский");
+    assert_eq!(tracks[0].file_path, renamed_path.to_string_lossy());
+    assert!(!path.exists());
+    assert!(renamed_path.exists());
+}
+
+#[tokio::test]
 async fn scan_music_dir_normalizes_unchanged_existing_tracks() {
     let (_tmp, state) = make_state();
     let path = state

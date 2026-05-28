@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use serde_json::Value;
 use tokio::process::Command;
 
-use crate::util::{run_command_output, run_command_status};
+use crate::util::{normalize_artists, normalize_text, run_command_output, run_command_status};
 
 mod audio_update;
 
@@ -41,14 +41,12 @@ pub async fn read_metadata(path: &Path) -> Result<MediaMetadata> {
     let title = tags.get("title").and_then(Value::as_str);
     let artist = tags.get("artist").and_then(Value::as_str);
     Ok(MediaMetadata {
-        title: title
-            .unwrap_or_else(|| {
-                path.file_stem()
-                    .and_then(|v| v.to_str())
-                    .unwrap_or("Unknown Title")
-            })
-            .to_string(),
-        artist: artist.unwrap_or("Unknown Artist").to_string(),
+        title: normalize_text(title.unwrap_or_else(|| {
+            path.file_stem()
+                .and_then(|v| v.to_str())
+                .unwrap_or("Unknown Title")
+        })),
+        artist: normalize_artists(artist.unwrap_or("Unknown Artist")),
         duration: format
             .get("duration")
             .and_then(Value::as_str)

@@ -7,7 +7,7 @@ use std::{
 use rusqlite::Connection;
 use tokio::sync::{broadcast, Mutex as AsyncMutex, OwnedMutexGuard};
 
-use crate::models::MusEvent;
+use crate::{models::MusEvent, prewarm::AudioMemoryCache};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -19,6 +19,7 @@ pub struct AppState {
     pub events: broadcast::Sender<MusEvent>,
     pub download_lock: Arc<StdMutex<bool>>,
     pub mutation_locks: Arc<AsyncMutex<HashMap<String, Arc<AsyncMutex<()>>>>>,
+    pub audio_cache: Arc<AsyncMutex<AudioMemoryCache>>,
     pub app_date: String,
     pub commit_sha: Option<String>,
 }

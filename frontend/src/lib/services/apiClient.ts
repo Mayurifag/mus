@@ -3,6 +3,7 @@ import type {
   Track,
   PlayerState,
   MusEvent,
+  ShuffleNextTrackRequest,
 } from "$lib/types";
 import { writable } from "svelte/store";
 import {
@@ -70,6 +71,28 @@ export async function fetchTracks(
   );
 
   return result ?? [];
+}
+
+export async function fetchShuffleNextTrack(
+  request: ShuffleNextTrackRequest,
+  signal?: AbortSignal,
+  fetchFn: typeof fetch = fetch,
+): Promise<Track | null> {
+  const response = await fetchFn(
+    `${API_PREFIX}${API_VERSION_PATH}/tracks/shuffle-next`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+      signal,
+    },
+  );
+  const track = await handleApiResponse<Track | null>(response, {
+    context: "fetchShuffleNextTrack",
+  });
+  return track ? createTrackWithUrls(track) : null;
 }
 
 export async function fetchPlayerState(

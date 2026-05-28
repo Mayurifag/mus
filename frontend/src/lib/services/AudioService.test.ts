@@ -111,7 +111,7 @@ describe("AudioService", () => {
     expect(globalThis.fetch).toHaveBeenCalledWith(
       "http://localhost:8001/api/v1/tracks/2/stream",
       expect.objectContaining({
-        headers: { Range: "bytes=0-1048575" },
+        headers: { Range: "bytes=0-524287" },
         signal: expect.any(AbortSignal),
       }),
     );

@@ -10,7 +10,7 @@ use filetime::{set_file_mtime, FileTime};
 use id3::{frame::Picture, frame::PictureType, Tag, TagLike, Version};
 use tokio::process::Command;
 
-use crate::util::{now_nanos, run_command_status};
+use crate::util::{normalize_artists, normalize_text, now_nanos, run_command_status};
 
 pub struct AudioUpdate<'a> {
     pub title: Option<&'a str>,
@@ -31,6 +31,16 @@ pub async fn apply_audio_update(
     cache_dir: &Path,
     update: AudioUpdate<'_>,
 ) -> Result<AudioUpdateResult> {
+    let title = update.title.map(normalize_text);
+    let artist = update.artist.map(normalize_artists);
+    let update = AudioUpdate {
+        title: title.as_deref(),
+        artist: artist.as_deref(),
+        cover_jpeg_path: update.cover_jpeg_path,
+        target_path: update.target_path,
+        standardize_tags: update.standardize_tags,
+        update_mtime: update.update_mtime,
+    };
     let destination = update.target_path.unwrap_or(path);
     let path_changed = destination != path;
     let standardize_id3 = update.standardize_tags && needs_id3_standardization(path);

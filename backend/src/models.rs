@@ -58,6 +58,12 @@ pub struct TrackUpdate {
 }
 
 #[derive(Deserialize)]
+pub struct ShuffleNextRequest {
+    pub current_track_id: Option<i64>,
+    pub selected_artist: Option<String>,
+}
+
+#[derive(Deserialize)]
 pub struct ArtworkSearchQuery {
     pub title: String,
     pub artist: String,

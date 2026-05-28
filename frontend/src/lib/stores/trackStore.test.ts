@@ -373,6 +373,27 @@ describe("trackStore", () => {
       );
     });
 
+    it("should use a valid shuffle lookahead", () => {
+      trackStore.setShuffleLookahead(mockTracks[2], mockTracks[0].id, null);
+
+      trackStore.nextTrack();
+
+      const state = get(trackStore);
+      expect(state.currentTrackIndex).toBe(2);
+      expect(state.currentTrack).toEqual(mockTracks[2]);
+      expect(state.playHistory).toEqual([mockTracks[0], mockTracks[2]]);
+      expect(state.shuffleLookahead).toBeNull();
+    });
+
+    it("should ignore a stale shuffle lookahead", () => {
+      trackStore.setShuffleLookahead(mockTracks[1], mockTracks[1].id, null);
+
+      trackStore.nextTrack();
+
+      const state = get(trackStore);
+      expect(state.currentTrack).toEqual(mockTracks[2]);
+    });
+
     it("should handle multiple back/forward operations correctly", () => {
       // Create a sequence: Track 0 -> Track A -> Track B
       trackStore.nextTrack(); // 0 -> A

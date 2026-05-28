@@ -21,7 +21,7 @@ use crate::{
     state::AppState,
     util::{
         file_content_hash, file_signature, generate_filename, inode, is_audio_path,
-        normalize_artists, now, parse_artists, system_time_secs,
+        normalize_artists, normalize_text, now, parse_artists, system_time_secs,
     },
 };
 
@@ -410,7 +410,7 @@ async fn upsert_path_with_snapshot(
     };
     let can_broadly_rename =
         has_metadata_override || (read_metadata_succeeded && metadata.has_artist);
-    let title = title_override.unwrap_or(metadata.title);
+    let title = normalize_text(&title_override.unwrap_or(metadata.title));
     let artist = normalize_artists(&artist_override.unwrap_or(metadata.artist));
     let target_path = if can_broadly_rename {
         generated_filename_path(path, &artist, &title)?
@@ -485,12 +485,14 @@ async fn normalize_existing_track(
     path: &Path,
 ) -> Result<Option<(crate::models::TrackDto, String)>> {
     let _guard = state.mutation_lock(format!("track:{}", track.id)).await;
+    let normalized_title = normalize_text(&track.title);
     let normalized_artist = normalize_artists(&track.artist);
-    let target_path = normalized_artist_filename(path, &normalized_artist, &track.title)?;
+    let target_path = normalized_artist_filename(path, &normalized_artist, &normalized_title)?;
     let target_path = if target_path.is_some() {
         target_path
     } else {
-        let broad_target_path = generated_filename_path(path, &normalized_artist, &track.title)?;
+        let broad_target_path =
+            generated_filename_path(path, &normalized_artist, &normalized_title)?;
         if broad_target_path.is_some()
             && matches!(read_metadata(path).await, Ok(metadata) if metadata.has_artist)
         {
@@ -501,7 +503,8 @@ async fn normalize_existing_track(
     }
     .filter(|path| !path.exists());
 
-    if normalized_artist == track.artist && target_path.is_none() {
+    if normalized_title == track.title && normalized_artist == track.artist && target_path.is_none()
+    {
         return Ok(None);
     }
 
@@ -509,7 +512,7 @@ async fn normalize_existing_track(
         path,
         &state.data_dir.join(".cache"),
         AudioUpdate {
-            title: (normalized_artist != track.artist).then_some(track.title.as_str()),
+            title: (normalized_title != track.title).then_some(normalized_title.as_str()),
             artist: (normalized_artist != track.artist).then_some(normalized_artist.as_str()),
             cover_jpeg_path: None,
             target_path: target_path.as_deref(),
@@ -522,6 +525,7 @@ async fn normalize_existing_track(
     let new_path = update.path;
     let snapshot = file_snapshot(&new_path).await?;
     let mut track = track.clone();
+    track.title = normalized_title;
     track.artist = normalized_artist;
     track.file_path = new_path.to_string_lossy().to_string();
     track.updated_at = snapshot.mtime;
@@ -554,7 +558,7 @@ fn normalized_artist_filename(path: &Path, artist: &str, title: &str) -> Result<
         return Ok(None);
     };
 
-    if current_title == target_title
+    if normalize_text(current_title) == normalize_text(target_title)
         && parse_artists(current_artist) == parse_artists(target_artist)
     {
         return Ok(Some(target_path));

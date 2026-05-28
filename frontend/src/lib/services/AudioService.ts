@@ -10,7 +10,7 @@ import {
   updateMediaSessionPlaybackState,
 } from "$lib/services/mediaSessionService";
 
-const PRELOAD_RANGE = "bytes=0-1048575";
+const PRELOAD_RANGE = "bytes=0-524287";
 
 export class AudioService {
   private audio: HTMLAudioElement;

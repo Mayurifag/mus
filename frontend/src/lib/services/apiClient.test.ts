@@ -126,6 +126,56 @@ describe("apiClient", () => {
     });
   });
 
+  describe("fetchShuffleNextTrack", () => {
+    it("returns transformed next shuffle track", async () => {
+      const mockResponse = {
+        ok: true,
+        json: vi.fn().mockResolvedValue(mockTrackFromBackend),
+      };
+      vi.mocked(globalThis.fetch).mockResolvedValue(
+        mockResponse as unknown as Response,
+      );
+
+      const result = await apiClient.fetchShuffleNextTrack({
+        current_track_id: 1,
+        selected_artist: null,
+      });
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8001/api/v1/tracks/shuffle-next",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            current_track_id: 1,
+            selected_artist: null,
+          }),
+          signal: undefined,
+        },
+      );
+      expect(result).toEqual(mockTrackTransformed);
+    });
+
+    it("returns null when backend has no shuffle candidate", async () => {
+      const mockResponse = {
+        ok: true,
+        json: vi.fn().mockResolvedValue(null),
+      };
+      vi.mocked(globalThis.fetch).mockResolvedValue(
+        mockResponse as unknown as Response,
+      );
+
+      const result = await apiClient.fetchShuffleNextTrack({
+        current_track_id: 1,
+        selected_artist: "Test Artist",
+      });
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe("fetchPlayerState", () => {
     it("returns player state when fetch is successful", async () => {
       const mockResponse = {
