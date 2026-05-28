@@ -18,13 +18,6 @@ export interface TrackStoreState {
   is_shuffle: boolean;
   selectedArtist: string | null;
   playRequestId: number;
-  shuffleLookahead: ShuffleLookahead | null;
-}
-
-export interface ShuffleLookahead {
-  track: Track;
-  currentTrackId: number;
-  selectedArtist: string | null;
 }
 
 const initialState: TrackStoreState = {
@@ -36,7 +29,6 @@ const initialState: TrackStoreState = {
   is_shuffle: false,
   selectedArtist: null,
   playRequestId: 0,
-  shuffleLookahead: null,
 };
 
 function createTrackStore() {
@@ -49,7 +41,6 @@ function createTrackStore() {
     currentTrack: null,
     playHistory: [],
     historyPosition: -1,
-    shuffleLookahead: null,
   });
 
   const createInitialTrackState = (
@@ -61,7 +52,6 @@ function createTrackStore() {
     currentTrack: tracks[index],
     playHistory: [tracks[index]],
     historyPosition: 0,
-    shuffleLookahead: null,
   });
 
   const preserveCurrentTrack = (
@@ -80,7 +70,6 @@ function createTrackStore() {
       currentTrack: tracks[newIndex],
       playHistory: newHistory,
       historyPosition: newPosition,
-      shuffleLookahead: null,
     };
   };
 
@@ -155,15 +144,7 @@ function createTrackStore() {
   const getRandomScopedTrackIndex = (
     state: TrackStoreState,
     scopedIndexes: number[],
-    lookahead?: Track | null,
   ): number => {
-    const lookaheadIndex = lookahead
-      ? findScopedTrackIndex(state, scopedIndexes, lookahead)
-      : -1;
-    if (lookaheadIndex !== -1 && lookaheadIndex !== state.currentTrackIndex) {
-      return lookaheadIndex;
-    }
-
     const currentInScope =
       state.currentTrackIndex !== null &&
       scopedIndexes.includes(state.currentTrackIndex);
@@ -183,7 +164,6 @@ function createTrackStore() {
     state: TrackStoreState,
     scopedIndexes: number[],
     direction: 1 | -1,
-    lookahead?: Track | null,
   ): Partial<TrackStoreState> => {
     if (state.is_shuffle) {
       const historyMove = getScopedHistoryMove(
@@ -204,7 +184,7 @@ function createTrackStore() {
 
     const trackIndex =
       state.is_shuffle && direction === 1
-        ? getRandomScopedTrackIndex(state, scopedIndexes, lookahead)
+        ? getRandomScopedTrackIndex(state, scopedIndexes)
         : getSequentialScopedTrackIndex(state, scopedIndexes, direction);
     const track = state.tracks[trackIndex];
 
@@ -241,15 +221,6 @@ function createTrackStore() {
       playHistory,
       historyPosition: direction === 1 ? playHistory.length - 1 : 0,
     };
-  };
-
-  const getValidShuffleLookahead = (state: TrackStoreState): Track | null => {
-    const lookahead = state.shuffleLookahead;
-    if (!lookahead || !state.currentTrack) return null;
-    if (lookahead.currentTrackId !== state.currentTrack.id) return null;
-    if (lookahead.selectedArtist !== state.selectedArtist) return null;
-
-    return lookahead.track;
   };
 
   return {
@@ -295,7 +266,6 @@ function createTrackStore() {
             ...state,
             currentTrackIndex: null,
             currentTrack: null,
-            shuffleLookahead: null,
           };
         }
         const track = state.tracks[index];
@@ -308,7 +278,6 @@ function createTrackStore() {
             currentTrack: track,
             playHistory: [track],
             historyPosition: 0,
-            shuffleLookahead: null,
           };
         }
 
@@ -326,7 +295,6 @@ function createTrackStore() {
             currentTrack: track,
             playHistory: [track],
             historyPosition: 0,
-            shuffleLookahead: null,
           };
         }
 
@@ -341,7 +309,6 @@ function createTrackStore() {
             currentTrackIndex: index,
             currentTrack: track,
             historyPosition: existingIndex,
-            shuffleLookahead: null,
           };
         }
 
@@ -354,7 +321,6 @@ function createTrackStore() {
           playHistory: newHistory,
           historyPosition: newHistory.length - 1,
           playRequestId: state.playRequestId + 1,
-          shuffleLookahead: null,
         };
       });
     },
@@ -377,7 +343,6 @@ function createTrackStore() {
           playHistory: [track],
           historyPosition: 0,
           playRequestId: state.playRequestId + 1,
-          shuffleLookahead: null,
         };
       });
     },
@@ -402,15 +367,12 @@ function createTrackStore() {
           return { ...state, ...partial };
         };
 
-        const lookahead = getValidShuffleLookahead(state);
-
         if (state.selectedArtist) {
           const scopedIndexes = getSelectedArtistTrackIndexes(state);
           if (scopedIndexes.length === 0) return state;
 
           return nextState({
-            ...navigateSelectedArtistTrack(state, scopedIndexes, 1, lookahead),
-            shuffleLookahead: null,
+            ...navigateSelectedArtistTrack(state, scopedIndexes, 1),
           });
         }
 
@@ -419,10 +381,8 @@ function createTrackStore() {
         }
 
         if (state.is_shuffle) {
-          const shuffleResult = handleShuffleNext(state, lookahead);
-          return shuffleResult
-            ? nextState({ ...shuffleResult, shuffleLookahead: null })
-            : { ...state, shuffleLookahead: null };
+          const shuffleResult = handleShuffleNext(state);
+          return shuffleResult ? nextState(shuffleResult) : state;
         }
 
         const nextIndex = calculateNextIndex(
@@ -448,7 +408,6 @@ function createTrackStore() {
           return {
             ...state,
             ...navigateSelectedArtistTrack(state, scopedIndexes, -1),
-            shuffleLookahead: null,
           };
         }
 
@@ -458,9 +417,7 @@ function createTrackStore() {
 
         if (state.is_shuffle) {
           const shuffleResult = handleShufflePrevious(state);
-          return shuffleResult
-            ? { ...state, ...shuffleResult, shuffleLookahead: null }
-            : { ...state, shuffleLookahead: null };
+          return shuffleResult ? { ...state, ...shuffleResult } : state;
         }
 
         const previousIndex = calculatePreviousIndex(
@@ -471,7 +428,6 @@ function createTrackStore() {
           ...state,
           currentTrackIndex: previousIndex,
           currentTrack: state.tracks[previousIndex],
-          shuffleLookahead: null,
         };
       });
     },
@@ -481,14 +437,12 @@ function createTrackStore() {
         return {
           ...state,
           ...clearShuffleHistory(state, newShuffleState),
-          shuffleLookahead: null,
         };
       }),
     setShuffle: (is_shuffle: boolean) =>
       update((state) => ({
         ...state,
         ...clearShuffleHistory(state, is_shuffle),
-        shuffleLookahead: null,
       })),
     setArtistFilter: (artist: string) =>
       update((state) =>
@@ -497,43 +451,13 @@ function createTrackStore() {
           : {
               ...state,
               selectedArtist: artist,
-              shuffleLookahead: null,
             },
       ),
     clearArtistFilter: () =>
       update((state) => ({
         ...state,
         selectedArtist: null,
-        shuffleLookahead: null,
       })),
-    setShuffleLookahead: (
-      track: Track | null,
-      currentTrackId: number | null,
-      selectedArtist: string | null,
-    ) =>
-      update((state) => {
-        if (
-          !state.is_shuffle ||
-          !state.currentTrack ||
-          state.currentTrack.id !== currentTrackId ||
-          state.selectedArtist !== selectedArtist
-        ) {
-          return state;
-        }
-
-        if (!track) {
-          return { ...state, shuffleLookahead: null };
-        }
-
-        if (!state.tracks.some((item) => item.id === track.id)) {
-          return state;
-        }
-
-        return {
-          ...state,
-          shuffleLookahead: { track, currentTrackId, selectedArtist },
-        };
-      }),
     addTrack: (track: Track) =>
       update((state) => {
         const existingIndex = state.tracks.findIndex((t) => t.id === track.id);
@@ -641,7 +565,6 @@ function createTrackStore() {
           currentTrack: newCurrentTrack,
           playHistory: newPlayHistory,
           historyPosition: newHistoryPosition,
-          shuffleLookahead: null,
         };
       });
     },

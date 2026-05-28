@@ -35,11 +35,6 @@ export interface PlayerState {
   is_repeat: boolean;
 }
 
-export interface ShuffleNextTrackRequest {
-  current_track_id: number | null;
-  selected_artist: string | null;
-}
-
 export interface MusEvent {
   message_to_show: string | null;
   message_level: "success" | "error" | "info" | "warning" | null;

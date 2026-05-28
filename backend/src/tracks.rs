@@ -22,54 +22,18 @@ use crate::{
     error::AppError,
     events::broadcast,
     media::{apply_audio_update, extract_cover, AudioUpdate},
-    models::{ShuffleNextRequest, TrackDto, TrackUpdate},
-    prewarm::prewarm_track_path,
+    models::{TrackDto, TrackUpdate},
     scanner::upsert_path,
     state::AppState,
     util::{
         can_write, file_content_hash, file_signature, generate_filename, inode, normalize_artists,
-        normalize_text, now, now_nanos, parse_artists, system_time_secs,
+        normalize_text, now, now_nanos, system_time_secs,
     },
 };
 
 pub async fn get_tracks(State(state): State<AppState>) -> Result<Json<Vec<TrackDto>>, AppError> {
     let tracks = db::list_tracks(&state)?;
     Ok(Json(tracks.into_iter().map(track_dto).collect()))
-}
-
-pub async fn get_shuffle_next(
-    State(state): State<AppState>,
-    Json(request): Json<ShuffleNextRequest>,
-) -> Result<Json<Option<TrackDto>>, AppError> {
-    let selected_artist = request
-        .selected_artist
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty());
-    let mut candidates = db::list_tracks(&state)?
-        .into_iter()
-        .filter(|track| Some(track.id) != request.current_track_id)
-        .filter(|track| Path::new(&track.file_path).is_file())
-        .filter(|track| {
-            selected_artist.is_none_or(|artist| {
-                parse_artists(&track.artist)
-                    .iter()
-                    .any(|value| value == artist)
-            })
-        })
-        .collect::<Vec<_>>();
-
-    if candidates.is_empty() {
-        return Ok(Json(None));
-    }
-
-    let index = (now_nanos() % candidates.len() as u128) as usize;
-    let track = candidates.swap_remove(index);
-    if let Err(error) = prewarm_track_path(Path::new(&track.file_path)).await {
-        tracing::warn!(track_id = track.id, path = %track.file_path, "failed to prewarm shuffle track: {error}");
-    }
-
-    Ok(Json(Some(track_dto(track))))
 }
 
 pub async fn stream_track(
@@ -83,29 +47,30 @@ pub async fn stream_track(
     }
     let file_size = fs::metadata(&track.file_path)?.len();
     let content_type = mime_guess::from_path(&track.file_path).first_or_octet_stream();
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        header::CACHE_CONTROL,
-        HeaderValue::from_static("public, max-age=86400"),
-    );
-    headers.insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_str(content_type.as_ref()).unwrap(),
-    );
     let mut request = Request::new(Body::empty());
     *request.headers_mut() = request_headers;
-    normalize_suffix_range(request.headers_mut(), file_size);
-    Ok((
-        headers,
-        ServeFile::new(track.file_path)
-            .oneshot(request)
-            .await
-            .unwrap(),
-    )
-        .into_response())
+    normalize_range_header(request.headers_mut(), file_size);
+
+    let mut response = match ServeFile::new(track.file_path).oneshot(request).await {
+        Ok(response) => response,
+        Err(error) => match error {},
+    };
+    if response.status().is_success() {
+        response.headers_mut().insert(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static("public, max-age=86400"),
+        );
+        response.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_str(content_type.as_ref()).unwrap(),
+        );
+    } else if response.status() == StatusCode::RANGE_NOT_SATISFIABLE {
+        response.headers_mut().remove(header::CONTENT_TYPE);
+    }
+    Ok(response.into_response())
 }
 
-fn normalize_suffix_range(headers: &mut HeaderMap, file_size: u64) {
+fn normalize_range_header(headers: &mut HeaderMap, file_size: u64) {
     if file_size == 0 {
         return;
     }
@@ -115,33 +80,30 @@ fn normalize_suffix_range(headers: &mut HeaderMap, file_size: u64) {
     else {
         return;
     };
-    let Some(suffix) = range.strip_prefix("bytes=-") else {
+    let Some(spec) = range.strip_prefix("bytes=") else {
+        return;
+    };
+    let first_range = spec.split(',').next().unwrap_or_default().trim();
+    if first_range.is_empty() {
+        return;
+    }
+
+    let mut normalized = (first_range != spec).then(|| format!("bytes={first_range}"));
+    let Some(suffix) = first_range.strip_prefix('-') else {
+        if let Some(value) = normalized.and_then(|value| HeaderValue::from_str(&value).ok()) {
+            headers.insert(header::RANGE, value);
+        }
         return;
     };
     let Ok(bytes) = suffix.parse::<u64>() else {
         return;
     };
     if bytes >= file_size {
-        let value = format!("bytes=0-{}", file_size - 1);
-        if let Ok(value) = HeaderValue::from_str(&value) {
-            headers.insert(header::RANGE, value);
-        }
+        normalized = Some(format!("bytes=0-{}", file_size - 1));
     }
-}
-
-pub async fn prewarm_track(
-    State(state): State<AppState>,
-    AxumPath(id): AxumPath<i64>,
-) -> Result<StatusCode, AppError> {
-    let track = get_track(&state, id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
-    if !Path::new(&track.file_path).is_file() {
-        return Err(AppError::not_found("Audio file not found"));
+    if let Some(value) = normalized.and_then(|value| HeaderValue::from_str(&value).ok()) {
+        headers.insert(header::RANGE, value);
     }
-    if let Err(error) = prewarm_track_path(Path::new(&track.file_path)).await {
-        tracing::warn!(track_id = track.id, path = %track.file_path, "failed to prewarm track: {error}");
-    }
-
-    Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn get_cover_small(

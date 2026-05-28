@@ -11,7 +11,6 @@
     closeTrackUpdateEvents,
     fetchPermissions,
     fetchPlayerState,
-    fetchShuffleNextTrack,
     fetchTracks,
   } from "$lib/services/apiClient";
   import { initEventHandlerService } from "$lib/services/eventHandlerService";
@@ -40,40 +39,12 @@
   let sheetOpen = $state(false);
   let lastCurrentTrackId: number | null = null;
   let lastPlayRequestId = 0;
-  let isPlaying = $state(false);
-  let shuffleLookaheadKey: string | null = null;
-  let shuffleLookaheadController: AbortController | null = null;
 
   function initializeAudioService() {
     if (audio) {
       audioService = new AudioService(audio);
       audioServiceStore.set(audioService);
     }
-  }
-
-  function nextTrackToPreload(): Track | null {
-    if (
-      $trackStore.currentTrackIndex === null ||
-      $trackStore.tracks.length < 2
-    ) {
-      return null;
-    }
-    if ($trackStore.is_shuffle) {
-      if ($trackStore.historyPosition < $trackStore.playHistory.length - 1) {
-        return $trackStore.playHistory[$trackStore.historyPosition + 1];
-      }
-
-      const lookahead = $trackStore.shuffleLookahead;
-      return lookahead &&
-        lookahead.currentTrackId === $trackStore.currentTrack?.id &&
-        lookahead.selectedArtist === $trackStore.selectedArtist
-        ? lookahead.track
-        : null;
-    }
-
-    return $trackStore.tracks[
-      ($trackStore.currentTrackIndex + 1) % $trackStore.tracks.length
-    ];
   }
 
   function setupEventListeners() {
@@ -83,65 +54,6 @@
       document.body.addEventListener("toggle-sheet", handleToggleMenu);
       document.addEventListener("visibilitychange", handleVisibilityChange);
     }
-  }
-
-  function clearShuffleLookaheadRequest() {
-    shuffleLookaheadController?.abort();
-    shuffleLookaheadController = null;
-    shuffleLookaheadKey = null;
-  }
-
-  function currentShuffleLookaheadKey(): string | null {
-    if (
-      !$trackStore.is_shuffle ||
-      !$trackStore.currentTrack ||
-      $trackStore.tracks.length < 2 ||
-      $trackStore.historyPosition < $trackStore.playHistory.length - 1
-    ) {
-      return null;
-    }
-
-    return [
-      $trackStore.currentTrack.id,
-      $trackStore.selectedArtist ?? "",
-      $trackStore.tracks.length,
-    ].join(":");
-  }
-
-  function ensureShuffleLookahead() {
-    const key = currentShuffleLookaheadKey();
-    if (!key) {
-      clearShuffleLookaheadRequest();
-      return;
-    }
-    if (key === shuffleLookaheadKey) return;
-
-    clearShuffleLookaheadRequest();
-    const currentTrackId = $trackStore.currentTrack?.id ?? null;
-    const selectedArtist = $trackStore.selectedArtist;
-    const controller = new AbortController();
-    shuffleLookaheadKey = key;
-    shuffleLookaheadController = controller;
-
-    fetchShuffleNextTrack(
-      { current_track_id: currentTrackId, selected_artist: selectedArtist },
-      controller.signal,
-    )
-      .then((track) => {
-        if (shuffleLookaheadController === controller) {
-          trackStore.setShuffleLookahead(track, currentTrackId, selectedArtist);
-        }
-      })
-      .catch((error) => {
-        if (error.name !== "AbortError") {
-          console.error("Failed to preload shuffle track", error);
-        }
-      })
-      .finally(() => {
-        if (shuffleLookaheadController === controller) {
-          shuffleLookaheadController = null;
-        }
-      });
   }
 
   onMount(() => {
@@ -177,7 +89,6 @@
     if (eventSource) {
       closeTrackUpdateEvents(eventSource);
     }
-    clearShuffleLookaheadRequest();
 
     // Clean up AudioService
     if (audioService) {
@@ -232,26 +143,6 @@
       }, 5000);
       return () => clearInterval(interval);
     }
-  });
-
-  $effect(() => {
-    if (!audioService) return;
-
-    return audioService.isPlayingStore.subscribe((value) => {
-      isPlaying = value;
-    });
-  });
-
-  $effect(() => {
-    if (!audioService) return;
-    ensureShuffleLookahead();
-
-    if (!isPlaying) {
-      audioService.preloadTrack(null);
-      return;
-    }
-
-    audioService.preloadTrack(nextTrackToPreload());
   });
 
   function handleToggleMenu() {

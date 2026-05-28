@@ -13,9 +13,9 @@ describe("trackStore", () => {
       filename: "track1.mp3",
       has_cover: true,
       cover_small_url:
-        "http://localhost:8001/api/v1/tracks/1/covers/small.webp",
+        "http://localhost:8002/api/v1/tracks/1/covers/small.webp",
       cover_original_url:
-        "http://localhost:8001/api/v1/tracks/1/covers/original.webp",
+        "http://localhost:8002/api/v1/tracks/1/covers/original.webp",
       updated_at: 1640995200,
     },
     {
@@ -26,9 +26,9 @@ describe("trackStore", () => {
       filename: "track2.mp3",
       has_cover: true,
       cover_small_url:
-        "http://localhost:8001/api/v1/tracks/2/covers/small.webp",
+        "http://localhost:8002/api/v1/tracks/2/covers/small.webp",
       cover_original_url:
-        "http://localhost:8001/api/v1/tracks/2/covers/original.webp",
+        "http://localhost:8002/api/v1/tracks/2/covers/original.webp",
       updated_at: 1640995300,
     },
     {
@@ -371,27 +371,6 @@ describe("trackStore", () => {
       expect(stateAfter.playHistory.length).toBeGreaterThan(
         state.playHistory.length,
       );
-    });
-
-    it("should use a valid shuffle lookahead", () => {
-      trackStore.setShuffleLookahead(mockTracks[2], mockTracks[0].id, null);
-
-      trackStore.nextTrack();
-
-      const state = get(trackStore);
-      expect(state.currentTrackIndex).toBe(2);
-      expect(state.currentTrack).toEqual(mockTracks[2]);
-      expect(state.playHistory).toEqual([mockTracks[0], mockTracks[2]]);
-      expect(state.shuffleLookahead).toBeNull();
-    });
-
-    it("should ignore a stale shuffle lookahead", () => {
-      trackStore.setShuffleLookahead(mockTracks[1], mockTracks[1].id, null);
-
-      trackStore.nextTrack();
-
-      const state = get(trackStore);
-      expect(state.currentTrack).toEqual(mockTracks[2]);
     });
 
     it("should handle multiple back/forward operations correctly", () => {

@@ -32,8 +32,8 @@ use crate::{
     state::AppState,
     system::{get_permissions, get_system_info, rescan, update_yt_dlp},
     tracks::{
-        delete_track, get_cover_original, get_cover_small, get_shuffle_next, get_tracks,
-        prewarm_track, stream_track, update_track, upload_track,
+        delete_track, get_cover_original, get_cover_small, get_tracks, stream_track, update_track,
+        upload_track,
     },
     util::now,
 };
@@ -44,7 +44,6 @@ pub fn app(state: AppState) -> Router {
     Router::new()
         .route("/api/healthcheck.json", get(healthcheck))
         .route("/api/v1/tracks", get(get_tracks))
-        .route("/api/v1/tracks/shuffle-next", post(get_shuffle_next))
         .route("/api/v1/artwork/search", get(search_artwork))
         .route("/api/v1/artwork/search/stream", get(stream_artwork))
         .route("/api/v1/tracks/upload", post(upload_track))
@@ -52,7 +51,6 @@ pub fn app(state: AppState) -> Router {
             "/api/v1/tracks/{id}",
             patch(update_track).delete(delete_track),
         )
-        .route("/api/v1/tracks/{id}/prewarm", post(prewarm_track))
         .route("/api/v1/tracks/{id}/stream", get(stream_track))
         .route(
             "/api/v1/tracks/{id}/covers/small.webp",

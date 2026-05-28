@@ -70,31 +70,9 @@ const extendHistoryBackward = (
 
 export const handleShuffleNext = (
   state: TrackStoreState,
-  lookahead?: Track | null,
 ): Partial<TrackStoreState> => {
   if (state.historyPosition < state.playHistory.length - 1) {
     return moveInHistory(state, state.historyPosition + 1);
-  }
-
-  const lookaheadIndex = lookahead
-    ? findTrackIndex(state.tracks, lookahead)
-    : -1;
-  if (lookaheadIndex !== -1 && lookaheadIndex !== state.currentTrackIndex) {
-    const selectedTrack = state.tracks[lookaheadIndex];
-    const newHistory = [...state.playHistory];
-
-    if (state.currentTrackIndex !== null && state.historyPosition === -1) {
-      newHistory.push(state.tracks[state.currentTrackIndex]);
-    }
-
-    newHistory.push(selectedTrack);
-
-    return {
-      currentTrackIndex: lookaheadIndex,
-      currentTrack: selectedTrack,
-      playHistory: newHistory,
-      historyPosition: newHistory.length - 1,
-    };
   }
 
   const availableTracks = state.tracks.filter(

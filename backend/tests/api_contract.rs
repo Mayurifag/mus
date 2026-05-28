@@ -2,7 +2,7 @@ use std::fs;
 
 use axum::{
     body::{to_bytes, Body},
-    http::{header, Method, Request, StatusCode},
+    http::{header, HeaderValue, Method, Request, StatusCode},
     Router,
 };
 use mus_backend::{
@@ -211,78 +211,39 @@ async fn tracks_stream_contract() {
         .unwrap();
     assert_eq!(oversized_suffix_range.status(), StatusCode::PARTIAL_CONTENT);
 
-    let prewarm = app
-        .request(Method::POST, "/api/v1/tracks/1/prewarm", Body::empty())
-        .await;
-    assert_eq!(prewarm.status(), StatusCode::NO_CONTENT);
-}
-
-#[tokio::test]
-async fn tracks_shuffle_next_contract() {
-    let app = TestApp::new();
-    let first_path = app.state.music_dir.join("first.mp3");
-    let second_path = app.state.music_dir.join("second.mp3");
-    fs::write(&first_path, b"first audio").unwrap();
-    fs::write(&second_path, b"second audio").unwrap();
-    app.insert_track(
-        1,
-        "First",
-        "Artist A",
-        first_path.to_str().unwrap(),
-        false,
-        "COMPLETE",
-    );
-    app.insert_track(
-        2,
-        "Second",
-        "Artist B",
-        second_path.to_str().unwrap(),
-        false,
-        "COMPLETE",
-    );
-
-    let response = app
-        .json(
-            Method::POST,
-            "/api/v1/tracks/shuffle-next",
-            json!({"current_track_id": 1, "selected_artist": null}),
+    let multiple_ranges = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/api/v1/tracks/1/stream")
+                .header(header::RANGE, "bytes=0-2,4-5")
+                .body(Body::empty())
+                .unwrap(),
         )
-        .await;
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = body_json(response).await;
-    assert_eq!(body["id"], 2);
+        .await
+        .unwrap();
+    assert_eq!(multiple_ranges.status(), StatusCode::PARTIAL_CONTENT);
 
-    let third_path = app.state.music_dir.join("third.mp3");
-    fs::write(&third_path, b"third audio").unwrap();
-    app.insert_track(
-        3,
-        "Third",
-        "Artist A; Artist C",
-        third_path.to_str().unwrap(),
-        false,
-        "COMPLETE",
+    let invalid_range = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/api/v1/tracks/1/stream")
+                .header(header::RANGE, "bytes=999-1000")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(invalid_range.status(), StatusCode::RANGE_NOT_SATISFIABLE);
+    assert_ne!(
+        invalid_range.headers().get(header::CONTENT_TYPE),
+        Some(&HeaderValue::from_static("audio/mpeg"))
     );
-
-    let response = app
-        .json(
-            Method::POST,
-            "/api/v1/tracks/shuffle-next",
-            json!({"current_track_id": 1, "selected_artist": "Artist A"}),
-        )
-        .await;
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = body_json(response).await;
-    assert_eq!(body["id"], 3);
-
-    let response = app
-        .json(
-            Method::POST,
-            "/api/v1/tracks/shuffle-next",
-            json!({"current_track_id": 2, "selected_artist": "Artist B"}),
-        )
-        .await;
-    assert_eq!(response.status(), StatusCode::OK);
-    assert!(body_json(response).await.is_null());
 }
 
 #[tokio::test]

@@ -39,9 +39,9 @@ const mockTrackTransformed = {
   updated_at: 1640995200,
   has_cover: true,
   cover_small_url:
-    "http://localhost:8001/api/v1/tracks/1/covers/small.webp?v=1640995200",
+    "http://localhost:8002/api/v1/tracks/1/covers/small.webp?v=1640995200",
   cover_original_url:
-    "http://localhost:8001/api/v1/tracks/1/covers/original.webp?v=1640995200",
+    "http://localhost:8002/api/v1/tracks/1/covers/original.webp?v=1640995200",
 };
 
 const mockPlayerState = {
@@ -82,7 +82,7 @@ describe("apiClient", () => {
       const result = await apiClient.fetchTracks();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8001/api/v1/tracks",
+        "http://localhost:8002/api/v1/tracks",
       );
       expect(result).toEqual([mockTrackTransformed]);
     });
@@ -100,7 +100,7 @@ describe("apiClient", () => {
       const result = await apiClient.fetchTracks();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8001/api/v1/tracks",
+        "http://localhost:8002/api/v1/tracks",
       );
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining("fetchTracks"),
@@ -116,98 +116,13 @@ describe("apiClient", () => {
       const result = await apiClient.fetchTracks();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8001/api/v1/tracks",
+        "http://localhost:8002/api/v1/tracks",
       );
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining("fetchTracks"),
         expect.any(Error),
       );
       expect(result).toEqual([]);
-    });
-  });
-
-  describe("prewarmTrack", () => {
-    it("posts to track prewarm endpoint", async () => {
-      const mockResponse = {
-        ok: true,
-      };
-      vi.mocked(globalThis.fetch).mockResolvedValue(
-        mockResponse as unknown as Response,
-      );
-
-      await apiClient.prewarmTrack(42);
-
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8001/api/v1/tracks/42/prewarm",
-        {
-          method: "POST",
-          signal: undefined,
-        },
-      );
-    });
-
-    it("throws when prewarm fails", async () => {
-      const mockResponse = {
-        ok: false,
-        status: 500,
-      };
-      vi.mocked(globalThis.fetch).mockResolvedValue(
-        mockResponse as unknown as Response,
-      );
-
-      await expect(apiClient.prewarmTrack(42)).rejects.toThrow(
-        "HTTP error! status: 500",
-      );
-    });
-  });
-
-  describe("fetchShuffleNextTrack", () => {
-    it("returns transformed next shuffle track", async () => {
-      const mockResponse = {
-        ok: true,
-        json: vi.fn().mockResolvedValue(mockTrackFromBackend),
-      };
-      vi.mocked(globalThis.fetch).mockResolvedValue(
-        mockResponse as unknown as Response,
-      );
-
-      const result = await apiClient.fetchShuffleNextTrack({
-        current_track_id: 1,
-        selected_artist: null,
-      });
-
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8001/api/v1/tracks/shuffle-next",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            current_track_id: 1,
-            selected_artist: null,
-          }),
-          signal: undefined,
-        },
-      );
-      expect(result).toEqual(mockTrackTransformed);
-    });
-
-    it("returns null when backend has no shuffle candidate", async () => {
-      const mockResponse = {
-        ok: true,
-        json: vi.fn().mockResolvedValue(null),
-      };
-      vi.mocked(globalThis.fetch).mockResolvedValue(
-        mockResponse as unknown as Response,
-      );
-
-      const result = await apiClient.fetchShuffleNextTrack({
-        current_track_id: 1,
-        selected_artist: "Test Artist",
-      });
-
-      expect(result).toBeNull();
     });
   });
 
@@ -225,7 +140,7 @@ describe("apiClient", () => {
       const result = await apiClient.fetchPlayerState();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8001/api/v1/player/state",
+        "http://localhost:8002/api/v1/player/state",
       );
       expect(result).toEqual(mockPlayerState);
     });
@@ -243,7 +158,7 @@ describe("apiClient", () => {
       const result = await apiClient.fetchPlayerState();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8001/api/v1/player/state",
+        "http://localhost:8002/api/v1/player/state",
       );
       expect(result).toEqual({
         current_track_id: null,
@@ -268,7 +183,7 @@ describe("apiClient", () => {
       const result = await apiClient.fetchPlayerState();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8001/api/v1/player/state",
+        "http://localhost:8002/api/v1/player/state",
       );
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining("fetchPlayerState"),
@@ -291,7 +206,7 @@ describe("apiClient", () => {
       const result = await apiClient.fetchPlayerState();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8001/api/v1/player/state",
+        "http://localhost:8002/api/v1/player/state",
       );
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining("fetchPlayerState"),
@@ -319,7 +234,7 @@ describe("apiClient", () => {
       apiClient.sendPlayerStateBeacon(mockPlayerState);
 
       expect(mockSendBeacon).toHaveBeenCalledWith(
-        "http://localhost:8001/api/v1/player/state",
+        "http://localhost:8002/api/v1/player/state",
         expect.any(Blob),
       );
     });

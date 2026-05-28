@@ -1,5 +1,5 @@
 import type { Track, TimeRange } from "$lib/types";
-import { getStreamUrl, prewarmTrack } from "$lib/services/apiClient";
+import { getStreamUrl } from "$lib/services/apiClient";
 import { writable } from "svelte/store";
 import { trackStore } from "$lib/stores/trackStore";
 import { formatArtistsForDisplay } from "$lib/utils/formatters";
@@ -14,8 +14,6 @@ export class AudioService {
   private audio: HTMLAudioElement;
   private isSeeking = false;
   private currentTrackId: number | null = null;
-  private preloadedTrackId: number | null = null;
-  private preloadController: AbortController | null = null;
 
   // Convert internal state to reactive stores
   private _volume = writable(1.0);
@@ -180,43 +178,6 @@ export class AudioService {
     }
   }
 
-  preloadTrack(track: Track | null): void {
-    if (!track || this.currentTrackId === track.id) {
-      this.clearPreload();
-      return;
-    }
-
-    if (this.preloadedTrackId === track.id) {
-      return;
-    }
-
-    this.clearPreload();
-    this.preloadedTrackId = track.id;
-    const controller = new AbortController();
-    this.preloadController = controller;
-
-    prewarmTrack(track.id, controller.signal)
-      .catch((error) => {
-        if (
-          error.name !== "AbortError" &&
-          this.preloadController === controller
-        ) {
-          this.preloadedTrackId = null;
-        }
-      })
-      .finally(() => {
-        if (this.preloadController === controller) {
-          this.preloadController = null;
-        }
-      });
-  }
-
-  private clearPreload(): void {
-    this.preloadController?.abort();
-    this.preloadController = null;
-    this.preloadedTrackId = null;
-  }
-
   play(): void {
     this.audio.play().catch((error) => {
       console.error("Error playing audio:", error);
@@ -348,7 +309,6 @@ export class AudioService {
 
   destroy(): void {
     this.pause();
-    this.clearPreload();
     this.audio.controls = false;
     this.audio.removeEventListener("loadedmetadata", this.handleLoadedMetadata);
     this.audio.removeEventListener("timeupdate", this.handleTimeUpdate);
