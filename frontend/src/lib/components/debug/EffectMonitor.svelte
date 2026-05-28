@@ -40,7 +40,7 @@
     <div class="space-y-1">
       {#each sortedEffects as [name, stat] (name)}
         <div class="flex items-center gap-2 text-xs">
-          <CircleDot class="h-3 w-3 text-blue-400" />
+          <CircleDot class="text-info h-3 w-3" />
           <div class="flex-1">
             <div class="font-medium">{name}</div>
             <div class="text-muted-foreground/70">

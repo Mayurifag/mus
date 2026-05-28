@@ -156,8 +156,8 @@
         isCompleted
           ? 'cursor-not-allowed opacity-70'
           : ''} {isCompleted
-          ? 'bg-green-600 hover:bg-green-600'
-          : 'bg-accent hover:bg-accent/90'} text-accent-foreground"
+          ? 'bg-success hover:bg-success text-success-foreground'
+          : 'bg-accent hover:bg-accent/90 text-accent-foreground'}"
       >
         {#if isFetchingMetadata}
           <Loader2 class="mr-2 h-4 w-4 animate-spin" />

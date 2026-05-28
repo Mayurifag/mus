@@ -102,7 +102,7 @@
           bind:value={title}
           placeholder="Enter track title"
           class={!isFormValid && sanitizedTitle.trim() === ""
-            ? "border-red-500"
+            ? "border-destructive"
             : ""}
         />
       </div>
@@ -134,7 +134,7 @@
                 class={!isFormValid &&
                 index === 0 &&
                 sanitizedArtists[index]?.value.trim() === ""
-                  ? "border-red-500"
+                  ? "border-destructive"
                   : ""}
               />
               {#if artists.length > 1}
@@ -159,11 +159,13 @@
       />
 
       {#if isFilenameTooLong}
-        <div class="rounded-lg border border-red-200 bg-red-50 p-3">
-          <div class="text-sm font-medium text-red-800">
+        <div
+          class="border-destructive/30 bg-destructive/10 rounded-lg border p-3"
+        >
+          <div class="text-destructive text-sm font-medium">
             Filename is too long (max 255 characters)
           </div>
-          <div class="mt-1 text-xs text-red-600">
+          <div class="text-destructive/80 mt-1 text-xs">
             Current length: {generatedFilename.length} characters
           </div>
         </div>

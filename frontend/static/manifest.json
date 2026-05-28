@@ -40,8 +40,8 @@
   "start_url": "/",
   "display": "standalone",
   "display_override": ["fullscreen", "standalone"],
-  "background_color": "#020817",
-  "theme_color": "#020817",
+  "background_color": "#21222c",
+  "theme_color": "#21222c",
   "orientation": "portrait-primary",
   "scope": "/",
   "categories": ["music", "entertainment"]

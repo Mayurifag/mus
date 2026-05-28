@@ -196,6 +196,21 @@ async fn tracks_stream_contract() {
         .unwrap();
     assert_eq!(ranged.status(), StatusCode::PARTIAL_CONTENT);
 
+    let oversized_suffix_range = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/api/v1/tracks/1/stream")
+                .header(header::RANGE, "bytes=-1024")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(oversized_suffix_range.status(), StatusCode::PARTIAL_CONTENT);
+
     let prewarm = app
         .request(Method::POST, "/api/v1/tracks/1/prewarm", Body::empty())
         .await;

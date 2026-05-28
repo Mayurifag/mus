@@ -62,10 +62,10 @@
 </script>
 
 <div
-  class="bg-card sm700:h-[var(--footer-height-desktop)] fixed right-0 bottom-0 left-0 z-50 h-[var(--footer-height-mobile)] border-t"
+  class="bg-overlay sm700:h-[var(--footer-height-desktop)] fixed right-0 bottom-0 left-0 z-50 h-[var(--footer-height-mobile)] border-t"
   style="padding-bottom: var(--safe-area-inset-bottom); padding-left: var(--safe-area-inset-left); padding-right: var(--safe-area-inset-right);"
 >
-  <Card class="h-full rounded-none border-0 shadow-none">
+  <Card class="bg-overlay h-full rounded-none border-0 shadow-none">
     <div
       class="sm700:hidden flex h-[var(--footer-height-mobile)] flex-col gap-2 p-3"
     >

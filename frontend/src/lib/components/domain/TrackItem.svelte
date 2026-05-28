@@ -93,7 +93,7 @@
 
 <div
   class="hover:bg-muted/50 flex cursor-pointer items-center gap-4 rounded-md p-2 transition-colors {isSelected
-    ? 'bg-secondary'
+    ? 'bg-secondary/60'
     : ''}"
   onmousedown={handleMouseDown}
   onmouseup={handleMouseUp}

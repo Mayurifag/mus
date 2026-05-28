@@ -41,13 +41,13 @@
 </script>
 
 <div
-  class="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 p-3"
+  class="border-destructive/30 bg-destructive/10 flex items-center justify-between rounded-lg border p-3"
 >
   <div class="min-w-0 flex-1">
-    <div class="truncate text-sm font-medium text-red-900">
+    <div class="text-destructive truncate text-sm font-medium">
       {track.title}
     </div>
-    <div class="truncate text-xs text-red-700">
+    <div class="text-destructive/80 truncate text-xs">
       <ArtistLinks artist={track.artist} />
     </div>
   </div>
@@ -55,7 +55,7 @@
   <div class="ml-3 flex items-center gap-2">
     <button
       onclick={handleRequeue}
-      class="rounded p-1.5 text-red-600 transition-colors hover:bg-red-100 hover:text-red-800"
+      class="text-destructive hover:bg-destructive/10 rounded p-1.5 transition-colors"
       title="Re-queue for processing"
     >
       <RotateCcw size={16} />
@@ -63,7 +63,7 @@
 
     <button
       onclick={handleDelete}
-      class="rounded p-1.5 text-red-600 transition-colors hover:bg-red-100 hover:text-red-800"
+      class="text-destructive hover:bg-destructive/10 rounded p-1.5 transition-colors"
       title="Delete track"
     >
       <Trash2 size={16} />

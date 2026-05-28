@@ -27,7 +27,7 @@
 >
   <img src={imageUrl} alt={imageAlt} class="h-full w-full object-cover" />
   <div
-    class="absolute inset-x-0 bottom-0 bg-black/60 px-3 py-2 text-center text-xs text-white opacity-0 transition group-hover:opacity-100"
+    class="bg-overlay/70 text-overlay-foreground absolute inset-x-0 bottom-0 px-3 py-2 text-center text-xs opacity-0 transition group-hover:opacity-100"
   >
     Find artwork
   </div>

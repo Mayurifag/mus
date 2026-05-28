@@ -48,13 +48,13 @@
   function getLevelColor(level: string | null): string {
     switch (level) {
       case "success":
-        return "text-green-400";
+        return "text-success";
       case "error":
-        return "text-red-400";
+        return "text-destructive";
       case "warning":
-        return "text-yellow-400";
+        return "text-warning";
       default:
-        return "text-blue-400";
+        return "text-info";
     }
   }
 </script>

@@ -51,9 +51,10 @@ image, so it is not bound to Rust/Svelte source files.
 Production deployments are expected to sit behind external authentication. Use
 `make prod-verify` before shipping image changes.
 
-The backend periodically reads the first 4 MiB of indexed audio files to keep
-the filesystem cache warm. It also prewarms the backend-selected next shuffle
-track before returning it to the browser. Set `AUDIO_PREWARM_BYTES=0` to disable
-or another byte value to tune the per-track read-ahead size. Set
+The backend periodically reads indexed audio files to keep the filesystem cache
+warm. By default it reads whole files. It also prewarms the backend-selected next
+shuffle track before returning it to the browser. Set `AUDIO_PREWARM_BYTES=0` to
+disable, `AUDIO_PREWARM_BYTES=full` to explicitly read whole files, or another
+byte value to cap the per-track read-ahead size. Set
 `AUDIO_PREWARM_INTERVAL_SECONDS=0` to run only once after startup scan, or set
 another value to tune the recurring prewarm interval.

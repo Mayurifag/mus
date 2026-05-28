@@ -81,6 +81,7 @@ pub async fn stream_track(
     if !Path::new(&track.file_path).is_file() {
         return Err(AppError::not_found("Audio file not found"));
     }
+    let file_size = fs::metadata(&track.file_path)?.len();
     let content_type = mime_guess::from_path(&track.file_path).first_or_octet_stream();
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -93,6 +94,7 @@ pub async fn stream_track(
     );
     let mut request = Request::new(Body::empty());
     *request.headers_mut() = request_headers;
+    normalize_suffix_range(request.headers_mut(), file_size);
     Ok((
         headers,
         ServeFile::new(track.file_path)
@@ -101,6 +103,30 @@ pub async fn stream_track(
             .unwrap(),
     )
         .into_response())
+}
+
+fn normalize_suffix_range(headers: &mut HeaderMap, file_size: u64) {
+    if file_size == 0 {
+        return;
+    }
+    let Some(range) = headers
+        .get(header::RANGE)
+        .and_then(|value| value.to_str().ok())
+    else {
+        return;
+    };
+    let Some(suffix) = range.strip_prefix("bytes=-") else {
+        return;
+    };
+    let Ok(bytes) = suffix.parse::<u64>() else {
+        return;
+    };
+    if bytes >= file_size {
+        let value = format!("bytes=0-{}", file_size - 1);
+        if let Ok(value) = HeaderValue::from_str(&value) {
+            headers.insert(header::RANGE, value);
+        }
+    }
 }
 
 pub async fn prewarm_track(

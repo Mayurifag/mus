@@ -64,7 +64,7 @@
   />
   {#if isVolumeHovered}
     <div
-      class="bg-muted absolute -top-7 left-1/2 -translate-x-1/2 rounded px-2 py-1 text-xs font-medium text-white transition-opacity"
+      class="bg-popover text-popover-foreground absolute -top-7 left-1/2 -translate-x-1/2 rounded px-2 py-1 text-xs font-medium transition-opacity"
     >
       {volumeFeedbackValue}%
     </div>
