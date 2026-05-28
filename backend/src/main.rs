@@ -10,7 +10,7 @@ use anyhow::Result;
 use mus_backend::{
     app::app,
     db::init_db,
-    prewarm::prewarm_music_dir,
+    prewarm::run_prewarm_job,
     scanner::{scan_music_dir, watch_music_dir},
     state::AppState,
 };
@@ -31,9 +31,7 @@ async fn main() -> Result<()> {
             if let Err(error) = scan_music_dir(state.clone()).await {
                 tracing::warn!("failed to scan music directory: {error}");
             }
-            if let Err(error) = prewarm_music_dir(state).await {
-                tracing::warn!("failed to prewarm music directory: {error}");
-            }
+            run_prewarm_job(state).await;
         }
     });
     tokio::spawn(watch_music_dir(state.clone()));
@@ -74,9 +72,6 @@ fn build_state() -> Result<AppState> {
         events,
         download_lock: Arc::new(Mutex::new(false)),
         mutation_locks: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
-        audio_cache: Arc::new(tokio::sync::Mutex::new(
-            mus_backend::prewarm::AudioMemoryCache::from_env(),
-        )),
         app_date: env::var("BUILD_DATE")
             .ok()
             .and_then(|v| v.get(..10).map(str::to_string))

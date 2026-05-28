@@ -33,7 +33,7 @@ use crate::{
     system::{get_permissions, get_system_info, rescan, update_yt_dlp},
     tracks::{
         delete_track, get_cover_original, get_cover_small, get_shuffle_next, get_tracks,
-        stream_track, update_track, upload_track,
+        prewarm_track, stream_track, update_track, upload_track,
     },
     util::now,
 };
@@ -52,6 +52,7 @@ pub fn app(state: AppState) -> Router {
             "/api/v1/tracks/{id}",
             patch(update_track).delete(delete_track),
         )
+        .route("/api/v1/tracks/{id}/prewarm", post(prewarm_track))
         .route("/api/v1/tracks/{id}/stream", get(stream_track))
         .route(
             "/api/v1/tracks/{id}/covers/small.webp",
@@ -125,9 +126,6 @@ pub fn test_state(data_dir: PathBuf, mut conn: Connection) -> AppState {
         events,
         download_lock: Arc::new(Mutex::new(false)),
         mutation_locks: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
-        audio_cache: Arc::new(tokio::sync::Mutex::new(
-            crate::prewarm::AudioMemoryCache::from_env(),
-        )),
         app_date: "2026-05-17".into(),
         commit_sha: Some("test-sha".into()),
     }

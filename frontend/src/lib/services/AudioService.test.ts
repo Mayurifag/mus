@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AudioService } from "./AudioService";
 import type { Track } from "$lib/types";
 import { trackStore } from "$lib/stores/trackStore";
+import { prewarmTrack } from "$lib/services/apiClient";
 
 // Mock the apiClient module
 vi.mock("$lib/services/apiClient", () => ({
@@ -9,6 +10,7 @@ vi.mock("$lib/services/apiClient", () => ({
     (trackId: number) =>
       `http://localhost:8001/api/v1/tracks/${trackId}/stream`,
   ),
+  prewarmTrack: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock the trackStore module
@@ -61,6 +63,7 @@ describe("AudioService", () => {
 
     // Reset mock calls
     vi.mocked(trackStore.nextTrack).mockClear();
+    vi.mocked(prewarmTrack).mockClear();
   });
 
   it("should set up event listeners on construction", () => {
@@ -99,23 +102,12 @@ describe("AudioService", () => {
   });
 
   it("should preload another track", () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
-    } as unknown as Response);
     const nextTrack = { ...mockTrack, id: 2 };
 
     audioService.updateAudioSource(mockTrack, false);
     audioService.preloadTrack(nextTrack);
 
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      "http://localhost:8001/api/v1/tracks/2/stream",
-      expect.objectContaining({
-        headers: { Range: "bytes=0-524287" },
-        signal: expect.any(AbortSignal),
-      }),
-    );
-    globalThis.fetch = originalFetch;
+    expect(prewarmTrack).toHaveBeenCalledWith(2, expect.any(AbortSignal));
   });
 
   it("should request playback when advancing after track end", () => {
@@ -133,14 +125,10 @@ describe("AudioService", () => {
   });
 
   it("should not preload the active track", () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = vi.fn();
-
     audioService.updateAudioSource(mockTrack, false);
     audioService.preloadTrack(mockTrack);
 
-    expect(globalThis.fetch).not.toHaveBeenCalled();
-    globalThis.fetch = originalFetch;
+    expect(prewarmTrack).not.toHaveBeenCalled();
   });
 
   it("should not update audio source if track is null", () => {

@@ -1,5 +1,5 @@
 import type { Track, TimeRange } from "$lib/types";
-import { getStreamUrl } from "$lib/services/apiClient";
+import { getStreamUrl, prewarmTrack } from "$lib/services/apiClient";
 import { writable } from "svelte/store";
 import { trackStore } from "$lib/stores/trackStore";
 import { formatArtistsForDisplay } from "$lib/utils/formatters";
@@ -9,8 +9,6 @@ import {
   updateMediaSessionMetadata,
   updateMediaSessionPlaybackState,
 } from "$lib/services/mediaSessionService";
-
-const PRELOAD_RANGE = "bytes=0-524287";
 
 export class AudioService {
   private audio: HTMLAudioElement;
@@ -197,11 +195,7 @@ export class AudioService {
     const controller = new AbortController();
     this.preloadController = controller;
 
-    fetch(getStreamUrl(track.id), {
-      headers: { Range: PRELOAD_RANGE },
-      signal: controller.signal,
-    })
-      .then((response) => response.arrayBuffer())
+    prewarmTrack(track.id, controller.signal)
       .catch((error) => {
         if (
           error.name !== "AbortError" &&

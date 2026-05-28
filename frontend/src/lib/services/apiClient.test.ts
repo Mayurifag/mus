@@ -126,6 +126,41 @@ describe("apiClient", () => {
     });
   });
 
+  describe("prewarmTrack", () => {
+    it("posts to track prewarm endpoint", async () => {
+      const mockResponse = {
+        ok: true,
+      };
+      vi.mocked(globalThis.fetch).mockResolvedValue(
+        mockResponse as unknown as Response,
+      );
+
+      await apiClient.prewarmTrack(42);
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:8001/api/v1/tracks/42/prewarm",
+        {
+          method: "POST",
+          signal: undefined,
+        },
+      );
+    });
+
+    it("throws when prewarm fails", async () => {
+      const mockResponse = {
+        ok: false,
+        status: 500,
+      };
+      vi.mocked(globalThis.fetch).mockResolvedValue(
+        mockResponse as unknown as Response,
+      );
+
+      await expect(apiClient.prewarmTrack(42)).rejects.toThrow(
+        "HTTP error! status: 500",
+      );
+    });
+  });
+
   describe("fetchShuffleNextTrack", () => {
     it("returns transformed next shuffle track", async () => {
       const mockResponse = {

@@ -44,6 +44,23 @@ export function getStreamUrl(trackId: number): string {
   return `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}/stream`;
 }
 
+export async function prewarmTrack(
+  trackId: number,
+  signal?: AbortSignal,
+  fetchFn: typeof fetch = fetch,
+): Promise<void> {
+  const response = await fetchFn(
+    `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}/prewarm`,
+    {
+      method: "POST",
+      signal,
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+}
+
 export function createTrackWithUrls(
   trackData: Record<string, unknown> | Track,
 ): Track {

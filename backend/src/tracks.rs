@@ -23,7 +23,7 @@ use crate::{
     events::broadcast,
     media::{apply_audio_update, extract_cover, AudioUpdate},
     models::{ShuffleNextRequest, TrackDto, TrackUpdate},
-    prewarm::{cache_track_start, cached_track_start, CachedAudioStart},
+    prewarm::prewarm_track_path,
     scanner::upsert_path,
     state::AppState,
     util::{
@@ -65,7 +65,7 @@ pub async fn get_shuffle_next(
 
     let index = (now_nanos() % candidates.len() as u128) as usize;
     let track = candidates.swap_remove(index);
-    if let Err(error) = cache_track_start(&state, &track).await {
+    if let Err(error) = prewarm_track_path(Path::new(&track.file_path)).await {
         tracing::warn!(track_id = track.id, path = %track.file_path, "failed to prewarm shuffle track: {error}");
     }
 
@@ -81,33 +81,7 @@ pub async fn stream_track(
     if !Path::new(&track.file_path).is_file() {
         return Err(AppError::not_found("Audio file not found"));
     }
-    let file_meta = fs::metadata(&track.file_path)?;
     let content_type = mime_guess::from_path(&track.file_path).first_or_octet_stream();
-    if let Some(range) = request_headers
-        .get(header::RANGE)
-        .and_then(parse_range_header)
-    {
-        let signature = file_signature(&file_meta);
-        let cached = cached_track_start(&state, track.id, &signature).await;
-        let cached = match cached {
-            Some(cached) => Some(cached),
-            None if range.start < file_meta.len() => {
-                match cache_track_start(&state, &track).await {
-                    Ok(cached) => cached,
-                    Err(error) => {
-                        tracing::warn!(track_id = track.id, path = %track.file_path, "failed to cache stream range: {error}");
-                        None
-                    }
-                }
-            }
-            None => None,
-        };
-        if let Some(response) =
-            cached.and_then(|cached| cached_range_response(cached, range, content_type.as_ref()))
-        {
-            return Ok(response);
-        }
-    }
     let mut headers = HeaderMap::new();
     headers.insert(
         header::CACHE_CONTROL,
@@ -129,71 +103,19 @@ pub async fn stream_track(
         .into_response())
 }
 
-struct ParsedRange {
-    start: u64,
-    end: Option<u64>,
-}
-
-fn parse_range_header(value: &HeaderValue) -> Option<ParsedRange> {
-    let value = value.to_str().ok()?;
-    let value = value.strip_prefix("bytes=")?;
-    if value.contains(',') {
-        return None;
+pub async fn prewarm_track(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<i64>,
+) -> Result<StatusCode, AppError> {
+    let track = get_track(&state, id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
+    if !Path::new(&track.file_path).is_file() {
+        return Err(AppError::not_found("Audio file not found"));
     }
-    let (start, end) = value.split_once('-')?;
-    if start.is_empty() {
-        return None;
+    if let Err(error) = prewarm_track_path(Path::new(&track.file_path)).await {
+        tracing::warn!(track_id = track.id, path = %track.file_path, "failed to prewarm track: {error}");
     }
 
-    Some(ParsedRange {
-        start: start.parse().ok()?,
-        end: (!end.is_empty()).then(|| end.parse().ok()).flatten(),
-    })
-}
-
-fn cached_range_response(
-    cached: CachedAudioStart,
-    range: ParsedRange,
-    content_type: &str,
-) -> Option<Response> {
-    if range.start >= cached.bytes.len() as u64 || range.start >= cached.file_len {
-        return None;
-    }
-
-    let cached_end = cached.bytes.len() as u64 - 1;
-    let file_end = cached.file_len.saturating_sub(1);
-    let requested_end = range.end.unwrap_or(cached_end);
-    let end = requested_end.min(cached_end).min(file_end);
-    if end < range.start {
-        return None;
-    }
-
-    let body = cached.bytes[range.start as usize..=end as usize].to_vec();
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        header::CACHE_CONTROL,
-        HeaderValue::from_static("public, max-age=86400"),
-    );
-    headers.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
-    headers.insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_str(content_type).ok()?,
-    );
-    headers.insert(
-        header::CONTENT_LENGTH,
-        HeaderValue::from_str(&body.len().to_string()).ok()?,
-    );
-    headers.insert(
-        header::CONTENT_RANGE,
-        HeaderValue::from_str(&format!(
-            "bytes {range_start}-{end}/{file_len}",
-            range_start = range.start,
-            file_len = cached.file_len
-        ))
-        .ok()?,
-    );
-
-    Some((StatusCode::PARTIAL_CONTENT, headers, Body::from(body)).into_response())
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn get_cover_small(

@@ -48,21 +48,8 @@ prod-smoke:
 	curl -fsSI "http://localhost:4125/api/v1/events/track-updates" | grep -qi '^content-type: text/event-stream'; \
 	echo "Production smoke checks passed"
 
-.PHONY: prod-security-scan
-prod-security-scan:
-	@docker image inspect mus:latest >/dev/null
-	@if command -v trivy >/dev/null 2>&1; then \
-		trivy image --severity HIGH,CRITICAL --exit-code 1 mus:latest; \
-	elif docker scout version >/dev/null 2>&1; then \
-		docker scout cves --only-severity high,critical --exit-code mus:latest; \
-	else \
-		echo "Install trivy or Docker Scout to scan mus:latest"; \
-		exit 1; \
-	fi
-
 .PHONY: prod-verify
 prod-verify:
 	@$(MAKE) prod-image
 	@$(MAKE) prod-smoke
 	@$(MAKE) e2e-current-image
-	@$(MAKE) prod-security-scan

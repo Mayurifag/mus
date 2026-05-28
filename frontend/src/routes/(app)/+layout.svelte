@@ -24,13 +24,6 @@
   import * as Sheet from "$lib/components/ui/sheet";
   import { browser } from "$app/environment";
   import { Toaster } from "$lib/components/ui/sonner";
-  import DropzoneOverlay from "$lib/components/domain/DropzoneOverlay.svelte";
-  import TrackMetadataModal from "$lib/components/domain/TrackMetadataModal.svelte";
-  import {
-    DragDropService,
-    type ParsedFileInfo,
-  } from "$lib/services/dragDropService";
-  import { releaseCoverDataUrl } from "$lib/utils/audioFileAnalyzer";
   import type { PlayerState, Track } from "$lib/types";
 
   // Touch handling for swipe gestures
@@ -50,13 +43,6 @@
   let isPlaying = $state(false);
   let shuffleLookaheadKey: string | null = null;
   let shuffleLookaheadController: AbortController | null = null;
-
-  // Drag and drop state
-  let isDraggingFile = $state(false);
-  let uploadModalOpen = $state(false);
-  let fileToUpload = $state<File | null>(null);
-  let parsedFileInfo = $state<ParsedFileInfo | null>(null);
-  let dragDropService: DragDropService;
 
   function initializeAudioService() {
     if (audio) {
@@ -90,33 +76,12 @@
     ];
   }
 
-  // Initialize drag and drop service
-  function initializeDragDropService() {
-    dragDropService = new DragDropService({
-      onDragStateChange: (isDragging: boolean) => {
-        isDraggingFile = isDragging;
-      },
-      onFileReady: (fileInfo: ParsedFileInfo) => {
-        if (parsedFileInfo?.coverInfo?.dataUrl) {
-          releaseCoverDataUrl(parsedFileInfo.coverInfo.dataUrl);
-        }
-        fileToUpload = fileInfo.file;
-        parsedFileInfo = fileInfo;
-        uploadModalOpen = true;
-      },
-    });
-  }
-
   function setupEventListeners() {
     eventSource = initEventHandlerService();
 
     if (browser) {
       document.body.addEventListener("toggle-sheet", handleToggleMenu);
       document.addEventListener("visibilitychange", handleVisibilityChange);
-
-      // Setup drag and drop service
-      initializeDragDropService();
-      dragDropService.setupEventListeners();
     }
   }
 
@@ -224,15 +189,6 @@
     if (browser && document) {
       document.body.removeEventListener("toggle-sheet", handleToggleMenu);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-
-      // Remove drag and drop event listeners
-      if (dragDropService) {
-        dragDropService.removeEventListeners();
-      }
-    }
-
-    if (parsedFileInfo?.coverInfo?.dataUrl) {
-      releaseCoverDataUrl(parsedFileInfo.coverInfo.dataUrl);
     }
   });
 
@@ -296,16 +252,6 @@
     }
 
     audioService.preloadTrack(nextTrackToPreload());
-  });
-
-  $effect(() => {
-    if (!uploadModalOpen && (fileToUpload || parsedFileInfo)) {
-      if (parsedFileInfo?.coverInfo?.dataUrl) {
-        releaseCoverDataUrl(parsedFileInfo.coverInfo.dataUrl);
-      }
-      fileToUpload = null;
-      parsedFileInfo = null;
-    }
   });
 
   function handleToggleMenu() {
@@ -380,19 +326,3 @@
   <audio bind:this={audio} preload="auto" id="mus-audio-element" class="hidden"
   ></audio>
 </Sheet.Root>
-
-<!-- Drag and drop overlay -->
-<DropzoneOverlay visible={isDraggingFile} />
-
-<!-- Upload modal -->
-{#if fileToUpload && parsedFileInfo}
-  <TrackMetadataModal
-    bind:open={uploadModalOpen}
-    mode="create"
-    file={fileToUpload}
-    suggestedTitle={parsedFileInfo.suggestedTitle}
-    suggestedArtist={parsedFileInfo.suggestedArtist}
-    coverDataUrl={parsedFileInfo.coverInfo?.dataUrl}
-    metadata={parsedFileInfo.metadata}
-  />
-{/if}

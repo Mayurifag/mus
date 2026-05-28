@@ -196,43 +196,10 @@ async fn tracks_stream_contract() {
         .unwrap();
     assert_eq!(ranged.status(), StatusCode::PARTIAL_CONTENT);
 
-    let large_path = app.state.music_dir.join("large.mp3");
-    fs::write(&large_path, vec![b'a'; 600_000]).unwrap();
-    app.insert_track(
-        2,
-        "Large",
-        "Artist",
-        large_path.to_str().unwrap(),
-        false,
-        "COMPLETE",
-    );
-
-    let cached_range = app
-        .router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method(Method::GET)
-                .uri("/api/v1/tracks/2/stream")
-                .header(header::RANGE, "bytes=0-999999")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(cached_range.status(), StatusCode::PARTIAL_CONTENT);
-    assert_eq!(cached_range.headers()[header::CONTENT_LENGTH], "524288");
-    assert_eq!(
-        cached_range.headers()[header::CONTENT_RANGE],
-        "bytes 0-524287/600000"
-    );
-    assert_eq!(
-        to_bytes(cached_range.into_body(), usize::MAX)
-            .await
-            .unwrap()
-            .len(),
-        524288
-    );
+    let prewarm = app
+        .request(Method::POST, "/api/v1/tracks/1/prewarm", Body::empty())
+        .await;
+    assert_eq!(prewarm.status(), StatusCode::NO_CONTENT);
 }
 
 #[tokio::test]

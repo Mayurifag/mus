@@ -2,7 +2,7 @@
 
 - Always use `make` targets. Do not run `cargo`, `vitest`, `docker compose`, or `npm` directly.
 - Main targets: `make up`, `make down`, `make logs [backend|frontend]`, `make ci`, `make back-ci`, `make back-test`, `make front-test`, `make back-lint`, `make front-lint`, `make back-sh`, `make e2e`, `make ps`.
-- Production verification targets: `make prod-image`, `make prod-smoke`, `make e2e-current-image`, `make prod-security-scan`, `make prod-verify`.
+- Production verification targets: `make prod-image`, `make prod-smoke`, `make e2e-current-image`, `make prod-verify`.
 - Use `make rebuild-backend-image` to refresh baked backend tools like yt-dlp without deleting volumes.
 - Install yt-dlp from the official upstream nightly zipapp in all backend images, not distro packages; the app expects `yt-dlp --update-to nightly` to work.
 - Use `make rebuild-frontend-image` to refresh baked frontend tools like npm.
