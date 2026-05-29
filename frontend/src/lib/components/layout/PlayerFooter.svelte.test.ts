@@ -31,6 +31,12 @@ vi.mock("$lib/stores/trackStore", () => {
   };
 
   return {
+    artistCountsStore: {
+      subscribe: vi.fn((callback) => {
+        callback({ "Test Artist": 1 });
+        return () => {};
+      }),
+    },
     trackStore: mockStore,
   };
 });

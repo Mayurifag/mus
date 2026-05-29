@@ -173,13 +173,15 @@ async fn tracks_stream_contract() {
     let response = app
         .request(Method::GET, "/api/v1/tracks/1/stream", Body::empty())
         .await;
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
     assert_eq!(
         response.headers()[header::CACHE_CONTROL],
         "public, max-age=86400"
     );
     assert_eq!(response.headers()[header::CONTENT_TYPE], "audio/mpeg");
     assert_eq!(response.headers()[header::ACCEPT_RANGES], "bytes");
+    assert_eq!(response.headers()[header::CONTENT_RANGE], "bytes 0-5/6");
+    assert_eq!(response.headers()[header::CONTENT_LENGTH], "6");
 
     let ranged = app
         .router
@@ -195,6 +197,95 @@ async fn tracks_stream_contract() {
         .await
         .unwrap();
     assert_eq!(ranged.status(), StatusCode::PARTIAL_CONTENT);
+
+    let large_file_path = app.state.music_dir.join("large.mp3");
+    fs::write(&large_file_path, vec![0; 1024 * 1024 + 7]).unwrap();
+    app.insert_track(
+        2,
+        "Large",
+        "Artist",
+        large_file_path.to_str().unwrap(),
+        false,
+        "COMPLETE",
+    );
+    let large_no_range = app
+        .request(Method::GET, "/api/v1/tracks/2/stream", Body::empty())
+        .await;
+    assert_eq!(large_no_range.status(), StatusCode::PARTIAL_CONTENT);
+    assert_eq!(
+        large_no_range.headers()[header::CONTENT_RANGE],
+        "bytes 0-262143/1048583"
+    );
+    assert_eq!(large_no_range.headers()[header::CONTENT_LENGTH], "262144");
+
+    let explicit_full_range = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/api/v1/tracks/2/stream")
+                .header(header::RANGE, "bytes=0-1048582")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(explicit_full_range.status(), StatusCode::PARTIAL_CONTENT);
+    assert_eq!(
+        explicit_full_range.headers()[header::CONTENT_RANGE],
+        "bytes 0-262143/1048583"
+    );
+    assert_eq!(
+        explicit_full_range.headers()[header::CONTENT_LENGTH],
+        "262144"
+    );
+
+    let open_ended_range = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/api/v1/tracks/2/stream")
+                .header(header::RANGE, "bytes=0-")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(open_ended_range.status(), StatusCode::PARTIAL_CONTENT);
+    assert_eq!(
+        open_ended_range.headers()[header::CONTENT_RANGE],
+        "bytes 0-262143/1048583"
+    );
+    assert_eq!(open_ended_range.headers()[header::CONTENT_LENGTH], "262144");
+
+    let oversized_large_suffix_range = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/api/v1/tracks/2/stream")
+                .header(header::RANGE, "bytes=-1048583")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        oversized_large_suffix_range.status(),
+        StatusCode::PARTIAL_CONTENT
+    );
+    assert_eq!(
+        oversized_large_suffix_range.headers()[header::CONTENT_RANGE],
+        "bytes 786439-1048582/1048583"
+    );
+    assert_eq!(
+        oversized_large_suffix_range.headers()[header::CONTENT_LENGTH],
+        "262144"
+    );
 
     let oversized_suffix_range = app
         .router

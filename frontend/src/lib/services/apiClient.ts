@@ -5,18 +5,13 @@ import type {
   MusEvent,
 } from "$lib/types";
 import { writable } from "svelte/store";
+import { API_BASE_URL, PUBLIC_API_HOST } from "$lib/services/apiBase";
 import {
   handleApiResponse,
   createFormData,
   safeApiCall,
 } from "$lib/utils/apiUtils";
 
-const VITE_INTERNAL_API_HOST = import.meta.env.VITE_INTERNAL_API_HOST || "";
-const VITE_PUBLIC_API_HOST = import.meta.env.VITE_PUBLIC_API_HOST || "";
-const API_PREFIX = import.meta.env.SSR
-  ? VITE_INTERNAL_API_HOST
-  : VITE_PUBLIC_API_HOST;
-const API_VERSION_PATH = "/api/v1";
 const artworkResultsCache = new Map<string, ArtworkSearchResult[]>();
 
 export type SseConnectionStatus =
@@ -32,15 +27,15 @@ function createCoverUrl(url: string | null, updatedAt: number): string | null {
   if (!url) return null;
 
   if (url.includes("?")) {
-    return `${VITE_PUBLIC_API_HOST}${url}`;
+    return `${PUBLIC_API_HOST}${url}`;
   }
 
   const cacheKey = Number.isFinite(updatedAt) ? updatedAt : Date.now();
-  return `${VITE_PUBLIC_API_HOST}${url}?v=${cacheKey}`;
+  return `${PUBLIC_API_HOST}${url}?v=${cacheKey}`;
 }
 
 export function getStreamUrl(trackId: number): string {
-  return `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}/stream`;
+  return `${API_BASE_URL}/tracks/${trackId}/stream`;
 }
 
 export function createTrackWithUrls(
@@ -62,7 +57,7 @@ export async function fetchTracks(
 ): Promise<Track[]> {
   const result = await safeApiCall(
     async () => {
-      const response = await fetchFn(`${API_PREFIX}${API_VERSION_PATH}/tracks`);
+      const response = await fetchFn(`${API_BASE_URL}/tracks`);
       const tracks: Track[] = await handleApiResponse(response);
       return tracks.map((track) => createTrackWithUrls(track));
     },
@@ -86,9 +81,7 @@ export async function fetchPlayerState(
 
   const result = await safeApiCall(
     async () => {
-      const response = await fetchFn(
-        `${API_PREFIX}${API_VERSION_PATH}/player/state`,
-      );
+      const response = await fetchFn(`${API_BASE_URL}/player/state`);
       if (response.status === 404) {
         return defaultState;
       }
@@ -102,7 +95,7 @@ export async function fetchPlayerState(
 
 export function sendPlayerStateBeacon(state: PlayerState): void {
   if (typeof navigator !== "undefined" && navigator.sendBeacon) {
-    const url = `${API_PREFIX}${API_VERSION_PATH}/player/state`;
+    const url = `${API_BASE_URL}/player/state`;
     const blob = new Blob([JSON.stringify(state)], {
       type: "application/json",
     });
@@ -110,11 +103,6 @@ export function sendPlayerStateBeacon(state: PlayerState): void {
   }
 }
 
-/**
- * Connects to the SSE endpoint for track updates
- * @param onMessageCallback Callback function to handle incoming SSE events
- * @returns The EventSource instance
- */
 export async function updateTrack(
   trackId: number,
   updateData: {
@@ -125,16 +113,13 @@ export async function updateTrack(
   },
 ): Promise<{ status: string; track?: Track }> {
   try {
-    const response = await fetch(
-      `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updateData),
+    const response = await fetch(`${API_BASE_URL}/tracks/${trackId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify(updateData),
+    });
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -163,7 +148,7 @@ export async function searchArtwork({
 
   const cacheKey = artworkSearchCacheKey({ title, artist, album });
   const response = await fetch(
-    `${API_PREFIX}${API_VERSION_PATH}/artwork/search?${params.toString()}`,
+    `${API_BASE_URL}/artwork/search?${params.toString()}`,
   );
   const results = await handleApiResponse<ArtworkSearchResult[]>(response, {
     context: "searchArtwork",
@@ -196,7 +181,7 @@ export async function searchArtworkStream({
   }
 
   const response = await fetch(
-    `${API_PREFIX}${API_VERSION_PATH}/artwork/search/stream?${params.toString()}`,
+    `${API_BASE_URL}/artwork/search/stream?${params.toString()}`,
     { signal },
   );
   if (!response.ok) {
@@ -281,12 +266,9 @@ function artworkSearchCacheKey({
 
 export async function deleteTrack(trackId: number): Promise<void> {
   try {
-    const response = await fetch(
-      `${API_PREFIX}${API_VERSION_PATH}/tracks/${trackId}`,
-      {
-        method: "DELETE",
-      },
-    );
+    const response = await fetch(`${API_BASE_URL}/tracks/${trackId}`, {
+      method: "DELETE",
+    });
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -299,9 +281,7 @@ export async function deleteTrack(trackId: number): Promise<void> {
 
 export async function fetchErroredTracks(): Promise<Track[]> {
   try {
-    const response = await fetch(
-      `${API_PREFIX}${API_VERSION_PATH}/errors/tracks`,
-    );
+    const response = await fetch(`${API_BASE_URL}/errors/tracks`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -315,7 +295,7 @@ export async function fetchErroredTracks(): Promise<Track[]> {
 export async function requeueTrack(trackId: number): Promise<void> {
   try {
     const response = await fetch(
-      `${API_PREFIX}${API_VERSION_PATH}/errors/tracks/${trackId}/requeue`,
+      `${API_BASE_URL}/errors/tracks/${trackId}/requeue`,
       {
         method: "POST",
       },
@@ -359,7 +339,7 @@ export function connectTrackUpdateEvents(
     closeTrackUpdateEvents(globalEventSource);
   }
 
-  const url = `${API_PREFIX}${API_VERSION_PATH}/events/track-updates`;
+  const url = `${API_BASE_URL}/events/track-updates`;
   trackUpdatesConnectionStatus.set("connecting");
   const eventSource = new EventSource(url);
   globalEventSource = eventSource;
@@ -398,9 +378,7 @@ export async function fetchPermissions(fetchFn: typeof fetch = fetch): Promise<{
   can_write_music_files: boolean;
 }> {
   try {
-    const response = await fetchFn(
-      `${API_PREFIX}${API_VERSION_PATH}/system/permissions`,
-    );
+    const response = await fetchFn(`${API_BASE_URL}/system/permissions`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -414,16 +392,13 @@ export async function fetchPermissions(fetchFn: typeof fetch = fetch): Promise<{
 export async function startDownload(url: string): Promise<void> {
   const result = await safeApiCall(
     async () => {
-      const response = await fetch(
-        `${API_PREFIX}${API_VERSION_PATH}/downloads/url`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ url }),
+      const response = await fetch(`${API_BASE_URL}/downloads/url`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({ url }),
+      });
       await handleApiResponse(response);
     },
     { context: "startDownload" },
@@ -442,16 +417,13 @@ export interface TrackMetadata {
 }
 
 export async function fetchMetadata(url: string): Promise<TrackMetadata> {
-  const response = await fetch(
-    `${API_PREFIX}${API_VERSION_PATH}/downloads/metadata`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ url }),
+  const response = await fetch(`${API_BASE_URL}/downloads/metadata`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify({ url }),
+  });
   return await handleApiResponse<TrackMetadata>(response, {
     context: "fetchMetadata",
   });
@@ -465,16 +437,13 @@ export async function confirmDownload(
 ): Promise<void> {
   const result = await safeApiCall(
     async () => {
-      const response = await fetch(
-        `${API_PREFIX}${API_VERSION_PATH}/downloads/confirm`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ url, title, artist, artwork_url: artworkUrl }),
+      const response = await fetch(`${API_BASE_URL}/downloads/confirm`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({ url, title, artist, artwork_url: artworkUrl }),
+      });
       await handleApiResponse(response);
     },
     { context: "confirmDownload" },
@@ -503,9 +472,7 @@ export async function fetchSystemInfo(
   fetchFn: typeof fetch = fetch,
 ): Promise<SystemInfo> {
   try {
-    const response = await fetchFn(
-      `${API_PREFIX}${API_VERSION_PATH}/system/info`,
-    );
+    const response = await fetchFn(`${API_BASE_URL}/system/info`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -532,10 +499,9 @@ export async function updateYtDlp(): Promise<{
   yt_dlp_version: string | null;
   output: string;
 }> {
-  const response = await fetch(
-    `${API_PREFIX}${API_VERSION_PATH}/system/yt-dlp/update`,
-    { method: "POST" },
-  );
+  const response = await fetch(`${API_BASE_URL}/system/yt-dlp/update`, {
+    method: "POST",
+  });
   return await handleApiResponse(response, { context: "updateYtDlp" });
 }
 
@@ -554,13 +520,10 @@ export async function uploadTrack(
     formData.append("artwork_url", artworkUrl);
   }
 
-  const response = await fetch(
-    `${API_PREFIX}${API_VERSION_PATH}/tracks/upload`,
-    {
-      method: "POST",
-      body: formData,
-    },
-  );
+  const response = await fetch(`${API_BASE_URL}/tracks/upload`, {
+    method: "POST",
+    body: formData,
+  });
 
   return await handleApiResponse(response, {
     logError: true,

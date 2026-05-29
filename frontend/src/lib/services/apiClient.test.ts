@@ -1,6 +1,15 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as apiClient from "./apiClient";
 
+const PUBLIC_API_HOST = import.meta.env.VITE_PUBLIC_API_HOST || "";
+const API_HOST = import.meta.env.SSR
+  ? import.meta.env.VITE_INTERNAL_API_HOST || ""
+  : PUBLIC_API_HOST;
+const API_BASE_URL = `${API_HOST}/api/v1`;
+const PUBLIC_API_BASE_URL = `${PUBLIC_API_HOST}/api/v1`;
+const TRACKS_URL = `${API_BASE_URL}/tracks`;
+const PLAYER_STATE_URL = `${API_BASE_URL}/player/state`;
+
 // Mock the environment module
 vi.mock("$app/environment", () => ({
   dev: true,
@@ -38,10 +47,8 @@ const mockTrackTransformed = {
   duration: 180,
   updated_at: 1640995200,
   has_cover: true,
-  cover_small_url:
-    "http://localhost:8002/api/v1/tracks/1/covers/small.webp?v=1640995200",
-  cover_original_url:
-    "http://localhost:8002/api/v1/tracks/1/covers/original.webp?v=1640995200",
+  cover_small_url: `${PUBLIC_API_BASE_URL}/tracks/1/covers/small.webp?v=1640995200`,
+  cover_original_url: `${PUBLIC_API_BASE_URL}/tracks/1/covers/original.webp?v=1640995200`,
 };
 
 const mockPlayerState = {
@@ -81,9 +88,7 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8002/api/v1/tracks",
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith(TRACKS_URL);
       expect(result).toEqual([mockTrackTransformed]);
     });
 
@@ -99,9 +104,7 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8002/api/v1/tracks",
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith(TRACKS_URL);
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining("fetchTracks"),
         expect.any(Error),
@@ -115,9 +118,7 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchTracks();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8002/api/v1/tracks",
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith(TRACKS_URL);
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining("fetchTracks"),
         expect.any(Error),
@@ -139,9 +140,7 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8002/api/v1/player/state",
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith(PLAYER_STATE_URL);
       expect(result).toEqual(mockPlayerState);
     });
 
@@ -157,9 +156,7 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8002/api/v1/player/state",
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith(PLAYER_STATE_URL);
       expect(result).toEqual({
         current_track_id: null,
         progress_seconds: 0.0,
@@ -182,9 +179,7 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8002/api/v1/player/state",
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith(PLAYER_STATE_URL);
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining("fetchPlayerState"),
         expect.any(Error),
@@ -205,9 +200,7 @@ describe("apiClient", () => {
 
       const result = await apiClient.fetchPlayerState();
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "http://localhost:8002/api/v1/player/state",
-      );
+      expect(globalThis.fetch).toHaveBeenCalledWith(PLAYER_STATE_URL);
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining("fetchPlayerState"),
         expect.any(Error),
@@ -234,7 +227,7 @@ describe("apiClient", () => {
       apiClient.sendPlayerStateBeacon(mockPlayerState);
 
       expect(mockSendBeacon).toHaveBeenCalledWith(
-        "http://localhost:8002/api/v1/player/state",
+        PLAYER_STATE_URL,
         expect.any(Blob),
       );
     });

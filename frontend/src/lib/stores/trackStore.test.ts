@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { get } from "svelte/store";
-import { trackStore } from "./trackStore";
+import { artistCountsStore, trackStore } from "./trackStore";
 import type { Track } from "$lib/types";
 
 describe("trackStore", () => {
@@ -12,10 +12,8 @@ describe("trackStore", () => {
       duration: 180,
       filename: "track1.mp3",
       has_cover: true,
-      cover_small_url:
-        "http://localhost:8002/api/v1/tracks/1/covers/small.webp",
-      cover_original_url:
-        "http://localhost:8002/api/v1/tracks/1/covers/original.webp",
+      cover_small_url: "/api/v1/tracks/1/covers/small.webp",
+      cover_original_url: "/api/v1/tracks/1/covers/original.webp",
       updated_at: 1640995200,
     },
     {
@@ -25,10 +23,8 @@ describe("trackStore", () => {
       duration: 240,
       filename: "track2.mp3",
       has_cover: true,
-      cover_small_url:
-        "http://localhost:8002/api/v1/tracks/2/covers/small.webp",
-      cover_original_url:
-        "http://localhost:8002/api/v1/tracks/2/covers/original.webp",
+      cover_small_url: "/api/v1/tracks/2/covers/small.webp",
+      cover_original_url: "/api/v1/tracks/2/covers/original.webp",
       updated_at: 1640995300,
     },
     {
@@ -75,6 +71,36 @@ describe("trackStore", () => {
 
     expect(get(trackStore).currentTrackIndex).toBe(0);
     expect(get(trackStore).currentTrack).toEqual(mockTracks[1]);
+  });
+
+  it("should derive artist counts from tracks", () => {
+    const tracks: Track[] = [
+      { ...mockTracks[0], artist: "Artist A; Artist B; Artist A" },
+      { ...mockTracks[1], artist: "Artist A" },
+      { ...mockTracks[2], artist: "Artist C; __proto__; toString" },
+    ];
+
+    trackStore.setTracks(tracks);
+
+    let counts = get(artistCountsStore);
+    expect(counts).toMatchObject({
+      "Artist A": 2,
+      "Artist B": 1,
+      "Artist C": 1,
+      toString: 1,
+    });
+    expect(Object.getOwnPropertyDescriptor(counts, "__proto__")?.value).toBe(1);
+
+    trackStore.updateTrack({ ...tracks[0], artist: "Artist B" });
+
+    counts = get(artistCountsStore);
+    expect(counts).toMatchObject({
+      "Artist A": 1,
+      "Artist B": 1,
+      "Artist C": 1,
+      toString: 1,
+    });
+    expect(Object.getOwnPropertyDescriptor(counts, "__proto__")?.value).toBe(1);
   });
 
   it("should set currentTrackIndex to null when tracks array is empty", () => {

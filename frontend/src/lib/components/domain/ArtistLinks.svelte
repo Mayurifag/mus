@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { trackStore } from "$lib/stores/trackStore";
+  import { artistCountsStore, trackStore } from "$lib/stores/trackStore";
   import { selectArtistFilter } from "$lib/utils/artistFilterNavigation";
   import { parseArtists } from "$lib/utils/formatters";
 
@@ -11,19 +11,9 @@
     class?: string;
   } = $props();
 
-  const artists = $derived(parseArtists(artist));
+  const artists = $derived([...new Set(parseArtists(artist))]);
   const selectedArtist = $derived($trackStore.selectedArtist);
-  const artistCounts = $derived.by(() => {
-    const counts: Record<string, number> = {};
-
-    for (const track of $trackStore.tracks) {
-      for (const artistName of parseArtists(track.artist)) {
-        counts[artistName] = (counts[artistName] ?? 0) + 1;
-      }
-    }
-
-    return counts;
-  });
+  const artistCounts = $derived($artistCountsStore);
 
   function canSelectArtist(artistName: string): boolean {
     return selectedArtist !== artistName && (artistCounts[artistName] ?? 0) > 1;

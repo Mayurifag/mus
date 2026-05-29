@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { trackStore } from "$lib/stores/trackStore";
+  import { artistCountsStore, trackStore } from "$lib/stores/trackStore";
 
   import { AlertTriangle, Play } from "@lucide/svelte";
   import EffectMonitor from "$lib/components/debug/EffectMonitor.svelte";
@@ -11,7 +11,6 @@
     clearArtistFilter,
     selectArtistFilter,
   } from "$lib/utils/artistFilterNavigation";
-  import { parseArtists } from "$lib/utils/formatters";
   import {
     fetchErroredTracks,
     fetchSystemInfo,
@@ -76,15 +75,7 @@
   const selectedArtist = $derived($trackStore.selectedArtist);
 
   const topArtists = $derived.by(() => {
-    const counts: Record<string, number> = {};
-
-    for (const track of $trackStore.tracks) {
-      for (const artist of parseArtists(track.artist)) {
-        counts[artist] = (counts[artist] ?? 0) + 1;
-      }
-    }
-
-    return Object.entries(counts)
+    return Object.entries($artistCountsStore)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
       .slice(0, 12);

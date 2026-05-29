@@ -16,6 +16,10 @@
   import { initEventHandlerService } from "$lib/services/eventHandlerService";
   import { AudioService } from "$lib/services/AudioService";
   import {
+    getNextTrackForPreload,
+    StreamPreloadService,
+  } from "$lib/services/streamPreloadService";
+  import {
     restorePlayerState,
     savePlayerState,
   } from "$lib/services/playerStateService";
@@ -23,7 +27,7 @@
   import * as Sheet from "$lib/components/ui/sheet";
   import { browser } from "$app/environment";
   import { Toaster } from "$lib/components/ui/sonner";
-  import type { PlayerState, Track } from "$lib/types";
+  import type { PlayerState, TimeRange, Track } from "$lib/types";
 
   // Touch handling for swipe gestures
   let startX = $state<number | null>(null);
@@ -35,6 +39,8 @@
 
   let audio: HTMLAudioElement;
   let audioService = $state<AudioService | undefined>(undefined);
+  let streamPreloader = $state<StreamPreloadService | undefined>(undefined);
+  let unsubscribePreloadRanges: (() => void) | null = null;
   let eventSource = $state<EventSource | null>(null);
   let sheetOpen = $state(false);
   let lastCurrentTrackId: number | null = null;
@@ -43,8 +49,15 @@
   function initializeAudioService() {
     if (audio) {
       audioService = new AudioService(audio);
+      streamPreloader = new StreamPreloadService();
+      unsubscribePreloadRanges =
+        streamPreloader.downloadedRangesStore.subscribe(handleDownloadedRanges);
       audioServiceStore.set(audioService);
     }
+  }
+
+  function handleDownloadedRanges(ranges: TimeRange[]) {
+    audioService?.setDownloadedRanges(ranges);
   }
 
   function setupEventListeners() {
@@ -96,6 +109,9 @@
       audioServiceStore.set(undefined);
     }
 
+    unsubscribePreloadRanges?.();
+    streamPreloader?.destroy();
+
     // Remove event listeners - only in browser
     if (browser && document) {
       document.body.removeEventListener("toggle-sheet", handleToggleMenu);
@@ -129,6 +145,14 @@
       lastCurrentTrackId = $trackStore.currentTrack.id;
       lastPlayRequestId = $trackStore.playRequestId;
     }
+  });
+
+  $effect(() => {
+    updateEffectStats("Layout_StreamPreloadHandler");
+    streamPreloader?.update(
+      $trackStore.currentTrack,
+      getNextTrackForPreload($trackStore),
+    );
   });
 
   $effect(() => {
@@ -214,6 +238,6 @@
   <!-- Fixed Player Footer -->
   <PlayerFooter audioService={$audioServiceStore} />
 
-  <audio bind:this={audio} preload="auto" id="mus-audio-element" class="hidden"
+  <audio bind:this={audio} preload="none" id="mus-audio-element" class="hidden"
   ></audio>
 </Sheet.Root>

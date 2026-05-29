@@ -3,12 +3,12 @@ import { AudioService } from "./AudioService";
 import type { Track } from "$lib/types";
 import { trackStore } from "$lib/stores/trackStore";
 
+const mockGetStreamUrl = vi.hoisted(() => vi.fn());
+const STREAM_BASE_URL = "https://music.example/api/v1";
+
 // Mock the apiClient module
 vi.mock("$lib/services/apiClient", () => ({
-  getStreamUrl: vi.fn(
-    (trackId: number) =>
-      `http://localhost:8002/api/v1/tracks/${trackId}/stream`,
-  ),
+  getStreamUrl: mockGetStreamUrl,
 }));
 
 // Mock the trackStore module
@@ -35,6 +35,11 @@ describe("AudioService", () => {
   };
 
   beforeEach(() => {
+    mockGetStreamUrl.mockReset();
+    mockGetStreamUrl.mockImplementation(
+      (trackId: number) => `${STREAM_BASE_URL}/tracks/${trackId}/stream`,
+    );
+
     // Create a mock audio element
     const mockBuffered = {
       length: 0,
@@ -94,7 +99,7 @@ describe("AudioService", () => {
   it("should update audio source when track changes", () => {
     audioService.updateAudioSource(mockTrack, true);
 
-    expect(mockAudio.src).toBe("http://localhost:8002/api/v1/tracks/1/stream");
+    expect(mockAudio.src).toBe(`${STREAM_BASE_URL}/tracks/1/stream`);
     expect(mockAudio.load).toHaveBeenCalled();
   });
 

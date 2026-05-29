@@ -10,7 +10,6 @@ use anyhow::Result;
 use mus_backend::{
     app::app,
     db::init_db,
-    prewarm::run_prewarm_job,
     scanner::{scan_music_dir, watch_music_dir},
     state::AppState,
 };
@@ -31,7 +30,6 @@ async fn main() -> Result<()> {
             if let Err(error) = scan_music_dir(state.clone()).await {
                 tracing::warn!("failed to scan music directory: {error}");
             }
-            run_prewarm_job(state).await;
         }
     });
     tokio::spawn(watch_music_dir(state.clone()));

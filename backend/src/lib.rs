@@ -9,7 +9,6 @@ pub mod gemini;
 pub mod media;
 pub mod models;
 pub mod player;
-pub mod prewarm;
 pub mod scanner;
 pub mod state;
 pub mod system;

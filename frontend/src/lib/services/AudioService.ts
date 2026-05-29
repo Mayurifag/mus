@@ -14,6 +14,7 @@ export class AudioService {
   private audio: HTMLAudioElement;
   private isSeeking = false;
   private currentTrackId: number | null = null;
+  private useDownloadedRanges = false;
 
   // Convert internal state to reactive stores
   private _volume = writable(1.0);
@@ -132,10 +133,17 @@ export class AudioService {
   }
 
   private updateBufferedRanges(): void {
+    if (this.useDownloadedRanges) return;
+
     if (this.audio && this.audio.buffered) {
       const ranges = this.convertTimeRangesToArray(this.audio.buffered);
       this._currentBufferedRanges.set(ranges);
     }
+  }
+
+  setDownloadedRanges(ranges: TimeRange[]): void {
+    this.useDownloadedRanges = true;
+    this._currentBufferedRanges.set(ranges);
   }
 
   updateAudioSource(

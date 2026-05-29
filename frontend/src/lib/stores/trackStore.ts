@@ -1,4 +1,4 @@
-import { writable } from "svelte/store";
+import { derived, writable } from "svelte/store";
 import type { Track } from "$lib/types";
 import {
   calculateNextIndex,
@@ -573,3 +573,15 @@ function createTrackStore() {
 }
 
 export const trackStore = createTrackStore();
+
+export const artistCountsStore = derived(trackStore, ($trackStore) => {
+  const counts = new Map<string, number>();
+
+  for (const track of $trackStore.tracks) {
+    for (const artist of new Set(parseArtists(track.artist))) {
+      counts.set(artist, (counts.get(artist) ?? 0) + 1);
+    }
+  }
+
+  return Object.fromEntries(counts);
+});

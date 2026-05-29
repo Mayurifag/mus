@@ -14,7 +14,25 @@ const mockTrackStore = vi.hoisted(() => ({
   setArtistFilter: vi.fn(),
 }));
 
+const mockArtistCountsStore = vi.hoisted(() => ({
+  subscribe: vi.fn((callback: (value: Record<string, number>) => void) => {
+    const counts = new Map<string, number>();
+    for (const track of mockTrackStoreState.tracks) {
+      const artists = track.artist
+        .split(/[;,]/)
+        .map((value) => value.trim())
+        .filter(Boolean);
+      for (const artist of new Set(artists)) {
+        counts.set(artist, (counts.get(artist) ?? 0) + 1);
+      }
+    }
+    callback(Object.fromEntries(counts));
+    return () => {};
+  }),
+}));
+
 vi.mock("$lib/stores/trackStore", () => ({
+  artistCountsStore: mockArtistCountsStore,
   trackStore: mockTrackStore,
 }));
 
@@ -174,6 +192,17 @@ describe("TrackItem component", () => {
       "Test Artist",
     );
     expect(vi.mocked(trackStore.playTrack)).not.toHaveBeenCalled();
+  });
+
+  it("renders duplicate artists once", () => {
+    mockTrack.artist = "Test Artist; Test Artist";
+    mockTrackStoreState.tracks = [mockTrack, { ...mockTrack, id: 2 }];
+
+    render(TrackItem, { track: mockTrack, index: 0, isSelected: false });
+
+    expect(
+      screen.getAllByRole("button", { name: "Show Test Artist songs" }),
+    ).toHaveLength(1);
   });
 
   it("plays the row when selected artist text is clicked", async () => {
