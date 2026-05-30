@@ -27,7 +27,7 @@
   import * as Sheet from "$lib/components/ui/sheet";
   import { browser } from "$app/environment";
   import { Toaster } from "$lib/components/ui/sonner";
-  import type { PlayerState, TimeRange, Track } from "$lib/types";
+  import type { PlayerState, Track } from "$lib/types";
 
   // Touch handling for swipe gestures
   let startX = $state<number | null>(null);
@@ -40,7 +40,6 @@
   let audio: HTMLAudioElement;
   let audioService = $state<AudioService | undefined>(undefined);
   let streamPreloader = $state<StreamPreloadService | undefined>(undefined);
-  let unsubscribePreloadRanges: (() => void) | null = null;
   let eventSource = $state<EventSource | null>(null);
   let sheetOpen = $state(false);
   let lastCurrentTrackId: number | null = null;
@@ -50,14 +49,8 @@
     if (audio) {
       audioService = new AudioService(audio);
       streamPreloader = new StreamPreloadService();
-      unsubscribePreloadRanges =
-        streamPreloader.downloadedRangesStore.subscribe(handleDownloadedRanges);
       audioServiceStore.set(audioService);
     }
-  }
-
-  function handleDownloadedRanges(ranges: TimeRange[]) {
-    audioService?.setDownloadedRanges(ranges);
   }
 
   function setupEventListeners() {
@@ -109,7 +102,6 @@
       audioServiceStore.set(undefined);
     }
 
-    unsubscribePreloadRanges?.();
     streamPreloader?.destroy();
 
     // Remove event listeners - only in browser

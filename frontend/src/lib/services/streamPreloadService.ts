@@ -1,8 +1,7 @@
 import { getStreamUrl } from "$lib/services/apiClient";
-import type { Track, TimeRange } from "$lib/types";
+import type { Track } from "$lib/types";
 import type { TrackStoreState } from "$lib/stores/trackStore";
 import { parseArtists } from "$lib/utils/formatters";
-import { writable } from "svelte/store";
 
 const NEXT_TRACK_PREFETCH_CHUNKS = 2;
 
@@ -55,39 +54,14 @@ export function getNextTrackForPreload(state: TrackStoreState): Track | null {
 
 export class StreamPreloadService {
   private fetchFn: typeof fetch;
-  private currentAbort: AbortController | null = null;
   private nextAbort: AbortController | null = null;
-  private currentKey: string | null = null;
   private nextKey: string | null = null;
-  private downloadedRanges = writable<TimeRange[]>([]);
 
   constructor(fetchFn: typeof fetch = fetch) {
     this.fetchFn = fetchFn;
   }
 
-  get downloadedRangesStore() {
-    return this.downloadedRanges;
-  }
-
   update(currentTrack: Track | null, nextTrack: Track | null): void {
-    const currentKey = currentTrack ? this.trackKey(currentTrack) : null;
-    if (currentKey !== this.currentKey) {
-      this.currentAbort?.abort();
-      this.currentKey = currentKey;
-      this.downloadedRanges.set([]);
-
-      if (currentTrack) {
-        const controller = new AbortController();
-        this.currentAbort = controller;
-        void this.downloadTrack(
-          currentTrack,
-          controller.signal,
-          Infinity,
-          true,
-        ).catch(this.ignoreAbort);
-      }
-    }
-
     const nextKey =
       nextTrack && nextTrack.id !== currentTrack?.id
         ? this.trackKey(nextTrack)
@@ -103,14 +77,12 @@ export class StreamPreloadService {
           nextTrack,
           controller.signal,
           NEXT_TRACK_PREFETCH_CHUNKS,
-          false,
         ).catch(this.ignoreAbort);
       }
     }
   }
 
   destroy(): void {
-    this.currentAbort?.abort();
     this.nextAbort?.abort();
   }
 
@@ -118,19 +90,12 @@ export class StreamPreloadService {
     track: Track,
     signal: AbortSignal,
     maxChunks: number,
-    publish: boolean,
   ): Promise<void> {
-    const ranges: ByteRange[] = [];
     let start = 0;
 
     for (let chunk = 0; chunk < maxChunks; chunk += 1) {
       const range = await this.fetchRange(track.id, start, signal);
       if (!range) return;
-
-      ranges.push(range);
-      if (publish && this.currentKey === this.trackKey(track)) {
-        this.downloadedRanges.set(this.toTimeRanges(track, ranges));
-      }
 
       if (range.end >= range.total - 1) return;
       start = range.end + 1;
@@ -150,19 +115,6 @@ export class StreamPreloadService {
 
     await response.arrayBuffer();
     return parseContentRange(response.headers.get("content-range"));
-  }
-
-  private toTimeRanges(track: Track, ranges: ByteRange[]): TimeRange[] {
-    const latest = ranges.at(-1);
-    if (!latest || latest.total <= 0) return [];
-
-    const scale = track.duration > 0 ? track.duration : 100;
-    return [
-      {
-        start: 0,
-        end: ((latest.end + 1) / latest.total) * scale,
-      },
-    ];
   }
 
   private trackKey(track: Track): string {

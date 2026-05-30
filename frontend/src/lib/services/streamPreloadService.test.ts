@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { get } from "svelte/store";
 import type { Track } from "$lib/types";
 import type { TrackStoreState } from "$lib/stores/trackStore";
 import {
@@ -45,7 +44,7 @@ describe("streamPreloadService", () => {
     expect(parseContentRange("invalid")).toBeNull();
   });
 
-  it("fully downloads current track and prefetches two next track chunks", async () => {
+  it("prefetches two next track chunks without downloading current track", async () => {
     const fetchFn = vi.fn(
       async (_url: string | URL | Request, init?: RequestInit) => {
         const start = Number(
@@ -62,7 +61,7 @@ describe("streamPreloadService", () => {
 
     service.update(current, next);
 
-    await vi.waitFor(() => expect(fetchFn).toHaveBeenCalledTimes(5));
+    await vi.waitFor(() => expect(fetchFn).toHaveBeenCalledTimes(2));
     const currentRanges = fetchFn.mock.calls
       .filter(([url]) => String(url).includes("/tracks/1/stream"))
       .map(([, init]) => rangeHeader(init));
@@ -70,11 +69,8 @@ describe("streamPreloadService", () => {
       .filter(([url]) => String(url).includes("/tracks/2/stream"))
       .map(([, init]) => rangeHeader(init));
 
-    expect(currentRanges).toEqual(["bytes=0-", "bytes=3-", "bytes=6-"]);
+    expect(currentRanges).toEqual([]);
     expect(nextRanges).toEqual(["bytes=0-", "bytes=3-"]);
-    expect(get(service.downloadedRangesStore)).toEqual([
-      { start: 0, end: 120 },
-    ]);
 
     service.destroy();
   });
