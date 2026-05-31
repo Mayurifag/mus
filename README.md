@@ -22,7 +22,7 @@ in alpha stage.
 - Upload/edit/download flows write artist/title tags; MP3/WAV/AIFF use Rust ID3
   and other supported media use ffmpeg when tags must be rewritten
 - File edits combine tag, artwork, rename, and mtime updates before publishing the
-  final file, so the library order stays tied to the track's first database id
+  final file, so library order stays tied to first discovery
 - Useful editor of artists/title metadata
 - Download new files using yt-dlp with SponsorBlock segment removal. Custom vk.ru
   support incoming
@@ -51,5 +51,8 @@ image, so it is not bound to Rust/Svelte source files.
 Production deployments are expected to sit behind external authentication. Use
 `make prod-verify` before shipping image changes.
 
-Audio streams are always served as capped byte ranges. Chunks are 256 KiB by
-default; tune with `STREAM_RANGE_CHUNK_BYTES`.
+Audio playback is served as HLS. Generated playlists and segments live under
+`/app_data/.cache/hls`, not the mounted music directory.
+
+Track IDs are full BLAKE3 content hashes, reused as the HLS cache key so cached
+audio survives database rebuilds when file bytes do not change.

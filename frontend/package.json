@@ -58,6 +58,7 @@
   },
   "dependencies": {
     "@tanstack/svelte-virtual": "^3.13.24",
+    "hls.js": "^1.6.16",
     "music-metadata": "^11.12.3",
     "svelte-gestures": "^5.2.2"
   }

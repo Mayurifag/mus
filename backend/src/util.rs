@@ -197,19 +197,20 @@ pub fn now_nanos() -> u128 {
 
 pub fn file_content_hash(path: &Path) -> Result<String> {
     let mut file = fs::File::open(path)?;
-    let mut hash = 0xcbf29ce484222325u64;
+    let mut hash = blake3::Hasher::new();
     let mut buffer = [0u8; 64 * 1024];
     loop {
         let read = file.read(&mut buffer)?;
         if read == 0 {
             break;
         }
-        for byte in &buffer[..read] {
-            hash ^= u64::from(*byte);
-            hash = hash.wrapping_mul(0x100000001b3);
-        }
+        hash.update(&buffer[..read]);
     }
-    Ok(format!("{hash:016x}"))
+    Ok(hash.finalize().to_hex().to_string())
+}
+
+pub fn is_hash_id(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
 pub fn file_signature(meta: &fs::Metadata) -> String {

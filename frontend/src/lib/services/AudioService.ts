@@ -1,8 +1,8 @@
 import type { Track, TimeRange } from "$lib/types";
-import { getStreamUrl } from "$lib/services/apiClient";
 import { writable } from "svelte/store";
 import { trackStore } from "$lib/stores/trackStore";
 import { formatArtistsForDisplay } from "$lib/utils/formatters";
+import Hls from "hls.js";
 import {
   clearMediaSession,
   setupMediaSessionHandlers,
@@ -13,9 +13,10 @@ import {
 export class AudioService {
   private audio: HTMLAudioElement;
   private isSeeking = false;
-  private currentTrackId: number | null = null;
-  private pendingStreamUrl: string | null = null;
+  private currentTrackId: string | null = null;
+  private pendingHlsUrl: string | null = null;
   private hasRequestedLoad = false;
+  private hls: Hls | null = null;
 
   // Convert internal state to reactive stores
   private _volume = writable(1.0);
@@ -143,12 +144,39 @@ export class AudioService {
   private loadSource(): void {
     if (this.currentTrackId === null || this.hasRequestedLoad) return;
 
-    if (this.pendingStreamUrl !== null) {
-      this.audio.src = this.pendingStreamUrl;
-      this.pendingStreamUrl = null;
+    if (this.pendingHlsUrl !== null) {
+      this.loadHlsSource(this.pendingHlsUrl);
+      this.pendingHlsUrl = null;
     }
-    this.audio.load();
     this.hasRequestedLoad = true;
+  }
+
+  private loadHlsSource(hlsUrl: string): void {
+    this.destroyHls();
+    if (Hls.isSupported()) {
+      this.hls = new Hls();
+      this.hls.loadSource(hlsUrl);
+      this.hls.attachMedia(this.audio);
+      this.hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (!data.fatal) return;
+        console.error("HLS playback error occurred", data);
+        this.pause();
+      });
+      return;
+    }
+
+    if (this.audio.canPlayType("application/vnd.apple.mpegurl")) {
+      this.audio.src = hlsUrl;
+      this.audio.load();
+      return;
+    }
+
+    console.error("HLS playback is not supported by this browser");
+  }
+
+  private destroyHls(): void {
+    this.hls?.destroy();
+    this.hls = null;
   }
 
   updateAudioSource(
@@ -158,13 +186,13 @@ export class AudioService {
   ): void {
     if (!track) return;
 
-    const streamUrl = getStreamUrl(track.id);
     const shouldUpdateSource = this.currentTrackId !== track.id;
     this.currentTrackId = track.id;
     if (shouldUpdateSource) {
       const seekAfterMetadata = () => this.setTime(initialTime);
+      this.destroyHls();
       this.hasRequestedLoad = false;
-      this.pendingStreamUrl = streamUrl;
+      this.pendingHlsUrl = track.hls_url;
       if (initialTime > 0) {
         this.audio.addEventListener("loadedmetadata", seekAfterMetadata, {
           once: true,
@@ -337,13 +365,14 @@ export class AudioService {
     this.storeUnsubscribers.forEach((unsubscribe) => unsubscribe());
     this.storeUnsubscribers = [];
     clearMediaSession();
+    this.destroyHls();
     if (typeof this.audio.removeAttribute === "function") {
       this.audio.removeAttribute("src");
     } else {
       this.audio.src = "";
     }
     this.currentTrackId = null;
-    this.pendingStreamUrl = null;
+    this.pendingHlsUrl = null;
     this.hasRequestedLoad = false;
     this.audio.load();
   }

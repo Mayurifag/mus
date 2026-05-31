@@ -422,7 +422,7 @@ async fn extract_cover_supports_flac_embedded_cover() {
     fs::create_dir(&covers_dir).unwrap();
     create_flac_with_cover(&path);
 
-    assert!(extract_cover(&path, &covers_dir, 1).await.unwrap());
+    assert!(extract_cover(&path, &covers_dir, "1").await.unwrap());
     assert!(covers_dir.join("1_original.webp").is_file());
     assert!(covers_dir.join("1_small.webp").is_file());
 }
@@ -438,7 +438,7 @@ async fn extract_cover_supports_wav_id3_cover() {
     create_jpeg(&cover_path);
     add_id3_cover(&path, &cover_path);
 
-    assert!(extract_cover(&path, &covers_dir, 1).await.unwrap());
+    assert!(extract_cover(&path, &covers_dir, "1").await.unwrap());
     assert!(covers_dir.join("1_original.webp").is_file());
     assert!(covers_dir.join("1_small.webp").is_file());
 }

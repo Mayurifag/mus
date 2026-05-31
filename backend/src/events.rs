@@ -58,6 +58,6 @@ pub fn broadcast(
     };
     match state.events.send(event) {
         Ok(receivers) => tracing::info!(action, receivers, "broadcast event queued"),
-        Err(error) => tracing::warn!(action, error = ?error, "broadcast event dropped"),
+        Err(_) => tracing::debug!(action, "broadcast event skipped; no sse receivers"),
     }
 }

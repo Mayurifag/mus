@@ -34,8 +34,8 @@ function createCoverUrl(url: string | null, updatedAt: number): string | null {
   return `${PUBLIC_API_HOST}${url}?v=${cacheKey}`;
 }
 
-export function getStreamUrl(trackId: number): string {
-  return `${API_BASE_URL}/tracks/${trackId}/stream`;
+function createMediaUrl(url: string): string {
+  return `${PUBLIC_API_HOST}${url}`;
 }
 
 export function createTrackWithUrls(
@@ -49,6 +49,7 @@ export function createTrackWithUrls(
       track.cover_original_url,
       track.updated_at,
     ),
+    hls_url: createMediaUrl(track.hls_url),
   };
 }
 
@@ -104,7 +105,7 @@ export function sendPlayerStateBeacon(state: PlayerState): void {
 }
 
 export async function updateTrack(
-  trackId: number,
+  trackId: string,
   updateData: {
     title?: string;
     artist?: string;
@@ -264,7 +265,7 @@ function artworkSearchCacheKey({
     .join("|");
 }
 
-export async function deleteTrack(trackId: number): Promise<void> {
+export async function deleteTrack(trackId: string): Promise<void> {
   try {
     const response = await fetch(`${API_BASE_URL}/tracks/${trackId}`, {
       method: "DELETE",
@@ -292,7 +293,7 @@ export async function fetchErroredTracks(): Promise<Track[]> {
   }
 }
 
-export async function requeueTrack(trackId: number): Promise<void> {
+export async function requeueTrack(trackId: string): Promise<void> {
   try {
     const response = await fetch(
       `${API_BASE_URL}/errors/tracks/${trackId}/requeue`,
@@ -347,7 +348,11 @@ export function connectTrackUpdateEvents(
   eventSource.onmessage = (event) => {
     try {
       const eventData = JSON.parse(event.data);
-      console.info("SSE track update event", eventData.action_key, eventData);
+      console.info(
+        "SSE track update event",
+        eventData.action_key,
+        eventData.message_to_show ?? eventData.action_payload?.filename ?? "",
+      );
       onMessageCallback(eventData);
     } catch (error) {
       console.error("Error parsing SSE event:", error);

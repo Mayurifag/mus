@@ -6,7 +6,7 @@ import type { Track } from "$lib/types";
 describe("trackStore", () => {
   const mockTracks: Track[] = [
     {
-      id: 1,
+      id: "1",
       title: "Test Track 1",
       artist: "Test Artist 1",
       duration: 180,
@@ -14,10 +14,11 @@ describe("trackStore", () => {
       has_cover: true,
       cover_small_url: "/api/v1/tracks/1/covers/small.webp",
       cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+      hls_url: "/api/v1/tracks/1/hls/1640995200/index.m3u8",
       updated_at: 1640995200,
     },
     {
-      id: 2,
+      id: "2",
       title: "Test Track 2",
       artist: "Test Artist 2",
       duration: 240,
@@ -25,10 +26,11 @@ describe("trackStore", () => {
       has_cover: true,
       cover_small_url: "/api/v1/tracks/2/covers/small.webp",
       cover_original_url: "/api/v1/tracks/2/covers/original.webp",
+      hls_url: "/api/v1/tracks/2/hls/1640995300/index.m3u8",
       updated_at: 1640995300,
     },
     {
-      id: 3,
+      id: "3",
       title: "Test Track 3",
       artist: "Test Artist 3",
       duration: 200,
@@ -36,6 +38,7 @@ describe("trackStore", () => {
       has_cover: false,
       cover_small_url: null,
       cover_original_url: null,
+      hls_url: "/api/v1/tracks/3/hls/1640995400/index.m3u8",
       updated_at: 1640995400,
     },
   ];
@@ -190,7 +193,7 @@ describe("trackStore", () => {
     trackStore.setTracks(mockTracks);
 
     const scannedTrack: Track = {
-      id: 4,
+      id: "4",
       title: "Scanned Track",
       artist: "Scanned Artist",
       duration: 220,
@@ -198,6 +201,7 @@ describe("trackStore", () => {
       has_cover: false,
       cover_small_url: null,
       cover_original_url: null,
+      hls_url: "/api/v1/tracks/4/hls/1640995500/index.m3u8",
       updated_at: 1640995500,
     };
 

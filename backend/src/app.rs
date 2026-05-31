@@ -10,7 +10,7 @@ use std::{
 use axum::{
     body::Body,
     extract::{Request, State},
-    http::{header, HeaderMap, HeaderValue, StatusCode, Uri},
+    http::{header, HeaderMap, HeaderValue, Method, StatusCode, Uri},
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, patch, post},
@@ -20,7 +20,10 @@ use rusqlite::Connection;
 use serde_json::{json, Value};
 use tokio::fs as async_fs;
 use tower::ServiceExt;
-use tower_http::services::ServeFile;
+use tower_http::{
+    cors::{AllowOrigin, CorsLayer},
+    services::ServeFile,
+};
 
 use crate::{
     artwork::{search_artwork, stream_artwork},
@@ -28,12 +31,12 @@ use crate::{
     downloads::{confirm_download, fetch_metadata, start_download},
     errors::{get_errored_tracks, requeue_track},
     events::{track_updates, trigger_event},
+    hls::{get_hls_playlist, get_hls_segment},
     player::{get_player_state, save_player_state},
     state::AppState,
     system::{get_permissions, get_system_info, rescan, update_yt_dlp},
     tracks::{
-        delete_track, get_cover_original, get_cover_small, get_tracks, stream_track, update_track,
-        upload_track,
+        delete_track, get_cover_original, get_cover_small, get_tracks, update_track, upload_track,
     },
     util::now,
 };
@@ -51,7 +54,14 @@ pub fn app(state: AppState) -> Router {
             "/api/v1/tracks/{id}",
             patch(update_track).delete(delete_track),
         )
-        .route("/api/v1/tracks/{id}/stream", get(stream_track))
+        .route(
+            "/api/v1/tracks/{id}/hls/{cache_key}/index.m3u8",
+            get(get_hls_playlist),
+        )
+        .route(
+            "/api/v1/tracks/{id}/hls/{cache_key}/{segment}",
+            get(get_hls_segment),
+        )
         .route(
             "/api/v1/tracks/{id}/covers/small.webp",
             get(get_cover_small),
@@ -77,7 +87,29 @@ pub fn app(state: AppState) -> Router {
         .route("/api/v1/errors/tracks/{id}/requeue", post(requeue_track))
         .fallback(static_asset)
         .layer(middleware::from_fn(request_logging))
+        .layer(cors_layer())
         .with_state(state)
+}
+
+fn cors_layer() -> CorsLayer {
+    CorsLayer::new()
+        .allow_origin(AllowOrigin::predicate(|origin, _| {
+            origin
+                .to_str()
+                .map(|origin| {
+                    matches!(
+                        origin,
+                        "http://localhost:5173"
+                            | "http://localhost:5174"
+                            | "http://127.0.0.1:5173"
+                            | "http://127.0.0.1:5174"
+                    )
+                })
+                .unwrap_or(false)
+        }))
+        .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
+        .allow_headers([header::CONTENT_TYPE])
+        .allow_credentials(true)
 }
 
 async fn request_logging(request: Request, next: Next) -> Response {

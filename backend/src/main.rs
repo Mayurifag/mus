@@ -17,7 +17,6 @@ use mus_backend::{
 };
 use rusqlite::Connection;
 use tokio::sync::broadcast;
-use tower_http::cors::CorsLayer;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -35,7 +34,7 @@ async fn main() -> Result<()> {
         }
     });
     tokio::spawn(watch_music_dir(state.clone()));
-    let app = app(state).layer(CorsLayer::permissive());
+    let app = app(state);
 
     let port = env::var("PORT")
         .ok()

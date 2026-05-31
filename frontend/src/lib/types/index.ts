@@ -1,5 +1,5 @@
 export interface Track {
-  id: number;
+  id: string;
   title: string;
   artist: string;
   duration: number;
@@ -8,6 +8,7 @@ export interface Track {
   has_cover: boolean;
   cover_small_url: string | null;
   cover_original_url: string | null;
+  hls_url: string;
 }
 
 export interface ArtworkSearchResult {
@@ -27,7 +28,7 @@ export interface TimeRange {
 }
 
 export interface PlayerState {
-  current_track_id: number | null;
+  current_track_id: string | null;
   progress_seconds: number;
   volume_level: number;
   is_muted: boolean;

@@ -18,7 +18,6 @@ export function handleMusEvent(payload: MusEvent): void {
     payload.action_key !== "download_progress" &&
     (payload.action_key !== "track_updated" || payload.message_to_show)
   ) {
-    console.log("Recent event", payload);
     recentEventsStore.addEvent(payload);
   }
 
@@ -46,7 +45,7 @@ export function handleMusEvent(payload: MusEvent): void {
     case "track_deleted":
       if (
         payload.action_payload &&
-        typeof payload.action_payload.id === "number"
+        typeof payload.action_payload.id === "string"
       ) {
         trackStore.deleteTrack(payload.action_payload.id);
       }

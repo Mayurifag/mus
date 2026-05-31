@@ -82,7 +82,6 @@ describe("eventHandlerService", () => {
       handleMusEvent(payload);
 
       expect(toast.success).toHaveBeenCalledWith("Test message");
-      expect(console.log).toHaveBeenCalledWith("Recent event", payload);
       expect(recentEventsStore.addEvent).toHaveBeenCalledWith(payload);
     });
 
@@ -131,7 +130,7 @@ describe("eventHandlerService", () => {
     it("should handle download_completed event", async () => {
       const tracks: Track[] = [
         {
-          id: 1,
+          id: "1",
           title: "Downloaded Track",
           artist: "Downloaded Artist",
           duration: 180,
@@ -139,6 +138,7 @@ describe("eventHandlerService", () => {
           has_cover: false,
           cover_small_url: null,
           cover_original_url: null,
+          hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
           updated_at: 1,
         },
       ];
@@ -161,7 +161,7 @@ describe("eventHandlerService", () => {
 
     it("should handle track_added event", () => {
       const trackData = {
-        id: 1,
+        id: "1",
         title: "Test Track",
         artist: "Test Artist",
         duration: 180,
@@ -169,6 +169,8 @@ describe("eventHandlerService", () => {
         has_cover: true,
         cover_small_url: "/api/v1/tracks/1/covers/small.webp",
         cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+        hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
+        updated_at: 1,
       };
 
       const payload: MusEvent = {
@@ -184,12 +186,13 @@ describe("eventHandlerService", () => {
         ...trackData,
         cover_small_url: "/api/v1/tracks/1/covers/small.webp",
         cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+        hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
       });
     });
 
     it("should handle track_updated event", async () => {
       const trackData = {
-        id: 1,
+        id: "1",
         title: "Updated Track",
         artist: "Updated Artist",
         duration: 200,
@@ -197,6 +200,8 @@ describe("eventHandlerService", () => {
         has_cover: false,
         cover_small_url: null,
         cover_original_url: null,
+        hls_url: "/api/v1/tracks/1/hls/2/index.m3u8",
+        updated_at: 2,
       };
 
       const payload: MusEvent = {
@@ -212,6 +217,7 @@ describe("eventHandlerService", () => {
         ...trackData,
         cover_small_url: null,
         cover_original_url: null,
+        hls_url: "/api/v1/tracks/1/hls/2/index.m3u8",
       });
       await vi.waitFor(() => {
         expect(trackStore.setTracks).toHaveBeenCalledWith([]);
@@ -223,12 +229,12 @@ describe("eventHandlerService", () => {
         message_to_show: null,
         message_level: null,
         action_key: "track_deleted",
-        action_payload: { id: 1 },
+        action_payload: { id: "1" },
       };
 
       handleMusEvent(payload);
 
-      expect(trackStore.deleteTrack).toHaveBeenCalledWith(1);
+      expect(trackStore.deleteTrack).toHaveBeenCalledWith("1");
     });
 
     it("should not call trackStore methods when action_payload is missing", () => {
@@ -246,12 +252,12 @@ describe("eventHandlerService", () => {
       expect(trackStore.deleteTrack).not.toHaveBeenCalled();
     });
 
-    it("should not call deleteTrack when id is not a number", () => {
+    it("should not call deleteTrack when id is not a string", () => {
       const payload: MusEvent = {
         message_to_show: null,
         message_level: null,
         action_key: "track_deleted",
-        action_payload: { id: "not-a-number" },
+        action_payload: { id: 1 },
       };
 
       handleMusEvent(payload);

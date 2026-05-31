@@ -1,4 +1,9 @@
-use std::{fs, path::Path, process::Stdio, time::Duration};
+use std::{
+    fs,
+    path::Path,
+    process::{Output, Stdio},
+    time::Duration,
+};
 
 use anyhow::{anyhow, Result};
 use serde_json::Value;
@@ -25,7 +30,7 @@ pub async fn read_metadata(path: &Path) -> Result<MediaMetadata> {
     let mut command = Command::new("ffprobe");
     command.args([
         "-v",
-        "quiet",
+        "error",
         "-print_format",
         "json",
         "-show_format",
@@ -33,7 +38,7 @@ pub async fn read_metadata(path: &Path) -> Result<MediaMetadata> {
     ]);
     let output = run_command_output(command, Duration::from_secs(30)).await?;
     if !output.status.success() {
-        return Err(anyhow!("ffprobe failed"));
+        return Err(anyhow!(ffprobe_error_message(&output)));
     }
     let data: Value = serde_json::from_slice(&output.stdout)?;
     let format = data.get("format").unwrap_or(&Value::Null);
@@ -57,7 +62,16 @@ pub async fn read_metadata(path: &Path) -> Result<MediaMetadata> {
     })
 }
 
-pub async fn extract_cover(path: &Path, covers_dir: &Path, id: i64) -> Result<bool> {
+fn ffprobe_error_message(output: &Output) -> String {
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    if stderr.is_empty() {
+        format!("ffprobe failed ({})", output.status)
+    } else {
+        format!("ffprobe failed ({}): {}", output.status, stderr)
+    }
+}
+
+pub async fn extract_cover(path: &Path, covers_dir: &Path, id: &str) -> Result<bool> {
     let original = covers_dir.join(format!("{id}_original.webp"));
     let small = covers_dir.join(format!("{id}_small.webp"));
     let mut command = Command::new("ffmpeg");

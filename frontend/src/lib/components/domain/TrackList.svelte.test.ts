@@ -54,7 +54,7 @@ describe("TrackList component", () => {
   beforeEach(() => {
     mockTracks = [
       {
-        id: 1,
+        id: "1",
         title: "Song 1",
         artist: "Artist 1",
         duration: 180,
@@ -62,10 +62,11 @@ describe("TrackList component", () => {
         has_cover: true,
         cover_small_url: "/api/v1/tracks/1/covers/small.webp",
         cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+        hls_url: "/api/v1/tracks/1/hls/1640995200/index.m3u8",
         updated_at: 1640995200,
       },
       {
-        id: 2,
+        id: "2",
         title: "Song 2",
         artist: "Artist 2",
         duration: 240,
@@ -73,6 +74,7 @@ describe("TrackList component", () => {
         has_cover: false,
         cover_small_url: null,
         cover_original_url: null,
+        hls_url: "/api/v1/tracks/2/hls/1640995300/index.m3u8",
         updated_at: 1640995300,
       },
     ];

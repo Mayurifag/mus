@@ -7,6 +7,7 @@ edition = "2021"
 anyhow = "1.0"
 async-stream = "0.3"
 axum = { version = "0.8", features = ["multipart"] }
+blake3 = "1.5"
 futures-util = "0.3"
 filetime = "0.2"
 id3 = "1.16"

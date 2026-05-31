@@ -3,7 +3,7 @@ use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Track {
-    pub id: i64,
+    pub id: String,
     pub title: String,
     pub artist: String,
     pub duration: i64,
@@ -13,14 +13,14 @@ pub struct Track {
     pub has_cover: bool,
     pub inode: Option<i64>,
     pub file_signature: Option<String>,
-    pub content_hash: Option<String>,
+    pub content_hash: String,
     pub processing_status: String,
     pub last_error: Option<Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrackDto {
-    pub id: i64,
+    pub id: String,
     pub title: String,
     pub artist: String,
     pub duration: i64,
@@ -29,11 +29,12 @@ pub struct TrackDto {
     pub has_cover: bool,
     pub cover_small_url: Option<String>,
     pub cover_original_url: Option<String>,
+    pub hls_url: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlayerState {
-    pub current_track_id: Option<i64>,
+    pub current_track_id: Option<String>,
     pub progress_seconds: f64,
     pub volume_level: f64,
     pub is_muted: bool,

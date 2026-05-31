@@ -5,7 +5,3 @@ export function isStaticAsset(pathname: string): boolean {
 export function shouldSkipCache(pathname: string): boolean {
   return pathname.startsWith("/api/");
 }
-
-export function isAudioStream(pathname: string): boolean {
-  return /^\/api\/v1\/tracks\/\d+\/stream$/.test(pathname);
-}

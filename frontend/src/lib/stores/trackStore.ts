@@ -513,7 +513,7 @@ function createTrackStore() {
           playHistory: newPlayHistory,
         };
       }),
-    deleteTrack: (trackId: number) => {
+    deleteTrack: (trackId: string) => {
       return update((state) => {
         const trackIndex = state.tracks.findIndex((t) => t.id === trackId);
         if (trackIndex === -1) return state;

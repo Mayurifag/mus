@@ -13,13 +13,14 @@ vi.mock("$lib/stores/trackStore", () => {
         currentTrackIndex: 0,
         playHistory: [],
         currentTrack: {
-          id: 1,
+          id: "1",
           title: "Test Track",
           artist: "Test Artist",
           duration: 180,
           has_cover: true,
           cover_small_url: "/api/v1/tracks/1/covers/small.webp",
           cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+          hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
         },
         is_shuffle: false,
       });
@@ -58,6 +59,15 @@ describe("PlayerFooter component", () => {
     expect(container).toBeTruthy();
     expect(container.textContent).toContain("Test Track");
     expect(container.textContent).toContain("Test Artist");
+  });
+
+  it("should show the original cover in the desktop footer", () => {
+    const { container } = render(PlayerFooter);
+    const cover = container.querySelector('img[alt="Album Cover"]');
+
+    expect(cover?.getAttribute("src")).toBe(
+      "/api/v1/tracks/1/covers/original.webp",
+    );
   });
 
   it("should have correct height classes for mobile and desktop", () => {

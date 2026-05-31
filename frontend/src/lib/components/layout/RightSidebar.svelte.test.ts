@@ -52,7 +52,7 @@ describe("RightSidebar", () => {
   it("should render Lucide Play icon in timeline when shuffle is enabled", () => {
     // Setup mock track data
     const mockTrack1: Track = {
-      id: 1,
+      id: "1",
       title: "Test Track 1",
       artist: "Test Artist",
       duration: 180,
@@ -61,10 +61,11 @@ describe("RightSidebar", () => {
       has_cover: false,
       cover_small_url: null,
       cover_original_url: null,
+      hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
     };
 
     const mockTrack2: Track = {
-      id: 2,
+      id: "2",
       title: "Test Track 2",
       artist: "Test Artist",
       duration: 200,
@@ -73,6 +74,7 @@ describe("RightSidebar", () => {
       has_cover: false,
       cover_small_url: null,
       cover_original_url: null,
+      hls_url: "/api/v1/tracks/2/hls/2/index.m3u8",
     };
 
     // Enable shuffle and set up play history with enough tracks
@@ -92,7 +94,7 @@ describe("RightSidebar", () => {
   it("should render top artists and filter by artist", async () => {
     const tracks: Track[] = [
       {
-        id: 1,
+        id: "1",
         title: "Song 1",
         artist: "Artist A; Artist B",
         duration: 180,
@@ -101,9 +103,10 @@ describe("RightSidebar", () => {
         has_cover: false,
         cover_small_url: null,
         cover_original_url: null,
+        hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
       },
       {
-        id: 2,
+        id: "2",
         title: "Song 2",
         artist: "Artist A",
         duration: 200,
@@ -112,6 +115,7 @@ describe("RightSidebar", () => {
         has_cover: false,
         cover_small_url: null,
         cover_original_url: null,
+        hls_url: "/api/v1/tracks/2/hls/2/index.m3u8",
       },
     ];
 
@@ -130,7 +134,7 @@ describe("RightSidebar", () => {
   it("should not show selected artist summary in the sidebar", () => {
     const tracks: Track[] = [
       {
-        id: 1,
+        id: "1",
         title: "Song 1",
         artist: "Artist A",
         duration: 180,
@@ -139,6 +143,7 @@ describe("RightSidebar", () => {
         has_cover: false,
         cover_small_url: null,
         cover_original_url: null,
+        hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
       },
     ];
 
@@ -155,7 +160,7 @@ describe("RightSidebar", () => {
   it("should not filter artists with one song", async () => {
     const tracks: Track[] = [
       {
-        id: 1,
+        id: "1",
         title: "Song 1",
         artist: "Artist A",
         duration: 180,
@@ -164,6 +169,7 @@ describe("RightSidebar", () => {
         has_cover: false,
         cover_small_url: null,
         cover_original_url: null,
+        hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
       },
     ];
 

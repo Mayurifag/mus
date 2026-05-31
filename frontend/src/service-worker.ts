@@ -2,12 +2,7 @@
 /// <reference lib="webworker" />
 
 import { build, files, prerendered, version } from "$service-worker";
-import { boundedAudioStreamRangeHeader } from "$lib/utils/audioStreamRange";
-import {
-  isAudioStream,
-  isStaticAsset,
-  shouldSkipCache,
-} from "$lib/utils/serviceWorkerCache";
+import { isStaticAsset, shouldSkipCache } from "$lib/utils/serviceWorkerCache";
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -49,16 +44,6 @@ self.addEventListener("fetch", (event) => {
   }
 
   const url = new URL(request.url);
-
-  const audioRange = isAudioStream(url.pathname)
-    ? boundedAudioStreamRangeHeader(request.headers.get("range"))
-    : null;
-  if (audioRange) {
-    const headers = new Headers(request.headers);
-    headers.set("Range", audioRange);
-    event.respondWith(fetch(new Request(request, { headers })));
-    return;
-  }
 
   if (isStaticAsset(url.pathname)) {
     event.respondWith(

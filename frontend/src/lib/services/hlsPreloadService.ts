@@ -1,7 +1,5 @@
-import { getStreamUrl } from "$lib/services/apiClient";
 import type { Track } from "$lib/types";
 import type { TrackStoreState } from "$lib/stores/trackStore";
-import { audioStreamRangeHeader } from "$lib/utils/audioStreamRange";
 import { parseArtists } from "$lib/utils/formatters";
 
 export function getNextTrackForPreload(state: TrackStoreState): Track | null {
@@ -34,7 +32,7 @@ export function getNextTrackForPreload(state: TrackStoreState): Track | null {
   return state.tracks[(state.currentTrackIndex + 1) % state.tracks.length];
 }
 
-export class StreamPreloadService {
+export class HlsPreloadService {
   private fetchFn: typeof fetch;
   private nextAbort: AbortController | null = null;
   private nextKey: string | null = null;
@@ -55,7 +53,7 @@ export class StreamPreloadService {
       if (nextTrack && nextKey) {
         const controller = new AbortController();
         this.nextAbort = controller;
-        void this.downloadTrack(nextTrack, controller.signal).catch(
+        void this.preloadTrack(nextTrack, controller.signal).catch(
           this.ignoreAbort,
         );
       }
@@ -66,27 +64,50 @@ export class StreamPreloadService {
     this.nextAbort?.abort();
   }
 
-  private async downloadTrack(
-    track: Track,
-    signal: AbortSignal,
-  ): Promise<void> {
-    const response = await this.fetchFn(getStreamUrl(track.id), {
-      headers: {
-        Range: audioStreamRangeHeader(0),
-      },
-      signal,
-    });
-    if (response.status !== 206) return;
+  private async preloadTrack(track: Track, signal: AbortSignal): Promise<void> {
+    const playlistResponse = await this.fetchFn(track.hls_url, { signal });
+    if (!playlistResponse.ok) return;
 
-    await response.arrayBuffer();
+    const mediaUrls = firstHlsMediaUrls(
+      track.hls_url,
+      await playlistResponse.text(),
+    );
+
+    for (const mediaUrl of mediaUrls) {
+      const mediaResponse = await this.fetchFn(mediaUrl, { signal });
+      if (mediaResponse.ok) {
+        await mediaResponse.arrayBuffer();
+      }
+    }
   }
 
   private trackKey(track: Track): string {
-    return `${track.id}:${track.updated_at}`;
+    return `${track.id}:${track.hls_url}`;
   }
 
   private ignoreAbort(error: unknown): void {
     if (error instanceof DOMException && error.name === "AbortError") return;
-    console.error("Stream preload failed", error);
+    console.error("HLS preload failed", error);
   }
+}
+
+export function firstHlsMediaUrls(
+  playlistUrl: string,
+  playlist: string,
+): string[] {
+  const lines = playlist.split("\n").map((value) => value.trim());
+  const urls: string[] = [];
+  const init = lines
+    .find((value) => value.startsWith("#EXT-X-MAP:"))
+    ?.match(/URI="([^"]+)"/)?.[1];
+  if (init) {
+    urls.push(new URL(init, playlistUrl).toString());
+  }
+
+  const segment = lines.find((value) => value !== "" && !value.startsWith("#"));
+  if (segment) {
+    urls.push(new URL(segment, playlistUrl).toString());
+  }
+
+  return urls;
 }

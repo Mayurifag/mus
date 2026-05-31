@@ -3,13 +3,33 @@ import { AudioService } from "./AudioService";
 import type { Track } from "$lib/types";
 import { trackStore } from "$lib/stores/trackStore";
 
-const mockGetStreamUrl = vi.hoisted(() => vi.fn());
-const STREAM_BASE_URL = "https://music.example/api/v1";
-
-// Mock the apiClient module
-vi.mock("$lib/services/apiClient", () => ({
-  getStreamUrl: mockGetStreamUrl,
+const HLS_URL = "https://music.example/api/v1/tracks/1/hls/2001/index.m3u8";
+const mockHls = vi.hoisted(() => ({
+  isSupported: vi.fn(),
+  instances: [] as Array<{
+    loadSource: ReturnType<typeof vi.fn>;
+    attachMedia: ReturnType<typeof vi.fn>;
+    destroy: ReturnType<typeof vi.fn>;
+    on: ReturnType<typeof vi.fn>;
+  }>,
 }));
+
+vi.mock("hls.js", () => {
+  class MockHls {
+    static Events = { ERROR: "hlsError" };
+    static isSupported = mockHls.isSupported;
+    loadSource = vi.fn();
+    attachMedia = vi.fn();
+    destroy = vi.fn();
+    on = vi.fn();
+
+    constructor() {
+      mockHls.instances.push(this);
+    }
+  }
+
+  return { default: MockHls };
+});
 
 // Mock the trackStore module
 vi.mock("$lib/stores/trackStore", () => ({
@@ -23,7 +43,7 @@ describe("AudioService", () => {
   let mockAudio: HTMLAudioElement;
 
   const mockTrack: Track = {
-    id: 1,
+    id: "1",
     title: "Test Track",
     artist: "Test Artist",
     duration: 180,
@@ -31,14 +51,14 @@ describe("AudioService", () => {
     has_cover: true,
     cover_small_url: "/api/v1/tracks/1/covers/small.webp",
     cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+    hls_url: HLS_URL,
     updated_at: 1640995200,
   };
 
   beforeEach(() => {
-    mockGetStreamUrl.mockReset();
-    mockGetStreamUrl.mockImplementation(
-      (trackId: number) => `${STREAM_BASE_URL}/tracks/${trackId}/stream`,
-    );
+    mockHls.isSupported.mockReset();
+    mockHls.isSupported.mockReturnValue(true);
+    mockHls.instances.length = 0;
 
     // Create a mock audio element
     const mockBuffered = {
@@ -53,6 +73,7 @@ describe("AudioService", () => {
       play: vi.fn().mockResolvedValue(undefined),
       pause: vi.fn(),
       load: vi.fn(),
+      canPlayType: vi.fn().mockReturnValue(""),
       src: "",
       currentTime: 0,
       duration: 180,
@@ -99,8 +120,10 @@ describe("AudioService", () => {
   it("should update audio source when track changes", () => {
     audioService.updateAudioSource(mockTrack, true);
 
-    expect(mockAudio.src).toBe(`${STREAM_BASE_URL}/tracks/1/stream`);
-    expect(mockAudio.load).toHaveBeenCalled();
+    const hls = mockHls.instances[0];
+    expect(hls.loadSource).toHaveBeenCalledWith(HLS_URL);
+    expect(hls.attachMedia).toHaveBeenCalledWith(mockAudio);
+    expect(mockAudio.load).not.toHaveBeenCalled();
   });
 
   it("should not load a new source until playback or seek starts", () => {
@@ -108,12 +131,23 @@ describe("AudioService", () => {
 
     expect(mockAudio.src).toBe("");
     expect(mockAudio.load).not.toHaveBeenCalled();
+    expect(mockHls.instances).toHaveLength(0);
 
     audioService.play();
 
-    expect(mockAudio.src).toBe(`${STREAM_BASE_URL}/tracks/1/stream`);
-    expect(mockAudio.load).toHaveBeenCalledOnce();
+    expect(mockHls.instances[0].loadSource).toHaveBeenCalledWith(HLS_URL);
     expect(mockAudio.play).toHaveBeenCalledOnce();
+  });
+
+  it("uses native HLS when MediaSource HLS is unavailable", () => {
+    mockHls.isSupported.mockReturnValue(false);
+    vi.mocked(mockAudio.canPlayType).mockReturnValue("maybe");
+
+    audioService.updateAudioSource(mockTrack, true);
+
+    expect(mockAudio.src).toBe(HLS_URL);
+    expect(mockAudio.load).toHaveBeenCalledOnce();
+    expect(mockHls.instances).toHaveLength(0);
   });
 
   it("should request playback when advancing after track end", () => {
@@ -371,7 +405,7 @@ describe("AudioService", () => {
     loadedMetadataHandler();
 
     expect(mockAudio.currentTime).toBe(42);
-    expect(mockAudio.load).toHaveBeenCalledOnce();
+    expect(mockHls.instances[0].loadSource).toHaveBeenCalledWith(HLS_URL);
   });
 
   describe("buffered ranges", () => {

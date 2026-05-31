@@ -16,7 +16,7 @@ export function restorePlayerState(
   audioService: AudioService | undefined,
   tracks: Track[],
   playerState: PlayerState,
-): number | null {
+): string | null {
   if (!audioService) return null;
 
   const {

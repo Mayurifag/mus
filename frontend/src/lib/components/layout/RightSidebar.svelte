@@ -60,7 +60,7 @@
     }
   }
 
-  function removeErroredTrack(trackId: number) {
+  function removeErroredTrack(trackId: string) {
     erroredTracks = erroredTracks.filter((track) => track.id !== trackId);
   }
 

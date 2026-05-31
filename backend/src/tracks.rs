@@ -19,131 +19,43 @@ use tower_http::services::ServeFile;
 use crate::{
     artwork::download_artwork_as_jpeg,
     db::{self, delete_track_row, get_track, save_track, track_dto},
+    derived::delete_track_derived_files,
     error::AppError,
     events::broadcast,
+    hls::prewarm_track_hls,
     media::{apply_audio_update, extract_cover, AudioUpdate},
     models::{TrackDto, TrackUpdate},
     scanner::upsert_path,
     state::AppState,
     util::{
-        can_write, file_content_hash, file_signature, generate_filename, inode, normalize_artists,
-        normalize_text, now, now_nanos, system_time_secs,
+        can_write, file_content_hash, file_signature, generate_filename, inode, is_hash_id,
+        normalize_artists, normalize_text, now, now_nanos, system_time_secs,
     },
 };
-
-const STREAM_RANGE_CHUNK_BYTES: u64 = 256 * 1024;
 
 pub async fn get_tracks(State(state): State<AppState>) -> Result<Json<Vec<TrackDto>>, AppError> {
     let tracks = db::list_tracks(&state)?;
     Ok(Json(tracks.into_iter().map(track_dto).collect()))
 }
 
-pub async fn stream_track(
-    request_headers: HeaderMap,
-    State(state): State<AppState>,
-    AxumPath(id): AxumPath<i64>,
-) -> Result<Response, AppError> {
-    let track = get_track(&state, id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
-    if !Path::new(&track.file_path).is_file() {
-        return Err(AppError::not_found("Audio file not found"));
-    }
-    let file_size = fs::metadata(&track.file_path)?.len();
-    let content_type = mime_guess::from_path(&track.file_path).first_or_octet_stream();
-    let mut request = Request::new(Body::empty());
-    *request.headers_mut() = request_headers;
-    normalize_stream_range_header(request.headers_mut(), file_size);
-
-    let mut response = match ServeFile::new(track.file_path).oneshot(request).await {
-        Ok(response) => response,
-        Err(error) => match error {},
-    };
-    if response.status().is_success() {
-        response.headers_mut().insert(
-            header::CACHE_CONTROL,
-            HeaderValue::from_static("public, max-age=86400"),
-        );
-        response.headers_mut().insert(
-            header::CONTENT_TYPE,
-            HeaderValue::from_str(content_type.as_ref()).unwrap(),
-        );
-    } else if response.status() == StatusCode::RANGE_NOT_SATISFIABLE {
-        response.headers_mut().remove(header::CONTENT_TYPE);
-    }
-    Ok(response.into_response())
-}
-
-fn normalize_stream_range_header(headers: &mut HeaderMap, file_size: u64) {
-    if file_size == 0 {
-        return;
-    }
-    let Some(range) = headers
-        .get(header::RANGE)
-        .and_then(|value| value.to_str().ok())
-    else {
-        return;
-    };
-    let Some(spec) = range.strip_prefix("bytes=") else {
-        return;
-    };
-    let first_range = spec.split(',').next().unwrap_or_default().trim();
-    if first_range.is_empty() {
-        return;
-    }
-
-    let normalized = normalize_suffix_stream_range(first_range, file_size)
-        .or_else(|| normalize_start_stream_range(first_range, file_size))
-        .or_else(|| spec.contains(',').then(|| format!("bytes={first_range}")));
-    if let Some(value) = normalized.and_then(|value| HeaderValue::from_str(&value).ok()) {
-        headers.insert(header::RANGE, value);
-    }
-}
-
-fn normalize_suffix_stream_range(range: &str, file_size: u64) -> Option<String> {
-    let suffix = range.strip_prefix('-')?;
-    let bytes = suffix.parse::<u64>().ok()?;
-    if bytes == 0 || bytes < file_size {
-        return None;
-    }
-    Some(format!("bytes=0-{}", file_size - 1))
-}
-
-fn normalize_start_stream_range(range: &str, file_size: u64) -> Option<String> {
-    let (start, end) = range.split_once('-')?;
-    let start = start.trim().parse::<u64>().ok()?;
-    if start >= file_size {
-        return None;
-    }
-
-    let capped_end = start
-        .saturating_add(STREAM_RANGE_CHUNK_BYTES - 1)
-        .min(file_size - 1);
-    if end.trim().is_empty() {
-        return Some(format!("bytes={start}-{capped_end}"));
-    }
-
-    let end = end.trim().parse::<u64>().ok()?;
-    if end > capped_end && end >= start {
-        return Some(format!("bytes={start}-{capped_end}"));
-    }
-
-    None
-}
-
 pub async fn get_cover_small(
     State(state): State<AppState>,
-    AxumPath(id): AxumPath<i64>,
+    AxumPath(id): AxumPath<String>,
 ) -> Result<Response, AppError> {
-    cover_response(state, id, "small").await
+    cover_response(state, &id, "small").await
 }
 
 pub async fn get_cover_original(
     State(state): State<AppState>,
-    AxumPath(id): AxumPath<i64>,
+    AxumPath(id): AxumPath<String>,
 ) -> Result<Response, AppError> {
-    cover_response(state, id, "original").await
+    cover_response(state, &id, "original").await
 }
 
-async fn cover_response(state: AppState, id: i64, size: &str) -> Result<Response, AppError> {
+async fn cover_response(state: AppState, id: &str, size: &str) -> Result<Response, AppError> {
+    if !is_hash_id(id) {
+        return Err(AppError::not_found("Cover not found"));
+    }
     let cover_path = state.covers_dir.join(format!("{id}_{size}.webp"));
     if !cover_path.is_file() {
         return Err(AppError::not_found("Cover not found"));
@@ -166,13 +78,13 @@ async fn cover_response(state: AppState, id: i64, size: &str) -> Result<Response
 
 pub async fn update_track(
     State(state): State<AppState>,
-    AxumPath(id): AxumPath<i64>,
+    AxumPath(id): AxumPath<String>,
     Json(update): Json<TrackUpdate>,
 ) -> Result<Json<Value>, AppError> {
     if !can_write(&state.music_dir) {
         return Err(AppError::forbidden("Music directory is read-only"));
     }
-    let track = get_track(&state, id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
+    let track = get_track(&state, &id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
     let new_title = normalize_text(&update.title.clone().unwrap_or_else(|| track.title.clone()));
     let new_artist = normalize_artists(
         &update
@@ -208,6 +120,7 @@ pub async fn update_track(
     }
 
     tokio::spawn(async move {
+        let requested_id = id.clone();
         match apply_track_update(state.clone(), id, update).await {
             Ok(dto) => {
                 tracing::info!(track_id = dto.id, rename_file, "track updated");
@@ -222,7 +135,7 @@ pub async fn update_track(
             Err(error) => {
                 let message = error.message;
                 tracing::error!(
-                    track_id = id,
+                    track_id = requested_id.as_str(),
                     error = message.as_str(),
                     "track update failed"
                 );
@@ -231,7 +144,7 @@ pub async fn update_track(
                     "track_update_failed",
                     Some("Failed to update track"),
                     Some("error"),
-                    Some(json!({"id": id, "error": message})),
+                    Some(json!({"id": requested_id, "error": message})),
                 );
             }
         }
@@ -242,11 +155,13 @@ pub async fn update_track(
 
 async fn apply_track_update(
     state: AppState,
-    id: i64,
+    id: String,
     update: TrackUpdate,
 ) -> Result<TrackDto, AppError> {
     let _guard = state.mutation_lock(format!("track:{id}")).await;
-    let mut track = get_track(&state, id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
+    let mut track =
+        get_track(&state, &id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
+    let old_id = track.id.clone();
     let new_title = normalize_text(&update.title.unwrap_or_else(|| track.title.clone()));
     let new_artist = normalize_artists(&update.artist.unwrap_or_else(|| track.artist.clone()));
     let rename_file = update.rename_file.unwrap_or(false);
@@ -294,12 +209,6 @@ async fn apply_track_update(
     new_path = update_result.path;
 
     track.file_path = new_path.to_string_lossy().to_string();
-    if update_result.changed {
-        track.has_cover = extract_cover(&new_path, &state.covers_dir, track.id)
-            .await
-            .unwrap_or(false);
-    }
-
     track.title = new_title;
     track.artist = new_artist;
     let file_meta = fs::metadata(&new_path)?;
@@ -313,29 +222,39 @@ async fn apply_track_update(
     track.inode = inode(&file_meta);
     track.file_signature = Some(file_signature(&file_meta));
     let hash_path = new_path.clone();
-    track.content_hash = Some(
-        tokio::task::spawn_blocking(move || file_content_hash(&hash_path))
+    let content_hash = tokio::task::spawn_blocking(move || file_content_hash(&hash_path))
+        .await
+        .map_err(|error| AppError::from(anyhow!(error)))??;
+    track.id = content_hash.clone();
+    track.content_hash = content_hash;
+    if old_id != track.id {
+        delete_track_derived_files(&state, &old_id);
+    }
+    if update_result.changed {
+        track.has_cover = extract_cover(&new_path, &state.covers_dir, &track.id)
             .await
-            .map_err(|error| AppError::from(anyhow!(error)))??,
-    );
-    save_track(&state, &track)?;
+            .unwrap_or(false);
+    }
+    save_track(&state, &old_id, &track)?;
+    prewarm_track_hls(&state, &track).await;
     Ok(track_dto(track))
 }
 
 pub async fn delete_track(
     State(state): State<AppState>,
-    AxumPath(id): AxumPath<i64>,
+    AxumPath(id): AxumPath<String>,
 ) -> Result<StatusCode, AppError> {
     if !can_write(&state.music_dir) {
         return Err(AppError::forbidden("Music directory is read-only"));
     }
-    if let Some(track) = get_track(&state, id)? {
+    if let Some(track) = get_track(&state, &id)? {
         match fs::remove_file(&track.file_path) {
             Ok(()) => {}
             Err(error) if error.kind() == io::ErrorKind::NotFound => {}
             Err(error) => return Err(error.into()),
         }
-        delete_track_row(&state, id)?;
+        delete_track_row(&state, &id)?;
+        delete_track_derived_files(&state, &id);
         tracing::info!(track_id = id, "track deleted");
         broadcast(
             &state,

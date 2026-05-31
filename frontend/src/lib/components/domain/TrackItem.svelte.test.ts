@@ -62,7 +62,7 @@ describe("TrackItem component", () => {
 
   beforeEach(() => {
     mockTrack = {
-      id: 1,
+      id: "1",
       title: "Test Song",
       artist: "Test Artist",
       duration: 180,
@@ -70,6 +70,7 @@ describe("TrackItem component", () => {
       has_cover: true,
       cover_small_url: "/api/v1/tracks/1/covers/small.webp",
       cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+      hls_url: "/api/v1/tracks/1/hls/1640995200/index.m3u8",
       updated_at: 1640995200,
     };
 
@@ -77,7 +78,7 @@ describe("TrackItem component", () => {
     vi.mocked(trackStore.playTrack).mockClear();
     vi.mocked(trackStore.setArtistFilter).mockClear();
     mockTrackStoreState.selectedArtist = null;
-    mockTrackStoreState.tracks = [mockTrack, { ...mockTrack, id: 2 }];
+    mockTrackStoreState.tracks = [mockTrack, { ...mockTrack, id: "2" }];
   });
 
   it("renders track details correctly", () => {
@@ -196,7 +197,7 @@ describe("TrackItem component", () => {
 
   it("renders duplicate artists once", () => {
     mockTrack.artist = "Test Artist; Test Artist";
-    mockTrackStoreState.tracks = [mockTrack, { ...mockTrack, id: 2 }];
+    mockTrackStoreState.tracks = [mockTrack, { ...mockTrack, id: "2" }];
 
     render(TrackItem, { track: mockTrack, index: 0, isSelected: false });
 

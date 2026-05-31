@@ -30,7 +30,7 @@ Object.defineProperty(globalThis, "localStorage", {
 });
 
 const mockTrackFromBackend = {
-  id: 1,
+  id: "1",
   title: "Test Track",
   artist: "Test Artist",
   duration: 180,
@@ -38,10 +38,11 @@ const mockTrackFromBackend = {
   has_cover: true,
   cover_small_url: "/api/v1/tracks/1/covers/small.webp",
   cover_original_url: "/api/v1/tracks/1/covers/original.webp",
+  hls_url: "/api/v1/tracks/1/hls/1640995200/index.m3u8",
 };
 
 const mockTrackTransformed = {
-  id: 1,
+  id: "1",
   title: "Test Track",
   artist: "Test Artist",
   duration: 180,
@@ -49,10 +50,11 @@ const mockTrackTransformed = {
   has_cover: true,
   cover_small_url: `${PUBLIC_API_BASE_URL}/tracks/1/covers/small.webp?v=1640995200`,
   cover_original_url: `${PUBLIC_API_BASE_URL}/tracks/1/covers/original.webp?v=1640995200`,
+  hls_url: `${PUBLIC_API_BASE_URL}/tracks/1/hls/1640995200/index.m3u8`,
 };
 
 const mockPlayerState = {
-  current_track_id: 1,
+  current_track_id: "1",
   progress_seconds: 30,
   volume_level: 0.7,
   is_muted: false,

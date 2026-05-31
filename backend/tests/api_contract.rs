@@ -2,7 +2,7 @@ use std::fs;
 
 use axum::{
     body::{to_bytes, Body},
-    http::{header, HeaderValue, Method, Request, StatusCode},
+    http::{header, Method, Request, StatusCode},
     Router,
 };
 use mus_backend::{
@@ -13,6 +13,9 @@ use rusqlite::{params, Connection};
 use serde_json::{json, Value};
 use tempfile::TempDir;
 use tower::ServiceExt;
+
+const TRACK_ID: &str = "1111111111111111111111111111111111111111111111111111111111111111";
+const MISSING_TRACK_ID: &str = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
 struct TestApp {
     router: Router,
@@ -66,7 +69,7 @@ impl TestApp {
 
     fn insert_track(
         &self,
-        id: i64,
+        id: &str,
         title: &str,
         artist: &str,
         file_path: &str,
@@ -75,8 +78,8 @@ impl TestApp {
     ) {
         let conn = self.state.db.lock().unwrap();
         conn.execute(
-            "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,has_cover,processing_status,last_error) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
-            params![id, title, artist, 180, file_path, 1000 + id, 2000 + id, has_cover, status, status.eq("ERROR").then_some("{\"message\":\"boom\"}")],
+            "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,has_cover,content_hash,processing_status,last_error) VALUES (?1,?2,?3,?4,?5,1000,2000,?6,?1,?7,?8)",
+            params![id, title, artist, 180, file_path, has_cover, status, status.eq("ERROR").then_some("{\"message\":\"boom\"}")],
         )
         .unwrap();
     }
@@ -84,6 +87,41 @@ impl TestApp {
 
 async fn body_json(response: axum::response::Response) -> Value {
     serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap()).unwrap()
+}
+
+async fn body_text(response: axum::response::Response) -> String {
+    String::from_utf8(
+        to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap()
+            .to_vec(),
+    )
+    .unwrap()
+}
+
+fn write_silent_wav(path: &std::path::Path) {
+    let sample_rate = 8_000u32;
+    let channels = 1u16;
+    let bits_per_sample = 16u16;
+    let samples = sample_rate;
+    let data_len = samples * channels as u32 * bits_per_sample as u32 / 8;
+    let mut data = Vec::new();
+    data.extend_from_slice(b"RIFF");
+    data.extend_from_slice(&(36 + data_len).to_le_bytes());
+    data.extend_from_slice(b"WAVEfmt ");
+    data.extend_from_slice(&16u32.to_le_bytes());
+    data.extend_from_slice(&1u16.to_le_bytes());
+    data.extend_from_slice(&channels.to_le_bytes());
+    data.extend_from_slice(&sample_rate.to_le_bytes());
+    data.extend_from_slice(
+        &(sample_rate * channels as u32 * bits_per_sample as u32 / 8).to_le_bytes(),
+    );
+    data.extend_from_slice(&(channels * bits_per_sample / 8).to_le_bytes());
+    data.extend_from_slice(&bits_per_sample.to_le_bytes());
+    data.extend_from_slice(b"data");
+    data.extend_from_slice(&data_len.to_le_bytes());
+    data.resize(data.len() + data_len as usize, 0);
+    fs::write(path, data).unwrap();
 }
 
 #[tokio::test]
@@ -99,12 +137,67 @@ async fn healthcheck_contract() {
 }
 
 #[tokio::test]
+async fn cors_preflight_allows_credentialed_dev_origin() {
+    let app = TestApp::new();
+    let response = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::OPTIONS)
+                .uri("/api/v1/player/state")
+                .header(header::ORIGIN, "http://localhost:5174")
+                .header(header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .header(header::ACCESS_CONTROL_REQUEST_HEADERS, "content-type")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert!(response.status().is_success());
+    assert_eq!(
+        response.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
+        "http://localhost:5174"
+    );
+    assert_eq!(
+        response.headers()[header::ACCESS_CONTROL_ALLOW_CREDENTIALS],
+        "true"
+    );
+}
+
+#[tokio::test]
+async fn cors_preflight_does_not_allow_unknown_origin() {
+    let app = TestApp::new();
+    let response = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::OPTIONS)
+                .uri("/api/v1/player/state")
+                .header(header::ORIGIN, "https://example.com")
+                .header(header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .header(header::ACCESS_CONTROL_REQUEST_HEADERS, "content-type")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert!(response
+        .headers()
+        .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+        .is_none());
+}
+
+#[tokio::test]
 async fn tracks_list_contract() {
     let app = TestApp::new();
     let file_path = app.state.music_dir.join("song.mp3");
     fs::write(&file_path, b"audio").unwrap();
     app.insert_track(
-        1,
+        TRACK_ID,
         "Song",
         "Artist",
         file_path.to_str().unwrap(),
@@ -126,7 +219,15 @@ async fn tracks_list_contract() {
     assert!(body[0].get("file_path").is_none());
     assert_eq!(
         body[0]["cover_small_url"],
-        "/api/v1/tracks/1/covers/small.webp?v=2001"
+        format!("/api/v1/tracks/{TRACK_ID}/covers/small.webp?v={TRACK_ID}")
+    );
+    assert_eq!(
+        body[0]["cover_original_url"],
+        format!("/api/v1/tracks/{TRACK_ID}/covers/original.webp?v={TRACK_ID}")
+    );
+    assert_eq!(
+        body[0]["hls_url"],
+        format!("/api/v1/tracks/{TRACK_ID}/hls/{TRACK_ID}/index.m3u8")
     );
 }
 
@@ -148,10 +249,14 @@ async fn system_info_reports_missing_music_directory() {
 }
 
 #[tokio::test]
-async fn tracks_stream_contract() {
+async fn tracks_hls_contract() {
     let app = TestApp::new();
     let missing = app
-        .request(Method::GET, "/api/v1/tracks/404/stream", Body::empty())
+        .request(
+            Method::GET,
+            &format!("/api/v1/tracks/{MISSING_TRACK_ID}/hls/2001/index.m3u8"),
+            Body::empty(),
+        )
         .await;
     assert_eq!(missing.status(), StatusCode::NOT_FOUND);
     assert_eq!(
@@ -159,10 +264,10 @@ async fn tracks_stream_contract() {
         json!({"detail": "Track not found"})
     );
 
-    let file_path = app.state.music_dir.join("song.mp3");
-    fs::write(&file_path, b"abcdef").unwrap();
+    let file_path = app.state.music_dir.join("song.wav");
+    write_silent_wav(&file_path);
     app.insert_track(
-        1,
+        TRACK_ID,
         "Song",
         "Artist",
         file_path.to_str().unwrap(),
@@ -170,178 +275,118 @@ async fn tracks_stream_contract() {
         "COMPLETE",
     );
 
-    let response = app
-        .request(Method::GET, "/api/v1/tracks/1/stream", Body::empty())
+    let removed_stream = app
+        .request(
+            Method::GET,
+            &format!("/api/v1/tracks/{TRACK_ID}/stream"),
+            Body::empty(),
+        )
         .await;
-    assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(
-        response.headers()[header::CACHE_CONTROL],
-        "public, max-age=86400"
-    );
-    assert_eq!(response.headers()[header::CONTENT_TYPE], "audio/mpeg");
-    assert_eq!(response.headers()[header::CONTENT_LENGTH], "6");
+    assert_eq!(removed_stream.status(), StatusCode::NOT_FOUND);
 
-    let ranged = app
-        .router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method(Method::GET)
-                .uri("/api/v1/tracks/1/stream")
-                .header(header::RANGE, "bytes=0-2")
-                .body(Body::empty())
-                .unwrap(),
+    let stale = app
+        .request(
+            Method::GET,
+            &format!("/api/v1/tracks/{TRACK_ID}/hls/stale/index.m3u8"),
+            Body::empty(),
         )
-        .await
-        .unwrap();
-    assert_eq!(ranged.status(), StatusCode::PARTIAL_CONTENT);
-
-    let large_file_path = app.state.music_dir.join("large.mp3");
-    fs::write(&large_file_path, vec![0; 1024 * 1024 + 7]).unwrap();
-    app.insert_track(
-        2,
-        "Large",
-        "Artist",
-        large_file_path.to_str().unwrap(),
-        false,
-        "COMPLETE",
-    );
-    let large_no_range = app
-        .request(Method::GET, "/api/v1/tracks/2/stream", Body::empty())
         .await;
-    assert_eq!(large_no_range.status(), StatusCode::OK);
-    assert_eq!(large_no_range.headers()[header::CONTENT_LENGTH], "1048583");
+    assert_eq!(stale.status(), StatusCode::NOT_FOUND);
 
-    let explicit_full_range = app
-        .router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method(Method::GET)
-                .uri("/api/v1/tracks/2/stream")
-                .header(header::RANGE, "bytes=0-1048582")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(explicit_full_range.status(), StatusCode::PARTIAL_CONTENT);
-    assert_eq!(
-        explicit_full_range.headers()[header::CONTENT_RANGE],
-        "bytes 0-262143/1048583"
-    );
-    assert_eq!(
-        explicit_full_range.headers()[header::CONTENT_LENGTH],
-        "262144"
-    );
+    let stale_cache_dir = app
+        .state
+        .data_dir
+        .join(format!(".cache/hls/{TRACK_ID}/stale"));
+    fs::create_dir_all(&stale_cache_dir).unwrap();
+    fs::write(stale_cache_dir.join("segment-00000.m4s"), b"stale").unwrap();
 
-    let open_ended_range = app
-        .router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method(Method::GET)
-                .uri("/api/v1/tracks/2/stream")
-                .header(header::RANGE, "bytes=0-")
-                .body(Body::empty())
-                .unwrap(),
+    let playlist = app
+        .request(
+            Method::GET,
+            &format!("/api/v1/tracks/{TRACK_ID}/hls/{TRACK_ID}/index.m3u8"),
+            Body::empty(),
         )
-        .await
-        .unwrap();
-    assert_eq!(open_ended_range.status(), StatusCode::PARTIAL_CONTENT);
+        .await;
+    assert_eq!(playlist.status(), StatusCode::OK);
     assert_eq!(
-        open_ended_range.headers()[header::CONTENT_RANGE],
-        "bytes 0-262143/1048583"
+        playlist.headers()[header::CONTENT_TYPE],
+        "application/vnd.apple.mpegurl"
     );
-    assert_eq!(open_ended_range.headers()[header::CONTENT_LENGTH], "262144");
+    assert_eq!(playlist.headers()[header::CACHE_CONTROL], "no-cache");
+    let playlist_body = body_text(playlist).await;
+    assert!(playlist_body.contains("#EXTM3U"));
+    assert!(playlist_body.contains("init.mp4"));
+    assert!(playlist_body.contains("segment-00000.m4s"));
+    assert!(!stale_cache_dir.exists());
 
-    let oversized_large_suffix_range = app
-        .router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method(Method::GET)
-                .uri("/api/v1/tracks/2/stream")
-                .header(header::RANGE, "bytes=-1048583")
-                .body(Body::empty())
-                .unwrap(),
+    let init = app
+        .request(
+            Method::GET,
+            &format!("/api/v1/tracks/{TRACK_ID}/hls/{TRACK_ID}/init.mp4"),
+            Body::empty(),
         )
-        .await
-        .unwrap();
+        .await;
+    assert_eq!(init.status(), StatusCode::OK);
+    assert_eq!(init.headers()[header::CONTENT_TYPE], "audio/mp4");
+
+    let segment = app
+        .request(
+            Method::GET,
+            &format!("/api/v1/tracks/{TRACK_ID}/hls/{TRACK_ID}/segment-00000.m4s"),
+            Body::empty(),
+        )
+        .await;
+    assert_eq!(segment.status(), StatusCode::OK);
+    assert_eq!(segment.headers()[header::CONTENT_TYPE], "audio/mp4");
     assert_eq!(
-        oversized_large_suffix_range.status(),
-        StatusCode::PARTIAL_CONTENT
-    );
-    assert_eq!(
-        oversized_large_suffix_range.headers()[header::CONTENT_RANGE],
-        "bytes 0-1048582/1048583"
-    );
-    assert_eq!(
-        oversized_large_suffix_range.headers()[header::CONTENT_LENGTH],
-        "1048583"
+        segment.headers()[header::CACHE_CONTROL],
+        "public, max-age=31536000, immutable"
     );
 
-    let oversized_suffix_range = app
-        .router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method(Method::GET)
-                .uri("/api/v1/tracks/1/stream")
-                .header(header::RANGE, "bytes=-1024")
-                .body(Body::empty())
-                .unwrap(),
+    let invalid_segment = app
+        .request(
+            Method::GET,
+            &format!("/api/v1/tracks/{TRACK_ID}/hls/{TRACK_ID}/not-a-segment.ts"),
+            Body::empty(),
         )
-        .await
-        .unwrap();
-    assert_eq!(oversized_suffix_range.status(), StatusCode::PARTIAL_CONTENT);
-    assert_eq!(
-        oversized_suffix_range.headers()[header::CONTENT_RANGE],
-        "bytes 0-5/6"
-    );
-    assert_eq!(
-        oversized_suffix_range.headers()[header::CONTENT_LENGTH],
-        "6"
-    );
+        .await;
+    assert_eq!(invalid_segment.status(), StatusCode::NOT_FOUND);
 
-    let multiple_ranges = app
-        .router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method(Method::GET)
-                .uri("/api/v1/tracks/1/stream")
-                .header(header::RANGE, "bytes=0-2,4-5")
-                .body(Body::empty())
-                .unwrap(),
+    fs::write(
+        app.state.covers_dir.join(format!("{TRACK_ID}_small.webp")),
+        b"small",
+    )
+    .unwrap();
+    fs::write(
+        app.state
+            .covers_dir
+            .join(format!("{TRACK_ID}_original.webp")),
+        b"original",
+    )
+    .unwrap();
+    let deleted = app
+        .request(
+            Method::DELETE,
+            &format!("/api/v1/tracks/{TRACK_ID}"),
+            Body::empty(),
         )
-        .await
-        .unwrap();
-    assert_eq!(multiple_ranges.status(), StatusCode::PARTIAL_CONTENT);
-    assert_eq!(
-        multiple_ranges.headers()[header::CONTENT_RANGE],
-        "bytes 0-2/6"
-    );
-    assert_eq!(multiple_ranges.headers()[header::CONTENT_LENGTH], "3");
-
-    let invalid_range = app
-        .router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method(Method::GET)
-                .uri("/api/v1/tracks/1/stream")
-                .header(header::RANGE, "bytes=999-1000")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(invalid_range.status(), StatusCode::RANGE_NOT_SATISFIABLE);
-    assert_ne!(
-        invalid_range.headers().get(header::CONTENT_TYPE),
-        Some(&HeaderValue::from_static("audio/mpeg"))
-    );
+        .await;
+    assert_eq!(deleted.status(), StatusCode::ACCEPTED);
+    assert!(!app
+        .state
+        .data_dir
+        .join(format!(".cache/hls/{TRACK_ID}"))
+        .exists());
+    assert!(!app
+        .state
+        .covers_dir
+        .join(format!("{TRACK_ID}_small.webp"))
+        .exists());
+    assert!(!app
+        .state
+        .covers_dir
+        .join(format!("{TRACK_ID}_original.webp"))
+        .exists());
 }
 
 #[tokio::test]
@@ -350,7 +395,7 @@ async fn covers_contract() {
     let missing = app
         .request(
             Method::GET,
-            "/api/v1/tracks/1/covers/small.webp",
+            &format!("/api/v1/tracks/{TRACK_ID}/covers/small.webp"),
             Body::empty(),
         )
         .await;
@@ -360,11 +405,15 @@ async fn covers_contract() {
         json!({"detail": "Cover not found"})
     );
 
-    fs::write(app.state.covers_dir.join("1_small.webp"), b"small").unwrap();
+    fs::write(
+        app.state.covers_dir.join(format!("{TRACK_ID}_small.webp")),
+        b"small",
+    )
+    .unwrap();
     let response = app
         .request(
             Method::GET,
-            "/api/v1/tracks/1/covers/small.webp",
+            &format!("/api/v1/tracks/{TRACK_ID}/covers/small.webp"),
             Body::empty(),
         )
         .await;
@@ -382,7 +431,7 @@ async fn track_update_delete_upload_contract() {
     let not_found = app
         .json(
             Method::PATCH,
-            "/api/v1/tracks/404",
+            &format!("/api/v1/tracks/{MISSING_TRACK_ID}"),
             json!({"title": "Nope"}),
         )
         .await;
@@ -395,7 +444,7 @@ async fn track_update_delete_upload_contract() {
     let file_path = app.state.music_dir.join("song.mp3");
     fs::write(&file_path, b"audio").unwrap();
     app.insert_track(
-        1,
+        TRACK_ID,
         "Song",
         "Artist",
         file_path.to_str().unwrap(),
@@ -406,7 +455,7 @@ async fn track_update_delete_upload_contract() {
     let unchanged = app
         .json(
             Method::PATCH,
-            "/api/v1/tracks/1",
+            &format!("/api/v1/tracks/{TRACK_ID}"),
             json!({"title": "Song", "artist": "Artist"}),
         )
         .await;
@@ -418,7 +467,7 @@ async fn track_update_delete_upload_contract() {
     let duplicate_rename = app
         .json(
             Method::PATCH,
-            "/api/v1/tracks/1",
+            &format!("/api/v1/tracks/{TRACK_ID}"),
             json!({"title": "Taken", "artist": "Artist", "rename_file": true}),
         )
         .await;
@@ -480,7 +529,11 @@ async fn track_update_delete_upload_contract() {
     );
 
     let deleted = app
-        .request(Method::DELETE, "/api/v1/tracks/1", Body::empty())
+        .request(
+            Method::DELETE,
+            &format!("/api/v1/tracks/{TRACK_ID}"),
+            Body::empty(),
+        )
         .await;
     assert_eq!(deleted.status(), StatusCode::ACCEPTED);
 }
@@ -505,7 +558,7 @@ async fn player_state_contract() {
     );
 
     let payload = json!({
-        "current_track_id": 10,
+        "current_track_id": TRACK_ID,
         "progress_seconds": 45.5,
         "volume_level": 0.7,
         "is_muted": true,
@@ -606,7 +659,7 @@ async fn events_and_errors_contract() {
                 "message_to_show": "Updated",
                 "message_level": "info",
                 "action_key": "track_updated",
-                "action_payload": {"id": 1}
+                "action_payload": {"id": TRACK_ID}
             }),
         )
         .await;
@@ -622,7 +675,7 @@ async fn events_and_errors_contract() {
     let file_path = app.state.music_dir.join("errored.mp3");
     fs::write(&file_path, b"audio").unwrap();
     app.insert_track(
-        1,
+        TRACK_ID,
         "Bad",
         "Artist",
         file_path.to_str().unwrap(),
@@ -640,7 +693,7 @@ async fn events_and_errors_contract() {
     let requeue_missing = app
         .request(
             Method::POST,
-            "/api/v1/errors/tracks/404/requeue",
+            &format!("/api/v1/errors/tracks/{MISSING_TRACK_ID}/requeue"),
             Body::empty(),
         )
         .await;

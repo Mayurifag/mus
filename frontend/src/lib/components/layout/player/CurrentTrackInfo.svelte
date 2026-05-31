@@ -27,9 +27,9 @@
       <div
         class="desktop:block desktop:h-24 desktop:w-24 desktop:my-5 desktop:ml-5 my-6 ml-6 hidden h-32 w-32 flex-shrink-0 overflow-hidden rounded-md"
       >
-        {#if track.has_cover && track.cover_small_url}
+        {#if track.has_cover && track.cover_original_url}
           <img
-            src={track.cover_small_url}
+            src={track.cover_original_url}
             alt="Album Cover"
             class="h-full w-full object-cover"
           />

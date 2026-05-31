@@ -23,9 +23,9 @@ pub async fn get_errored_tracks(
 
 pub async fn requeue_track(
     State(state): State<AppState>,
-    AxumPath(id): AxumPath<i64>,
+    AxumPath(id): AxumPath<String>,
 ) -> Result<Json<Value>, AppError> {
-    let track = get_track(&state, id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
+    let track = get_track(&state, &id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
     upsert_path(&state, Path::new(&track.file_path), None, None).await?;
     Ok(Json(
         json!({"message": format!("Track '{}' re-queued for processing", track.title)}),

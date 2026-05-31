@@ -17,8 +17,8 @@
   import { AudioService } from "$lib/services/AudioService";
   import {
     getNextTrackForPreload,
-    StreamPreloadService,
-  } from "$lib/services/streamPreloadService";
+    HlsPreloadService,
+  } from "$lib/services/hlsPreloadService";
   import {
     restorePlayerState,
     savePlayerState,
@@ -39,16 +39,16 @@
 
   let audio: HTMLAudioElement;
   let audioService = $state<AudioService | undefined>(undefined);
-  let streamPreloader = $state<StreamPreloadService | undefined>(undefined);
+  let hlsPreloader = $state<HlsPreloadService | undefined>(undefined);
   let eventSource = $state<EventSource | null>(null);
   let sheetOpen = $state(false);
-  let lastCurrentTrackId: number | null = null;
+  let lastCurrentTrackId: string | null = null;
   let lastPlayRequestId = 0;
 
   function initializeAudioService() {
     if (audio) {
       audioService = new AudioService(audio);
-      streamPreloader = new StreamPreloadService();
+      hlsPreloader = new HlsPreloadService();
       audioServiceStore.set(audioService);
     }
   }
@@ -102,7 +102,7 @@
       audioServiceStore.set(undefined);
     }
 
-    streamPreloader?.destroy();
+    hlsPreloader?.destroy();
 
     // Remove event listeners - only in browser
     if (browser && document) {
@@ -141,7 +141,7 @@
 
   $effect(() => {
     updateEffectStats("Layout_StreamPreloadHandler");
-    streamPreloader?.update(
+    hlsPreloader?.update(
       $trackStore.currentTrack,
       getNextTrackForPreload($trackStore),
     );

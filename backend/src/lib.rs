@@ -1,11 +1,13 @@
 pub mod app;
 pub mod artwork;
 pub mod db;
+pub mod derived;
 pub mod downloads;
 pub mod error;
 pub mod errors;
 pub mod events;
 pub mod gemini;
+pub mod hls;
 pub mod media;
 pub mod models;
 pub mod player;

@@ -5,8 +5,10 @@ use serde_json::Value;
 use std::path::Path;
 
 use crate::{
+    hls::track_hls_url,
     models::{PlayerState, Track, TrackDto},
     state::AppState,
+    util::is_hash_id,
 };
 
 const MIGRATIONS: &[M<'static>] = &[
@@ -38,6 +40,36 @@ const MIGRATIONS: &[M<'static>] = &[
     "#,
     ),
     M::up("ALTER TABLE track ADD COLUMN file_signature TEXT"),
+    M::up(
+        r#"
+        DROP TABLE IF EXISTS track;
+        DROP TABLE IF EXISTS playerstate;
+        CREATE TABLE track (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            artist TEXT NOT NULL,
+            duration INTEGER NOT NULL,
+            file_path TEXT NOT NULL UNIQUE,
+            added_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL DEFAULT 0,
+            has_cover BOOLEAN NOT NULL DEFAULT 0,
+            inode INTEGER,
+            content_hash TEXT NOT NULL,
+            processing_status TEXT NOT NULL DEFAULT 'COMPLETE',
+            last_error JSON,
+            file_signature TEXT
+        );
+        CREATE TABLE playerstate (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            current_track_id TEXT,
+            progress_seconds REAL NOT NULL DEFAULT 0,
+            volume_level REAL NOT NULL DEFAULT 1,
+            is_muted BOOLEAN NOT NULL DEFAULT 0,
+            is_shuffle BOOLEAN NOT NULL DEFAULT 0,
+            is_repeat BOOLEAN NOT NULL DEFAULT 0
+        );
+        "#,
+    ),
 ];
 
 pub fn init_db(conn: &mut Connection) -> Result<()> {
@@ -54,14 +86,17 @@ pub fn init_db(conn: &mut Connection) -> Result<()> {
 
 pub fn list_tracks(state: &AppState) -> Result<Vec<Track>> {
     let conn = state.db.lock().unwrap();
-    let mut stmt = conn.prepare("SELECT id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,file_signature,content_hash,processing_status,last_error FROM track ORDER BY id DESC")?;
+    let mut stmt = conn.prepare("SELECT id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,file_signature,content_hash,processing_status,last_error FROM track ORDER BY rowid DESC")?;
     let tracks = stmt
         .query_map([], row_to_track)?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(tracks)
 }
 
-pub fn get_track(state: &AppState, id: i64) -> Result<Option<Track>> {
+pub fn get_track(state: &AppState, id: &str) -> Result<Option<Track>> {
+    if !is_hash_id(id) {
+        return Ok(None);
+    }
     let conn = state.db.lock().unwrap();
     conn.query_row(
         "SELECT id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,file_signature,content_hash,processing_status,last_error FROM track WHERE id = ?1",
@@ -70,37 +105,49 @@ pub fn get_track(state: &AppState, id: i64) -> Result<Option<Track>> {
     ).optional().map_err(Into::into)
 }
 
-pub fn save_track(state: &AppState, track: &Track) -> Result<()> {
+pub fn save_track(state: &AppState, old_id: &str, track: &Track) -> Result<()> {
     let conn = state.db.lock().unwrap();
     conn.execute(
-        "UPDATE track SET title=?1, artist=?2, duration=?3, file_path=?4, updated_at=?5, has_cover=?6, inode=?7, file_signature=?8, content_hash=?9, processing_status=?10, last_error=?11 WHERE id=?12",
-        params![track.title, track.artist, track.duration, track.file_path, track.updated_at, track.has_cover, track.inode, track.file_signature, track.content_hash, track.processing_status, track.last_error.as_ref().map(Value::to_string), track.id],
+        "UPDATE track SET id=?1, title=?2, artist=?3, duration=?4, file_path=?5, updated_at=?6, has_cover=?7, inode=?8, file_signature=?9, content_hash=?10, processing_status=?11, last_error=?12 WHERE id=?13",
+        params![track.id, track.title, track.artist, track.duration, track.file_path, track.updated_at, track.has_cover, track.inode, track.file_signature, track.content_hash, track.processing_status, track.last_error.as_ref().map(Value::to_string), old_id],
     )?;
+    if old_id != track.id {
+        conn.execute(
+            "UPDATE playerstate SET current_track_id = ?1 WHERE current_track_id = ?2",
+            params![track.id, old_id],
+        )?;
+    }
     Ok(())
 }
 
 pub fn save_track_fingerprint(
     state: &AppState,
-    id: i64,
+    id: &str,
     inode: Option<i64>,
     file_signature: &str,
     content_hash: &str,
 ) -> Result<()> {
     let conn = state.db.lock().unwrap();
     conn.execute(
-        "UPDATE track SET inode = ?1, file_signature = ?2, content_hash = ?3 WHERE id = ?4",
+        "UPDATE track SET id = ?3, inode = ?1, file_signature = ?2, content_hash = ?3 WHERE id = ?4",
         params![inode, file_signature, content_hash, id],
     )?;
+    if id != content_hash {
+        conn.execute(
+            "UPDATE playerstate SET current_track_id = ?1 WHERE current_track_id = ?2",
+            params![content_hash, id],
+        )?;
+    }
     Ok(())
 }
 
-pub fn delete_track_row(state: &AppState, id: i64) -> Result<()> {
+pub fn delete_track_row(state: &AppState, id: &str) -> Result<()> {
     let conn = state.db.lock().unwrap();
     conn.execute("DELETE FROM track WHERE id = ?1", params![id])?;
     Ok(())
 }
 
-pub fn set_track_cover_state(state: &AppState, id: i64, has_cover: bool) -> Result<()> {
+pub fn set_track_cover_state(state: &AppState, id: &str, has_cover: bool) -> Result<()> {
     let conn = state.db.lock().unwrap();
     conn.execute(
         "UPDATE track SET has_cover = ?1 WHERE id = ?2",
@@ -169,11 +216,7 @@ pub fn errored_tracks(state: &AppState) -> Result<Vec<Track>> {
 }
 
 pub fn track_dto(track: Track) -> TrackDto {
-    let cover_version = track
-        .content_hash
-        .as_deref()
-        .map(str::to_string)
-        .unwrap_or_else(|| track.updated_at.to_string());
+    let cover_version = track.content_hash.clone();
     let cover_small_url = track.has_cover.then(|| {
         format!(
             "/api/v1/tracks/{}/covers/small.webp?v={}",
@@ -187,7 +230,8 @@ pub fn track_dto(track: Track) -> TrackDto {
         )
     });
     TrackDto {
-        id: track.id,
+        hls_url: track_hls_url(&track),
+        id: track.id.clone(),
         title: track.title,
         artist: track.artist,
         duration: track.duration,

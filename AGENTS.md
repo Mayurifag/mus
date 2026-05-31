@@ -22,5 +22,4 @@
 - `touch`, `opencloud posixfs consistency`, and restarting OpenCloud did not repair stale OpenCloud sync metadata.
 - To diagnose OpenCloud sync issues, compare `stat -c %s` with `getfattr -n user.oc.blobsize --only-values` and inspect `user.oc.nodestatus`.
 - Manual OpenCloud repair may require recomputing `user.oc.cs.sha1`, `user.oc.cs.md5`, `user.oc.cs.adler32`, updating `user.oc.blobsize`/`user.oc.mtime`, and removing stale `user.oc.nodestatus`.
-- Backend is Rust in `backend`.
 - Keep Markdown docs and roadmap notes current when changes affect project behavior or durable guidance.
