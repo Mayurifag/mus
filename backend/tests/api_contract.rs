@@ -253,10 +253,7 @@ async fn tracks_stream_contract() {
         open_ended_range.headers()[header::CONTENT_RANGE],
         "bytes 0-262143/1048583"
     );
-    assert_eq!(
-        open_ended_range.headers()[header::CONTENT_LENGTH],
-        "262144"
-    );
+    assert_eq!(open_ended_range.headers()[header::CONTENT_LENGTH], "262144");
 
     let oversized_large_suffix_range = app
         .router
