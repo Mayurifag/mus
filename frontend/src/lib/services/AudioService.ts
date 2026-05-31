@@ -14,6 +14,8 @@ export class AudioService {
   private audio: HTMLAudioElement;
   private isSeeking = false;
   private currentTrackId: number | null = null;
+  private pendingStreamUrl: string | null = null;
+  private hasRequestedLoad = false;
 
   // Convert internal state to reactive stores
   private _volume = writable(1.0);
@@ -138,6 +140,17 @@ export class AudioService {
     }
   }
 
+  private loadSource(): void {
+    if (this.currentTrackId === null || this.hasRequestedLoad) return;
+
+    if (this.pendingStreamUrl !== null) {
+      this.audio.src = this.pendingStreamUrl;
+      this.pendingStreamUrl = null;
+    }
+    this.audio.load();
+    this.hasRequestedLoad = true;
+  }
+
   updateAudioSource(
     track: Track | null,
     isPlaying: boolean,
@@ -150,13 +163,13 @@ export class AudioService {
     this.currentTrackId = track.id;
     if (shouldUpdateSource) {
       const seekAfterMetadata = () => this.setTime(initialTime);
-      this.audio.src = streamUrl;
+      this.hasRequestedLoad = false;
+      this.pendingStreamUrl = streamUrl;
       if (initialTime > 0) {
         this.audio.addEventListener("loadedmetadata", seekAfterMetadata, {
           once: true,
         });
       }
-      this.audio.load();
       if (typeof document !== "undefined") {
         document.title = `${formatArtistsForDisplay(track.artist)} - ${track.title}`;
       }
@@ -165,8 +178,8 @@ export class AudioService {
       this._currentBufferedRanges.set([]);
       updateMediaSessionMetadata(track);
 
-      // Immediately attempt to play if requested to maintain user gesture context
       if (isPlaying) {
+        this.loadSource();
         this.audio.play().catch((error) => {
           if (error.name !== "AbortError") {
             this.pause();
@@ -179,6 +192,7 @@ export class AudioService {
   }
 
   play(): void {
+    this.loadSource();
     this.audio.play().catch((error) => {
       console.error("Error playing audio:", error);
       if (error.name !== "AbortError") {
@@ -207,6 +221,7 @@ export class AudioService {
 
   setTime(time: number): void {
     this._currentTime.set(time);
+    this.loadSource();
     this.audio.currentTime = time;
   }
 
@@ -328,6 +343,8 @@ export class AudioService {
       this.audio.src = "";
     }
     this.currentTrackId = null;
+    this.pendingStreamUrl = null;
+    this.hasRequestedLoad = false;
     this.audio.load();
   }
 }

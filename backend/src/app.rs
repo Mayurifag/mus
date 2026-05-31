@@ -126,6 +126,7 @@ pub fn test_state(data_dir: PathBuf, mut conn: Connection) -> AppState {
         mutation_locks: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
         app_date: "2026-05-17".into(),
         commit_sha: Some("test-sha".into()),
+        yt_dlp_version: Arc::new(Mutex::new(Some("test-version".into()))),
     }
 }
 

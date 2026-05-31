@@ -3,7 +3,6 @@ import type { Track } from "$lib/types";
 import type { TrackStoreState } from "$lib/stores/trackStore";
 import {
   getNextTrackForPreload,
-  parseContentRange,
   StreamPreloadService,
 } from "./streamPreloadService";
 
@@ -21,37 +20,22 @@ function track(id: number, artist = "Artist"): Track {
   };
 }
 
-function responseForRange(start: number, total = 8, chunkSize = 3): Response {
-  const end = Math.min(start + chunkSize - 1, total - 1);
-  return new Response(new Uint8Array(end - start + 1), {
-    status: 206,
-    headers: { "Content-Range": `bytes ${start}-${end}/${total}` },
-  });
-}
-
 function rangeHeader(init: RequestInit | undefined): string | null {
   return new Headers(init?.headers).get("range");
 }
 
 describe("streamPreloadService", () => {
-  it("parses content-range headers", () => {
-    expect(parseContentRange("bytes 3-5/8")).toEqual({
-      start: 3,
-      end: 5,
-      total: 8,
-    });
-    expect(parseContentRange(null)).toBeNull();
-    expect(parseContentRange("invalid")).toBeNull();
-  });
-
-  it("prefetches two next track chunks without downloading current track", async () => {
+  it("prefetches one next track chunk without downloading current track", async () => {
     const fetchFn = vi.fn(
-      async (_url: string | URL | Request, init?: RequestInit) => {
-        const start = Number(
-          rangeHeader(init)?.match(/^bytes=(\d+)-$/)?.[1] ?? 0,
-        );
-        return responseForRange(start);
-      },
+      async (url: string | URL | Request, init?: RequestInit) =>
+        new Response(
+          new Uint8Array(
+            String(url).includes("/tracks/2/stream") && rangeHeader(init)
+              ? 3
+              : 0,
+          ),
+          { status: 206 },
+        ),
     );
     const service = new StreamPreloadService(
       fetchFn as unknown as typeof fetch,
@@ -61,7 +45,7 @@ describe("streamPreloadService", () => {
 
     service.update(current, next);
 
-    await vi.waitFor(() => expect(fetchFn).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(fetchFn).toHaveBeenCalledTimes(1));
     const currentRanges = fetchFn.mock.calls
       .filter(([url]) => String(url).includes("/tracks/1/stream"))
       .map(([, init]) => rangeHeader(init));
@@ -70,7 +54,7 @@ describe("streamPreloadService", () => {
       .map(([, init]) => rangeHeader(init));
 
     expect(currentRanges).toEqual([]);
-    expect(nextRanges).toEqual(["bytes=0-", "bytes=3-"]);
+    expect(nextRanges).toEqual(["bytes=0-262143"]);
 
     service.destroy();
   });

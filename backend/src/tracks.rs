@@ -31,7 +31,7 @@ use crate::{
     },
 };
 
-const DEFAULT_STREAM_RANGE_CHUNK_BYTES: u64 = 256 * 1024;
+const STREAM_RANGE_CHUNK_BYTES: u64 = 256 * 1024;
 
 pub async fn get_tracks(State(state): State<AppState>) -> Result<Json<Vec<TrackDto>>, AppError> {
     let tracks = db::list_tracks(&state)?;
@@ -51,7 +51,7 @@ pub async fn stream_track(
     let content_type = mime_guess::from_path(&track.file_path).first_or_octet_stream();
     let mut request = Request::new(Body::empty());
     *request.headers_mut() = request_headers;
-    normalize_range_header(request.headers_mut(), file_size);
+    normalize_stream_range_header(request.headers_mut(), file_size);
 
     let mut response = match ServeFile::new(track.file_path).oneshot(request).await {
         Ok(response) => response,
@@ -72,83 +72,61 @@ pub async fn stream_track(
     Ok(response.into_response())
 }
 
-fn normalize_range_header(headers: &mut HeaderMap, file_size: u64) {
+fn normalize_stream_range_header(headers: &mut HeaderMap, file_size: u64) {
     if file_size == 0 {
         return;
     }
-    let range = headers
+    let Some(range) = headers
         .get(header::RANGE)
         .and_then(|value| value.to_str().ok())
-        .unwrap_or("bytes=0-");
+    else {
+        return;
+    };
     let Some(spec) = range.strip_prefix("bytes=") else {
-        headers.insert(header::RANGE, initial_stream_range(file_size));
         return;
     };
     let first_range = spec.split(',').next().unwrap_or_default().trim();
     if first_range.is_empty() {
-        headers.insert(header::RANGE, initial_stream_range(file_size));
         return;
     }
 
-    let normalized = if let Some(suffix) = first_range.strip_prefix('-') {
-        normalize_suffix_range(suffix, file_size)
-    } else {
-        normalize_start_range(first_range, file_size)
-    };
+    let normalized = normalize_suffix_stream_range(first_range, file_size)
+        .or_else(|| normalize_start_stream_range(first_range, file_size))
+        .or_else(|| spec.contains(',').then(|| format!("bytes={first_range}")));
     if let Some(value) = normalized.and_then(|value| HeaderValue::from_str(&value).ok()) {
         headers.insert(header::RANGE, value);
-    } else {
-        headers.insert(header::RANGE, initial_stream_range(file_size));
     }
 }
 
-fn normalize_start_range(range: &str, file_size: u64) -> Option<String> {
-    let (start, end) = range.split_once('-')?;
-    let start = start.parse::<u64>().ok()?;
-    if start >= file_size {
-        return Some(format!("bytes={start}-{start}"));
-    }
-    let end = if end.trim().is_empty() {
-        file_size - 1
-    } else {
-        end.parse::<u64>().ok()?
-    };
-    if end < start {
-        return Some(format!("bytes={start}-{end}"));
-    }
-    let capped_end = start
-        .saturating_add(stream_range_chunk_bytes() - 1)
-        .min(end)
-        .min(file_size - 1);
-    Some(format!("bytes={start}-{capped_end}"))
-}
-
-fn normalize_suffix_range(suffix: &str, file_size: u64) -> Option<String> {
+fn normalize_suffix_stream_range(range: &str, file_size: u64) -> Option<String> {
+    let suffix = range.strip_prefix('-')?;
     let bytes = suffix.parse::<u64>().ok()?;
-    if bytes == 0 {
+    if bytes == 0 || bytes < file_size {
         return None;
     }
-    let bytes = bytes.min(stream_range_chunk_bytes()).min(file_size);
-    let start = file_size - bytes;
-    Some(format!("bytes={start}-{}", file_size - 1))
+    Some(format!("bytes=0-{}", file_size - 1))
 }
 
-fn stream_range_chunk_bytes() -> u64 {
-    parse_stream_range_chunk_bytes(env::var("STREAM_RANGE_CHUNK_BYTES").ok().as_deref())
-}
+fn normalize_start_stream_range(range: &str, file_size: u64) -> Option<String> {
+    let (start, end) = range.split_once('-')?;
+    let start = start.trim().parse::<u64>().ok()?;
+    if start >= file_size {
+        return None;
+    }
 
-fn initial_stream_range(file_size: u64) -> HeaderValue {
-    let end = stream_range_chunk_bytes()
-        .saturating_sub(1)
+    let capped_end = start
+        .saturating_add(STREAM_RANGE_CHUNK_BYTES - 1)
         .min(file_size - 1);
-    HeaderValue::from_str(&format!("bytes=0-{end}")).unwrap()
-}
+    if end.trim().is_empty() {
+        return Some(format!("bytes={start}-{capped_end}"));
+    }
 
-fn parse_stream_range_chunk_bytes(value: Option<&str>) -> u64 {
-    value
-        .and_then(|value| value.trim().parse::<u64>().ok())
-        .filter(|bytes| *bytes > 0)
-        .unwrap_or(DEFAULT_STREAM_RANGE_CHUNK_BYTES)
+    let end = end.trim().parse::<u64>().ok()?;
+    if end > capped_end && end >= start {
+        return Some(format!("bytes={start}-{capped_end}"));
+    }
+
+    None
 }
 
 pub async fn get_cover_small(
@@ -530,31 +508,4 @@ async fn create_upload_temp_file(
     Err(AppError::from(anyhow::anyhow!(
         "failed to allocate upload file"
     )))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn stream_range_chunk_bytes_accepts_positive_values() {
-        assert_eq!(parse_stream_range_chunk_bytes(Some("7")), 7);
-        assert_eq!(parse_stream_range_chunk_bytes(Some(" 8 ")), 8);
-    }
-
-    #[test]
-    fn stream_range_chunk_bytes_defaults_for_missing_invalid_or_zero() {
-        assert_eq!(
-            parse_stream_range_chunk_bytes(None),
-            DEFAULT_STREAM_RANGE_CHUNK_BYTES
-        );
-        assert_eq!(
-            parse_stream_range_chunk_bytes(Some("invalid")),
-            DEFAULT_STREAM_RANGE_CHUNK_BYTES
-        );
-        assert_eq!(
-            parse_stream_range_chunk_bytes(Some("0")),
-            DEFAULT_STREAM_RANGE_CHUNK_BYTES
-        );
-    }
 }

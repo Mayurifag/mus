@@ -4,6 +4,7 @@ use std::{
     net::SocketAddr,
     path::PathBuf,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use anyhow::Result;
@@ -12,6 +13,7 @@ use mus_backend::{
     db::init_db,
     scanner::{scan_music_dir, watch_music_dir},
     state::AppState,
+    util::command_output_text_with_timeout,
 };
 use rusqlite::Connection;
 use tokio::sync::broadcast;
@@ -23,7 +25,7 @@ async fn main() -> Result<()> {
         .with_env_filter(env::var("LOG_LEVEL").unwrap_or_else(|_| "info".into()))
         .init();
 
-    let state = build_state()?;
+    let state = build_state().await?;
     tokio::spawn({
         let state = state.clone();
         async move {
@@ -46,7 +48,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn build_state() -> Result<AppState> {
+async fn build_state() -> Result<AppState> {
     let data_dir = PathBuf::from(env::var("DATA_DIR_PATH").unwrap_or_else(|_| "./app_data".into()));
     let music_dir = data_dir.join("music");
     let covers_dir = data_dir.join("covers");
@@ -75,5 +77,10 @@ fn build_state() -> Result<AppState> {
             .and_then(|v| v.get(..10).map(str::to_string))
             .unwrap_or_else(|| "unknown".into()),
         commit_sha: env::var("COMMIT_SHA").ok().filter(|v| !v.is_empty()),
+        yt_dlp_version: Arc::new(Mutex::new(
+            command_output_text_with_timeout("yt-dlp", &["--version"], Duration::from_secs(10))
+                .await
+                .ok(),
+        )),
     })
 }

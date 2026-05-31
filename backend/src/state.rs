@@ -21,6 +21,7 @@ pub struct AppState {
     pub mutation_locks: Arc<AsyncMutex<HashMap<String, Arc<AsyncMutex<()>>>>>,
     pub app_date: String,
     pub commit_sha: Option<String>,
+    pub yt_dlp_version: Arc<StdMutex<Option<String>>>,
 }
 
 impl AppState {

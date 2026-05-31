@@ -1,26 +1,8 @@
 import { getStreamUrl } from "$lib/services/apiClient";
 import type { Track } from "$lib/types";
 import type { TrackStoreState } from "$lib/stores/trackStore";
+import { audioStreamRangeHeader } from "$lib/utils/audioStreamRange";
 import { parseArtists } from "$lib/utils/formatters";
-
-const NEXT_TRACK_PREFETCH_CHUNKS = 2;
-
-interface ByteRange {
-  start: number;
-  end: number;
-  total: number;
-}
-
-export function parseContentRange(value: string | null): ByteRange | null {
-  const match = value?.match(/^bytes (\d+)-(\d+)\/(\d+)$/);
-  if (!match) return null;
-
-  return {
-    start: Number(match[1]),
-    end: Number(match[2]),
-    total: Number(match[3]),
-  };
-}
 
 export function getNextTrackForPreload(state: TrackStoreState): Track | null {
   if (state.tracks.length === 0 || state.currentTrackIndex === null) {
@@ -73,11 +55,9 @@ export class StreamPreloadService {
       if (nextTrack && nextKey) {
         const controller = new AbortController();
         this.nextAbort = controller;
-        void this.downloadTrack(
-          nextTrack,
-          controller.signal,
-          NEXT_TRACK_PREFETCH_CHUNKS,
-        ).catch(this.ignoreAbort);
+        void this.downloadTrack(nextTrack, controller.signal).catch(
+          this.ignoreAbort,
+        );
       }
     }
   }
@@ -89,32 +69,16 @@ export class StreamPreloadService {
   private async downloadTrack(
     track: Track,
     signal: AbortSignal,
-    maxChunks: number,
   ): Promise<void> {
-    let start = 0;
-
-    for (let chunk = 0; chunk < maxChunks; chunk += 1) {
-      const range = await this.fetchRange(track.id, start, signal);
-      if (!range) return;
-
-      if (range.end >= range.total - 1) return;
-      start = range.end + 1;
-    }
-  }
-
-  private async fetchRange(
-    trackId: number,
-    start: number,
-    signal: AbortSignal,
-  ): Promise<ByteRange | null> {
-    const response = await this.fetchFn(getStreamUrl(trackId), {
-      headers: { Range: `bytes=${start}-` },
+    const response = await this.fetchFn(getStreamUrl(track.id), {
+      headers: {
+        Range: audioStreamRangeHeader(0),
+      },
       signal,
     });
-    if (response.status !== 206) return null;
+    if (response.status !== 206) return;
 
     await response.arrayBuffer();
-    return parseContentRange(response.headers.get("content-range"));
   }
 
   private trackKey(track: Track): string {

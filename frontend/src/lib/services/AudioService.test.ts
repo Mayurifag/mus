@@ -103,6 +103,19 @@ describe("AudioService", () => {
     expect(mockAudio.load).toHaveBeenCalled();
   });
 
+  it("should not load a new source until playback or seek starts", () => {
+    audioService.updateAudioSource(mockTrack, false);
+
+    expect(mockAudio.src).toBe("");
+    expect(mockAudio.load).not.toHaveBeenCalled();
+
+    audioService.play();
+
+    expect(mockAudio.src).toBe(`${STREAM_BASE_URL}/tracks/1/stream`);
+    expect(mockAudio.load).toHaveBeenCalledOnce();
+    expect(mockAudio.play).toHaveBeenCalledOnce();
+  });
+
   it("should request playback when advancing after track end", () => {
     audioService.setRepeat(false);
 
@@ -341,6 +354,7 @@ describe("AudioService", () => {
     audioService.updateAudioSource(mockTrack, false);
 
     expect(mockAudio.play).not.toHaveBeenCalled();
+    expect(mockAudio.load).not.toHaveBeenCalled();
   });
 
   it("should seek to initial time after metadata loads", () => {
@@ -357,6 +371,7 @@ describe("AudioService", () => {
     loadedMetadataHandler();
 
     expect(mockAudio.currentTime).toBe(42);
+    expect(mockAudio.load).toHaveBeenCalledOnce();
   });
 
   describe("buffered ranges", () => {

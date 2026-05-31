@@ -173,14 +173,12 @@ async fn tracks_stream_contract() {
     let response = app
         .request(Method::GET, "/api/v1/tracks/1/stream", Body::empty())
         .await;
-    assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+    assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
         response.headers()[header::CACHE_CONTROL],
         "public, max-age=86400"
     );
     assert_eq!(response.headers()[header::CONTENT_TYPE], "audio/mpeg");
-    assert_eq!(response.headers()[header::ACCEPT_RANGES], "bytes");
-    assert_eq!(response.headers()[header::CONTENT_RANGE], "bytes 0-5/6");
     assert_eq!(response.headers()[header::CONTENT_LENGTH], "6");
 
     let ranged = app
@@ -211,12 +209,8 @@ async fn tracks_stream_contract() {
     let large_no_range = app
         .request(Method::GET, "/api/v1/tracks/2/stream", Body::empty())
         .await;
-    assert_eq!(large_no_range.status(), StatusCode::PARTIAL_CONTENT);
-    assert_eq!(
-        large_no_range.headers()[header::CONTENT_RANGE],
-        "bytes 0-262143/1048583"
-    );
-    assert_eq!(large_no_range.headers()[header::CONTENT_LENGTH], "262144");
+    assert_eq!(large_no_range.status(), StatusCode::OK);
+    assert_eq!(large_no_range.headers()[header::CONTENT_LENGTH], "1048583");
 
     let explicit_full_range = app
         .router
@@ -259,7 +253,10 @@ async fn tracks_stream_contract() {
         open_ended_range.headers()[header::CONTENT_RANGE],
         "bytes 0-262143/1048583"
     );
-    assert_eq!(open_ended_range.headers()[header::CONTENT_LENGTH], "262144");
+    assert_eq!(
+        open_ended_range.headers()[header::CONTENT_LENGTH],
+        "262144"
+    );
 
     let oversized_large_suffix_range = app
         .router
@@ -280,11 +277,11 @@ async fn tracks_stream_contract() {
     );
     assert_eq!(
         oversized_large_suffix_range.headers()[header::CONTENT_RANGE],
-        "bytes 786439-1048582/1048583"
+        "bytes 0-1048582/1048583"
     );
     assert_eq!(
         oversized_large_suffix_range.headers()[header::CONTENT_LENGTH],
-        "262144"
+        "1048583"
     );
 
     let oversized_suffix_range = app
@@ -301,6 +298,14 @@ async fn tracks_stream_contract() {
         .await
         .unwrap();
     assert_eq!(oversized_suffix_range.status(), StatusCode::PARTIAL_CONTENT);
+    assert_eq!(
+        oversized_suffix_range.headers()[header::CONTENT_RANGE],
+        "bytes 0-5/6"
+    );
+    assert_eq!(
+        oversized_suffix_range.headers()[header::CONTENT_LENGTH],
+        "6"
+    );
 
     let multiple_ranges = app
         .router
@@ -316,6 +321,11 @@ async fn tracks_stream_contract() {
         .await
         .unwrap();
     assert_eq!(multiple_ranges.status(), StatusCode::PARTIAL_CONTENT);
+    assert_eq!(
+        multiple_ranges.headers()[header::CONTENT_RANGE],
+        "bytes 0-2/6"
+    );
+    assert_eq!(multiple_ranges.headers()[header::CONTENT_LENGTH], "3");
 
     let invalid_range = app
         .router
@@ -531,7 +541,7 @@ async fn system_contract() {
     let body = body_json(info).await;
     assert_eq!(body["app_date"], "2026-05-17");
     assert_eq!(body["commit_sha"], "test-sha");
-    assert!(body.get("yt_dlp_version").is_some());
+    assert_eq!(body["yt_dlp_version"], "test-version");
 
     let rescan = app
         .request(Method::POST, "/api/v1/system/rescan", Body::empty())

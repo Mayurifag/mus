@@ -16,11 +16,12 @@ pub async fn get_permissions(State(state): State<AppState>) -> Json<Value> {
 }
 
 pub async fn get_system_info(State(state): State<AppState>) -> Json<Value> {
+    let yt_dlp_version = state.yt_dlp_version.lock().unwrap().clone();
     Json(json!({
         "app_date": state.app_date,
         "commit_sha": state.commit_sha,
         "music_dir": music_directory_status(&state),
-        "yt_dlp_version": command_output_text_with_timeout("yt-dlp", &["--version"], Duration::from_secs(10)).await.ok(),
+        "yt_dlp_version": yt_dlp_version,
     }))
 }
 
@@ -50,7 +51,7 @@ fn music_directory_status(state: &AppState) -> MusicDirectoryStatus {
     }
 }
 
-pub async fn update_yt_dlp() -> Result<Json<Value>, AppError> {
+pub async fn update_yt_dlp(State(state): State<AppState>) -> Result<Json<Value>, AppError> {
     tracing::info!("yt-dlp update started");
     let output = command_output_text_with_timeout(
         "yt-dlp",
@@ -62,6 +63,7 @@ pub async fn update_yt_dlp() -> Result<Json<Value>, AppError> {
         command_output_text_with_timeout("yt-dlp", &["--version"], Duration::from_secs(10))
             .await
             .ok();
+    *state.yt_dlp_version.lock().unwrap() = version.clone();
     tracing::info!(
         yt_dlp_version = version.as_deref().unwrap_or("unknown"),
         "yt-dlp update completed"
