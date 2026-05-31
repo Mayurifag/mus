@@ -62,7 +62,7 @@ COPY --from=backend-builder /tmp/mus-backend /app/mus-backend
 COPY --from=frontend-builder /app/frontend/build /app/frontend/build
 COPY docker/production/entrypoint.sh /app/entrypoint.sh
 
-RUN mkdir -p /app_data/covers /app_data/.cache \
+RUN mkdir -p /app_data/.cache/covers \
     && chmod a+rx /app/mus-backend /app/entrypoint.sh
 
 EXPOSE 8000

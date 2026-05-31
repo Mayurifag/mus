@@ -71,6 +71,18 @@ describe("hlsPreloadService", () => {
     ]);
   });
 
+  it("resolves relative playlist URLs against the current page URL", () => {
+    expect(
+      firstHlsMediaUrls(
+        "/api/v1/tracks/2/hls/2/index.m3u8",
+        '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6,\nsegment-00001.m4s\n',
+      ),
+    ).toEqual([
+      `${window.location.origin}/api/v1/tracks/2/hls/2/init.mp4`,
+      `${window.location.origin}/api/v1/tracks/2/hls/2/segment-00001.m4s`,
+    ]);
+  });
+
   it("derives deterministic next track for preload", () => {
     const tracks = [track("1"), track("2", "Other"), track("3")];
     const baseState: TrackStoreState = {

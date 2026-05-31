@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     env, fs,
     net::SocketAddr,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -50,15 +50,18 @@ async fn main() -> Result<()> {
 async fn build_state() -> Result<AppState> {
     let data_dir = PathBuf::from(env::var("DATA_DIR_PATH").unwrap_or_else(|_| "./app_data".into()));
     let music_dir = data_dir.join("music");
-    let covers_dir = data_dir.join("covers");
+    let cache_dir = data_dir.join(".cache");
+    let covers_dir = cache_dir.join("covers");
     let static_dir = env::var("STATIC_DIR_PATH")
         .ok()
         .map(PathBuf::from)
         .filter(|path| path.is_dir());
     fs::create_dir_all(&data_dir)?;
+    fs::create_dir_all(&cache_dir)?;
+    migrate_legacy_app_data(&data_dir, &cache_dir)?;
     fs::create_dir_all(&covers_dir)?;
 
-    let mut conn = Connection::open(data_dir.join("mus.db"))?;
+    let mut conn = Connection::open(cache_dir.join("mus.db"))?;
     init_db(&mut conn)?;
 
     let (events, _) = broadcast::channel(100);
@@ -82,4 +85,20 @@ async fn build_state() -> Result<AppState> {
                 .ok(),
         )),
     })
+}
+
+fn migrate_legacy_app_data(data_dir: &Path, cache_dir: &Path) -> Result<()> {
+    let legacy_db = data_dir.join("mus.db");
+    let db = cache_dir.join("mus.db");
+    if legacy_db.is_file() && !db.exists() {
+        fs::rename(legacy_db, db)?;
+    }
+
+    let legacy_covers = data_dir.join("covers");
+    let covers_dir = cache_dir.join("covers");
+    if legacy_covers.is_dir() && !covers_dir.exists() {
+        fs::rename(legacy_covers, covers_dir)?;
+    }
+
+    Ok(())
 }

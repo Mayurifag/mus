@@ -95,18 +95,22 @@ export function firstHlsMediaUrls(
   playlistUrl: string,
   playlist: string,
 ): string[] {
+  const resolvedPlaylistUrl = new URL(
+    playlistUrl,
+    globalThis.location?.href,
+  ).toString();
   const lines = playlist.split("\n").map((value) => value.trim());
   const urls: string[] = [];
   const init = lines
     .find((value) => value.startsWith("#EXT-X-MAP:"))
     ?.match(/URI="([^"]+)"/)?.[1];
   if (init) {
-    urls.push(new URL(init, playlistUrl).toString());
+    urls.push(new URL(init, resolvedPlaylistUrl).toString());
   }
 
   const segment = lines.find((value) => value !== "" && !value.startsWith("#"));
   if (segment) {
-    urls.push(new URL(segment, playlistUrl).toString());
+    urls.push(new URL(segment, resolvedPlaylistUrl).toString());
   }
 
   return urls;

@@ -144,7 +144,10 @@ async fn request_logging(request: Request, next: Next) -> Response {
 
 pub fn test_state(data_dir: PathBuf, mut conn: Connection) -> AppState {
     let music_dir = data_dir.join("music");
-    let covers_dir = data_dir.join("covers");
+    let cache_dir = data_dir.join(".cache");
+    let covers_dir = cache_dir.join("covers");
+    std::fs::create_dir_all(&music_dir).unwrap();
+    std::fs::create_dir_all(&covers_dir).unwrap();
     init_db(&mut conn).unwrap();
     let (events, _) = tokio::sync::broadcast::channel(100);
     AppState {

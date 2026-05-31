@@ -11,11 +11,10 @@
 - Use `make e2e-current-image` after `make prod-image` when the image is already built and the e2e rebuild would only re-fetch registry metadata.
 - `docker/docker-compose.override.yml` is gitignored and required for local dev. Create it from `docker/docker-compose.override.yml.example` when missing.
 - Production deployments run the app behind external authentication; do not add app-level auth unless explicitly requested.
-- Database and generated covers are derived container data; do not add Docker volumes for them unless explicitly requested.
-- Mounted folders must have the least possible file changes; use `/app_data/.cache` for transient upload/download/rewrite files.
+- App-owned state (`mus.db`, covers, HLS, transient upload/download/rewrite files) lives under `/app_data/.cache`.
+- Production should mount `/app_data/.cache` as the single app-state volume; keep `/app_data/music` as the separate OpenCloud music mount.
 - Never create staging or replacement files inside mounted music folders.
 - Local music mount is `/Volumes/sdcard/Personal/Music:/app_data/music`.
-- Rewrite cache stays container-internal at `/app_data/.cache`; do not bind mount it locally.
 - Production OpenCloud uses PosixFS and stores metadata in `user.oc.*` xattrs.
 - For OpenCloud-mounted music, update existing files in place to preserve inode/xattrs; if renaming too, copy bytes into the original path first, then rename that original file.
 - If `mus` edits MP3 tags/artwork directly, OpenCloud sync can break with stale `user.oc.blobsize`/checksums or stuck `user.oc.nodestatus=processing:*`.

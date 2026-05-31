@@ -16,7 +16,6 @@ fn make_state() -> (TempDir, mus_backend::state::AppState) {
     let tmp = TempDir::new().unwrap();
     let data_dir = tmp.path().to_path_buf();
     fs::create_dir_all(data_dir.join("music")).unwrap();
-    fs::create_dir_all(data_dir.join("covers")).unwrap();
     let state = test_state(data_dir, Connection::open_in_memory().unwrap());
     (tmp, state)
 }

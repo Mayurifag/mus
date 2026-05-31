@@ -42,6 +42,7 @@
   let hlsPreloader = $state<HlsPreloadService | undefined>(undefined);
   let eventSource = $state<EventSource | null>(null);
   let sheetOpen = $state(false);
+  let isPlaying = $state(false);
   let lastCurrentTrackId: string | null = null;
   let lastPlayRequestId = 0;
 
@@ -122,6 +123,25 @@
     }
   }
 
+  $effect(() => {
+    updateEffectStats("Layout_PlaybackStateSubscription");
+    if (!audioService) return;
+
+    let wasPlaying = false;
+    return audioService.isPlayingStore.subscribe((value) => {
+      if (wasPlaying && !value) {
+        savePlayerState(
+          audioService,
+          $trackStore.currentTrack,
+          $trackStore.is_shuffle,
+        );
+      }
+
+      wasPlaying = value;
+      isPlaying = value;
+    });
+  });
+
   // TODO: maybe we should do that inside audio service idk
   $effect(() => {
     updateEffectStats("Layout_TrackChangeHandler");
@@ -131,9 +151,15 @@
       $trackStore.currentTrack.id !== lastCurrentTrackId
     ) {
       const shouldAutoPlay =
-        audioService.isPlaying ||
-        $trackStore.playRequestId !== lastPlayRequestId;
+        isPlaying || $trackStore.playRequestId !== lastPlayRequestId;
       audioService.updateAudioSource($trackStore.currentTrack, shouldAutoPlay);
+      if (shouldAutoPlay) {
+        savePlayerState(
+          audioService,
+          $trackStore.currentTrack,
+          $trackStore.is_shuffle,
+        );
+      }
       lastCurrentTrackId = $trackStore.currentTrack.id;
       lastPlayRequestId = $trackStore.playRequestId;
     }
@@ -149,7 +175,7 @@
 
   $effect(() => {
     updateEffectStats("Layout_PeriodicStateSave");
-    if ($trackStore.currentTrack && audioService && audioService.isPlaying) {
+    if ($trackStore.currentTrack && audioService && isPlaying) {
       const interval = setInterval(() => {
         savePlayerState(
           audioService,

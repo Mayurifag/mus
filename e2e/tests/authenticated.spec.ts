@@ -31,8 +31,8 @@ async function checkCoverFiles(
   trackId: number,
 ): Promise<{ hasSmall: boolean; hasOriginal: boolean }> {
   const containerName = "mus-e2e-test";
-  const smallPath = `/app_data/covers/${trackId}_small.webp`;
-  const originalPath = `/app_data/covers/${trackId}_original.webp`;
+  const smallPath = `/app_data/.cache/covers/${trackId}_small.webp`;
+  const originalPath = `/app_data/.cache/covers/${trackId}_original.webp`;
 
   const checkFileExists = (filePath: string): boolean => {
     try {

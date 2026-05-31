@@ -15,6 +15,7 @@ use tempfile::TempDir;
 use tower::ServiceExt;
 
 const TRACK_ID: &str = "1111111111111111111111111111111111111111111111111111111111111111";
+const OTHER_TRACK_ID: &str = "2222222222222222222222222222222222222222222222222222222222222222";
 const MISSING_TRACK_ID: &str = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
 struct TestApp {
@@ -28,7 +29,6 @@ impl TestApp {
         let tmp = TempDir::new().unwrap();
         let data_dir = tmp.path().to_path_buf();
         fs::create_dir_all(data_dir.join("music")).unwrap();
-        fs::create_dir_all(data_dir.join("covers")).unwrap();
         let state = test_state(data_dir, Connection::open_in_memory().unwrap());
         let router = app(state.clone());
         Self {
@@ -570,6 +570,44 @@ async fn player_state_contract() {
         .await;
     assert_eq!(saved.status(), StatusCode::OK);
     assert_eq!(body_json(saved).await, payload);
+
+    let loaded = app
+        .request(Method::GET, "/api/v1/player/state", Body::empty())
+        .await;
+    assert_eq!(loaded.status(), StatusCode::OK);
+    assert_eq!(body_json(loaded).await, payload);
+
+    let updated_payload = json!({
+        "current_track_id": OTHER_TRACK_ID,
+        "progress_seconds": 12.25,
+        "volume_level": 0.4,
+        "is_muted": false,
+        "is_shuffle": true,
+        "is_repeat": false
+    });
+    let updated = app
+        .json(
+            Method::POST,
+            "/api/v1/player/state",
+            updated_payload.clone(),
+        )
+        .await;
+    assert_eq!(updated.status(), StatusCode::OK);
+
+    let loaded_updated = app
+        .request(Method::GET, "/api/v1/player/state", Body::empty())
+        .await;
+    assert_eq!(loaded_updated.status(), StatusCode::OK);
+    assert_eq!(body_json(loaded_updated).await, updated_payload);
+
+    let row_count: i64 = app
+        .state
+        .db
+        .lock()
+        .unwrap()
+        .query_row("SELECT COUNT(*) FROM playerstate", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(row_count, 1);
 }
 
 #[tokio::test]
