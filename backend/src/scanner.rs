@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use notify::{
     event::EventKind, Config, Event, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
 };
@@ -122,6 +122,7 @@ fn force_polling_watcher() -> bool {
 }
 
 async fn sync_changed_paths(state: AppState, paths: Vec<PathBuf>) -> Result<()> {
+    let _guard = state.mutation_lock("scanner".into()).await;
     let mut current = HashSet::new();
     let mut touched_missing = HashSet::new();
     let mut existing = HashMap::new();
@@ -135,10 +136,31 @@ async fn sync_changed_paths(state: AppState, paths: Vec<PathBuf>) -> Result<()> 
     for path in paths {
         if path.is_dir() {
             for path in audio_paths_in_dir(&path)? {
-                sync_path(&state, &existing, &mut current, &path, true).await?;
+                match sync_path(&state, &existing, &mut current, &path, true).await {
+                    Ok(()) => {}
+                    Err(error) if is_not_found(&error) => {
+                        tracing::debug!(path = %path.display(), "skipped vanished changed path");
+                    }
+                    Err(error) => {
+                        return Err(error).with_context(|| {
+                            format!("failed to sync changed path {}", path.display())
+                        });
+                    }
+                }
             }
         } else if path.exists() && is_audio_path(&path) {
-            sync_path(&state, &existing, &mut current, &path, true).await?;
+            match sync_path(&state, &existing, &mut current, &path, true).await {
+                Ok(()) => {}
+                Err(error) if is_not_found(&error) => {
+                    tracing::debug!(path = %path.display(), "skipped vanished changed path");
+                    touched_missing.insert(path.to_string_lossy().to_string());
+                }
+                Err(error) => {
+                    return Err(error).with_context(|| {
+                        format!("failed to sync changed path {}", path.display())
+                    });
+                }
+            }
         } else if is_audio_path(&path) {
             touched_missing.insert(path.to_string_lossy().to_string());
         }
@@ -194,6 +216,7 @@ fn should_sync_event(event: &Event) -> bool {
 }
 
 async fn sync_tracks(state: AppState, broadcast_changes: bool) -> Result<()> {
+    let _guard = state.mutation_lock("scanner".into()).await;
     let mut current = HashSet::new();
     let mut existing = HashMap::new();
     for track in db::list_tracks(&state)? {
@@ -206,8 +229,24 @@ async fn sync_tracks(state: AppState, broadcast_changes: bool) -> Result<()> {
         if !dir.is_dir() {
             continue;
         }
-        for entry in fs::read_dir(&dir)? {
-            let path = entry?.path();
+        let entries = match fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => {
+                return Err(error)
+                    .with_context(|| format!("failed to read directory {}", dir.display()))
+            }
+        };
+        for entry in entries {
+            let path = match entry {
+                Ok(entry) => entry.path(),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => {
+                    return Err(error).with_context(|| {
+                        format!("failed to read directory entry in {}", dir.display())
+                    })
+                }
+            };
             if path.is_dir() {
                 dirs.push(path);
                 continue;
@@ -217,7 +256,17 @@ async fn sync_tracks(state: AppState, broadcast_changes: bool) -> Result<()> {
             }
 
             found += 1;
-            sync_path(&state, &existing, &mut current, &path, broadcast_changes).await?;
+            match sync_path(&state, &existing, &mut current, &path, broadcast_changes).await {
+                Ok(()) => {}
+                Err(error) if is_not_found(&error) => {
+                    tracing::debug!(path = %path.display(), "skipped vanished scanned path");
+                }
+                Err(error) => {
+                    return Err(error).with_context(|| {
+                        format!("failed to sync scanned path {}", path.display())
+                    });
+                }
+            }
         }
     }
     tracing::info!("found {found} audio files");
@@ -228,6 +277,13 @@ async fn sync_tracks(state: AppState, broadcast_changes: bool) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn is_not_found(error: &anyhow::Error) -> bool {
+    error
+        .chain()
+        .filter_map(|error| error.downcast_ref::<std::io::Error>())
+        .any(|error| error.kind() == std::io::ErrorKind::NotFound)
 }
 
 fn delete_missing_track(

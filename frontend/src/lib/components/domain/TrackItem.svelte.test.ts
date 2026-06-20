@@ -228,6 +228,17 @@ describe("TrackItem component", () => {
     ).toHaveLength(1);
   });
 
+  it("renders spaces after artist separators", () => {
+    mockTrack.artist = "Artist A; Artist B";
+    mockTrackStoreState.tracks = [mockTrack, { ...mockTrack, id: "2" }];
+
+    render(TrackItem, { track: mockTrack, index: 0, isSelected: false });
+
+    expect(screen.getByTestId("track-item")).toHaveTextContent(
+      "Artist A, Artist B",
+    );
+  });
+
   it("plays the row when selected artist text is clicked", async () => {
     mockTrackStoreState.selectedArtist = "Test Artist";
     render(TrackItem, { track: mockTrack, index: 0, isSelected: false });
