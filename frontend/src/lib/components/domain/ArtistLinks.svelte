@@ -42,7 +42,7 @@
       </button>
     {:else}
       <span class={className}>{artistName}</span>
-    {/if}{#if index < artists.length - 1}{",\u00a0"}
+    {/if}{#if index < artists.length - 1},&nbsp;
     {/if}
   {/each}
 {:else}
