@@ -9,6 +9,7 @@ import {
   updateMediaSessionMetadata,
   updateMediaSessionPlaybackState,
 } from "$lib/services/mediaSessionService";
+import { toast } from "svelte-sonner";
 
 export class AudioService {
   private audio: HTMLAudioElement;
@@ -179,6 +180,17 @@ export class AudioService {
     this.hls = null;
   }
 
+  private handlePlayError(error: DOMException): void {
+    if (error.name === "AbortError") return;
+
+    if (error.name === "NotAllowedError") {
+      toast.info("Tap play to resume");
+    } else {
+      console.error("Error playing audio:", error);
+    }
+    this.pause();
+  }
+
   updateAudioSource(
     track: Track | null,
     isPlaying: boolean,
@@ -193,11 +205,9 @@ export class AudioService {
       this.destroyHls();
       this.hasRequestedLoad = false;
       this.pendingHlsUrl = track.hls_url;
-      if (initialTime > 0) {
-        this.audio.addEventListener("loadedmetadata", seekAfterMetadata, {
-          once: true,
-        });
-      }
+      this.audio.addEventListener("loadedmetadata", seekAfterMetadata, {
+        once: true,
+      });
       if (typeof document !== "undefined") {
         document.title = `${formatArtistsForDisplay(track.artist)} - ${track.title}`;
       }
@@ -208,11 +218,7 @@ export class AudioService {
 
       if (isPlaying) {
         this.loadSource();
-        this.audio.play().catch((error) => {
-          if (error.name !== "AbortError") {
-            this.pause();
-          }
-        });
+        this.audio.play().catch((error) => this.handlePlayError(error));
       }
     } else if (initialTime > 0) {
       this.setTime(initialTime);
@@ -221,12 +227,7 @@ export class AudioService {
 
   play(): void {
     this.loadSource();
-    this.audio.play().catch((error) => {
-      console.error("Error playing audio:", error);
-      if (error.name !== "AbortError") {
-        this.pause();
-      }
-    });
+    this.audio.play().catch((error) => this.handlePlayError(error));
   }
 
   pause(): void {

@@ -17,6 +17,7 @@ describe("downloadStore", () => {
       artist: null,
       thumbnailUrl: null,
       duration: null,
+      tags: [],
       progress: null,
     });
   });
@@ -57,6 +58,7 @@ describe("downloadStore", () => {
       artist: null,
       thumbnailUrl: null,
       duration: null,
+      tags: [],
       progress: null,
     });
   });
@@ -84,6 +86,7 @@ describe("downloadStore", () => {
       artist: "My Artist",
       thumbnailUrl: "https://example.com/thumb.jpg",
       duration: 213,
+      tags: ["gachi"],
     });
     const state = get(downloadStore);
     expect(state.state).toBe("awaiting_review");
@@ -91,6 +94,7 @@ describe("downloadStore", () => {
     expect(state.artist).toBe("My Artist");
     expect(state.thumbnailUrl).toBe("https://example.com/thumb.jpg");
     expect(state.duration).toBe(213);
+    expect(state.tags).toEqual(["gachi"]);
     expect(state.error).toBeNull();
   });
 
@@ -105,6 +109,7 @@ describe("downloadStore", () => {
     expect(state.state).toBe("awaiting_review");
     expect(state.thumbnailUrl).toBeNull();
     expect(state.duration).toBeNull();
+    expect(state.tags).toEqual([]);
   });
 
   it("should reset clears all metadata fields", () => {
@@ -114,6 +119,7 @@ describe("downloadStore", () => {
       artist: "Artist",
       thumbnailUrl: "https://example.com/t.jpg",
       duration: 180,
+      tags: ["ai-cover"],
     });
     downloadStore.reset();
     const state = get(downloadStore);
@@ -122,6 +128,7 @@ describe("downloadStore", () => {
     expect(state.artist).toBeNull();
     expect(state.thumbnailUrl).toBeNull();
     expect(state.duration).toBeNull();
+    expect(state.tags).toEqual([]);
     expect(state.state).toBe("idle");
   });
 

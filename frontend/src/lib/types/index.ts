@@ -9,6 +9,12 @@ export interface Track {
   cover_small_url: string | null;
   cover_original_url: string | null;
   hls_url: string;
+  tags?: TrackTag[];
+}
+
+export interface TrackTag {
+  name: string;
+  display_name: string;
 }
 
 export interface ArtworkSearchResult {
@@ -32,6 +38,7 @@ export interface PlayerState {
   progress_seconds: number;
   volume_level: number;
   is_muted: boolean;
+  is_playing: boolean;
   is_shuffle: boolean;
   is_repeat: boolean;
 }

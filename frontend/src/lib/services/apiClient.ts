@@ -44,6 +44,7 @@ export function createTrackWithUrls(
   const track = trackData as Track;
   return {
     ...track,
+    tags: track.tags ?? [],
     cover_small_url: createCoverUrl(track.cover_small_url, track.updated_at),
     cover_original_url: createCoverUrl(
       track.cover_original_url,
@@ -54,11 +55,15 @@ export function createTrackWithUrls(
 }
 
 export async function fetchTracks(
+  category?: string | null,
   fetchFn: typeof fetch = fetch,
 ): Promise<Track[]> {
   const result = await safeApiCall(
     async () => {
-      const response = await fetchFn(`${API_BASE_URL}/tracks`);
+      const suffix = category
+        ? `?category=${encodeURIComponent(category)}`
+        : "";
+      const response = await fetchFn(`${API_BASE_URL}/tracks${suffix}`);
       const tracks: Track[] = await handleApiResponse(response);
       return tracks.map((track) => createTrackWithUrls(track));
     },
@@ -76,6 +81,7 @@ export async function fetchPlayerState(
     progress_seconds: 0.0,
     volume_level: 1.0,
     is_muted: false,
+    is_playing: false,
     is_shuffle: false,
     is_repeat: false,
   };
@@ -111,6 +117,7 @@ export async function updateTrack(
     artist?: string;
     rename_file?: boolean;
     artwork_url?: string;
+    tags?: string[];
   },
 ): Promise<{ status: string; track?: Track }> {
   try {
@@ -419,6 +426,7 @@ export interface TrackMetadata {
   artist: string;
   thumbnail_url: string | null;
   duration: number | null;
+  tags?: { name: string; display_name: string }[];
 }
 
 export async function fetchMetadata(url: string): Promise<TrackMetadata> {
@@ -439,6 +447,7 @@ export async function confirmDownload(
   title: string,
   artist: string,
   artworkUrl?: string,
+  tags: string[] = [],
 ): Promise<void> {
   const result = await safeApiCall(
     async () => {
@@ -447,7 +456,13 @@ export async function confirmDownload(
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ url, title, artist, artwork_url: artworkUrl }),
+        body: JSON.stringify({
+          url,
+          title,
+          artist,
+          artwork_url: artworkUrl,
+          tags,
+        }),
       });
       await handleApiResponse(response);
     },

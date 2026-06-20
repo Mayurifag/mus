@@ -17,6 +17,7 @@ export interface TrackStoreState {
   currentTrack: Track | null;
   is_shuffle: boolean;
   selectedArtist: string | null;
+  selectedCategory: string | null;
   playRequestId: number;
 }
 
@@ -28,6 +29,7 @@ const initialState: TrackStoreState = {
   currentTrack: null,
   is_shuffle: false,
   selectedArtist: null,
+  selectedCategory: null,
   playRequestId: 0,
 };
 
@@ -76,12 +78,19 @@ function createTrackStore() {
   const trackMatchesArtist = (track: Track, artist: string): boolean =>
     parseArtists(track.artist).includes(artist);
 
-  const getSelectedArtistTrackIndexes = (state: TrackStoreState): number[] => {
+  const trackMatchesCategory = (track: Track, category: string): boolean =>
+    (track.tags ?? []).some((tag) => tag.name === category);
+
+  const getSelectedFilterTrackIndexes = (state: TrackStoreState): number[] => {
     const selectedArtist = state.selectedArtist;
-    if (!selectedArtist) return [];
+    const selectedCategory = state.selectedCategory;
+    if (!selectedArtist && !selectedCategory) return [];
 
     return state.tracks.reduce<number[]>((indexes, track, index) => {
-      if (trackMatchesArtist(track, selectedArtist)) {
+      if (
+        (!selectedArtist || trackMatchesArtist(track, selectedArtist)) &&
+        (!selectedCategory || trackMatchesCategory(track, selectedCategory))
+      ) {
         indexes.push(index);
       }
       return indexes;
@@ -367,8 +376,8 @@ function createTrackStore() {
           return { ...state, ...partial };
         };
 
-        if (state.selectedArtist) {
-          const scopedIndexes = getSelectedArtistTrackIndexes(state);
+        if (state.selectedArtist || state.selectedCategory) {
+          const scopedIndexes = getSelectedFilterTrackIndexes(state);
           if (scopedIndexes.length === 0) return state;
 
           return nextState({
@@ -401,8 +410,8 @@ function createTrackStore() {
           return state;
         }
 
-        if (state.selectedArtist) {
-          const scopedIndexes = getSelectedArtistTrackIndexes(state);
+        if (state.selectedArtist || state.selectedCategory) {
+          const scopedIndexes = getSelectedFilterTrackIndexes(state);
           if (scopedIndexes.length === 0) return state;
 
           return {
@@ -451,12 +460,28 @@ function createTrackStore() {
           : {
               ...state,
               selectedArtist: artist,
+              selectedCategory: null,
             },
       ),
     clearArtistFilter: () =>
       update((state) => ({
         ...state,
         selectedArtist: null,
+      })),
+    setCategoryFilter: (category: string) =>
+      update((state) =>
+        state.selectedCategory === category
+          ? state
+          : {
+              ...state,
+              selectedCategory: category,
+              selectedArtist: null,
+            },
+      ),
+    clearCategoryFilter: () =>
+      update((state) => ({
+        ...state,
+        selectedCategory: null,
       })),
     addTrack: (track: Track) =>
       update((state) => {
@@ -580,6 +605,20 @@ export const artistCountsStore = derived(trackStore, ($trackStore) => {
   for (const track of $trackStore.tracks) {
     for (const artist of new Set(parseArtists(track.artist))) {
       counts.set(artist, (counts.get(artist) ?? 0) + 1);
+    }
+  }
+
+  return Object.fromEntries(counts);
+});
+
+export const categoryCountsStore = derived(trackStore, ($trackStore) => {
+  const counts = new Map<string, number>();
+
+  for (const track of $trackStore.tracks) {
+    for (const tag of track.tags ?? []) {
+      if (tag.name === "gachi" || tag.name === "ai-cover") {
+        counts.set(tag.name, (counts.get(tag.name) ?? 0) + 1);
+      }
     }
   }
 

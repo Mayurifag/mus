@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { artistCountsStore, trackStore } from "$lib/stores/trackStore";
+  import {
+    artistCountsStore,
+    categoryCountsStore,
+    trackStore,
+  } from "$lib/stores/trackStore";
 
   import { AlertTriangle, Play } from "@lucide/svelte";
   import EffectMonitor from "$lib/components/debug/EffectMonitor.svelte";
@@ -73,6 +77,7 @@
     import.meta.env.VITE_EFFECTS_DEBUG === "true";
 
   const selectedArtist = $derived($trackStore.selectedArtist);
+  const selectedCategory = $derived($trackStore.selectedCategory);
 
   const topArtists = $derived.by(() => {
     return Object.entries($artistCountsStore)
@@ -83,6 +88,26 @@
 
   function canSelectArtist(name: string, count: number): boolean {
     return selectedArtist !== name && count > 1;
+  }
+
+  const categories = $derived.by(() =>
+    [
+      { name: "gachi", displayName: "Gachi" },
+      { name: "ai-cover", displayName: "AI cover" },
+    ]
+      .map((category) => ({
+        ...category,
+        count: $categoryCountsStore[category.name] ?? 0,
+      }))
+      .filter((category) => category.count > 0),
+  );
+
+  function selectCategoryFilter(category: string) {
+    trackStore.setCategoryFilter(category);
+  }
+
+  function clearCategoryFilter() {
+    trackStore.clearCategoryFilter();
   }
 
   const timelineItems = $derived.by(() => {
@@ -147,10 +172,6 @@
 </script>
 
 <div class="bg-card/50 flex h-full w-full flex-col backdrop-blur-sm">
-  <div class="border-border/50 border-b p-4">
-    <h2 class="text-foreground text-lg font-semibold">Controls</h2>
-  </div>
-
   <!-- Scrollable Content -->
   <div class="flex-1 overflow-y-auto">
     <!-- Download Manager -->
@@ -211,6 +232,40 @@
                 <span class="text-xs opacity-70">{artist.count}</span>
               </div>
             {/if}
+          {/each}
+        </div>
+      </div>
+    {/if}
+
+    {#if categories.length > 0}
+      <div class="border-border/30 border-b p-4">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <h4 class="text-foreground text-sm font-semibold">Category</h4>
+          {#if selectedCategory}
+            <button
+              type="button"
+              class="text-muted-foreground hover:text-foreground text-xs transition-colors"
+              onclick={clearCategoryFilter}
+            >
+              Clear
+            </button>
+          {/if}
+        </div>
+
+        <div class="space-y-1">
+          {#each categories as category (category.name)}
+            <button
+              type="button"
+              class="text-muted-foreground hover:bg-muted/30 hover:text-foreground flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors {selectedCategory ===
+              category.name
+                ? 'bg-muted/20 text-foreground'
+                : ''}"
+              aria-label="Show {category.displayName} songs"
+              onclick={() => selectCategoryFilter(category.name)}
+            >
+              <span class="truncate">{category.displayName}</span>
+              <span class="text-xs opacity-70">{category.count}</span>
+            </button>
           {/each}
         </div>
       </div>

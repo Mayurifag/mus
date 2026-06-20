@@ -47,6 +47,7 @@ describe("playerStateService", () => {
       progress_seconds: 45.5,
       volume_level: 0.7,
       is_muted: true,
+      is_playing: true,
       is_shuffle: true,
       is_repeat: true,
     });
@@ -55,7 +56,7 @@ describe("playerStateService", () => {
     expect(audioService.initializeState).toHaveBeenCalledWith(0.7, true, true);
     expect(audioService.updateAudioSource).toHaveBeenCalledWith(
       tracks[1],
-      false,
+      true,
       45.5,
     );
     expect(get(trackStore).currentTrack?.id).toBe("2");
@@ -68,6 +69,7 @@ describe("playerStateService", () => {
       currentTime: 12.25,
       volume: 0.4,
       isMuted: false,
+      isPlaying: true,
       isRepeat: true,
     } as unknown as AudioService;
 
@@ -78,6 +80,7 @@ describe("playerStateService", () => {
       progress_seconds: 12.25,
       volume_level: 0.4,
       is_muted: false,
+      is_playing: true,
       is_shuffle: true,
       is_repeat: true,
     });

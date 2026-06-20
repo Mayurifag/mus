@@ -17,6 +17,7 @@ export interface DownloadStoreState {
   artist: string | null;
   thumbnailUrl: string | null;
   duration: number | null;
+  tags: string[];
   progress: DownloadProgress | null;
 }
 
@@ -28,6 +29,7 @@ const initialState: DownloadStoreState = {
   artist: null,
   thumbnailUrl: null,
   duration: null,
+  tags: [],
   progress: null,
 };
 
@@ -48,11 +50,13 @@ function createDownloadStore() {
       artist,
       thumbnailUrl,
       duration,
+      tags,
     }: {
       title: string;
       artist: string;
       thumbnailUrl: string | null;
       duration: number | null;
+      tags?: string[];
     }) =>
       update((state) => ({
         ...state,
@@ -62,6 +66,7 @@ function createDownloadStore() {
         artist,
         thumbnailUrl,
         duration,
+        tags: tags ?? [],
       })),
     startDownload: () =>
       update((state) => ({

@@ -22,8 +22,8 @@ use crate::{
     media::{apply_audio_update, extract_cover, read_metadata, AudioUpdate, MediaMetadata},
     state::AppState,
     util::{
-        file_content_hash, file_signature, generate_filename, inode, is_audio_path,
-        normalize_artists, normalize_text, now, parse_artists, system_time_secs,
+        file_content_hash, file_signature, generate_filename, inferred_tag_names, inode,
+        is_audio_path, normalize_artists, normalize_text, now, parse_artists, system_time_secs,
     },
 };
 
@@ -123,11 +123,15 @@ fn force_polling_watcher() -> bool {
 
 async fn sync_changed_paths(state: AppState, paths: Vec<PathBuf>) -> Result<()> {
     let mut current = HashSet::new();
+    let mut touched_missing = HashSet::new();
     let mut existing = HashMap::new();
     for track in db::list_tracks(&state)? {
         existing.insert(track.file_path.clone(), track);
     }
 
+    let mut paths = paths.into_iter().collect::<Vec<_>>();
+    paths.sort();
+    paths.dedup();
     for path in paths {
         if path.is_dir() {
             for path in audio_paths_in_dir(&path)? {
@@ -135,10 +139,15 @@ async fn sync_changed_paths(state: AppState, paths: Vec<PathBuf>) -> Result<()> 
             }
         } else if path.exists() && is_audio_path(&path) {
             sync_path(&state, &existing, &mut current, &path, true).await?;
+        } else if is_audio_path(&path) {
+            touched_missing.insert(path.to_string_lossy().to_string());
         }
     }
     for track in existing.values() {
-        if !current.contains(&track.file_path) && !Path::new(&track.file_path).exists() {
+        if touched_missing.contains(&track.file_path)
+            && !current.contains(&track.file_path)
+            && !Path::new(&track.file_path).exists()
+        {
             delete_missing_track(&state, track, true)?;
         }
     }
@@ -152,8 +161,17 @@ fn audio_paths_in_dir(dir: &Path) -> Result<Vec<PathBuf>> {
         if !dir.is_dir() {
             continue;
         }
-        for entry in fs::read_dir(&dir)? {
-            let path = entry?.path();
+        let entries = match fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error.into()),
+        };
+        for entry in entries {
+            let path = match entry {
+                Ok(entry) => entry.path(),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(error.into()),
+            };
             if path.is_dir() {
                 dirs.push(path);
             } else if is_audio_path(&path) {
@@ -510,12 +528,13 @@ async fn upsert_path_with_snapshot(
             params![&id, existing_id],
         )?;
     }
+    db::add_track_tags(state, &id, &inferred_tag_names(&title, &artist, &path))?;
     let has_cover = extract_cover(&path, &state.covers_dir, &id)
         .await
         .unwrap_or(false);
     set_track_cover_state(state, &id, has_cover)?;
     let track = crate::models::Track {
-        id,
+        id: id.clone(),
         title,
         artist,
         duration,
@@ -528,6 +547,9 @@ async fn upsert_path_with_snapshot(
         content_hash: snapshot.content_hash,
         processing_status: "COMPLETE".into(),
         last_error: None,
+        tags: db::get_track(state, &id)?
+            .map(|track| track.tags)
+            .unwrap_or_default(),
     };
     prewarm_track_hls(state, &track).await;
     Ok(track_dto(track))

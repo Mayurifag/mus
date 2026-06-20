@@ -16,12 +16,22 @@
   let { audioService }: { audioService?: AudioService } = $props();
 
   const selectedArtist = $derived($trackStore.selectedArtist);
+  const selectedCategory = $derived($trackStore.selectedCategory);
+  const selectedCategoryLabel = $derived(
+    selectedCategory === "gachi"
+      ? "Gachi"
+      : selectedCategory === "ai-cover"
+        ? "AI cover"
+        : "",
+  );
   const trackRows = $derived.by(() =>
     $trackStore.tracks.reduce<{ track: Track; index: number }[]>(
       (rows, track, index) => {
         if (
-          !selectedArtist ||
-          parseArtists(track.artist).includes(selectedArtist)
+          (!selectedArtist ||
+            parseArtists(track.artist).includes(selectedArtist)) &&
+          (!selectedCategory ||
+            (track.tags ?? []).some((tag) => tag.name === selectedCategory))
         ) {
           rows.push({ track, index });
         }
@@ -149,6 +159,14 @@
       get(virtualizer).measureElement(node);
     }
   }
+
+  function clearActiveFilter() {
+    if (selectedArtist) {
+      clearArtistFilter();
+    } else {
+      trackStore.clearCategoryFilter();
+    }
+  }
 </script>
 
 {#snippet renderTrack(row: { track: Track; index: number })}
@@ -176,11 +194,11 @@
 {/snippet}
 
 <div class="flex flex-col" data-testid="track-list">
-  {#if selectedArtist}
+  {#if selectedArtist || selectedCategory}
     <button
       type="button"
       class="border-border/40 bg-card/60 hover:bg-muted/30 mx-3 mb-3 flex w-[calc(100%-1.5rem)] cursor-pointer items-center gap-3 rounded-xl border px-3 py-3 text-left shadow-sm transition-colors"
-      onclick={clearArtistFilter}
+      onclick={clearActiveFilter}
       aria-label="Back to all songs"
     >
       <span
@@ -193,7 +211,7 @@
           Back to all songs
         </span>
         <span class="block truncate text-base font-semibold">
-          {selectedArtist}
+          {selectedArtist ?? selectedCategoryLabel}
         </span>
       </span>
       <span
@@ -214,7 +232,7 @@
   {:else if visibleTrackCount === 0}
     <div class="flex h-32 w-full flex-col items-center justify-center">
       <p class="text-muted-foreground mb-2 text-center">
-        No songs found for this artist.
+        No songs found for this filter.
       </p>
     </div>
   {:else if shouldVirtualize && virtualizer}

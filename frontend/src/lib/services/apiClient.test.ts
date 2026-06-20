@@ -51,6 +51,7 @@ const mockTrackTransformed = {
   cover_small_url: `${PUBLIC_API_BASE_URL}/tracks/1/covers/small.webp?v=1640995200`,
   cover_original_url: `${PUBLIC_API_BASE_URL}/tracks/1/covers/original.webp?v=1640995200`,
   hls_url: `${PUBLIC_API_BASE_URL}/tracks/1/hls/1640995200/index.m3u8`,
+  tags: [],
 };
 
 const mockPlayerState = {
@@ -58,6 +59,7 @@ const mockPlayerState = {
   progress_seconds: 30,
   volume_level: 0.7,
   is_muted: false,
+  is_playing: false,
   is_shuffle: false,
   is_repeat: false,
 };
@@ -164,6 +166,7 @@ describe("apiClient", () => {
         progress_seconds: 0.0,
         volume_level: 1.0,
         is_muted: false,
+        is_playing: false,
         is_shuffle: false,
         is_repeat: false,
       });
@@ -191,6 +194,7 @@ describe("apiClient", () => {
         progress_seconds: 0.0,
         volume_level: 1.0,
         is_muted: false,
+        is_playing: false,
         is_shuffle: false,
         is_repeat: false,
       });
@@ -212,6 +216,7 @@ describe("apiClient", () => {
         progress_seconds: 0.0,
         volume_level: 1.0,
         is_muted: false,
+        is_playing: false,
         is_shuffle: false,
         is_repeat: false,
       });

@@ -16,6 +16,13 @@ pub struct Track {
     pub content_hash: String,
     pub processing_status: String,
     pub last_error: Option<Value>,
+    pub tags: Vec<Tag>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Tag {
+    pub name: String,
+    pub display_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,6 +37,7 @@ pub struct TrackDto {
     pub cover_small_url: Option<String>,
     pub cover_original_url: Option<String>,
     pub hls_url: String,
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,6 +46,7 @@ pub struct PlayerState {
     pub progress_seconds: f64,
     pub volume_level: f64,
     pub is_muted: bool,
+    pub is_playing: bool,
     pub is_shuffle: bool,
     pub is_repeat: bool,
 }
@@ -56,6 +65,7 @@ pub struct TrackUpdate {
     pub artist: Option<String>,
     pub rename_file: Option<bool>,
     pub artwork_url: Option<String>,
+    pub tags: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -88,6 +98,7 @@ pub struct ConfirmDownloadRequest {
     pub title: String,
     pub artist: String,
     pub artwork_url: Option<String>,
+    pub tags: Option<Vec<String>>,
 }
 
 #[derive(Serialize)]
@@ -96,6 +107,7 @@ pub struct MetadataResponse {
     pub artist: String,
     pub thumbnail_url: Option<String>,
     pub duration: Option<f64>,
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Serialize)]

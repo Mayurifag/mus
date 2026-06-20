@@ -7,6 +7,7 @@ use tokio::process::Command;
 
 use crate::{
     artwork::download_artwork_as_jpeg,
+    db,
     error::AppError,
     events::broadcast,
     gemini::parse_track_metadata,
@@ -16,7 +17,8 @@ use crate::{
     state::AppState,
     util::{
         audio_paths, can_write, clean_title, command_output, extract_artist_title,
-        generate_filename, normalize_artists, normalize_text, now_nanos, run_command_output,
+        generate_filename, inferred_tag_names, normalize_artists, normalize_text, now_nanos,
+        run_command_output,
     },
 };
 
@@ -41,20 +43,37 @@ pub async fn fetch_metadata(
         .or_else(|| data.get("uploader"))
         .and_then(Value::as_str)
         .unwrap_or("");
-    let (artist, title) = match parse_track_metadata(raw_title, channel).await {
-        Some(metadata) => (metadata.artist, metadata.title),
+    let (artist, title, mut tag_names) = match parse_track_metadata(raw_title, channel).await {
+        Some(metadata) => (metadata.artist, metadata.title, metadata.tags),
         None => raw_artist
-            .map(|artist| (artist.to_string(), clean_title(raw_title)))
-            .unwrap_or_else(|| extract_artist_title(raw_title, channel)),
+            .map(|artist| (artist.to_string(), clean_title(raw_title), Vec::new()))
+            .unwrap_or_else(|| {
+                let (artist, title) = extract_artist_title(raw_title, channel);
+                (artist, title, Vec::new())
+            }),
     };
+    let title = normalize_text(&title);
+    let artist = normalize_artists(&artist);
+    for tag_name in inferred_tag_names(&title, &artist, Path::new(raw_title)) {
+        if !tag_names.contains(&tag_name) {
+            tag_names.push(tag_name);
+        }
+    }
     Ok(Json(MetadataResponse {
-        title: normalize_text(&title),
-        artist: normalize_artists(&artist),
+        title,
+        artist,
         thumbnail_url: data
             .get("thumbnail")
             .and_then(Value::as_str)
             .map(str::to_string),
         duration: data.get("duration").and_then(Value::as_f64),
+        tags: tag_names
+            .into_iter()
+            .map(|name| crate::models::Tag {
+                display_name: if name == "gachi" { "Gachi" } else { "AI cover" }.into(),
+                name,
+            })
+            .collect(),
     }))
 }
 
@@ -62,7 +81,7 @@ pub async fn start_download(
     State(state): State<AppState>,
     Json(req): Json<UrlRequest>,
 ) -> Result<(StatusCode, Json<Value>), AppError> {
-    spawn_download(state, req.url, None, None, None).await?;
+    spawn_download(state, req.url, None, None, None, Vec::new()).await?;
     Ok((StatusCode::ACCEPTED, Json(json!({"status": "accepted"}))))
 }
 
@@ -82,6 +101,7 @@ pub async fn confirm_download(
         Some(title),
         Some(artist),
         req.artwork_url.filter(|url| !url.trim().is_empty()),
+        req.tags.unwrap_or_default(),
     )
     .await?;
     Ok((StatusCode::ACCEPTED, Json(json!({"status": "accepted"}))))
@@ -93,6 +113,7 @@ async fn spawn_download(
     title: Option<String>,
     artist: Option<String>,
     artwork_url: Option<String>,
+    tags: Vec<String>,
 ) -> Result<(), AppError> {
     if !can_write(&state.music_dir) {
         return Err(AppError::forbidden(
@@ -114,7 +135,7 @@ async fn spawn_download(
             Some("info"),
             Some(json!({"url": url})),
         );
-        let result = run_download(state.clone(), url, title, artist, artwork_url).await;
+        let result = run_download(state.clone(), url, title, artist, artwork_url, tags).await;
         if let Err(error) = result {
             tracing::warn!(error = %error, "download failed");
             broadcast(
@@ -136,11 +157,12 @@ async fn run_download(
     title: Option<String>,
     artist: Option<String>,
     artwork_url: Option<String>,
+    tags: Vec<String>,
 ) -> Result<()> {
     let cache_dir = state.data_dir.join(".cache");
     fs::create_dir_all(&cache_dir)?;
     let tmp = unique_download_dir(&cache_dir)?;
-    let result = run_download_inner(&state, &url, title, artist, artwork_url, &tmp).await;
+    let result = run_download_inner(&state, &url, title, artist, artwork_url, tags, &tmp).await;
     let _ = fs::remove_dir_all(tmp);
     result
 }
@@ -151,6 +173,7 @@ async fn run_download_inner(
     title: Option<String>,
     artist: Option<String>,
     artwork_url: Option<String>,
+    tags: Vec<String>,
     tmp: &std::path::Path,
 ) -> Result<()> {
     let title = title.map(|title| normalize_text(&title));
@@ -233,6 +256,7 @@ async fn run_download_inner(
     }
     update_result?;
     let track = upsert_path(state, &final_path, title, artist).await?;
+    db::add_track_tags(state, &track.id, &tags)?;
     tracing::info!(track_id = track.id, "download completed");
     broadcast(
         state,

@@ -8,6 +8,7 @@ export const defaultPlayerState: PlayerState = {
   progress_seconds: 0.0,
   volume_level: 1.0,
   is_muted: false,
+  is_playing: false,
   is_shuffle: false,
   is_repeat: false,
 };
@@ -24,6 +25,7 @@ export function restorePlayerState(
     progress_seconds,
     volume_level,
     is_muted,
+    is_playing,
     is_shuffle,
     is_repeat,
   } = playerState;
@@ -39,7 +41,7 @@ export function restorePlayerState(
       trackStore.setCurrentTrackIndex(trackIndex);
       audioService.updateAudioSource(
         tracks[trackIndex],
-        false,
+        is_playing,
         progress_seconds,
       );
       return current_track_id;
@@ -65,6 +67,7 @@ export function savePlayerState(
     progress_seconds: audioService.currentTime,
     volume_level: audioService.volume,
     is_muted: audioService.isMuted,
+    is_playing: audioService.isPlaying,
     is_shuffle: isShuffle,
     is_repeat: audioService.isRepeat,
   });

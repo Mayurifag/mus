@@ -2,11 +2,14 @@ use anyhow::Result;
 use rusqlite::{params, Connection, OptionalExtension};
 use rusqlite_migration::{Migrations, M};
 use serde_json::Value;
-use std::path::Path;
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 
 use crate::{
     hls::track_hls_url,
-    models::{PlayerState, Track, TrackDto},
+    models::{PlayerState, Tag, Track, TrackDto},
     state::AppState,
     util::is_hash_id,
 };
@@ -70,6 +73,26 @@ const MIGRATIONS: &[M<'static>] = &[
         );
         "#,
     ),
+    M::up("ALTER TABLE playerstate ADD COLUMN is_playing BOOLEAN NOT NULL DEFAULT 0"),
+    M::up(
+        r#"
+        CREATE TABLE tag (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            display_name TEXT NOT NULL
+        );
+        CREATE TABLE track_tag (
+            track_id TEXT NOT NULL,
+            tag_id INTEGER NOT NULL,
+            PRIMARY KEY (track_id, tag_id),
+            FOREIGN KEY (track_id) REFERENCES track(id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES tag(id) ON DELETE CASCADE
+        );
+        CREATE INDEX idx_track_tag_tag_id ON track_tag(tag_id);
+        CREATE INDEX idx_track_tag_track_id ON track_tag(track_id);
+        INSERT INTO tag (name, display_name) VALUES ('gachi', 'Gachi'), ('ai-cover', 'AI cover');
+        "#,
+    ),
 ];
 
 pub fn init_db(conn: &mut Connection) -> Result<()> {
@@ -81,15 +104,48 @@ pub fn init_db(conn: &mut Connection) -> Result<()> {
         "#,
     )?;
     Migrations::from_slice(MIGRATIONS).to_latest(conn)?;
+    ensure_seed_tags(conn)?;
+    Ok(())
+}
+
+fn ensure_seed_tags(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "INSERT INTO tag (name, display_name) VALUES ('gachi', 'Gachi') ON CONFLICT(name) DO UPDATE SET display_name=excluded.display_name",
+        [],
+    )?;
+    conn.execute(
+        "INSERT INTO tag (name, display_name) VALUES ('ai-cover', 'AI cover') ON CONFLICT(name) DO UPDATE SET display_name=excluded.display_name",
+        [],
+    )?;
     Ok(())
 }
 
 pub fn list_tracks(state: &AppState) -> Result<Vec<Track>> {
+    list_tracks_inner(state, None)
+}
+
+pub fn list_tracks_by_category(state: &AppState, category: &str) -> Result<Vec<Track>> {
+    list_tracks_inner(state, Some(category))
+}
+
+fn list_tracks_inner(state: &AppState, category: Option<&str>) -> Result<Vec<Track>> {
     let conn = state.db.lock().unwrap();
-    let mut stmt = conn.prepare("SELECT id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,file_signature,content_hash,processing_status,last_error FROM track ORDER BY rowid DESC")?;
-    let tracks = stmt
-        .query_map([], row_to_track)?
+    let (sql, category) = if let Some(category) = category {
+        (
+            "SELECT track.id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,file_signature,content_hash,processing_status,last_error FROM track JOIN track_tag ON track_tag.track_id = track.id JOIN tag ON tag.id = track_tag.tag_id WHERE tag.name = ?1 ORDER BY track.rowid DESC",
+            Some(category),
+        )
+    } else {
+        (
+            "SELECT id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,file_signature,content_hash,processing_status,last_error FROM track ORDER BY rowid DESC",
+            None,
+        )
+    };
+    let mut stmt = conn.prepare(sql)?;
+    let mut tracks = stmt
+        .query_map(rusqlite::params_from_iter(category), row_to_track)?
         .collect::<rusqlite::Result<Vec<_>>>()?;
+    load_track_tags(&conn, &mut tracks)?;
     Ok(tracks)
 }
 
@@ -98,11 +154,15 @@ pub fn get_track(state: &AppState, id: &str) -> Result<Option<Track>> {
         return Ok(None);
     }
     let conn = state.db.lock().unwrap();
-    conn.query_row(
+    let mut track = conn.query_row(
         "SELECT id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,file_signature,content_hash,processing_status,last_error FROM track WHERE id = ?1",
         params![id],
         row_to_track,
-    ).optional().map_err(Into::into)
+    ).optional()?;
+    if let Some(track) = track.as_mut() {
+        track.tags = track_tags(&conn, &track.id)?;
+    }
+    Ok(track)
 }
 
 pub fn save_track(state: &AppState, old_id: &str, track: &Track) -> Result<()> {
@@ -113,11 +173,105 @@ pub fn save_track(state: &AppState, old_id: &str, track: &Track) -> Result<()> {
     )?;
     if old_id != track.id {
         conn.execute(
+            "UPDATE track_tag SET track_id = ?1 WHERE track_id = ?2",
+            params![track.id, old_id],
+        )?;
+        conn.execute(
             "UPDATE playerstate SET current_track_id = ?1 WHERE current_track_id = ?2",
             params![track.id, old_id],
         )?;
     }
     Ok(())
+}
+
+pub fn set_track_tags(state: &AppState, track_id: &str, tag_names: &[String]) -> Result<()> {
+    let conn = state.db.lock().unwrap();
+    set_track_tags_conn(&conn, track_id, tag_names)
+}
+
+pub fn add_track_tags(state: &AppState, track_id: &str, tag_names: &[String]) -> Result<()> {
+    let conn = state.db.lock().unwrap();
+    for name in valid_tag_names(tag_names) {
+        conn.execute(
+            "INSERT OR IGNORE INTO track_tag (track_id, tag_id) SELECT ?1, id FROM tag WHERE name = ?2",
+            params![track_id, name],
+        )?;
+    }
+    Ok(())
+}
+
+fn set_track_tags_conn(conn: &Connection, track_id: &str, tag_names: &[String]) -> Result<()> {
+    conn.execute(
+        "DELETE FROM track_tag WHERE track_id = ?1",
+        params![track_id],
+    )?;
+    for name in valid_tag_names(tag_names) {
+        conn.execute(
+            "INSERT INTO track_tag (track_id, tag_id) SELECT ?1, id FROM tag WHERE name = ?2",
+            params![track_id, name],
+        )?;
+    }
+    Ok(())
+}
+
+fn valid_tag_names(tag_names: &[String]) -> Vec<&str> {
+    let mut seen = HashSet::new();
+    tag_names
+        .iter()
+        .map(String::as_str)
+        .filter(|name| matches!(*name, "gachi" | "ai-cover") && seen.insert(*name))
+        .collect()
+}
+
+fn load_track_tags(conn: &Connection, tracks: &mut [Track]) -> Result<()> {
+    if tracks.is_empty() {
+        return Ok(());
+    }
+
+    let track_ids = tracks
+        .iter()
+        .map(|track| track.id.as_str())
+        .collect::<Vec<_>>();
+    let placeholders = std::iter::repeat_n("?", track_ids.len())
+        .collect::<Vec<_>>()
+        .join(",");
+    let mut stmt = conn.prepare(&format!(
+        "SELECT track_tag.track_id, tag.name, tag.display_name FROM tag JOIN track_tag ON track_tag.tag_id = tag.id WHERE track_tag.track_id IN ({placeholders}) ORDER BY track_tag.track_id, tag.id"
+    ))?;
+    let rows = stmt.query_map(rusqlite::params_from_iter(track_ids), |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            Tag {
+                name: row.get(1)?,
+                display_name: row.get(2)?,
+            },
+        ))
+    })?;
+
+    let mut tags_by_track: HashMap<String, Vec<Tag>> = HashMap::new();
+    for row in rows {
+        let (track_id, tag) = row?;
+        tags_by_track.entry(track_id).or_default().push(tag);
+    }
+    for track in tracks {
+        track.tags = tags_by_track.remove(&track.id).unwrap_or_default();
+    }
+    Ok(())
+}
+
+fn track_tags(conn: &Connection, track_id: &str) -> Result<Vec<Tag>> {
+    let mut stmt = conn.prepare(
+        "SELECT tag.name, tag.display_name FROM tag JOIN track_tag ON track_tag.tag_id = tag.id WHERE track_tag.track_id = ?1 ORDER BY tag.id",
+    )?;
+    let tags = stmt
+        .query_map(params![track_id], |row| {
+            Ok(Tag {
+                name: row.get(0)?,
+                display_name: row.get(1)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(tags)
 }
 
 pub fn save_track_fingerprint(
@@ -160,15 +314,16 @@ pub fn load_player_state(state: &AppState) -> Result<PlayerState> {
     let conn = state.db.lock().unwrap();
     Ok(conn
         .query_row(
-            "SELECT current_track_id, progress_seconds, volume_level, is_muted, is_shuffle, is_repeat FROM playerstate WHERE id = 1",
+            "SELECT current_track_id, progress_seconds, volume_level, is_muted, is_playing, is_shuffle, is_repeat FROM playerstate WHERE id = 1",
             [],
             |row| Ok(PlayerState {
                 current_track_id: row.get(0)?,
                 progress_seconds: row.get(1)?,
                 volume_level: row.get(2)?,
                 is_muted: row.get(3)?,
-                is_shuffle: row.get(4)?,
-                is_repeat: row.get(5)?,
+                is_playing: row.get(4)?,
+                is_shuffle: row.get(5)?,
+                is_repeat: row.get(6)?,
             }),
         )
         .optional()?
@@ -177,6 +332,7 @@ pub fn load_player_state(state: &AppState) -> Result<PlayerState> {
             progress_seconds: 0.0,
             volume_level: 1.0,
             is_muted: false,
+            is_playing: false,
             is_shuffle: false,
             is_repeat: false,
         }))
@@ -185,13 +341,14 @@ pub fn load_player_state(state: &AppState) -> Result<PlayerState> {
 pub fn save_player_state(state: &AppState, player_state: &PlayerState) -> Result<()> {
     let conn = state.db.lock().unwrap();
     conn.execute(
-        "INSERT INTO playerstate (id, current_track_id, progress_seconds, volume_level, is_muted, is_shuffle, is_repeat)
-         VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6)
+        "INSERT INTO playerstate (id, current_track_id, progress_seconds, volume_level, is_muted, is_playing, is_shuffle, is_repeat)
+         VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7)
          ON CONFLICT(id) DO UPDATE SET
          current_track_id=excluded.current_track_id,
          progress_seconds=excluded.progress_seconds,
          volume_level=excluded.volume_level,
          is_muted=excluded.is_muted,
+         is_playing=excluded.is_playing,
          is_shuffle=excluded.is_shuffle,
          is_repeat=excluded.is_repeat",
         params![
@@ -199,6 +356,7 @@ pub fn save_player_state(state: &AppState, player_state: &PlayerState) -> Result
             player_state.progress_seconds,
             player_state.volume_level,
             player_state.is_muted,
+            player_state.is_playing,
             player_state.is_shuffle,
             player_state.is_repeat
         ],
@@ -209,9 +367,10 @@ pub fn save_player_state(state: &AppState, player_state: &PlayerState) -> Result
 pub fn errored_tracks(state: &AppState) -> Result<Vec<Track>> {
     let conn = state.db.lock().unwrap();
     let mut stmt = conn.prepare("SELECT id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,file_signature,content_hash,processing_status,last_error FROM track WHERE processing_status = 'ERROR'")?;
-    let tracks = stmt
+    let mut tracks = stmt
         .query_map([], row_to_track)?
         .collect::<rusqlite::Result<Vec<_>>>()?;
+    load_track_tags(&conn, &mut tracks)?;
     Ok(tracks)
 }
 
@@ -244,6 +403,7 @@ pub fn track_dto(track: Track) -> TrackDto {
         has_cover: track.has_cover,
         cover_small_url,
         cover_original_url,
+        tags: track.tags,
     }
 }
 
@@ -263,5 +423,6 @@ pub fn row_to_track(row: &rusqlite::Row<'_>) -> rusqlite::Result<Track> {
         content_hash: row.get(10)?,
         processing_status: row.get(11)?,
         last_error: last_error.and_then(|v| serde_json::from_str(&v).ok()),
+        tags: Vec::new(),
     })
 }

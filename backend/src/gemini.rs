@@ -5,12 +5,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 const DEFAULT_MODEL: &str = "gemini-flash-latest";
-const SYSTEM_PROMPT: &str = "Extract artist(s) and title from a YouTube video title. Strip junk words: Official Video/Audio/Music Video, Lyric Video, Lyrics, HD, 4K, HQ, Remastered, Live, Audio Only, Music Video, Fan Made, Visualizer, Topic, Extended Mix, Original Mix, Radio Edit, Album/Single Version, Provided to YouTube, Auto-generated. Multiple artists (feat./ft./featuring/x/&/and) -> comma-separated in 'artist', do NOT include feat./ft./featuring keyword itself but DO keep the featured artist name. Artist comes from the video title first; use channel name only if the title gives no artist.";
+const SYSTEM_PROMPT: &str = "Extract artist(s), title, and conservative tags from a YouTube video title. Strip junk words: Official Video/Audio/Music Video, Lyric Video, Lyrics, HD, 4K, HQ, Remastered, Live, Audio Only, Music Video, Fan Made, Visualizer, Topic, Extended Mix, Original Mix, Radio Edit, Album/Single Version, Provided to YouTube, Auto-generated. Multiple artists (feat./ft./featuring/x/&/and) -> comma-separated in 'artist', do NOT include feat./ft./featuring keyword itself but DO keep the featured artist name. Artist comes from the video title first; use channel name only if the title gives no artist. Return tags as an array containing only 'gachi' and/or 'ai-cover' when clearly indicated by title/channel; otherwise return an empty array.";
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct TrackMetadata {
     pub artist: String,
     pub title: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 pub async fn parse_track_metadata(raw_title: &str, channel_name: &str) -> Option<TrackMetadata> {
@@ -117,9 +119,13 @@ fn build_request(raw_title: &str, channel_name: &str) -> GenerateContentRequest 
                 "type": "OBJECT",
                 "properties": {
                     "artist": { "type": "STRING" },
-                    "title": { "type": "STRING" }
+                    "title": { "type": "STRING" },
+                    "tags": {
+                        "type": "ARRAY",
+                        "items": { "type": "STRING", "enum": ["gachi", "ai-cover"] }
+                    }
                 },
-                "required": ["artist", "title"]
+                "required": ["artist", "title", "tags"]
             }),
             max_output_tokens: 2048,
         },
@@ -172,6 +178,7 @@ mod tests {
             TrackMetadata {
                 artist: "Anima, Sheera".into(),
                 title: "Moon".into(),
+                tags: Vec::new(),
             }
         );
     }

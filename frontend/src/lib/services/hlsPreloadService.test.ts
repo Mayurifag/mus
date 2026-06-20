@@ -93,6 +93,7 @@ describe("hlsPreloadService", () => {
       currentTrack: tracks[0],
       is_shuffle: false,
       selectedArtist: null,
+      selectedCategory: null,
       playRequestId: 0,
     };
 

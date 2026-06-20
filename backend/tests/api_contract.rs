@@ -83,6 +83,22 @@ impl TestApp {
         )
         .unwrap();
     }
+
+    fn set_tags(&self, track_id: &str, tags: &[&str]) {
+        let conn = self.state.db.lock().unwrap();
+        conn.execute(
+            "DELETE FROM track_tag WHERE track_id = ?1",
+            params![track_id],
+        )
+        .unwrap();
+        for tag in tags {
+            conn.execute(
+                "INSERT INTO track_tag (track_id, tag_id) SELECT ?1, id FROM tag WHERE name = ?2",
+                params![track_id, tag],
+            )
+            .unwrap();
+        }
+    }
 }
 
 async fn body_json(response: axum::response::Response) -> Value {
@@ -229,6 +245,98 @@ async fn tracks_list_contract() {
         body[0]["hls_url"],
         format!("/api/v1/tracks/{TRACK_ID}/hls/{TRACK_ID}/index.m3u8")
     );
+    assert_eq!(body[0]["tags"], json!([]));
+}
+
+#[tokio::test]
+async fn category_contract() {
+    let app = TestApp::new();
+    let file_path = app.state.music_dir.join("gachi.mp3");
+    let other_path = app.state.music_dir.join("ai.mp3");
+    fs::write(&file_path, b"audio").unwrap();
+    fs::write(&other_path, b"audio").unwrap();
+    app.insert_track(
+        TRACK_ID,
+        "Song (Right version)",
+        "Artist",
+        file_path.to_str().unwrap(),
+        false,
+        "COMPLETE",
+    );
+    app.insert_track(
+        OTHER_TRACK_ID,
+        "Song (AI cover)",
+        "Artist",
+        other_path.to_str().unwrap(),
+        false,
+        "COMPLETE",
+    );
+    app.set_tags(TRACK_ID, &["gachi"]);
+    app.set_tags(OTHER_TRACK_ID, &["ai-cover"]);
+
+    let gachi = app
+        .request(Method::GET, "/api/v1/tracks?category=gachi", Body::empty())
+        .await;
+    assert_eq!(gachi.status(), StatusCode::OK);
+    let body = body_json(gachi).await;
+    assert_eq!(body.as_array().unwrap().len(), 1);
+    assert_eq!(body[0]["id"], TRACK_ID);
+    assert_eq!(body[0]["tags"][0]["name"], "gachi");
+
+    let ai_cover = app
+        .request(
+            Method::GET,
+            "/api/v1/tracks?category=ai-cover",
+            Body::empty(),
+        )
+        .await;
+    assert_eq!(ai_cover.status(), StatusCode::OK);
+    let body = body_json(ai_cover).await;
+    assert_eq!(body.as_array().unwrap().len(), 1);
+    assert_eq!(body[0]["id"], OTHER_TRACK_ID);
+}
+
+#[tokio::test]
+async fn patch_can_update_only_tags() {
+    let app = TestApp::new();
+    let file_path = app.state.music_dir.join("song.mp3");
+    fs::write(&file_path, b"audio").unwrap();
+    app.insert_track(
+        TRACK_ID,
+        "Song",
+        "Artist",
+        file_path.to_str().unwrap(),
+        false,
+        "COMPLETE",
+    );
+
+    let response = app
+        .json(
+            Method::PATCH,
+            &format!("/api/v1/tracks/{TRACK_ID}"),
+            json!({"tags": ["gachi", "gachi", "ai-cover"]}),
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+
+    for _ in 0..20 {
+        let count: i64 = app
+            .state
+            .db
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM track_tag WHERE track_id = ?1",
+                params![TRACK_ID],
+                |row| row.get(0),
+            )
+            .unwrap();
+        if count == 2 {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    panic!("tags were not updated");
 }
 
 #[tokio::test]
@@ -552,6 +660,7 @@ async fn player_state_contract() {
             "progress_seconds": 0.0,
             "volume_level": 1.0,
             "is_muted": false,
+            "is_playing": false,
             "is_shuffle": false,
             "is_repeat": false
         })
@@ -562,6 +671,7 @@ async fn player_state_contract() {
         "progress_seconds": 45.5,
         "volume_level": 0.7,
         "is_muted": true,
+        "is_playing": true,
         "is_shuffle": false,
         "is_repeat": true
     });
@@ -582,6 +692,7 @@ async fn player_state_contract() {
         "progress_seconds": 12.25,
         "volume_level": 0.4,
         "is_muted": false,
+        "is_playing": false,
         "is_shuffle": true,
         "is_repeat": false
     });

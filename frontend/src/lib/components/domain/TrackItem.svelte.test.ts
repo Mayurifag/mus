@@ -161,6 +161,28 @@ describe("TrackItem component", () => {
     expect(trackItemDiv?.id).toBe(`track-item-${mockTrack.id}`);
   });
 
+  it("styles right-version and ai-cover rows from title markers", () => {
+    const { container } = render(TrackItem, {
+      track: { ...mockTrack, title: "Test Song (Right version)" },
+      index: 0,
+      isSelected: false,
+    });
+
+    expect(screen.getByTestId("track-item")).toHaveClass(
+      "border-fuchsia-400/70",
+    );
+
+    container.remove();
+
+    render(TrackItem, {
+      track: { ...mockTrack, title: "Test Song (AI cover)" },
+      index: 0,
+      isSelected: false,
+    });
+
+    expect(screen.getByTestId("track-item")).toHaveClass("border-cyan-400/70");
+  });
+
   it("calls playTrack when Enter key is pressed", async () => {
     render(TrackItem, { track: mockTrack, index: 3, isSelected: false });
 

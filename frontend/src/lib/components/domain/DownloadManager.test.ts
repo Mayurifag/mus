@@ -76,6 +76,7 @@ describe("DownloadManager", () => {
       artist: "Test Artist",
       thumbnail_url: null,
       duration: null,
+      tags: [],
     });
 
     render(DownloadManager);
@@ -104,6 +105,7 @@ describe("DownloadManager", () => {
       artist: "Test Artist",
       thumbnail_url: "https://example.com/thumb.jpg",
       duration: 180,
+      tags: [{ name: "gachi", display_name: "Gachi" }],
     });
 
     render(DownloadManager);
@@ -119,9 +121,10 @@ describe("DownloadManager", () => {
 
     await waitFor(() => {
       const state = downloadStore;
-      let storeValue: { state: string } | undefined;
+      let storeValue: { state: string; tags: string[] } | undefined;
       state.subscribe((v) => (storeValue = v))();
       expect(storeValue?.state).toBe("awaiting_review");
+      expect(storeValue?.tags).toEqual(["gachi"]);
     });
   });
 

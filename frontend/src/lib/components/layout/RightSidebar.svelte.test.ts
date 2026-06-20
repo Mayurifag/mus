@@ -42,6 +42,12 @@ describe("RightSidebar", () => {
     expect(container.querySelector("div")).toBeInTheDocument();
   });
 
+  it("does not render the removed Controls section", () => {
+    render(RightSidebar);
+
+    expect(screen.queryByText("Controls")).not.toBeInTheDocument();
+  });
+
   it("should have correct styling classes", () => {
     const { container } = render(RightSidebar);
 
@@ -129,6 +135,59 @@ describe("RightSidebar", () => {
     await fireEvent.click(screen.getByText("Artist A"));
 
     expect(get(trackStore).selectedArtist).toBe("Artist A");
+  });
+
+  it("renders non-empty categories and filters by category", async () => {
+    const tracks: Track[] = [
+      {
+        id: "1",
+        title: "Song 1",
+        artist: "Artist A",
+        duration: 180,
+        filename: "path1.mp3",
+        updated_at: Date.now(),
+        has_cover: false,
+        cover_small_url: null,
+        cover_original_url: null,
+        hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
+        tags: [{ name: "gachi", display_name: "Gachi" }],
+      },
+    ];
+
+    trackStore.setTracks(tracks);
+    render(RightSidebar);
+
+    expect(screen.getByText("Category")).toBeInTheDocument();
+    expect(screen.getByText("Gachi")).toBeInTheDocument();
+    expect(screen.queryByText("AI cover")).not.toBeInTheDocument();
+
+    await fireEvent.click(
+      screen.getByRole("button", { name: "Show Gachi songs" }),
+    );
+
+    expect(get(trackStore).selectedCategory).toBe("gachi");
+  });
+
+  it("hides category section when no category tracks exist", () => {
+    trackStore.setTracks([
+      {
+        id: "1",
+        title: "Song 1",
+        artist: "Artist A",
+        duration: 180,
+        filename: "path1.mp3",
+        updated_at: Date.now(),
+        has_cover: false,
+        cover_small_url: null,
+        cover_original_url: null,
+        hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
+        tags: [],
+      },
+    ]);
+
+    render(RightSidebar);
+
+    expect(screen.queryByText("Category")).not.toBeInTheDocument();
   });
 
   it("should not show selected artist summary in the sidebar", () => {

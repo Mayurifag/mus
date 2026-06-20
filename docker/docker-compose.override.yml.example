@@ -10,6 +10,7 @@ x-backend-volumes: &x-backend-volumes
   - ../backend:/app
   - backend_cargo:/cargo
   - backend_target:/app/target
+  - backend_cache:/app_data/.cache
   - /path/to/your/music:/app_data/music
   # Optional: Mount cookies.txt for yt-dlp authenticated downloads
   # - ./cookies.txt:/app_data/cookies.txt:ro
@@ -42,3 +43,4 @@ volumes:
   app_node_modules:
   backend_cargo:
   backend_target:
+  backend_cache:

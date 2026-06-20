@@ -6,6 +6,10 @@
   import { Slider } from "$lib/components/ui/slider";
   import { Pencil } from "@lucide/svelte";
   import { formatDuration } from "$lib/utils/formatters";
+  import {
+    hasAiCoverMarker,
+    hasRightVersionMarker,
+  } from "$lib/utils/categoryMarkers";
   import ArtistLinks from "$lib/components/domain/ArtistLinks.svelte";
 
   let {
@@ -36,6 +40,8 @@
   const trackDuration = $derived(track.duration);
   const trackHasCover = $derived(track.has_cover);
   const trackCoverSmallUrl = $derived(track.cover_small_url);
+  const isRightVersion = $derived(hasRightVersionMarker(track));
+  const isAiCover = $derived(hasAiCoverMarker(track));
   let canWriteMusicFiles = $derived($permissionsStore.can_write_music_files);
 
   function playTrack() {
@@ -92,9 +98,11 @@
 </script>
 
 <div
-  class="hover:bg-muted/30 flex cursor-pointer items-center gap-4 rounded-md p-2 transition-colors {isSelected
-    ? 'bg-secondary/60'
-    : ''}"
+  class="hover:bg-muted/30 flex cursor-pointer items-center gap-4 rounded-md p-2 transition-colors {isRightVersion
+    ? 'border-l-2 border-fuchsia-400/70 bg-fuchsia-500/10'
+    : ''} {isAiCover
+    ? 'border-l-2 border-cyan-400/70 bg-cyan-500/10'
+    : ''} {isSelected ? 'bg-secondary/60' : ''}"
   onmousedown={handleMouseDown}
   onmouseup={handleMouseUp}
   onkeydown={handleKeyDown}
@@ -124,7 +132,11 @@
   </div>
 
   <div class="flex min-w-0 flex-1 flex-col">
-    <span class="truncate font-medium">{trackTitle}</span>
+    <span
+      class="truncate font-medium {isRightVersion
+        ? 'text-fuchsia-200'
+        : ''} {isAiCover ? 'text-cyan-200' : ''}">{trackTitle}</span
+    >
     <span class="text-muted-foreground truncate text-sm">
       <ArtistLinks artist={trackArtist} />
     </span>

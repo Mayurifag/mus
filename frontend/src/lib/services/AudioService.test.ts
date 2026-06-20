@@ -14,6 +14,12 @@ const mockHls = vi.hoisted(() => ({
   }>,
 }));
 
+const mocks = vi.hoisted(() => ({
+  toast: {
+    info: vi.fn(),
+  },
+}));
+
 vi.mock("hls.js", () => {
   class MockHls {
     static Events = { ERROR: "hlsError" };
@@ -30,6 +36,10 @@ vi.mock("hls.js", () => {
 
   return { default: MockHls };
 });
+
+vi.mock("svelte-sonner", () => ({
+  toast: mocks.toast,
+}));
 
 // Mock the trackStore module
 vi.mock("$lib/stores/trackStore", () => ({
@@ -87,6 +97,7 @@ describe("AudioService", () => {
 
     // Reset mock calls
     vi.mocked(trackStore.nextTrack).mockClear();
+    mocks.toast.info.mockClear();
   });
 
   it("should set up event listeners on construction", () => {
@@ -384,6 +395,18 @@ describe("AudioService", () => {
     expect(mockAudio.play).toHaveBeenCalled();
   });
 
+  it("should show a resume prompt when autoplay is blocked", async () => {
+    vi.mocked(mockAudio.play).mockRejectedValue(
+      new DOMException("Autoplay blocked", "NotAllowedError"),
+    );
+
+    audioService.updateAudioSource(mockTrack, true);
+    await Promise.resolve();
+
+    expect(mocks.toast.info).toHaveBeenCalledWith("Tap play to resume");
+    expect(mockAudio.pause).toHaveBeenCalled();
+  });
+
   it("should not auto-play when updateAudioSource is called with isPlaying=false", () => {
     audioService.updateAudioSource(mockTrack, false);
 
@@ -406,6 +429,24 @@ describe("AudioService", () => {
 
     expect(mockAudio.currentTime).toBe(42);
     expect(mockHls.instances[0].loadSource).toHaveBeenCalledWith(HLS_URL);
+  });
+
+  it("should reset new tracks to the beginning after metadata loads", () => {
+    mockAudio.currentTime = 99;
+
+    audioService.updateAudioSource(mockTrack, true);
+
+    const addEventListenerMock =
+      mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
+    const loadedMetadataHandler = addEventListenerMock.mock.calls.find(
+      (call: unknown[]) =>
+        call[0] === "loadedmetadata" &&
+        (call[2] as { once?: boolean } | undefined)?.once,
+    )?.[1] as () => void;
+
+    loadedMetadataHandler();
+
+    expect(mockAudio.currentTime).toBe(0);
   });
 
   describe("buffered ranges", () => {

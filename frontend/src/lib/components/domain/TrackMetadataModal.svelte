@@ -37,6 +37,7 @@
     file,
     suggestedTitle,
     suggestedArtist,
+    suggestedTags = [],
     coverDataUrl,
     metadata,
     isDownload = false,
@@ -49,12 +50,14 @@
     file?: File;
     suggestedTitle?: string;
     suggestedArtist?: string;
+    suggestedTags?: string[];
     coverDataUrl?: string | null;
     metadata?: AudioMetadata;
     isDownload?: boolean;
     onDownloadConfirm?: (
       title: string,
       artist: string,
+      tags: string[],
       artworkUrl?: string,
     ) => Promise<void>;
     onClose?: () => void;
@@ -66,6 +69,7 @@
   let selectedArtwork = $state<ArtworkSearchResult | null>(null);
   let cancelArtworkPreload: (() => void) | null = null;
   let title = $state("");
+  let selectedTags = $state<string[]>([]);
   let renameFile = $state(true);
   let artistIdCounter = 0;
   let artists = $state<ArtistRow[]>([]);
@@ -85,6 +89,7 @@
       renameFile,
       filename: generatedFilename,
       artworkUrl: selectedArtwork?.image_url,
+      tags: selectedTags,
     }),
   );
   const isFormValid = $derived(
@@ -134,15 +139,18 @@
     if (mode === "edit" && track) {
       title = track.title;
       artists = artistRows(track.artist);
+      selectedTags = (track.tags ?? []).map((tag) => tag.name);
     } else if (mode === "create" && isDownload) {
       title = suggestedTitle ?? "";
       artists = artistRows(suggestedArtist);
+      selectedTags = suggestedTags;
     } else if (mode === "create" && file) {
       title =
         suggestedTitle || metadata?.title || file.name.replace(/\.[^/.]+$/, "");
       artists = artistRows(
         suggestedArtist?.trim() ? suggestedArtist : metadata?.artist,
       );
+      selectedTags = [];
     }
   }
 
@@ -206,6 +214,7 @@
       await onDownloadConfirm(
         sanitizedTitle,
         currentArtistString,
+        selectedTags,
         selectedArtwork?.image_url,
       );
       hideModal();
@@ -287,6 +296,7 @@
       {file}
       {metadata}
       bind:title
+      bind:selectedTags
       bind:renameFile
       bind:artists
       {sanitizedTitle}

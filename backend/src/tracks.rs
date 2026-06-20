@@ -6,11 +6,12 @@ use std::{
 use anyhow::anyhow;
 use axum::{
     body::Body,
-    extract::{Multipart, Path as AxumPath, State},
+    extract::{Multipart, Path as AxumPath, Query, State},
     http::{header, HeaderMap, HeaderValue, Request, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
+use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::{fs as async_fs, io::AsyncWriteExt};
 use tower::ServiceExt;
@@ -28,13 +29,29 @@ use crate::{
     scanner::upsert_path,
     state::AppState,
     util::{
-        can_write, file_content_hash, file_signature, generate_filename, inode, is_hash_id,
-        normalize_artists, normalize_text, now, now_nanos, system_time_secs,
+        can_write, file_content_hash, file_signature, generate_filename, inferred_tag_names, inode,
+        is_hash_id, normalize_artists, normalize_text, now, now_nanos, system_time_secs,
     },
 };
 
-pub async fn get_tracks(State(state): State<AppState>) -> Result<Json<Vec<TrackDto>>, AppError> {
-    let tracks = db::list_tracks(&state)?;
+#[derive(Deserialize)]
+pub struct TracksQuery {
+    category: Option<String>,
+}
+
+pub async fn get_tracks(
+    State(state): State<AppState>,
+    Query(query): Query<TracksQuery>,
+) -> Result<Json<Vec<TrackDto>>, AppError> {
+    let category = query
+        .category
+        .as_deref()
+        .filter(|category| matches!(*category, "gachi" | "ai-cover"));
+    let tracks = if let Some(category) = category {
+        db::list_tracks_by_category(&state, category)?
+    } else {
+        db::list_tracks(&state)?
+    };
     Ok(Json(tracks.into_iter().map(track_dto).collect()))
 }
 
@@ -98,10 +115,23 @@ pub async fn update_track(
         .as_deref()
         .filter(|url| !url.trim().is_empty());
 
+    let new_tags = update.tags.clone().unwrap_or_else(|| {
+        track
+            .tags
+            .iter()
+            .map(|tag| tag.name.clone())
+            .collect::<Vec<_>>()
+    });
+    let old_tags = track
+        .tags
+        .iter()
+        .map(|tag| tag.name.clone())
+        .collect::<Vec<_>>();
     if new_title == track.title
         && new_artist == track.artist
         && !rename_file
         && artwork_url.is_none()
+        && new_tags == old_tags
     {
         return Ok(Json(json!({"status": "no_changes"})));
     }
@@ -166,6 +196,13 @@ async fn apply_track_update(
     let new_artist = normalize_artists(&update.artist.unwrap_or_else(|| track.artist.clone()));
     let rename_file = update.rename_file.unwrap_or(false);
     let artwork_url = update.artwork_url.filter(|url| !url.trim().is_empty());
+    let new_tags = update.tags.clone().unwrap_or_else(|| {
+        track
+            .tags
+            .iter()
+            .map(|tag| tag.name.clone())
+            .collect::<Vec<_>>()
+    });
     let cache_dir = state.data_dir.join(".cache");
     let mut new_path = PathBuf::from(&track.file_path);
     if rename_file {
@@ -178,6 +215,23 @@ async fn apply_track_update(
         if new_path != Path::new(&track.file_path) && new_path.exists() {
             return Err(AppError::conflict("A file with this name already exists"));
         }
+    }
+
+    let old_tags = track
+        .tags
+        .iter()
+        .map(|tag| tag.name.clone())
+        .collect::<Vec<_>>();
+    let only_tags_changed = new_title == track.title
+        && new_artist == track.artist
+        && !rename_file
+        && artwork_url.is_none()
+        && new_tags != old_tags;
+    if only_tags_changed {
+        db::set_track_tags(&state, &track.id, &new_tags)?;
+        return get_track(&state, &track.id)?
+            .map(track_dto)
+            .ok_or_else(|| AppError::not_found("Track not found"));
     }
 
     let jpeg_path = if let Some(artwork_url) = artwork_url {
@@ -236,6 +290,10 @@ async fn apply_track_update(
             .unwrap_or(false);
     }
     save_track(&state, &old_id, &track)?;
+    db::set_track_tags(&state, &track.id, &new_tags)?;
+    track.tags = get_track(&state, &track.id)?
+        .map(|track| track.tags)
+        .unwrap_or_default();
     prewarm_track_hls(&state, &track).await;
     Ok(track_dto(track))
 }
@@ -401,6 +459,8 @@ pub async fn upload_track(
         return Err(error.into());
     }
     let track = upsert_path(&state, &path, Some(title), Some(artist)).await?;
+    let tags = inferred_tag_names(&track.title, &track.artist, &path);
+    db::add_track_tags(&state, &track.id, &tags)?;
     tracing::info!(track_id = track.id, "track uploaded");
     Ok(Json(
         json!({"success": true, "message": "File uploaded and queued for processing."}),

@@ -33,6 +33,7 @@
         artist: metadata.artist,
         thumbnailUrl: metadata.thumbnail_url,
         duration: metadata.duration,
+        tags: (metadata.tags ?? []).map((tag) => tag.name),
       });
       // $effect below opens the modal when state becomes awaiting_review
     } catch (error) {
@@ -73,11 +74,12 @@
   async function handleDownloadConfirm(
     title: string,
     artist: string,
+    tags: string[],
     artworkUrl?: string,
   ) {
     const storeUrl = $downloadStore.url;
     if (!storeUrl) return;
-    await confirmDownload(storeUrl, title, artist, artworkUrl);
+    await confirmDownload(storeUrl, title, artist, artworkUrl, tags);
     url = "";
     downloadStore.startDownload();
     reviewModalOpen = false;
@@ -216,6 +218,7 @@
     isDownload={true}
     suggestedTitle={$downloadStore.title ?? undefined}
     suggestedArtist={$downloadStore.artist ?? undefined}
+    suggestedTags={$downloadStore.tags ?? []}
     coverDataUrl={$downloadStore.thumbnailUrl}
     onDownloadConfirm={handleDownloadConfirm}
     onClose={handleModalClose}
