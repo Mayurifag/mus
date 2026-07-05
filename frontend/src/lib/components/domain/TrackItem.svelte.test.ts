@@ -12,6 +12,7 @@ const mockTrackStore = vi.hoisted(() => ({
   }),
   playTrack: vi.fn(),
   setArtistFilter: vi.fn(),
+  setCategoryFilter: vi.fn(),
 }));
 
 const mockArtistCountsStore = vi.hoisted(() => ({
@@ -161,26 +162,22 @@ describe("TrackItem component", () => {
     expect(trackItemDiv?.id).toBe(`track-item-${mockTrack.id}`);
   });
 
-  it("styles right-version and ai-cover rows from title markers", () => {
-    const { container } = render(TrackItem, {
-      track: { ...mockTrack, title: "Test Song (Right version)" },
+  it("renders title-derived category links", async () => {
+    render(TrackItem, {
+      track: {
+        ...mockTrack,
+        title: "Test Song (Right version)",
+        tags: [{ name: "right-version", display_name: "Right version" }],
+      },
       index: 0,
       isSelected: false,
     });
 
-    expect(screen.getByTestId("track-item")).toHaveClass(
-      "border-fuchsia-400/70",
+    await fireEvent.click(
+      screen.getByRole("button", { name: "Show Right version songs" }),
     );
 
-    container.remove();
-
-    render(TrackItem, {
-      track: { ...mockTrack, title: "Test Song (AI cover)" },
-      index: 0,
-      isSelected: false,
-    });
-
-    expect(screen.getByTestId("track-item")).toHaveClass("border-cyan-400/70");
+    expect(trackStore.setCategoryFilter).toHaveBeenCalledWith("right-version");
   });
 
   it("calls playTrack when Enter key is pressed", async () => {

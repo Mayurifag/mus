@@ -7,8 +7,9 @@
   import { Pencil } from "@lucide/svelte";
   import { formatDuration } from "$lib/utils/formatters";
   import {
-    hasAiCoverMarker,
-    hasRightVersionMarker,
+    categoryLabels,
+    displayTrackTitle,
+    trackCategoryNames,
   } from "$lib/utils/categoryMarkers";
   import ArtistLinks from "$lib/components/domain/ArtistLinks.svelte";
 
@@ -35,13 +36,12 @@
   } = $props();
 
   // Make track data reactive to prop changes
-  const trackTitle = $derived(track.title);
+  const trackTitle = $derived(displayTrackTitle(track));
   const trackArtist = $derived(track.artist);
   const trackDuration = $derived(track.duration);
   const trackHasCover = $derived(track.has_cover);
   const trackCoverSmallUrl = $derived(track.cover_small_url);
-  const isRightVersion = $derived(hasRightVersionMarker(track));
-  const isAiCover = $derived(hasAiCoverMarker(track));
+  const trackCategories = $derived(trackCategoryNames(track));
   let canWriteMusicFiles = $derived($permissionsStore.can_write_music_files);
 
   function playTrack() {
@@ -95,14 +95,17 @@
       audioService.endSeeking(progressValue);
     }
   }
+
+  function selectCategory(event: MouseEvent, category: string) {
+    event.stopPropagation();
+    trackStore.setCategoryFilter(category);
+  }
 </script>
 
 <div
-  class="hover:bg-muted/30 flex cursor-pointer items-center gap-4 rounded-md p-2 transition-colors {isRightVersion
-    ? 'border-l-2 border-fuchsia-400/70 bg-fuchsia-500/10'
-    : ''} {isAiCover
-    ? 'border-l-2 border-cyan-400/70 bg-cyan-500/10'
-    : ''} {isSelected ? 'bg-secondary/60' : ''}"
+  class="hover:bg-muted/30 flex cursor-pointer items-center gap-4 rounded-md p-2 transition-colors {isSelected
+    ? 'bg-secondary/60'
+    : ''}"
   onmousedown={handleMouseDown}
   onmouseup={handleMouseUp}
   onkeydown={handleKeyDown}
@@ -132,11 +135,21 @@
   </div>
 
   <div class="flex min-w-0 flex-1 flex-col">
-    <span
-      class="truncate font-medium {isRightVersion
-        ? 'text-fuchsia-200'
-        : ''} {isAiCover ? 'text-cyan-200' : ''}">{trackTitle}</span
-    >
+    <div class="flex min-w-0 items-center gap-2">
+      <span class="truncate font-medium">{trackTitle}</span>
+      {#each trackCategories as category (category)}
+        <button
+          type="button"
+          class="border-border/70 text-muted-foreground hover:bg-muted/40 hover:text-foreground shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] leading-none transition-colors"
+          onmousedown={(event) => event.stopPropagation()}
+          onmouseup={(event) => event.stopPropagation()}
+          onclick={(event) => selectCategory(event, category)}
+          aria-label="Show {categoryLabels[category]} songs"
+        >
+          {categoryLabels[category]}
+        </button>
+      {/each}
+    </div>
     <span class="text-muted-foreground truncate text-sm">
       <ArtistLinks artist={trackArtist} />
     </span>

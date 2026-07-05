@@ -8,6 +8,7 @@ import {
   handleShufflePrevious,
 } from "$lib/stores/trackNavigation";
 import { parseArtists } from "$lib/utils/formatters";
+import { trackCategoryNames } from "$lib/utils/categoryMarkers";
 
 export interface TrackStoreState {
   tracks: Track[];
@@ -79,7 +80,7 @@ function createTrackStore() {
     parseArtists(track.artist).includes(artist);
 
   const trackMatchesCategory = (track: Track, category: string): boolean =>
-    (track.tags ?? []).some((tag) => tag.name === category);
+    trackCategoryNames(track).includes(category);
 
   const getSelectedFilterTrackIndexes = (state: TrackStoreState): number[] => {
     const selectedArtist = state.selectedArtist;
@@ -615,10 +616,8 @@ export const categoryCountsStore = derived(trackStore, ($trackStore) => {
   const counts = new Map<string, number>();
 
   for (const track of $trackStore.tracks) {
-    for (const tag of track.tags ?? []) {
-      if (tag.name === "gachi" || tag.name === "ai-cover") {
-        counts.set(tag.name, (counts.get(tag.name) ?? 0) + 1);
-      }
+    for (const category of trackCategoryNames(track)) {
+      counts.set(category, (counts.get(category) ?? 0) + 1);
     }
   }
 

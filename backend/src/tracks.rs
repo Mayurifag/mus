@@ -46,7 +46,12 @@ pub async fn get_tracks(
     let category = query
         .category
         .as_deref()
-        .filter(|category| matches!(*category, "gachi" | "ai-cover"));
+        .filter(|category| {
+            matches!(
+                *category,
+                "right-version" | "ai-cover" | "cover" | "ost" | "mashup"
+            )
+        });
     let tracks = if let Some(category) = category {
         db::list_tracks_by_category(&state, category)?
     } else {
@@ -115,13 +120,24 @@ pub async fn update_track(
         .as_deref()
         .filter(|url| !url.trim().is_empty());
 
-    let new_tags = update.tags.clone().unwrap_or_else(|| {
-        track
-            .tags
-            .iter()
-            .map(|tag| tag.name.clone())
-            .collect::<Vec<_>>()
-    });
+    let mut new_path = PathBuf::from(&track.file_path);
+    if rename_file {
+        let ext = new_path
+            .extension()
+            .and_then(|v| v.to_str())
+            .unwrap_or("mp3");
+        let filename = generate_filename(&new_artist, &new_title, ext)?;
+        new_path = new_path.parent().unwrap_or(&state.music_dir).join(filename);
+        if new_path != Path::new(&track.file_path)
+            && path_exists_as_different_file(Path::new(&track.file_path), &new_path)?
+        {
+            return Err(AppError::conflict("A file with this name already exists"));
+        }
+    }
+    let new_tags = update
+        .tags
+        .clone()
+        .unwrap_or_else(|| inferred_tag_names(&new_title, &new_artist, &new_path));
     let old_tags = track
         .tags
         .iter()
@@ -134,19 +150,6 @@ pub async fn update_track(
         && new_tags == old_tags
     {
         return Ok(Json(json!({"status": "no_changes"})));
-    }
-
-    let mut new_path = PathBuf::from(&track.file_path);
-    if rename_file {
-        let ext = new_path
-            .extension()
-            .and_then(|v| v.to_str())
-            .unwrap_or("mp3");
-        let filename = generate_filename(&new_artist, &new_title, ext)?;
-        new_path = new_path.parent().unwrap_or(&state.music_dir).join(filename);
-        if new_path != Path::new(&track.file_path) && new_path.exists() {
-            return Err(AppError::conflict("A file with this name already exists"));
-        }
     }
 
     tokio::spawn(async move {
@@ -196,13 +199,6 @@ async fn apply_track_update(
     let new_artist = normalize_artists(&update.artist.unwrap_or_else(|| track.artist.clone()));
     let rename_file = update.rename_file.unwrap_or(false);
     let artwork_url = update.artwork_url.filter(|url| !url.trim().is_empty());
-    let new_tags = update.tags.clone().unwrap_or_else(|| {
-        track
-            .tags
-            .iter()
-            .map(|tag| tag.name.clone())
-            .collect::<Vec<_>>()
-    });
     let cache_dir = state.data_dir.join(".cache");
     let mut new_path = PathBuf::from(&track.file_path);
     if rename_file {
@@ -212,10 +208,17 @@ async fn apply_track_update(
             .unwrap_or("mp3");
         let filename = generate_filename(&new_artist, &new_title, ext)?;
         new_path = new_path.parent().unwrap_or(&state.music_dir).join(filename);
-        if new_path != Path::new(&track.file_path) && new_path.exists() {
+        if new_path != Path::new(&track.file_path)
+            && path_exists_as_different_file(Path::new(&track.file_path), &new_path)?
+        {
             return Err(AppError::conflict("A file with this name already exists"));
         }
     }
+    let new_tags = update
+        .tags
+        .clone()
+        .unwrap_or_else(|| inferred_tag_names(&new_title, &new_artist, &new_path));
+    let tags_changed = new_title != track.title || new_artist != track.artist;
 
     let old_tags = track
         .tags
@@ -234,13 +237,54 @@ async fn apply_track_update(
             .ok_or_else(|| AppError::not_found("Track not found"));
     }
 
+    if artwork_url.is_none() {
+        if rename_file && new_path != Path::new(&track.file_path) {
+            let update_result = apply_audio_update(
+                Path::new(&track.file_path),
+                &cache_dir,
+                AudioUpdate {
+                    title: None,
+                    artist: None,
+                    cover_jpeg_path: None,
+                    target_path: Some(new_path.as_path()),
+                    standardize_tags: false,
+                    update_mtime: true,
+                },
+            )
+            .await?;
+            new_path = update_result.path;
+        }
+
+        track.file_path = new_path.to_string_lossy().to_string();
+        track.title = new_title;
+        track.artist = new_artist;
+        let file_meta = fs::metadata(&new_path)?;
+        track.updated_at = file_meta
+            .modified()
+            .ok()
+            .and_then(system_time_secs)
+            .unwrap_or_else(now);
+        track.inode = inode(&file_meta);
+        track.file_signature = Some(file_signature(&file_meta));
+
+        save_track(&state, &old_id, &track)?;
+        db::set_track_tags(&state, &track.id, &new_tags)?;
+        track.tags = get_track(&state, &track.id)?
+            .map(|track| track.tags)
+            .unwrap_or_default();
+
+        if tags_changed {
+            spawn_audio_tag_sync(state.clone(), track.clone());
+        }
+        return Ok(track_dto(track));
+    }
+
     let jpeg_path = if let Some(artwork_url) = artwork_url {
         Some(download_artwork_as_jpeg(&artwork_url, cache_dir.clone()).await?)
     } else {
         None
     };
 
-    let tags_changed = new_title != track.title || new_artist != track.artist;
     let target_path =
         (rename_file && new_path != Path::new(&track.file_path)).then_some(new_path.as_path());
     let update_result = apply_audio_update(
@@ -275,16 +319,18 @@ async fn apply_track_update(
     }
     track.inode = inode(&file_meta);
     track.file_signature = Some(file_signature(&file_meta));
-    let hash_path = new_path.clone();
-    let content_hash = tokio::task::spawn_blocking(move || file_content_hash(&hash_path))
-        .await
-        .map_err(|error| AppError::from(anyhow!(error)))??;
-    track.id = content_hash.clone();
-    track.content_hash = content_hash;
+    if update_result.content_changed {
+        let hash_path = new_path.clone();
+        let content_hash = tokio::task::spawn_blocking(move || file_content_hash(&hash_path))
+            .await
+            .map_err(|error| AppError::from(anyhow!(error)))??;
+        track.id = content_hash.clone();
+        track.content_hash = content_hash;
+    }
     if old_id != track.id {
         delete_track_derived_files(&state, &old_id);
     }
-    if update_result.changed {
+    if update_result.content_changed {
         track.has_cover = extract_cover(&new_path, &state.covers_dir, &track.id)
             .await
             .unwrap_or(false);
@@ -294,8 +340,81 @@ async fn apply_track_update(
     track.tags = get_track(&state, &track.id)?
         .map(|track| track.tags)
         .unwrap_or_default();
-    prewarm_track_hls(&state, &track).await;
+    if update_result.content_changed {
+        spawn_hls_prewarm(state.clone(), track.clone());
+    }
     Ok(track_dto(track))
+}
+
+fn spawn_hls_prewarm(state: AppState, track: crate::models::Track) {
+    tokio::spawn(async move {
+        prewarm_track_hls(&state, &track).await;
+    });
+}
+
+fn spawn_audio_tag_sync(state: AppState, track: crate::models::Track) {
+    tokio::spawn(async move {
+        let track_id = track.id.clone();
+        let path = PathBuf::from(&track.file_path);
+        let result = apply_audio_update(
+            &path,
+            &state.data_dir.join(".cache"),
+            AudioUpdate {
+                title: Some(track.title.as_str()),
+                artist: Some(track.artist.as_str()),
+                cover_jpeg_path: None,
+                target_path: None,
+                standardize_tags: false,
+                update_mtime: true,
+            },
+        )
+        .await;
+        match result {
+            Ok(_) => match fs::metadata(&path) {
+                Ok(meta) => {
+                    if let Err(error) = db::save_track_file_signature(
+                        &state,
+                        &track_id,
+                        inode(&meta),
+                        &file_signature(&meta),
+                        meta.modified()
+                            .ok()
+                            .and_then(system_time_secs)
+                            .unwrap_or_else(now),
+                    ) {
+                        tracing::warn!(track_id, error = %error, "failed to save audio tag sync signature");
+                    }
+                }
+                Err(error) => {
+                    tracing::warn!(track_id, error = %error, "failed to stat audio tag sync output");
+                }
+            },
+            Err(error) => {
+                tracing::warn!(track_id, error = %error, "failed to sync embedded audio tags");
+            }
+        }
+    });
+}
+
+fn path_exists_as_different_file(source: &Path, destination: &Path) -> io::Result<bool> {
+    let destination_meta = match fs::metadata(destination) {
+        Ok(meta) => meta,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => return Err(error),
+    };
+    let source_meta = fs::metadata(source)?;
+    Ok(!same_file_metadata(&source_meta, &destination_meta))
+}
+
+#[cfg(unix)]
+fn same_file_metadata(left: &fs::Metadata, right: &fs::Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    left.dev() == right.dev() && left.ino() == right.ino()
+}
+
+#[cfg(not(unix))]
+fn same_file_metadata(left: &fs::Metadata, right: &fs::Metadata) -> bool {
+    left.len() == right.len() && left.modified().ok() == right.modified().ok()
 }
 
 pub async fn delete_track(

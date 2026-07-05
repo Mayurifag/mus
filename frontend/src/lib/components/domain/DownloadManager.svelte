@@ -218,7 +218,6 @@
     isDownload={true}
     suggestedTitle={$downloadStore.title ?? undefined}
     suggestedArtist={$downloadStore.artist ?? undefined}
-    suggestedTags={$downloadStore.tags ?? []}
     coverDataUrl={$downloadStore.thumbnailUrl}
     onDownloadConfirm={handleDownloadConfirm}
     onClose={handleModalClose}

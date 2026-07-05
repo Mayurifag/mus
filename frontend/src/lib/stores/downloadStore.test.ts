@@ -86,7 +86,7 @@ describe("downloadStore", () => {
       artist: "My Artist",
       thumbnailUrl: "https://example.com/thumb.jpg",
       duration: 213,
-      tags: ["gachi"],
+      tags: ["right-version"],
     });
     const state = get(downloadStore);
     expect(state.state).toBe("awaiting_review");
@@ -94,7 +94,7 @@ describe("downloadStore", () => {
     expect(state.artist).toBe("My Artist");
     expect(state.thumbnailUrl).toBe("https://example.com/thumb.jpg");
     expect(state.duration).toBe(213);
-    expect(state.tags).toEqual(["gachi"]);
+    expect(state.tags).toEqual(["right-version"]);
     expect(state.error).toBeNull();
   });
 

@@ -12,17 +12,19 @@
   import { get } from "svelte/store";
   import { ArrowLeft } from "@lucide/svelte";
   import { clearArtistFilter } from "$lib/utils/artistFilterNavigation";
+  import {
+    categoryLabels,
+    trackCategoryNames,
+  } from "$lib/utils/categoryMarkers";
 
   let { audioService }: { audioService?: AudioService } = $props();
 
   const selectedArtist = $derived($trackStore.selectedArtist);
   const selectedCategory = $derived($trackStore.selectedCategory);
   const selectedCategoryLabel = $derived(
-    selectedCategory === "gachi"
-      ? "Gachi"
-      : selectedCategory === "ai-cover"
-        ? "AI cover"
-        : "",
+    selectedCategory
+      ? (categoryLabels[selectedCategory] ?? selectedCategory)
+      : "",
   );
   const trackRows = $derived.by(() =>
     $trackStore.tracks.reduce<{ track: Track; index: number }[]>(
@@ -31,7 +33,7 @@
           (!selectedArtist ||
             parseArtists(track.artist).includes(selectedArtist)) &&
           (!selectedCategory ||
-            (track.tags ?? []).some((tag) => tag.name === selectedCategory))
+            trackCategoryNames(track).includes(selectedCategory))
         ) {
           rows.push({ track, index });
         }

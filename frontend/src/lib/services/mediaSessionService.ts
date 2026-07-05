@@ -1,4 +1,5 @@
 import type { Track } from "$lib/types";
+import { displayTrackTitle } from "$lib/utils/categoryMarkers";
 import { formatArtistsForDisplay } from "$lib/utils/formatters";
 
 export interface MediaSessionHandlers {
@@ -47,7 +48,7 @@ export function updateMediaSessionMetadata(track: Track): void {
   }
 
   const metadata: MediaMetadataInit = {
-    title: track.title,
+    title: displayTrackTitle(track),
     artist: formatArtistsForDisplay(track.artist),
   };
 

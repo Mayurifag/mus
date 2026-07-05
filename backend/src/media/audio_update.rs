@@ -24,6 +24,7 @@ pub struct AudioUpdate<'a> {
 pub struct AudioUpdateResult {
     pub path: PathBuf,
     pub changed: bool,
+    pub content_changed: bool,
 }
 
 pub async fn apply_audio_update(
@@ -53,6 +54,7 @@ pub async fn apply_audio_update(
         return Ok(AudioUpdateResult {
             path: path.to_path_buf(),
             changed: false,
+            content_changed: false,
         });
     }
 
@@ -77,6 +79,7 @@ pub async fn apply_audio_update(
     Ok(AudioUpdateResult {
         path: destination.to_path_buf(),
         changed: true,
+        content_changed: media_changed,
     })
 }
 
@@ -247,7 +250,7 @@ fn publish_updated_file(
     destination: &Path,
     modified: Option<FileTime>,
 ) -> Result<()> {
-    if destination != original && destination.exists() {
+    if destination != original && path_exists_as_different_file(original, destination)? {
         return Err(anyhow!("A file with this name already exists"));
     }
     replace_file(source, original, modified)?;
@@ -277,7 +280,7 @@ fn move_path_and_touch(
         }
         return Ok(());
     }
-    if destination.exists() {
+    if path_exists_as_different_file(source, destination)? {
         return Err(anyhow!("A file with this name already exists"));
     }
     match fs::rename(source, destination) {
@@ -321,6 +324,27 @@ fn copy_without_replace(source: &Path, destination: &Path) -> Result<()> {
         return Err(error.into());
     }
     Ok(())
+}
+
+fn path_exists_as_different_file(source: &Path, destination: &Path) -> Result<bool> {
+    let destination_meta = match fs::metadata(destination) {
+        Ok(meta) => meta,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => return Err(error.into()),
+    };
+    let source_meta = fs::metadata(source)?;
+    Ok(!same_file_metadata(&source_meta, &destination_meta))
+}
+
+#[cfg(unix)]
+fn same_file_metadata(left: &fs::Metadata, right: &fs::Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    left.dev() == right.dev() && left.ino() == right.ino()
+}
+
+#[cfg(not(unix))]
+fn same_file_metadata(left: &fs::Metadata, right: &fs::Metadata) -> bool {
+    left.len() == right.len() && left.modified().ok() == right.modified().ok()
 }
 
 fn allocate_path(dir: &Path, kind: &str, path: &Path) -> Result<PathBuf> {

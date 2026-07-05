@@ -22,6 +22,7 @@
     updateYtDlp,
     type SystemInfo,
   } from "$lib/services/apiClient";
+  import { categoryLabels, categoryNames } from "$lib/utils/categoryMarkers";
   import { onMount } from "svelte";
   import { toast } from "svelte-sonner";
 
@@ -91,10 +92,8 @@
   }
 
   const categories = $derived.by(() =>
-    [
-      { name: "gachi", displayName: "Gachi" },
-      { name: "ai-cover", displayName: "AI cover" },
-    ]
+    categoryNames
+      .map((name) => ({ name, displayName: categoryLabels[name] }))
       .map((category) => ({
         ...category,
         count: $categoryCountsStore[category.name] ?? 0,

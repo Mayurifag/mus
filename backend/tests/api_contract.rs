@@ -251,7 +251,7 @@ async fn tracks_list_contract() {
 #[tokio::test]
 async fn category_contract() {
     let app = TestApp::new();
-    let file_path = app.state.music_dir.join("gachi.mp3");
+    let file_path = app.state.music_dir.join("right-version.mp3");
     let other_path = app.state.music_dir.join("ai.mp3");
     fs::write(&file_path, b"audio").unwrap();
     fs::write(&other_path, b"audio").unwrap();
@@ -271,17 +271,21 @@ async fn category_contract() {
         false,
         "COMPLETE",
     );
-    app.set_tags(TRACK_ID, &["gachi"]);
+    app.set_tags(TRACK_ID, &["right-version"]);
     app.set_tags(OTHER_TRACK_ID, &["ai-cover"]);
 
-    let gachi = app
-        .request(Method::GET, "/api/v1/tracks?category=gachi", Body::empty())
+    let right_version = app
+        .request(
+            Method::GET,
+            "/api/v1/tracks?category=right-version",
+            Body::empty(),
+        )
         .await;
-    assert_eq!(gachi.status(), StatusCode::OK);
-    let body = body_json(gachi).await;
+    assert_eq!(right_version.status(), StatusCode::OK);
+    let body = body_json(right_version).await;
     assert_eq!(body.as_array().unwrap().len(), 1);
     assert_eq!(body[0]["id"], TRACK_ID);
-    assert_eq!(body[0]["tags"][0]["name"], "gachi");
+    assert_eq!(body[0]["tags"][0]["name"], "right-version");
 
     let ai_cover = app
         .request(
@@ -314,7 +318,7 @@ async fn patch_can_update_only_tags() {
         .json(
             Method::PATCH,
             &format!("/api/v1/tracks/{TRACK_ID}"),
-            json!({"tags": ["gachi", "gachi", "ai-cover"]}),
+            json!({"tags": ["right-version", "right-version", "ai-cover", "cover", "ost", "mashup"]}),
         )
         .await;
     assert_eq!(response.status(), StatusCode::OK);
@@ -331,12 +335,58 @@ async fn patch_can_update_only_tags() {
                 |row| row.get(0),
             )
             .unwrap();
-        if count == 2 {
+        if count == 5 {
             return;
         }
         tokio::time::sleep(std::time::Duration::from_millis(25)).await;
     }
     panic!("tags were not updated");
+}
+
+#[tokio::test]
+async fn patch_reinfers_tags_when_renaming_track() {
+    let app = TestApp::new();
+    let file_path = app.state.music_dir.join("song.wav");
+    write_silent_wav(&file_path);
+    app.insert_track(
+        TRACK_ID,
+        "Song (AI cover)",
+        "Artist",
+        file_path.to_str().unwrap(),
+        false,
+        "COMPLETE",
+    );
+    app.set_tags(TRACK_ID, &["ai-cover"]);
+
+    let response = app
+        .json(
+            Method::PATCH,
+            &format!("/api/v1/tracks/{TRACK_ID}"),
+            json!({"title": "Song (cover)", "artist": "Artist", "rename_file": true}),
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+
+    for _ in 0..40 {
+        let tags: Vec<String> = app
+            .state
+            .db
+            .lock()
+            .unwrap()
+            .prepare(
+                "SELECT tag.name FROM tag JOIN track_tag ON track_tag.tag_id = tag.id ORDER BY tag.name",
+            )
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        if tags == ["cover"] {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    panic!("tags were not reinferred after rename");
 }
 
 #[tokio::test]

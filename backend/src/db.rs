@@ -11,8 +11,16 @@ use crate::{
     hls::track_hls_url,
     models::{PlayerState, Tag, Track, TrackDto},
     state::AppState,
-    util::is_hash_id,
+    util::{inferred_tag_names, is_hash_id},
 };
+
+const TAGS: &[(&str, &str)] = &[
+    ("right-version", "Right version"),
+    ("ai-cover", "AI cover"),
+    ("cover", "Cover"),
+    ("ost", "OST"),
+    ("mashup", "Mashup"),
+];
 
 const MIGRATIONS: &[M<'static>] = &[
     M::up(
@@ -90,7 +98,7 @@ const MIGRATIONS: &[M<'static>] = &[
         );
         CREATE INDEX idx_track_tag_tag_id ON track_tag(tag_id);
         CREATE INDEX idx_track_tag_track_id ON track_tag(track_id);
-        INSERT INTO tag (name, display_name) VALUES ('gachi', 'Gachi'), ('ai-cover', 'AI cover');
+        INSERT INTO tag (name, display_name) VALUES ('right-version', 'Right version'), ('ai-cover', 'AI cover'), ('cover', 'Cover'), ('ost', 'OST'), ('mashup', 'Mashup');
         "#,
     ),
 ];
@@ -98,6 +106,7 @@ const MIGRATIONS: &[M<'static>] = &[
 pub fn init_db(conn: &mut Connection) -> Result<()> {
     conn.execute_batch(
         r#"
+        PRAGMA foreign_keys = ON;
         PRAGMA journal_mode = WAL;
         PRAGMA synchronous = NORMAL;
         PRAGMA busy_timeout = 5000;
@@ -105,18 +114,47 @@ pub fn init_db(conn: &mut Connection) -> Result<()> {
     )?;
     Migrations::from_slice(MIGRATIONS).to_latest(conn)?;
     ensure_seed_tags(conn)?;
+    remove_deprecated_tags(conn)?;
+    ensure_inferred_category_tags(conn)?;
     Ok(())
 }
 
 fn ensure_seed_tags(conn: &Connection) -> Result<()> {
-    conn.execute(
-        "INSERT INTO tag (name, display_name) VALUES ('gachi', 'Gachi') ON CONFLICT(name) DO UPDATE SET display_name=excluded.display_name",
-        [],
-    )?;
-    conn.execute(
-        "INSERT INTO tag (name, display_name) VALUES ('ai-cover', 'AI cover') ON CONFLICT(name) DO UPDATE SET display_name=excluded.display_name",
-        [],
-    )?;
+    for (name, display_name) in TAGS {
+        conn.execute(
+            "INSERT INTO tag (name, display_name) VALUES (?1, ?2) ON CONFLICT(name) DO UPDATE SET display_name=excluded.display_name",
+            params![name, display_name],
+        )?;
+    }
+    Ok(())
+}
+
+fn remove_deprecated_tags(conn: &Connection) -> Result<()> {
+    conn.execute("DELETE FROM tag WHERE name = 'gachi'", [])?;
+    Ok(())
+}
+
+fn ensure_inferred_category_tags(conn: &Connection) -> Result<()> {
+    let tracks = {
+        let mut stmt = conn.prepare("SELECT id, title, artist, file_path FROM track")?;
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()?
+    };
+    for (track_id, title, artist, file_path) in tracks {
+        for name in inferred_tag_names(&title, &artist, Path::new(&file_path)) {
+            conn.execute(
+                "INSERT OR IGNORE INTO track_tag (track_id, tag_id) SELECT ?1, id FROM tag WHERE name = ?2",
+                params![track_id, name],
+            )?;
+        }
+    }
     Ok(())
 }
 
@@ -166,21 +204,24 @@ pub fn get_track(state: &AppState, id: &str) -> Result<Option<Track>> {
 }
 
 pub fn save_track(state: &AppState, old_id: &str, track: &Track) -> Result<()> {
-    let conn = state.db.lock().unwrap();
-    conn.execute(
+    let mut conn = state.db.lock().unwrap();
+    let tx = conn.transaction()?;
+    tx.execute_batch("PRAGMA defer_foreign_keys = ON")?;
+    tx.execute(
         "UPDATE track SET id=?1, title=?2, artist=?3, duration=?4, file_path=?5, updated_at=?6, has_cover=?7, inode=?8, file_signature=?9, content_hash=?10, processing_status=?11, last_error=?12 WHERE id=?13",
         params![track.id, track.title, track.artist, track.duration, track.file_path, track.updated_at, track.has_cover, track.inode, track.file_signature, track.content_hash, track.processing_status, track.last_error.as_ref().map(Value::to_string), old_id],
     )?;
     if old_id != track.id {
-        conn.execute(
+        tx.execute(
             "UPDATE track_tag SET track_id = ?1 WHERE track_id = ?2",
             params![track.id, old_id],
         )?;
-        conn.execute(
+        tx.execute(
             "UPDATE playerstate SET current_track_id = ?1 WHERE current_track_id = ?2",
             params![track.id, old_id],
         )?;
     }
+    tx.commit()?;
     Ok(())
 }
 
@@ -219,7 +260,7 @@ fn valid_tag_names(tag_names: &[String]) -> Vec<&str> {
     tag_names
         .iter()
         .map(String::as_str)
-        .filter(|name| matches!(*name, "gachi" | "ai-cover") && seen.insert(*name))
+        .filter(|name| TAGS.iter().any(|(tag, _)| *tag == *name) && seen.insert(*name))
         .collect()
 }
 
@@ -292,6 +333,21 @@ pub fn save_track_fingerprint(
             params![content_hash, id],
         )?;
     }
+    Ok(())
+}
+
+pub fn save_track_file_signature(
+    state: &AppState,
+    id: &str,
+    inode: Option<i64>,
+    file_signature: &str,
+    updated_at: i64,
+) -> Result<()> {
+    let conn = state.db.lock().unwrap();
+    conn.execute(
+        "UPDATE track SET inode = ?1, file_signature = ?2, updated_at = ?3 WHERE id = ?4",
+        params![inode, file_signature, updated_at, id],
+    )?;
     Ok(())
 }
 

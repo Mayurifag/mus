@@ -101,7 +101,7 @@ describe("RightSidebar", () => {
     const tracks: Track[] = [
       {
         id: "1",
-        title: "Song 1",
+        title: "Song 1 (Right version)",
         artist: "Artist A; Artist B",
         duration: 180,
         filename: "path1.mp3",
@@ -141,7 +141,7 @@ describe("RightSidebar", () => {
     const tracks: Track[] = [
       {
         id: "1",
-        title: "Song 1",
+        title: "Song 1 (Right version)",
         artist: "Artist A",
         duration: 180,
         filename: "path1.mp3",
@@ -150,22 +150,22 @@ describe("RightSidebar", () => {
         cover_small_url: null,
         cover_original_url: null,
         hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
-        tags: [{ name: "gachi", display_name: "Gachi" }],
+        tags: [{ name: "right-version", display_name: "Right version" }],
       },
     ];
 
     trackStore.setTracks(tracks);
     render(RightSidebar);
 
-    expect(screen.getByText("Category")).toBeInTheDocument();
-    expect(screen.getByText("Gachi")).toBeInTheDocument();
+    expect(await screen.findByText("Category")).toBeInTheDocument();
+    expect(await screen.findByText("Right version")).toBeInTheDocument();
     expect(screen.queryByText("AI cover")).not.toBeInTheDocument();
 
     await fireEvent.click(
-      screen.getByRole("button", { name: "Show Gachi songs" }),
+      screen.getByRole("button", { name: "Show Right version songs" }),
     );
 
-    expect(get(trackStore).selectedCategory).toBe("gachi");
+    expect(get(trackStore).selectedCategory).toBe("right-version");
   });
 
   it("hides category section when no category tracks exist", () => {

@@ -12,7 +12,6 @@ export type TrackUpdatePayload = {
   artist?: string;
   rename_file?: boolean;
   artwork_url?: string;
-  tags?: string[];
 };
 
 export function sanitizeMetadataInput(value: string): string {
@@ -86,7 +85,6 @@ export function buildTrackUpdatePayload({
   renameFile,
   filename,
   artworkUrl,
-  tags,
 }: {
   track?: Track;
   title: string;
@@ -94,7 +92,6 @@ export function buildTrackUpdatePayload({
   renameFile: boolean;
   filename: string;
   artworkUrl?: string;
-  tags?: string[];
 }): TrackUpdatePayload {
   const payload: TrackUpdatePayload = {};
   if (!track) return payload;
@@ -102,15 +99,5 @@ export function buildTrackUpdatePayload({
   if (artist !== track.artist) payload.artist = artist;
   if (renameFile && filename !== track.filename) payload.rename_file = true;
   if (artworkUrl) payload.artwork_url = artworkUrl;
-  if (
-    tags &&
-    tagsKey(tags) !== tagsKey((track.tags ?? []).map((tag) => tag.name))
-  ) {
-    payload.tags = tags;
-  }
   return payload;
-}
-
-export function tagsKey(tags: string[]): string {
-  return [...tags].sort().join("|");
 }

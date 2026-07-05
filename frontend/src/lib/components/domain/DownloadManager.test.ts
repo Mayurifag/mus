@@ -105,7 +105,7 @@ describe("DownloadManager", () => {
       artist: "Test Artist",
       thumbnail_url: "https://example.com/thumb.jpg",
       duration: 180,
-      tags: [{ name: "gachi", display_name: "Gachi" }],
+      tags: [{ name: "right-version", display_name: "Right version" }],
     });
 
     render(DownloadManager);
@@ -124,7 +124,7 @@ describe("DownloadManager", () => {
       let storeValue: { state: string; tags: string[] } | undefined;
       state.subscribe((v) => (storeValue = v))();
       expect(storeValue?.state).toBe("awaiting_review");
-      expect(storeValue?.tags).toEqual(["gachi"]);
+      expect(storeValue?.tags).toEqual(["right-version"]);
     });
   });
 

@@ -9,6 +9,7 @@ import {
   updateMediaSessionMetadata,
   updateMediaSessionPlaybackState,
 } from "$lib/services/mediaSessionService";
+import { displayTrackTitle } from "$lib/utils/categoryMarkers";
 import { toast } from "svelte-sonner";
 
 export class AudioService {
@@ -209,7 +210,7 @@ export class AudioService {
         once: true,
       });
       if (typeof document !== "undefined") {
-        document.title = `${formatArtistsForDisplay(track.artist)} - ${track.title}`;
+        document.title = `${formatArtistsForDisplay(track.artist)} - ${displayTrackTitle(track)}`;
       }
       this._currentTime.set(initialTime);
       this._duration.set(0);

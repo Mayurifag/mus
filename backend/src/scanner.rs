@@ -556,13 +556,27 @@ async fn upsert_path_with_snapshot(
     let updated_at = snapshot.mtime;
     let id = snapshot.content_hash.clone();
     let added_at = {
-        let conn = state.db.lock().unwrap();
+        let mut conn = state.db.lock().unwrap();
         if let Some(existing_id) = existing_id.as_deref() {
-            conn.query_row(
+            let tx = conn.transaction()?;
+            tx.execute_batch("PRAGMA defer_foreign_keys = ON")?;
+            let added_at = tx.query_row(
                 "UPDATE track SET id=?1, title=?2, artist=?3, duration=?4, file_path=?5, updated_at=?6, inode=?7, file_signature=?8, content_hash=?9, processing_status='COMPLETE', last_error=NULL WHERE id=?10 RETURNING added_at",
                 params![&id, &title, &artist, duration, &file_path, updated_at, inode(&snapshot.meta), &snapshot.file_signature, &snapshot.content_hash, existing_id],
                 |row| row.get::<_, i64>(0),
-            )?
+            )?;
+            if existing_id != id {
+                tx.execute(
+                    "UPDATE track_tag SET track_id = ?1 WHERE track_id = ?2",
+                    params![&id, existing_id],
+                )?;
+                tx.execute(
+                    "UPDATE playerstate SET current_track_id = ?1 WHERE current_track_id = ?2",
+                    params![&id, existing_id],
+                )?;
+            }
+            tx.commit()?;
+            added_at
         } else {
             conn.query_row(
                 "INSERT INTO track (id, title, artist, duration, file_path, added_at, updated_at, has_cover, inode, file_signature, content_hash, processing_status)
@@ -574,16 +588,6 @@ async fn upsert_path_with_snapshot(
             )?
         }
     };
-    if let Some(existing_id) = existing_id
-        .as_deref()
-        .filter(|existing_id| *existing_id != id)
-    {
-        let conn = state.db.lock().unwrap();
-        conn.execute(
-            "UPDATE playerstate SET current_track_id = ?1 WHERE current_track_id = ?2",
-            params![&id, existing_id],
-        )?;
-    }
     db::add_track_tags(state, &id, &inferred_tag_names(&title, &artist, &path))?;
     let has_cover = extract_cover(&path, &state.covers_dir, &id)
         .await

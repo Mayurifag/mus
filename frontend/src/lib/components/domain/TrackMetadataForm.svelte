@@ -20,7 +20,6 @@
     file,
     metadata,
     title = $bindable(),
-    selectedTags = $bindable(),
     renameFile = $bindable(),
     artists = $bindable(),
     sanitizedTitle,
@@ -40,7 +39,6 @@
     file?: File;
     metadata?: AudioMetadata;
     title: string;
-    selectedTags: string[];
     renameFile: boolean;
     artists: ArtistRow[];
     sanitizedTitle: string;
@@ -64,16 +62,6 @@
       ? (metadata?.duration as number | undefined)
       : track?.duration,
   );
-
-  function hasTag(name: string): boolean {
-    return selectedTags.includes(name);
-  }
-
-  function setTag(name: string, checked: boolean) {
-    selectedTags = checked
-      ? [...new Set([...selectedTags, name])]
-      : selectedTags.filter((tag) => tag !== name);
-  }
 </script>
 
 {#snippet filenameHelp()}
@@ -191,30 +179,6 @@
           </label>
         </div>
       {/if}
-
-      <div class="space-y-2">
-        <div class="text-sm font-medium">Category</div>
-        <div class="flex flex-wrap gap-4">
-          <label class="flex items-center space-x-2 text-sm" for="tag-gachi">
-            <Checkbox
-              id="tag-gachi"
-              checked={hasTag("gachi")}
-              onCheckedChange={(checked: boolean | "indeterminate") =>
-                setTag("gachi", checked === true)}
-            />
-            <span>Gachi</span>
-          </label>
-          <label class="flex items-center space-x-2 text-sm" for="tag-ai-cover">
-            <Checkbox
-              id="tag-ai-cover"
-              checked={hasTag("ai-cover")}
-              onCheckedChange={(checked: boolean | "indeterminate") =>
-                setTag("ai-cover", checked === true)}
-            />
-            <span>AI cover</span>
-          </label>
-        </div>
-      </div>
     </div>
   </div>
 </div>

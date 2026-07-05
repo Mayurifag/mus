@@ -149,7 +149,7 @@ pub fn generate_filename(artist: &str, title: &str, ext: &str) -> Result<String,
 }
 
 pub fn normalize_text(value: &str) -> String {
-    normalize_category_markers(&value.nfc().collect::<String>())
+    value.nfc().collect::<String>()
 }
 
 pub fn has_right_version_marker(value: &str) -> bool {
@@ -162,56 +162,38 @@ pub fn has_ai_cover_marker(value: &str) -> bool {
     normalized.contains("ai cover") || normalized.contains("a i cover")
 }
 
-pub fn has_gachi_marker(value: &str) -> bool {
-    marker_match_text(value).contains("gachi")
+pub fn has_cover_marker(value: &str) -> bool {
+    marker_match_text(value).contains("cover") && !has_ai_cover_marker(value)
 }
 
-pub fn inferred_tag_names(title: &str, artist: &str, path: &Path) -> Vec<String> {
-    let haystack = format!("{title} {artist} {}", path.to_string_lossy());
+pub fn has_ost_marker(value: &str) -> bool {
+    marker_match_text(value).split_whitespace().any(|word| word == "ost")
+}
+
+pub fn has_mashup_marker(value: &str) -> bool {
+    let normalized = marker_match_text(value);
+    normalized.contains("mashup") || normalized.contains("mash up")
+}
+
+pub fn inferred_tag_names(title: &str, _artist: &str, _path: &Path) -> Vec<String> {
+    let haystack = title;
     let mut tags = Vec::new();
-    if has_gachi_marker(&haystack) || has_right_version_marker(&haystack) {
-        tags.push("gachi".to_string());
+    if has_right_version_marker(haystack) {
+        tags.push("right-version".to_string());
     }
-    if has_ai_cover_marker(&haystack) {
+    if has_ai_cover_marker(haystack) {
         tags.push("ai-cover".to_string());
+    } else if has_cover_marker(haystack) {
+        tags.push("cover".to_string());
+    }
+    if has_ost_marker(haystack) {
+        tags.push("ost".to_string());
+    }
+    if has_mashup_marker(haystack) {
+        tags.push("mashup".to_string());
     }
     tags
 }
-
-fn normalize_category_markers(value: &str) -> String {
-    let has_right_version = has_right_version_marker(value);
-    let has_ai_cover = has_ai_cover_marker(value);
-    let mut output = value.to_string();
-    for marker in RIGHT_VERSION_MARKERS {
-        output = replace_ascii_insensitive(&output, marker, "");
-    }
-    for marker in AI_COVER_MARKERS {
-        output = replace_ascii_insensitive(&output, marker, "");
-    }
-    output = output.split_whitespace().collect::<Vec<_>>().join(" ");
-    if has_right_version {
-        output = append_marker(output, "(Right version)");
-    }
-    if has_ai_cover {
-        output = append_marker(output, "(AI cover)");
-    }
-    output
-}
-
-const RIGHT_VERSION_MARKERS: &[&str] = &[
-    "(right version)",
-    "[right version]",
-    "right-version",
-    "right version",
-    "right ver",
-];
-const AI_COVER_MARKERS: &[&str] = &[
-    "(ai cover)",
-    "[ai cover]",
-    "ai-cover",
-    "a.i. cover",
-    "ai cover",
-];
 
 fn marker_match_text(value: &str) -> String {
     value
@@ -220,30 +202,6 @@ fn marker_match_text(value: &str) -> String {
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
-}
-
-fn replace_ascii_insensitive(value: &str, needle: &str, replacement: &str) -> String {
-    let lower_value = value.to_ascii_lowercase();
-    let lower_needle = needle.to_ascii_lowercase();
-    let mut result = String::new();
-    let mut index = 0;
-    while let Some(relative_match) = lower_value[index..].find(&lower_needle) {
-        let match_start = index + relative_match;
-        let match_end = match_start + needle.len();
-        result.push_str(&value[index..match_start]);
-        result.push_str(replacement);
-        index = match_end;
-    }
-    result.push_str(&value[index..]);
-    result
-}
-
-fn append_marker(value: String, marker: &str) -> String {
-    if value.is_empty() {
-        marker.to_string()
-    } else {
-        format!("{value} {marker}")
-    }
 }
 
 pub fn clean_title(raw: &str) -> String {
@@ -351,13 +309,14 @@ pub fn inode(_: &fs::Metadata) -> Option<i64> {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use std::{fs, path::Path};
 
     use tempfile::TempDir;
 
     use super::{
-        can_write, generate_filename, has_ai_cover_marker, has_right_version_marker,
-        normalize_artists, normalize_text, parse_artists,
+        can_write, generate_filename, has_ai_cover_marker, has_cover_marker, has_mashup_marker,
+        has_ost_marker, has_right_version_marker, inferred_tag_names, normalize_artists,
+        normalize_text, parse_artists,
     };
 
     #[test]
@@ -411,7 +370,7 @@ mod tests {
     }
 
     #[test]
-    fn normalizes_right_version_markers() {
+    fn detects_right_version_markers_without_rewriting_text() {
         for input in [
             "Song (right version)",
             "Song [right version]",
@@ -419,13 +378,13 @@ mod tests {
             "Song right-version",
             "Song RIGHT VERSION",
         ] {
-            assert_eq!(normalize_text(input), "Song (Right version)");
+            assert_eq!(normalize_text(input), input);
             assert!(has_right_version_marker(input));
         }
     }
 
     #[test]
-    fn normalizes_ai_cover_markers() {
+    fn detects_ai_cover_markers_without_rewriting_text() {
         for input in [
             "Song (ai cover)",
             "Song [ai cover]",
@@ -433,8 +392,31 @@ mod tests {
             "Song AI COVER",
             "Song a.i. cover",
         ] {
-            assert_eq!(normalize_text(input), "Song (AI cover)");
+            assert_eq!(normalize_text(input), input);
             assert!(has_ai_cover_marker(input));
         }
+    }
+
+    #[test]
+    fn detects_cover_markers_without_matching_ai_cover() {
+        assert!(has_cover_marker("Song (cover)"));
+        assert_eq!(
+            inferred_tag_names("Song (cover)", "Artist", Path::new("")),
+            ["cover"]
+        );
+        assert_eq!(
+            inferred_tag_names("Song (AI cover)", "Artist", Path::new("")),
+            ["ai-cover"]
+        );
+    }
+
+    #[test]
+    fn detects_ost_and_mashup_markers() {
+        assert!(has_ost_marker("Song [OST]"));
+        assert!(has_mashup_marker("Song mash-up"));
+        assert_eq!(
+            inferred_tag_names("Song [OST mash-up]", "Artist", Path::new("")),
+            ["ost", "mashup"]
+        );
     }
 }

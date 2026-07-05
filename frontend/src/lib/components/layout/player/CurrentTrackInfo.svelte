@@ -1,6 +1,7 @@
 <script lang="ts">
   import ArtistLinks from "$lib/components/domain/ArtistLinks.svelte";
   import type { Track } from "$lib/types";
+  import { displayTrackTitle } from "$lib/utils/categoryMarkers";
 
   let {
     track,
@@ -9,13 +10,15 @@
     track: Track | null;
     mobile?: boolean;
   } = $props();
+
+  const trackTitle = $derived(track ? displayTrackTitle(track) : "");
 </script>
 
 {#if mobile}
   <div class="-mt-1 flex w-full items-center justify-center px-4 text-center">
     {#if track}
       <span class="text-muted-foreground truncate text-sm font-medium">
-        <ArtistLinks artist={track.artist} /> - {track.title}
+        <ArtistLinks artist={track.artist} /> - {trackTitle}
       </span>
     {:else}
       <span class="text-muted-foreground text-sm">Not Playing</span>
@@ -42,7 +45,7 @@
         {/if}
       </div>
       <div class="sm700:flex ml-4 hidden min-w-0 flex-col overflow-hidden">
-        <span class="truncate text-base font-medium">{track.title}</span>
+        <span class="truncate text-base font-medium">{trackTitle}</span>
         <span class="text-muted-foreground truncate text-sm">
           <ArtistLinks artist={track.artist} />
         </span>

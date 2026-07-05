@@ -70,7 +70,15 @@ pub async fn fetch_metadata(
         tags: tag_names
             .into_iter()
             .map(|name| crate::models::Tag {
-                display_name: if name == "gachi" { "Gachi" } else { "AI cover" }.into(),
+                display_name: match name.as_str() {
+                    "right-version" => "Right version",
+                    "ai-cover" => "AI cover",
+                    "cover" => "Cover",
+                    "ost" => "OST",
+                    "mashup" => "Mashup",
+                    _ => name.as_str(),
+                }
+                .into(),
                 name,
             })
             .collect(),
