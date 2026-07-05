@@ -3,6 +3,7 @@ import * as apiClient from "./apiClient";
 import { trackStore } from "$lib/stores/trackStore";
 import { recentEventsStore } from "$lib/stores/recentEventsStore";
 import { downloadStore } from "$lib/stores/downloadStore";
+import { ytDlpVersionStore } from "$lib/stores/systemStore";
 import type {
   MusEvent,
   DownloadFailedPayload,
@@ -16,6 +17,7 @@ import type {
 export function handleMusEvent(payload: MusEvent): void {
   if (
     payload.action_key !== "download_progress" &&
+    payload.action_key !== "yt_dlp_updated" &&
     (payload.action_key !== "track_updated" || payload.message_to_show)
   ) {
     recentEventsStore.addEvent(payload);
@@ -72,6 +74,15 @@ export function handleMusEvent(payload: MusEvent): void {
           speed: p.speed,
           eta: p.eta,
         });
+      }
+      break;
+    case "yt_dlp_updated":
+      if (
+        payload.action_payload &&
+        (typeof payload.action_payload.yt_dlp_version === "string" ||
+          payload.action_payload.yt_dlp_version === null)
+      ) {
+        ytDlpVersionStore.set(payload.action_payload.yt_dlp_version);
       }
       break;
   }

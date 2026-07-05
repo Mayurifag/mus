@@ -15,10 +15,7 @@ import {
 const artworkResultsCache = new Map<string, ArtworkSearchResult[]>();
 
 export type SseConnectionStatus =
-  | "disconnected"
-  | "connecting"
-  | "connected"
-  | "reconnecting";
+  "disconnected" | "connecting" | "connected" | "reconnecting";
 
 export const trackUpdatesConnectionStatus =
   writable<SseConnectionStatus>("disconnected");

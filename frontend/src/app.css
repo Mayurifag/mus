@@ -90,6 +90,15 @@
     background: hsl(var(--muted-foreground) / 0.5);
   }
 
+  .scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Icon glow effect for interactive elements */
   .icon-glow-effect {
     cursor: pointer;

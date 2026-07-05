@@ -25,6 +25,7 @@
   import { categoryLabels, categoryNames } from "$lib/utils/categoryMarkers";
   import { onMount } from "svelte";
   import { toast } from "svelte-sonner";
+  import { ytDlpVersionStore } from "$lib/stores/systemStore";
 
   const MIN_HISTORY_FOR_DEBUG = 2;
 
@@ -47,6 +48,7 @@
   onMount(async () => {
     erroredTracks = await fetchErroredTracks();
     systemInfo = await fetchSystemInfo();
+    ytDlpVersionStore.set(systemInfo.yt_dlp_version);
   });
 
   async function handleYtDlpUpdate() {
@@ -55,7 +57,7 @@
     toast.info("Updating yt-dlp...");
     try {
       const result = await updateYtDlp();
-      systemInfo = { ...systemInfo, yt_dlp_version: result.yt_dlp_version };
+      ytDlpVersionStore.set(result.yt_dlp_version);
       toast.success(`yt-dlp updated to ${result.yt_dlp_version ?? "unknown"}`);
     } catch (error) {
       console.error("yt-dlp update failed", error);
@@ -76,6 +78,14 @@
 
   const shouldShowEffectsMonitor =
     import.meta.env.VITE_EFFECTS_DEBUG === "true";
+
+  const buildLabel = $derived.by(() => {
+    const commit = systemInfo.commit_sha?.slice(0, 7);
+    if (systemInfo.app_date !== "unknown") {
+      return `Build ${systemInfo.app_date}${commit ? ` (${commit})` : ""}`;
+    }
+    return commit ? `Development build (${commit})` : "Development build";
+  });
 
   const selectedArtist = $derived($trackStore.selectedArtist);
   const selectedCategory = $derived($trackStore.selectedCategory);
@@ -172,7 +182,7 @@
 
 <div class="bg-card/50 flex h-full w-full flex-col backdrop-blur-sm">
   <!-- Scrollable Content -->
-  <div class="flex-1 overflow-y-auto">
+  <div class="scrollbar-hidden flex-1 overflow-y-auto">
     <!-- Download Manager -->
     <div class="border-border/30 border-b p-4">
       <DownloadManager />
@@ -351,14 +361,8 @@
   <div class="border-border/50 border-t p-3 text-xs">
     <div class="text-muted-foreground flex items-center justify-between gap-3">
       <div class="min-w-0 space-y-1">
-        <div class="truncate">
-          mus {systemInfo.app_date}{systemInfo.commit_sha
-            ? ` (${systemInfo.commit_sha.slice(0, 7)})`
-            : ""}
-        </div>
-        <div class="truncate">
-          yt-dlp {systemInfo.yt_dlp_version ?? "unknown"}
-        </div>
+        <div class="truncate">{buildLabel}</div>
+        <div class="truncate">yt-dlp {$ytDlpVersionStore ?? "unknown"}</div>
         {#if $trackUpdatesConnectionStatus !== "connected"}
           <div class="truncate">SSE {$trackUpdatesConnectionStatus}</div>
         {/if}

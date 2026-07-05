@@ -13,11 +13,13 @@ vi.mock("music-metadata");
 const mockCreateObjectURL = vi.fn();
 const mockRevokeObjectURL = vi.fn();
 
-Object.defineProperty(global, "URL", {
-  value: {
-    createObjectURL: mockCreateObjectURL,
-    revokeObjectURL: mockRevokeObjectURL,
-  },
+Object.defineProperty(URL, "createObjectURL", {
+  value: mockCreateObjectURL,
+  writable: true,
+});
+
+Object.defineProperty(URL, "revokeObjectURL", {
+  value: mockRevokeObjectURL,
   writable: true,
 });
 

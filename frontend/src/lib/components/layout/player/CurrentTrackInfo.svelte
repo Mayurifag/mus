@@ -25,7 +25,7 @@
     {/if}
   </div>
 {:else}
-  <div class="desktop:w-80 flex w-auto min-w-0 items-center">
+  <div class="flex min-w-0 flex-1 items-center">
     {#if track}
       <div
         class="desktop:block desktop:h-24 desktop:w-24 desktop:my-5 desktop:ml-5 my-6 ml-6 hidden h-32 w-32 flex-shrink-0 overflow-hidden rounded-md"
@@ -44,7 +44,9 @@
           />
         {/if}
       </div>
-      <div class="sm700:flex ml-4 hidden min-w-0 flex-col overflow-hidden">
+      <div
+        class="sm700:flex ml-4 hidden min-w-0 flex-1 flex-col overflow-hidden"
+      >
         <span class="truncate text-base font-medium">{trackTitle}</span>
         <span class="text-muted-foreground truncate text-sm">
           <ArtistLinks artist={track.artist} />
@@ -56,7 +58,9 @@
       >
         <span class="text-muted-foreground text-xs">No Track</span>
       </div>
-      <div class="sm700:flex ml-4 hidden min-w-0 flex-col overflow-hidden">
+      <div
+        class="sm700:flex ml-4 hidden min-w-0 flex-1 flex-col overflow-hidden"
+      >
         <span class="text-muted-foreground text-sm">Not Playing</span>
       </div>
     {/if}

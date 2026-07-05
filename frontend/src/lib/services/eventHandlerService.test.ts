@@ -4,6 +4,7 @@ import * as apiClient from "./apiClient";
 import { trackStore } from "$lib/stores/trackStore";
 import { recentEventsStore } from "$lib/stores/recentEventsStore";
 import { downloadStore } from "$lib/stores/downloadStore";
+import { ytDlpVersionStore } from "$lib/stores/systemStore";
 import type { MusEvent, Track } from "$lib/types";
 
 // Mock dependencies
@@ -34,6 +35,12 @@ vi.mock("$lib/stores/downloadStore", () => ({
     setCompleted: vi.fn(),
     setFailed: vi.fn(),
     setProgress: vi.fn(),
+  },
+}));
+
+vi.mock("$lib/stores/systemStore", () => ({
+  ytDlpVersionStore: {
+    set: vi.fn(),
   },
 }));
 
@@ -304,6 +311,19 @@ describe("eventHandlerService", () => {
       handleMusEvent(payload);
 
       expect(downloadStore.setProgress).not.toHaveBeenCalled();
+    });
+
+    it("should handle yt_dlp_updated event", () => {
+      const payload: MusEvent = {
+        message_to_show: null,
+        message_level: null,
+        action_key: "yt_dlp_updated",
+        action_payload: { yt_dlp_version: "2026.07.04.221833" },
+      };
+
+      handleMusEvent(payload);
+
+      expect(ytDlpVersionStore.set).toHaveBeenCalledWith("2026.07.04.221833");
     });
   });
 

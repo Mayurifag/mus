@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 
 use crate::{
     error::AppError,
+    events,
     models::MusicDirectoryStatus,
     scanner::scan_music_dir,
     state::AppState,
@@ -64,6 +65,13 @@ pub async fn update_yt_dlp(State(state): State<AppState>) -> Result<Json<Value>,
             .await
             .ok();
     *state.yt_dlp_version.lock().unwrap() = version.clone();
+    events::broadcast(
+        &state,
+        "yt_dlp_updated",
+        None,
+        None,
+        Some(json!({ "yt_dlp_version": version })),
+    );
     tracing::info!(
         yt_dlp_version = version.as_deref().unwrap_or("unknown"),
         "yt-dlp update completed"

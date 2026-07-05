@@ -2,14 +2,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/svelte";
 import { get, writable } from "svelte/store";
 import RightSidebar from "./RightSidebar.svelte";
+import { handleMusEvent } from "$lib/services/eventHandlerService";
 import { trackStore } from "$lib/stores/trackStore";
-import { trackUpdatesConnectionStatus } from "$lib/services/apiClient";
+import {
+  fetchSystemInfo,
+  trackUpdatesConnectionStatus,
+  updateYtDlp,
+} from "$lib/services/apiClient";
 import type { Track } from "$lib/types";
 
-// Mock the API client
-vi.mock("$lib/services/apiClient", () => ({
-  fetchErroredTracks: vi.fn().mockResolvedValue([]),
-  fetchSystemInfo: vi.fn().mockResolvedValue({
+const { defaultSystemInfo } = vi.hoisted(() => ({
+  defaultSystemInfo: {
     app_date: "2026-05-11",
     commit_sha: null,
     music_dir: {
@@ -21,13 +24,24 @@ vi.mock("$lib/services/apiClient", () => ({
       warning: null,
     },
     yt_dlp_version: null,
-  }),
+  },
+}));
+
+// Mock the API client
+vi.mock("$lib/services/apiClient", () => ({
+  fetchErroredTracks: vi.fn().mockResolvedValue([]),
+  fetchSystemInfo: vi.fn().mockResolvedValue(defaultSystemInfo),
   trackUpdatesConnectionStatus: writable("disconnected"),
   updateYtDlp: vi.fn().mockResolvedValue({ yt_dlp_version: null, output: "" }),
 }));
 
 describe("RightSidebar", () => {
   beforeEach(() => {
+    vi.mocked(fetchSystemInfo).mockResolvedValue(defaultSystemInfo);
+    vi.mocked(updateYtDlp).mockResolvedValue({
+      yt_dlp_version: null,
+      output: "",
+    });
     trackStore.reset();
     trackUpdatesConnectionStatus.set("disconnected");
   });
@@ -256,5 +270,38 @@ describe("RightSidebar", () => {
     render(RightSidebar);
 
     expect(screen.queryByText(/^SSE /)).not.toBeInTheDocument();
+  });
+
+  it("shows a readable development build label", async () => {
+    vi.mocked(fetchSystemInfo).mockResolvedValue({
+      ...defaultSystemInfo,
+      app_date: "unknown",
+    });
+
+    render(RightSidebar);
+
+    expect(await screen.findByText("Development build")).toBeInTheDocument();
+    expect(screen.queryByText("mus unknown")).not.toBeInTheDocument();
+  });
+
+  it("updates all mounted sidebars from yt-dlp SSE event", async () => {
+    vi.mocked(fetchSystemInfo).mockResolvedValue({
+      ...defaultSystemInfo,
+      yt_dlp_version: "old-version",
+    });
+
+    render(RightSidebar);
+    render(RightSidebar);
+
+    expect(await screen.findAllByText("yt-dlp old-version")).toHaveLength(2);
+
+    handleMusEvent({
+      message_to_show: null,
+      message_level: null,
+      action_key: "yt_dlp_updated",
+      action_payload: { yt_dlp_version: "new-version" },
+    });
+
+    expect(await screen.findAllByText("yt-dlp new-version")).toHaveLength(2);
   });
 });

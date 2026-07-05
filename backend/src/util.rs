@@ -167,7 +167,9 @@ pub fn has_cover_marker(value: &str) -> bool {
 }
 
 pub fn has_ost_marker(value: &str) -> bool {
-    marker_match_text(value).split_whitespace().any(|word| word == "ost")
+    marker_match_text(value)
+        .split_whitespace()
+        .any(|word| word == "ost")
 }
 
 pub fn has_mashup_marker(value: &str) -> bool {

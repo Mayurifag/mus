@@ -43,15 +43,12 @@ pub async fn get_tracks(
     State(state): State<AppState>,
     Query(query): Query<TracksQuery>,
 ) -> Result<Json<Vec<TrackDto>>, AppError> {
-    let category = query
-        .category
-        .as_deref()
-        .filter(|category| {
-            matches!(
-                *category,
-                "right-version" | "ai-cover" | "cover" | "ost" | "mashup"
-            )
-        });
+    let category = query.category.as_deref().filter(|category| {
+        matches!(
+            *category,
+            "right-version" | "ai-cover" | "cover" | "ost" | "mashup"
+        )
+    });
     let tracks = if let Some(category) = category {
         db::list_tracks_by_category(&state, category)?
     } else {

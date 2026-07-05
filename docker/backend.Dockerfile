@@ -29,7 +29,7 @@ RUN group_name="$(awk -F: -v gid="$GROUP_ID" '$3 == gid { print $1; exit }' /etc
     && if [ -z "$group_name" ]; then addgroup -g "$GROUP_ID" appgroup && group_name=appgroup; fi \
     && adduser -D -u "$USER_ID" -G "$group_name" appuser \
     && mkdir -p $DATA_DIR_PATH/.cache/covers $DATA_DIR_PATH/music /home/appuser/.local/bin /cargo /app/target \
-    && chown appuser:"$group_name" /usr/local/bin/yt-dlp \
+    && chown appuser:"$group_name" /usr/local/bin /usr/local/bin/yt-dlp \
     && chown -R appuser:"$group_name" /app $DATA_DIR_PATH /home/appuser /cargo /usr/local/cargo \
     && echo "appuser ALL=(ALL) NOPASSWD: /bin/chown -R appuser* /app/target* /cargo*" >> /etc/sudoers
 

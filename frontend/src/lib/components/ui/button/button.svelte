@@ -13,12 +13,7 @@
   }: {
     class?: string;
     variant?:
-      | "default"
-      | "destructive"
-      | "outline"
-      | "secondary"
-      | "ghost"
-      | "link";
+      "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
     size?: "default" | "sm" | "lg" | "icon";
     children?: import("svelte").Snippet;
     onclick?: (event: MouseEvent) => void;

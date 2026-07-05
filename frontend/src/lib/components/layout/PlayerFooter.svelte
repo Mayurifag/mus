@@ -106,13 +106,15 @@
       <div class="flex-1"></div>
     </div>
 
-    <div
-      class="sm700:flex hidden h-[var(--footer-height-desktop)] items-center pr-4"
-    >
-      <CurrentTrackInfo track={$trackStore.currentTrack} />
+    <div class="sm700:block relative hidden h-[var(--footer-height-desktop)]">
+      <div
+        class="desktop:right-[calc(50%+14rem+1.5rem)] absolute inset-y-0 right-[calc(50%+11rem+0.5rem)] left-0 flex min-w-0 items-center"
+      >
+        <CurrentTrackInfo track={$trackStore.currentTrack} />
+      </div>
 
       <div
-        class="desktop:justify-center desktop:py-0 desktop:mx-0 sm700:mx-2 mx-4 flex h-full flex-1 flex-col items-center justify-around py-1"
+        class="desktop:w-[28rem] desktop:justify-center desktop:py-0 sm700:w-[22rem] absolute top-0 left-1/2 flex h-full -translate-x-1/2 flex-col items-center justify-around py-1"
       >
         <div
           class="desktop:space-x-2 flex w-full items-center justify-center space-x-2"
@@ -144,12 +146,12 @@
           {duration}
           {bufferedRanges}
           disabled={!$trackStore.currentTrack}
-          wrapperClass="desktop:mt-2 desktop:max-w-lg mb-2 max-w-md"
+          wrapperClass="desktop:mt-2 mb-2 w-full"
         />
       </div>
 
       <div
-        class="flex w-auto flex-shrink-0 items-center justify-end space-x-2 pr-4"
+        class="absolute inset-y-0 right-0 flex w-auto items-center justify-end space-x-2 pr-4"
       >
         <Button
           variant="ghost"
