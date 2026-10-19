@@ -51,6 +51,8 @@ coverage/
 .cache/
 .ci-cache/
 .venv/
+__pycache__/
+*.py[cod]
 
 # CI/CD
 .github/workflows/*.log

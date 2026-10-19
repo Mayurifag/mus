@@ -18,6 +18,7 @@
   let reviewModalOpen = $state(false);
 
   async function handleDownload() {
+    if (!["idle", "failed"].includes($downloadStore.state)) return;
     if (!url.trim()) {
       toast.error("Please enter a URL");
       return;
@@ -28,6 +29,11 @@
     try {
       downloadStore.setFetchingMetadata(trimmedUrl);
       const metadata = await fetchMetadata(trimmedUrl);
+      if (
+        $downloadStore.state !== "fetching_metadata" ||
+        $downloadStore.url !== trimmedUrl
+      )
+        return;
       downloadStore.setAwaitingReview({
         title: metadata.title,
         artist: metadata.artist,
@@ -37,6 +43,11 @@
       });
       // $effect below opens the modal when state becomes awaiting_review
     } catch (error) {
+      if (
+        $downloadStore.state !== "fetching_metadata" ||
+        $downloadStore.url !== trimmedUrl
+      )
+        return;
       let errorMessage = "Failed to fetch metadata";
 
       if (error instanceof Error) {
@@ -145,14 +156,17 @@
       <Input
         bind:value={url}
         placeholder="Enter YouTube URL or other supported link"
-        disabled={isDownloading || isCompleted}
+        disabled={isDownloading || isCompleted || isAwaitingReview}
         onkeydown={handleKeydown}
         class="bg-muted/30 border-border/50 placeholder:text-muted-foreground/60 focus:border-accent/50 focus:ring-accent/20 text-sm"
       />
 
       <Button
         onclick={handleDownload}
-        disabled={isDownloading || isCompleted || !url.trim()}
+        disabled={isDownloading ||
+          isCompleted ||
+          isAwaitingReview ||
+          !url.trim()}
         size="sm"
         class="w-full font-medium transition-all duration-200 {isDownloading ||
         isCompleted

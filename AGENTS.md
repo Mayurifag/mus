@@ -9,7 +9,7 @@
 - Use `make prod-image` to rebuild the production image locally.
 - Use `make prod-image-fresh` only when Docker cache must be bypassed.
 - Use `make e2e-current-image` after `make prod-image` when the image is already built and the e2e rebuild would only re-fetch registry metadata.
-- `docker/docker-compose.override.yml` is gitignored and required for local dev. Create it from `docker/docker-compose.override.yml.example` when missing.
+- `docker/docker-compose.override.yml` is tracked with git-crypt. Unlock with the existing GPG key; a `GITCRYPT` header means locked, not corrupt. Use the example only if missing.
 - Production deployments run the app behind external authentication; do not add app-level auth unless explicitly requested.
 - App-owned state (`mus.db`, covers, HLS, transient upload/download/rewrite files) lives under `/app_data/.cache`.
 - Production should mount `/app_data/.cache` as the single app-state volume; keep `/app_data/music` as the separate OpenCloud music mount.

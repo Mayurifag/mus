@@ -13,12 +13,15 @@ ARG USER_ID=1000
 ARG GROUP_ID=1000
 ARG TARGETARCH
 
+COPY docker/yt-dlp.conf /etc/yt-dlp.conf
+
 RUN apk add --no-cache \
         build-base \
         ffmpeg \
         curl \
         cargo-audit \
         cargo-watch \
+        'nodejs>=22' \
         python3 \
         sqlite \
         sudo \
@@ -41,7 +44,8 @@ RUN --mount=type=cache,target=/cargo/registry \
     mkdir src \
     && printf 'fn main() {}\n' > src/main.rs \
     && cargo build --locked \
-    && rm -rf src
+    && rm -rf src \
+    && chown -R appuser:"$(id -gn appuser)" /cargo
 
 USER appuser
 

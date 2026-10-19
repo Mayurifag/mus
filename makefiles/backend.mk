@@ -49,7 +49,7 @@ back-sync:
 .PHONY: back-update-deps
 back-update-deps:
 	@echo "Updating backend dependencies..."
-	@$(COMPOSE) run --rm --no-TTY backend cargo update
+	@$(COMPOSE) run --rm --no-TTY backend cargo update $(foreach PACKAGE,$(ARGS),--package $(PACKAGE))
 
 .PHONY: back-install
 back-install: back-lock back-sync

@@ -38,11 +38,11 @@ rebuild-frontend-image-fresh:
 
 .PHONY: prod-image
 prod-image:
-	@docker build -f docker/production/production.Dockerfile --pull -t mus:latest .
+	@docker build $(DOCKER_BUILD_FLAGS) -f docker/production/production.Dockerfile --pull -t mus:latest .
 
 .PHONY: prod-image-fresh
 prod-image-fresh:
-	@docker build -f docker/production/production.Dockerfile --pull --no-cache -t mus:latest .
+	@docker build $(DOCKER_BUILD_FLAGS) -f docker/production/production.Dockerfile --pull --no-cache -t mus:latest .
 
 .PHONY: ps
 ps:

@@ -45,10 +45,11 @@ fi
 echo "Installing Playwright dependencies..."
 cd "$SCRIPT_DIR"
 npm ci --no-audit --no-fund --prefer-offline
+npx playwright install chromium
 
 echo "Starting container..."
 docker run -d --name "$E2E_CONTAINER_NAME" \
-  -p "$E2E_HOST_PORT:8000" \
+  -p "127.0.0.1:$E2E_HOST_PORT:8000" \
   -e WATCHFILES_FORCE_POLLING=true \
   -v "$SCRIPT_DIR/music:/app_data/music:rw" \
   "$E2E_IMAGE_NAME"

@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { promises as fs } from "fs";
 import { join } from "path";
 import { parseFile } from "music-metadata";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 
 interface MetadataInfo {
   id3Version: string;
@@ -28,7 +28,7 @@ async function getMetadataInfo(filePath: string): Promise<MetadataInfo> {
 }
 
 async function checkCoverFiles(
-  trackId: number,
+  trackId: string,
 ): Promise<{ hasSmall: boolean; hasOriginal: boolean }> {
   const containerName = "mus-e2e-test";
   const smallPath = `/app_data/.cache/covers/${trackId}_small.webp`;
@@ -36,7 +36,7 @@ async function checkCoverFiles(
 
   const checkFileExists = (filePath: string): boolean => {
     try {
-      execSync(`docker exec ${containerName} test -f "${filePath}"`, {
+      execFileSync("docker", ["exec", containerName, "test", "-f", filePath], {
         stdio: "ignore",
       });
       return true;
@@ -106,8 +106,9 @@ test.describe("Authenticated User Flows", () => {
     await fs.copyFile(originalFile, sourceFile);
 
     await expect(midnightEchoesTrack).toBeVisible({ timeout: 10000 });
-    await page.waitForTimeout(8000);
-
+    await expect
+      .poll(async () => (await getMetadataInfo(sourceFile)).id3Version)
+      .toBe("2.3");
     const postMetadata = await getMetadataInfo(sourceFile);
     const postStats = await getFileStats(sourceFile);
 
@@ -116,12 +117,17 @@ test.describe("Authenticated User Flows", () => {
     expect(postStats.mtime).not.toBe(preStats.mtime);
     expect(postMetadata.duration).toBeGreaterThan(0);
 
-    const trackId = await midnightEchoesTrack.getAttribute("id");
-    const trackIdNumber = parseInt(trackId?.replace("track-item-", "") || "1");
-
-    const coverFiles = await checkCoverFiles(trackIdNumber);
-    expect(coverFiles.hasSmall).toBe(true);
-    expect(coverFiles.hasOriginal).toBe(true);
+    const trackId = (await midnightEchoesTrack.getAttribute("id"))?.replace(
+      "track-item-",
+      "",
+    );
+    expect(trackId).toMatch(/^[0-9a-f]{64}$/);
+    await expect
+      .poll(() => checkCoverFiles(trackId!))
+      .toEqual({
+        hasSmall: true,
+        hasOriginal: true,
+      });
 
     await lunaTrack.click();
     await expect(page.locator(".fixed.bottom-0")).toContainText(

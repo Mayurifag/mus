@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import DownloadManager from "./DownloadManager.svelte";
 import { downloadStore } from "$lib/stores/downloadStore";
 import { permissionsStore } from "$lib/stores/permissionsStore";
+import { get } from "svelte/store";
 import * as apiClient from "$lib/services/apiClient";
 
 // Mock dependencies
@@ -127,6 +128,78 @@ describe("DownloadManager", () => {
       expect(storeValue?.tags).toEqual(["right-version"]);
     });
   });
+
+  it("does not start duplicate metadata work while fetching or reviewing", async () => {
+    const metadata = {
+      title: "Song",
+      artist: "Artist",
+      thumbnail_url: null,
+      duration: null,
+    };
+    let resolve!: (value: typeof metadata) => void;
+    const request = new Promise<typeof metadata>((done) => {
+      resolve = done;
+    });
+    vi.mocked(apiClient.fetchMetadata).mockReturnValue(request);
+    render(DownloadManager);
+    const input = screen.getByPlaceholderText(
+      "Enter YouTube URL or other supported link",
+    );
+    await fireEvent.input(input, {
+      target: { value: "https://youtu.be/dQw4w9WgXcQ" },
+    });
+    await fireEvent.keyDown(input, { key: "Enter" });
+    await fireEvent.keyDown(input, { key: "Enter" });
+    expect(apiClient.fetchMetadata).toHaveBeenCalledTimes(1);
+    resolve(metadata);
+    await waitFor(() =>
+      expect(get(downloadStore).state).toBe("awaiting_review"),
+    );
+    await fireEvent.keyDown(input, { key: "Enter" });
+    expect(apiClient.fetchMetadata).toHaveBeenCalledTimes(1);
+    expect(input).toBeDisabled();
+  });
+
+  it.each([false, true])(
+    "ignores stale metadata success/failure after review starts (%s)",
+    async (fail) => {
+      const metadata = {
+        title: "Old suggestion",
+        artist: "Old artist",
+        thumbnail_url: null,
+        duration: null,
+      };
+      let resolve!: (value: typeof metadata) => void;
+      let reject!: (error: Error) => void;
+      const request = new Promise<typeof metadata>((done, failed) => {
+        resolve = done;
+        reject = failed;
+      });
+      vi.mocked(apiClient.fetchMetadata).mockReturnValue(request);
+      render(DownloadManager);
+      const input = screen.getByPlaceholderText(
+        "Enter YouTube URL or other supported link",
+      );
+      await fireEvent.input(input, {
+        target: { value: "https://youtu.be/dQw4w9WgXcQ" },
+      });
+      await fireEvent.keyDown(input, { key: "Enter" });
+      downloadStore.setAwaitingReview({
+        title: "User edited title",
+        artist: "User edited artist",
+        thumbnailUrl: null,
+        duration: null,
+      });
+      if (fail) reject(new Error("Stale request failed"));
+      else resolve(metadata);
+      await request.catch(() => {});
+      await waitFor(() =>
+        expect(get(downloadStore).title).toBe("User edited title"),
+      );
+      expect(get(downloadStore).state).toBe("awaiting_review");
+      expect(get(downloadStore).artist).toBe("User edited artist");
+    },
+  );
 
   it("should show loading state when fetching metadata", async () => {
     // Put store directly in fetching_metadata state

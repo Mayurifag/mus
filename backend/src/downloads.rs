@@ -1,24 +1,42 @@
-use std::{fs, io, path::Path, path::PathBuf, process::Stdio, time::Duration};
+use std::{
+    fs,
+    future::Future,
+    io,
+    path::Path,
+    path::PathBuf,
+    process::Stdio,
+    time::{Duration, Instant},
+};
 
 use anyhow::{anyhow, Result};
 use axum::{extract::State, http::StatusCode, Json};
 use serde_json::{json, Value};
 use tokio::process::Command;
+use tracing::Instrument;
+
+mod diagnostics;
+mod info;
+#[cfg(test)]
+mod latency_tests;
+mod publish;
+#[cfg(test)]
+mod tests;
+
+use diagnostics::{log_versions, safe_failure, yt_dlp_output, DownloadJob};
+use info::{source_metadata, SourceMetadata};
 
 use crate::{
     artwork::download_artwork_as_jpeg,
     db,
     error::AppError,
     events::broadcast,
-    gemini::parse_track_metadata,
-    media::{apply_audio_update, AudioUpdate},
+    metadata::{parse_track_metadata, TrackMetadata},
     models::{ConfirmDownloadRequest, MetadataResponse, UrlRequest},
     scanner::upsert_path,
     state::AppState,
     util::{
-        audio_paths, can_write, clean_title, command_output, extract_artist_title,
-        generate_filename, inferred_tag_names, normalize_artists, normalize_text, now_nanos,
-        run_command_output,
+        audio_paths, can_write, clean_title, extract_artist_title, generate_filename,
+        inferred_tag_names, normalize_artists, normalize_text, now_nanos,
     },
 };
 
@@ -31,42 +49,56 @@ pub async fn fetch_metadata(
             "Download not available - insufficient write permissions to music directory",
         ));
     }
-    let output = command_output("yt-dlp", &["--dump-json", "--no-playlist", &req.url]).await?;
-    let data: Value = serde_json::from_str(&output)?;
-    let raw_title = data
-        .get("title")
-        .and_then(Value::as_str)
-        .unwrap_or("Unknown Title");
-    let raw_artist = data.get("artist").and_then(Value::as_str);
-    let channel = data
-        .get("channel")
-        .or_else(|| data.get("uploader"))
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    let (artist, title, mut tag_names) = match parse_track_metadata(raw_title, channel).await {
+    let job = DownloadJob::new(&req.url);
+    async {
+        let started = Instant::now();
+        let data = source_metadata(&req.url).await?;
+        let response =
+            metadata_response(&data, parse_track_metadata(&data.title, &data.channel)).await;
+        tracing::info!(
+            elapsed_ms = started.elapsed().as_millis() as u64,
+            "download name form ready"
+        );
+        Ok(Json(response))
+    }
+    .instrument(job.span("metadata"))
+    .await
+}
+
+async fn metadata_response(
+    data: &SourceMetadata,
+    ai: impl Future<Output = Option<TrackMetadata>>,
+) -> MetadataResponse {
+    let started = Instant::now();
+    let parsed = tokio::time::timeout(Duration::from_secs(2), ai).await;
+    tracing::info!(
+        elapsed_ms = started.elapsed().as_millis() as u64,
+        timed_out = parsed.is_err(),
+        "download name enrichment finished"
+    );
+    let (artist, title, mut tag_names) = match parsed.ok().flatten() {
         Some(metadata) => (metadata.artist, metadata.title, metadata.tags),
-        None => raw_artist
-            .map(|artist| (artist.to_string(), clean_title(raw_title), Vec::new()))
+        None => data
+            .artist
+            .as_deref()
+            .map(|artist| (artist.to_string(), clean_title(&data.title), Vec::new()))
             .unwrap_or_else(|| {
-                let (artist, title) = extract_artist_title(raw_title, channel);
+                let (artist, title) = extract_artist_title(&data.title, &data.channel);
                 (artist, title, Vec::new())
             }),
     };
     let title = normalize_text(&title);
     let artist = normalize_artists(&artist);
-    for tag_name in inferred_tag_names(&title, &artist, Path::new(raw_title)) {
+    for tag_name in inferred_tag_names(&title, &artist, Path::new(&data.title)) {
         if !tag_names.contains(&tag_name) {
             tag_names.push(tag_name);
         }
     }
-    Ok(Json(MetadataResponse {
+    MetadataResponse {
         title,
         artist,
-        thumbnail_url: data
-            .get("thumbnail")
-            .and_then(Value::as_str)
-            .map(str::to_string),
-        duration: data.get("duration").and_then(Value::as_f64),
+        thumbnail_url: data.thumbnail_url.clone(),
+        duration: data.duration,
         tags: tag_names
             .into_iter()
             .map(|name| crate::models::Tag {
@@ -82,7 +114,7 @@ pub async fn fetch_metadata(
                 name,
             })
             .collect(),
-    }))
+    }
 }
 
 pub async fn start_download(
@@ -135,27 +167,54 @@ async fn spawn_download(
         }
         *locked = true;
     }
-    tokio::spawn(async move {
-        broadcast(
-            &state,
-            "download_started",
-            Some("Download started"),
-            Some("info"),
-            Some(json!({"url": url})),
-        );
-        let result = run_download(state.clone(), url, title, artist, artwork_url, tags).await;
-        if let Err(error) = result {
-            tracing::warn!(error = %error, "download failed");
+    let job = DownloadJob::new(&url);
+    let span = job.span("download");
+    tokio::spawn(
+        async move {
             broadcast(
                 &state,
-                "download_failed",
-                Some(&format!("Download failed: {error}")),
-                Some("error"),
-                Some(json!({"error": error.to_string()})),
+                "download_started",
+                Some("Download started"),
+                Some("info"),
+                Some(job.payload()),
             );
+            let started = Instant::now();
+            tokio::spawn(log_versions().instrument(tracing::Span::current()));
+            let result = run_download(state.clone(), url, title, artist, artwork_url, tags).await;
+            tracing::info!(
+                elapsed_ms = started.elapsed().as_millis() as u64,
+                success = result.is_ok(),
+                "download job finished"
+            );
+            let mut payload = job.payload();
+            match result {
+                Ok(final_path) => {
+                    payload["file_path"] = json!(final_path);
+                    broadcast(
+                        &state,
+                        "download_completed",
+                        Some("Download completed successfully"),
+                        Some("success"),
+                        Some(payload),
+                    );
+                }
+                Err(error) => {
+                    let message = safe_failure(&error.to_string());
+                    tracing::warn!(reason = message, "download failed");
+                    payload["error"] = json!(message);
+                    broadcast(
+                        &state,
+                        "download_failed",
+                        Some(message),
+                        Some("error"),
+                        Some(payload),
+                    );
+                }
+            }
+            *state.download_lock.lock().unwrap() = false;
         }
-        *state.download_lock.lock().unwrap() = false;
-    });
+        .instrument(span),
+    );
     Ok(())
 }
 
@@ -166,66 +225,56 @@ async fn run_download(
     artist: Option<String>,
     artwork_url: Option<String>,
     tags: Vec<String>,
-) -> Result<()> {
+) -> Result<PathBuf> {
     let cache_dir = state.data_dir.join(".cache");
     fs::create_dir_all(&cache_dir)?;
     let tmp = unique_download_dir(&cache_dir)?;
-    let result = run_download_inner(&state, &url, title, artist, artwork_url, tags, &tmp).await;
+    let command = download_command(&url, &tmp, artwork_url.is_none());
+    let result = run_download_inner(&state, command, title, artist, artwork_url, tags, &tmp).await;
     let _ = fs::remove_dir_all(tmp);
     result
 }
 
 async fn run_download_inner(
     state: &AppState,
-    url: &str,
+    command: Command,
     title: Option<String>,
     artist: Option<String>,
     artwork_url: Option<String>,
     tags: Vec<String>,
     tmp: &std::path::Path,
-) -> Result<()> {
+) -> Result<PathBuf> {
     let title = title.map(|title| normalize_text(&title));
     let artist = artist.map(|artist| normalize_artists(&artist));
-    let output_template = tmp.join("%(artist,uploader|Unknown Artist)s - %(title)s.%(ext)s");
-    let mut cmd = Command::new("yt-dlp");
-    cmd.args([
-        "--format",
-        "bestaudio/best",
-        "--extract-audio",
-        "--audio-format",
-        "mp3",
-        "--audio-quality",
-        "0",
-        "-o",
-    ])
-    .arg(output_template)
-    .args([
-        "--embed-thumbnail",
-        "--convert-thumbnails",
-        "jpg",
-        "--embed-metadata",
-        "--parse-metadata",
-        "title:%(title)s",
-        "--parse-metadata",
-        "artist:%(artist,uploader|Unknown Artist)s",
-        "--sponsorblock-remove",
-        "all",
-        "--embed-chapters",
-        "--concurrent-fragments",
-        "3",
-        "--throttled-rate",
-        "100K",
-        "--retries",
-        "10",
-        "--no-playlist",
-        url,
-    ])
-    .stdout(Stdio::null())
-    .stderr(Stdio::piped());
-    let output = run_command_output(cmd, Duration::from_secs(600)).await?;
-    if !output.status.success() {
-        return Err(anyhow!(String::from_utf8_lossy(&output.stderr).to_string()));
-    }
+    let media = async {
+        let started = Instant::now();
+        let result = yt_dlp_output(command, Duration::from_secs(600)).await;
+        tracing::info!(
+            elapsed_ms = started.elapsed().as_millis() as u64,
+            success = result.is_ok(),
+            "download media processing finished"
+        );
+        result
+    };
+    let artwork = async {
+        let started = Instant::now();
+        let result = match artwork_url {
+            Some(url) => download_artwork_as_jpeg(&url, tmp.to_path_buf())
+                .await
+                .map(Some),
+            None => Ok(None),
+        };
+        tracing::info!(
+            elapsed_ms = started.elapsed().as_millis() as u64,
+            success = result.is_ok(),
+            "download artwork processing finished"
+        );
+        result
+    };
+    // Do not drop a subprocess-owning future when the other operation fails.
+    let (media_result, artwork_result) = tokio::join!(media, artwork);
+    media_result?;
+    let jpeg_path = artwork_result?;
     let downloaded = audio_paths(tmp)?
         .into_iter()
         .next()
@@ -241,39 +290,70 @@ async fn run_download_inner(
             .to_string(),
     };
     let final_path = state.music_dir.join(final_name);
-    let jpeg_path = if let Some(artwork_url) = artwork_url {
-        Some(download_artwork_as_jpeg(&artwork_url, tmp.to_path_buf()).await?)
-    } else {
-        None
-    };
-    let update_result = apply_audio_update(
+    let started = Instant::now();
+    publish::publish_download(
         &downloaded,
         tmp,
-        AudioUpdate {
-            title: title.as_deref(),
-            artist: artist.as_deref(),
-            cover_jpeg_path: jpeg_path.as_deref(),
-            target_path: Some(&final_path),
-            standardize_tags: false,
-            update_mtime: true,
-        },
+        &final_path,
+        title.as_deref(),
+        artist.as_deref(),
+        jpeg_path.as_deref(),
     )
-    .await;
-    if let Some(jpeg_path) = jpeg_path {
-        let _ = fs::remove_file(jpeg_path);
-    }
-    update_result?;
+    .await?;
+    tracing::info!(
+        elapsed_ms = started.elapsed().as_millis() as u64,
+        "download tags and publication finished"
+    );
+    let started = Instant::now();
     let track = upsert_path(state, &final_path, title, artist).await?;
     db::add_track_tags(state, &track.id, &tags)?;
-    tracing::info!(track_id = track.id, "download completed");
-    broadcast(
-        state,
-        "download_completed",
-        Some("Download completed successfully"),
-        Some("success"),
-        Some(json!({"file_path": final_path})),
+    tracing::info!(
+        track_id = track.id,
+        elapsed_ms = started.elapsed().as_millis() as u64,
+        "download library registration and HLS prewarm finished"
     );
-    Ok(())
+    Ok(final_path)
+}
+
+fn download_command(url: &str, tmp: &Path, embed_thumbnail: bool) -> Command {
+    let output_template = tmp.join("%(artist,uploader|Unknown Artist)s - %(title)s.%(ext)s");
+    let mut cmd = Command::new("yt-dlp");
+    cmd.args([
+        "--format",
+        "bestaudio/best",
+        "--extract-audio",
+        "--audio-format",
+        "mp3",
+        "--audio-quality",
+        "0",
+        "-o",
+    ])
+    .arg(output_template);
+    if embed_thumbnail {
+        cmd.args(["--embed-thumbnail", "--convert-thumbnails", "jpg"]);
+    }
+    cmd.args([
+        "--embed-metadata",
+        "--parse-metadata",
+        "title:%(title)s",
+        "--parse-metadata",
+        "artist:%(artist,uploader|Unknown Artist)s",
+        "--sponsorblock-remove",
+        "all",
+        "--embed-chapters",
+        "--concurrent-fragments",
+        "3",
+        "--throttled-rate",
+        "100K",
+        "--retries",
+        "10",
+        "--no-playlist",
+        "--",
+        url,
+    ])
+    .stdout(Stdio::null())
+    .stderr(Stdio::piped());
+    cmd
 }
 
 fn unique_download_dir(cache_dir: &Path) -> Result<PathBuf> {

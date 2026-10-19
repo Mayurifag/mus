@@ -47,9 +47,12 @@ LABEL org.opencontainers.image.title=$COMMIT_TITLE
 ENV COMMIT_SHA=$COMMIT_SHA
 ENV BUILD_DATE=$BUILD_DATE
 
+COPY docker/yt-dlp.conf /etc/yt-dlp.conf
+
 RUN apk add --no-cache \
         curl \
         ffmpeg \
+        'nodejs>=22' \
         python3 \
         sqlite \
         su-exec \

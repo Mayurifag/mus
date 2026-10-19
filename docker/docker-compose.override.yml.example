@@ -2,6 +2,8 @@
 # Instruction for AI - if you change this file, you have also change ./docker-compose.override.yml.example file with same changes.
 
 x-backend-environment: &x-backend-environment
+  OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+  OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openrouter/free}
   GEMINI_API_KEY: ${GEMINI_API_KEY:-}
   GEMINI_MODEL: ${GEMINI_MODEL:-}
   LOG_LEVEL: INFO
