@@ -69,7 +69,7 @@ pub async fn apply_audio_update(
         let tmp = if update.remove_section.is_some() {
             cut_audio_to_temp(path, cache_dir, &update).await?
         } else if supports_id3(path) {
-            rewrite_id3_to_temp(path, cache_dir, &update, standardize_id3)?
+            rewrite_id3_to_temp(path, cache_dir, &update)?
         } else {
             rewrite_audio_to_temp(path, cache_dir, &update).await?
         };
@@ -79,7 +79,7 @@ pub async fn apply_audio_update(
                 return Err(error.into());
             }
         }
-        if let Err(error) = publish_updated_file(&tmp, path, destination, modified) {
+        if let Err(error) = publish_updated_file(&tmp, path, destination, modified, cache_dir) {
             let _ = fs::remove_file(tmp);
             return Err(error);
         }
@@ -172,43 +172,37 @@ fn needs_id3_standardization(path: &Path) -> bool {
             != Version::Id3v23
 }
 
-fn rewrite_id3_to_temp(
-    path: &Path,
-    cache_dir: &Path,
-    update: &AudioUpdate<'_>,
-    standardize_id3: bool,
-) -> Result<PathBuf> {
+fn rewrite_id3_to_temp(path: &Path, cache_dir: &Path, update: &AudioUpdate<'_>) -> Result<PathBuf> {
     let tmp = allocate_path(cache_dir, "audio", path)?;
     if let Err(error) = copy_over(path, &tmp).and_then(|_| {
         let mut tag = Tag::read_from_path(&tmp).unwrap_or_else(|_| Tag::new());
-        if let Some(title) = update.title {
-            tag.set_title(title);
-        }
-        if let Some(artist) = update.artist {
-            tag.set_artist(artist);
-        }
-        if let Some(jpeg_path) = update.cover_jpeg_path {
-            tag.remove_all_pictures();
-            tag.add_frame(Picture {
-                mime_type: "image/jpeg".into(),
-                picture_type: PictureType::CoverFront,
-                description: String::new(),
-                data: fs::read(jpeg_path)?,
-            });
-        }
-        if standardize_id3
-            || update.title.is_some()
-            || update.artist.is_some()
-            || update.cover_jpeg_path.is_some()
-        {
-            tag.write_to_path(&tmp, Version::Id3v23)?;
-        }
+        update_id3_tag(&mut tag, update)?;
+        tag.write_to_path(&tmp, Version::Id3v23)?;
         Ok(())
     }) {
         let _ = fs::remove_file(&tmp);
         return Err(error);
     }
     Ok(tmp)
+}
+
+fn update_id3_tag(tag: &mut Tag, update: &AudioUpdate<'_>) -> Result<()> {
+    if let Some(title) = update.title {
+        tag.set_title(title);
+    }
+    if let Some(artist) = update.artist {
+        tag.set_artist(artist);
+    }
+    if let Some(cover) = update.cover_jpeg_path {
+        tag.remove_all_pictures();
+        tag.add_frame(Picture {
+            mime_type: "image/jpeg".into(),
+            picture_type: PictureType::CoverFront,
+            description: String::new(),
+            data: fs::read(cover)?,
+        });
+    }
+    Ok(())
 }
 
 async fn cut_audio_to_temp(
@@ -313,27 +307,12 @@ async fn cut_audio_to_temp(
         }
         if id3 {
             let mut tag = Tag::read_from_path(path).unwrap_or_else(|_| Tag::new());
-            // Chapter timestamps no longer describe the shortened audio.
             tag.remove("CHAP");
             tag.remove("CTOC");
-            if let Some(title) = update.title {
-                tag.set_title(title);
-            }
-            if let Some(artist) = update.artist {
-                tag.set_artist(artist);
-            }
-            if let Some(cover) = update.cover_jpeg_path {
-                tag.remove_all_pictures();
-                tag.add_frame(Picture {
-                    mime_type: "image/jpeg".into(),
-                    picture_type: PictureType::CoverFront,
-                    description: String::new(),
-                    data: fs::read(cover)?,
-                });
-            }
+            tag.remove("TLEN");
+            update_id3_tag(&mut tag, update)?;
             tag.write_to_path(&tmp, Version::Id3v23)?;
         }
-        // Do not publish an unreadable or empty output over the original.
         read_cut_source(&tmp).await?;
         Ok(())
     }
@@ -397,23 +376,42 @@ fn publish_updated_file(
     original: &Path,
     destination: &Path,
     modified: Option<FileTime>,
+    cache_dir: &Path,
 ) -> Result<()> {
     if destination != original && path_exists_as_different_file(original, destination)? {
         return Err(anyhow!("A file with this name already exists"));
     }
-    replace_file(source, original, modified)?;
-    if destination != original {
-        move_path_and_touch(original, destination, None)?;
+    let original_mtime = FileTime::from_system_time(fs::metadata(original)?.modified()?);
+    let mut output = fs::OpenOptions::new().write(true).open(original)?;
+    let backup = allocate_path(cache_dir, "backup", original)?;
+    if let Err(error) = copy_over(original, &backup) {
+        let _ = fs::remove_file(&backup);
+        return Err(error);
     }
-    Ok(())
-}
-
-fn replace_file(source: &Path, destination: &Path, modified: Option<FileTime>) -> Result<()> {
-    copy_over(source, destination)?;
+    let result: Result<()> = (|| {
+        write_contents(source, &mut output)?;
+        if let Some(modified) = modified {
+            set_file_mtime(original, modified)?;
+        }
+        if destination != original {
+            move_path_and_touch(original, destination, None)?;
+        }
+        Ok(())
+    })();
+    if let Err(error) = result {
+        if let Err(restore_error) = write_contents(&backup, &mut output)
+            .and_then(|_| set_file_mtime(original, original_mtime).map_err(Into::into))
+        {
+            return Err(anyhow!(
+                "Audio update failed: {error}. Recovery failed: {restore_error}. Original backup retained at {}",
+                backup.display()
+            ));
+        }
+        let _ = fs::remove_file(&backup);
+        return Err(error);
+    }
+    let _ = fs::remove_file(&backup);
     let _ = fs::remove_file(source);
-    if let Some(modified) = modified {
-        set_file_mtime(destination, modified)?;
-    }
     Ok(())
 }
 
@@ -451,12 +449,17 @@ fn move_path_and_touch(
 }
 
 fn copy_over(source: &Path, destination: &Path) -> Result<()> {
+    let mut output = fs::OpenOptions::new().write(true).open(destination)?;
+    write_contents(source, &mut output)
+}
+
+fn write_contents(source: &Path, output: &mut fs::File) -> Result<()> {
+    use io::Seek;
+
     let mut input = fs::File::open(source)?;
-    let mut output = fs::OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(destination)?;
-    io::copy(&mut input, &mut output)?;
+    output.rewind()?;
+    let length = io::copy(&mut input, output)?;
+    output.set_len(length)?;
     output.sync_all()?;
     Ok(())
 }
@@ -508,15 +511,73 @@ fn allocate_path(dir: &Path, kind: &str, path: &Path) -> Result<PathBuf> {
             file_name.push_str(ext);
         }
         let path = dir.join(file_name);
-        match fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path)
+        let mut options = fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
         {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        match options.open(&path) {
             Ok(_) => return Ok(path),
             Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
             Err(error) => return Err(error.into()),
         }
     }
     Err(anyhow!("failed to allocate rewrite file"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::publish_updated_file;
+    use std::{fs, io, path::PathBuf};
+    use tempfile::TempDir;
+
+    #[test]
+    #[cfg(unix)]
+    fn write_failure_restores_original() {
+        if let Some(root) = std::env::var_os("MUS_WRITE_FAILURE_TEST") {
+            let root = PathBuf::from(root);
+            let original = root.join("original.mp3");
+            let staged = root.join("cache/staged.mp3");
+            let before = fs::read(&original).unwrap();
+            let modified = fs::metadata(&original).unwrap().modified().unwrap();
+            let error =
+                publish_updated_file(&staged, &original, &original, None, &root.join("cache"))
+                    .unwrap_err();
+            assert_eq!(
+                error.downcast_ref::<io::Error>().unwrap().kind(),
+                io::ErrorKind::FileTooLarge
+            );
+            assert_eq!(fs::read(&original).unwrap(), before);
+            assert_eq!(
+                fs::metadata(&original).unwrap().modified().unwrap(),
+                modified
+            );
+            assert_eq!(fs::read_dir(root.join("cache")).unwrap().count(), 1);
+            return;
+        }
+
+        let tmp = TempDir::new().unwrap();
+        fs::create_dir(tmp.path().join("cache")).unwrap();
+        fs::write(tmp.path().join("original.mp3"), [42; 128]).unwrap();
+        fs::write(tmp.path().join("cache/staged.mp3"), [17; 8192]).unwrap();
+        let output = std::process::Command::new("sh")
+            .args(["-c", "trap '' XFSZ; ulimit -f 1; exec \"$@\"", "sh"])
+            .arg(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "media::audio_update::tests::write_failure_restores_original",
+                "--nocapture",
+            ])
+            .env("MUS_WRITE_FAILURE_TEST", tmp.path())
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
 }

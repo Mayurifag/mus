@@ -1,8 +1,7 @@
 use std::{
     fs,
     io::{self, Write},
-    os::unix::{fs::PermissionsExt, process::ExitStatusExt},
-    process::{ExitStatus, Output},
+    os::unix::fs::PermissionsExt,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -12,7 +11,7 @@ use tempfile::TempDir;
 use tokio::process::Command;
 use tracing::{instrument::WithSubscriber, Instrument};
 
-use super::diagnostics::{safe_failure, safe_version, yt_dlp_output, DownloadJob};
+use super::diagnostics::{safe_failure, yt_dlp_output, DownloadJob};
 
 #[derive(Clone, Default)]
 struct LogBuffer(Arc<Mutex<Vec<u8>>>);
@@ -157,33 +156,11 @@ exit 1
 }
 
 #[test]
-fn arbitrary_errors_and_version_output_are_not_exposed() {
+fn arbitrary_errors_are_not_exposed() {
     assert!(
         !safe_failure("https://user:private-password@example.com?token=private-token")
             .contains("private-")
     );
-    let mut output = Output {
-        status: ExitStatus::from_raw(0),
-        stdout: Vec::new(),
-        stderr: Vec::new(),
-    };
-    for version in ["v22.17.0\n", "2026.10.19.123456\n"] {
-        output.stdout = version.as_bytes().to_vec();
-        assert_eq!(safe_version(&output), version.trim());
-    }
-    for version in [
-        "badsecretversion",
-        "private-token",
-        "22.0.0\nprivate-token",
-        "",
-        "v",
-    ] {
-        output.stdout = version.as_bytes().to_vec();
-        assert_eq!(safe_version(&output), "unknown");
-    }
-    output.status = ExitStatus::from_raw(1 << 8);
-    output.stdout = b"2026.10.19.123456".to_vec();
-    assert_eq!(safe_version(&output), "unknown");
 }
 
 #[tokio::test]
@@ -193,7 +170,6 @@ async fn failed_job_broadcasts_safe_correlated_events_and_releases_lock() {
         tmp.path().to_path_buf(),
         rusqlite::Connection::open_in_memory().unwrap(),
     );
-    // Fail before fetching media, with a private path in the underlying I/O error.
     state.data_dir = tmp.path().join("private-password");
     fs::write(&state.data_dir, b"not a directory").unwrap();
     let mut events = state.events.subscribe();
@@ -295,7 +271,6 @@ wait "$worker"
     let returned_early = early.is_ok();
     let worker_pending =
         tmp.path().join("media-started").exists() && !tmp.path().join("worker-finished").exists();
-    // Release and wait before assertions, even if artwork incorrectly cancelled the media future.
     fs::write(tmp.path().join("release-media"), b"").unwrap();
     let result = match early {
         Ok(result) => Ok(result),

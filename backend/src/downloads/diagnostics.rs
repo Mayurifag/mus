@@ -89,7 +89,6 @@ fn source_hint(stderr: &str) -> Option<&'static str> {
 }
 
 pub(super) fn safe_failure(error: &str) -> &'static str {
-    // Only fixed messages cross the log/API/SSE boundary, never subprocess output or URLs.
     [
         RUNTIME_HINT,
         FORBIDDEN_HINT,
@@ -128,43 +127,4 @@ pub(super) async fn yt_dlp_output(command: Command, timeout: Duration) -> Result
         tracing::warn!(reason = message, "yt-dlp warning");
     }
     Ok(output)
-}
-
-pub(super) fn safe_version(output: &Output) -> String {
-    let version = String::from_utf8_lossy(&output.stdout);
-    let version = version.trim();
-    let number = version.strip_prefix('v').unwrap_or(version);
-    if output.status.success()
-        && !number.is_empty()
-        && number.len() <= 64
-        && number
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || byte == b'.')
-    {
-        version.to_string()
-    } else {
-        "unknown".into()
-    }
-}
-
-pub(super) async fn log_versions() {
-    let version = async |program| {
-        let mut command = Command::new(program);
-        command.arg("--version");
-        run_command_output(command, Duration::from_secs(5))
-            .await
-            .map(|output| safe_version(&output))
-            .unwrap_or_else(|_| "unavailable".into())
-    };
-    let (yt_dlp_version, node_version) = tokio::join!(version("yt-dlp"), version("node"));
-    tracing::info!(yt_dlp_version, node_version, "downloader tool versions");
-    if node_version
-        .trim_start_matches('v')
-        .split('.')
-        .next()
-        .and_then(|major| major.parse::<u32>().ok())
-        .is_none_or(|major| major < 22)
-    {
-        tracing::warn!(reason = RUNTIME_HINT, "unsupported or missing Node runtime");
-    }
 }

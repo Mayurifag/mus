@@ -115,6 +115,52 @@ async fn body_text(response: axum::response::Response) -> String {
     .unwrap()
 }
 
+#[tokio::test]
+async fn missing_cut_tracks_do_not_allocate_mutation_locks() {
+    let app = TestApp::new();
+    for id in ["not-a-track", MISSING_TRACK_ID] {
+        let info = app
+            .request(
+                Method::GET,
+                &format!("/api/v1/tracks/{id}/cut-info"),
+                Body::empty(),
+            )
+            .await;
+        assert_eq!(info.status(), StatusCode::NOT_FOUND);
+        let preview = app
+            .json(
+                Method::POST,
+                &format!("/api/v1/tracks/{id}/cut-preview"),
+                json!({"remove_section": {"start_seconds": 0.1, "end_seconds": 0.2}}),
+            )
+            .await;
+        assert_eq!(preview.status(), StatusCode::NOT_FOUND);
+    }
+    assert!(app.state.mutation_locks.lock().await.is_empty());
+}
+
+#[tokio::test]
+async fn mutation_locks_serialize_work_without_retaining_expired_keys() {
+    let app = TestApp::new();
+    let guard = app.state.mutation_lock("same-track".into()).await;
+    let mut waiting = Box::pin(app.state.mutation_lock("same-track".into()));
+    assert!(
+        tokio::time::timeout(std::time::Duration::from_millis(20), &mut waiting)
+            .await
+            .is_err()
+    );
+    drop(guard);
+    drop(
+        tokio::time::timeout(std::time::Duration::from_secs(1), waiting)
+            .await
+            .unwrap(),
+    );
+    for i in 0..100 {
+        let _guard = app.state.mutation_lock(format!("track-{i}")).await;
+    }
+    assert_eq!(app.state.mutation_locks.lock().await.len(), 1);
+}
+
 fn write_silent_wav(path: &std::path::Path) {
     let sample_rate = 8_000u32;
     let channels = 1u16;

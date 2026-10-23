@@ -291,6 +291,11 @@ fn delete_missing_track(
     track: &crate::models::Track,
     broadcast_changes: bool,
 ) -> Result<()> {
+    if db::get_track(state, &track.id)?
+        .is_some_and(|registered| registered.file_path != track.file_path)
+    {
+        return Ok(());
+    }
     delete_track_row(state, &track.id)?;
     delete_track_derived_files(state, &track.id);
     if broadcast_changes {
@@ -350,7 +355,7 @@ async fn sync_path(
                 prewarm_track_hls(state, track).await;
                 return Ok(());
             }
-            let track = upsert_path_with_snapshot(
+            let (track, _) = upsert_path_with_snapshot(
                 state,
                 path,
                 None,
@@ -386,7 +391,7 @@ async fn sync_path(
             if let Some(track) = moved_track {
                 current.insert(track.file_path.clone());
             }
-            let track = upsert_path_with_snapshot(
+            let (track, is_new) = upsert_path_with_snapshot(
                 state,
                 path,
                 moved_track.map(|track| track.title.clone()),
@@ -405,7 +410,7 @@ async fn sync_path(
                         Some("info"),
                         Some(json!(track)),
                     );
-                } else {
+                } else if is_new {
                     let filename = track.filename.clone();
                     broadcast(
                         state,
@@ -498,6 +503,7 @@ pub async fn upsert_path(
         None,
     )
     .await
+    .map(|(track, _)| track)
 }
 
 async fn upsert_path_with_snapshot(
@@ -508,7 +514,7 @@ async fn upsert_path_with_snapshot(
     _snapshot: FileSnapshot,
     metadata: MediaMetadata,
     existing_id: Option<String>,
-) -> Result<crate::models::TrackDto> {
+) -> Result<(crate::models::TrackDto, bool)> {
     let _guard = state
         .mutation_lock(
             existing_id
@@ -517,6 +523,13 @@ async fn upsert_path_with_snapshot(
                 .unwrap_or_else(|| format!("path:{}", path.to_string_lossy())),
         )
         .await;
+    if existing_id.is_none() {
+        if let Some(track) = db::get_track(state, &_snapshot.content_hash)? {
+            if track.file_path != path.to_string_lossy() && Path::new(&track.file_path).is_file() {
+                return Ok((track_dto(track), false));
+            }
+        }
+    }
     let has_metadata_override = title_override.is_some() || artist_override.is_some();
     let MediaMetadata {
         title: metadata_title,
@@ -556,6 +569,13 @@ async fn upsert_path_with_snapshot(
     let file_path = path.to_string_lossy().to_string();
     let updated_at = snapshot.mtime;
     let id = snapshot.content_hash.clone();
+    let registered = db::get_track(state, &id)?;
+    if let Some(track) = registered.as_ref().filter(|_| existing_id.is_none()) {
+        if track.file_path != file_path && Path::new(&track.file_path).is_file() {
+            return Ok((track_dto(track.clone()), false));
+        }
+    }
+    let is_new = existing_id.is_none() && registered.is_none();
     let added_at = {
         let mut conn = state.db.lock().unwrap();
         if let Some(existing_id) = existing_id.as_deref() {
@@ -613,7 +633,7 @@ async fn upsert_path_with_snapshot(
             .unwrap_or_default(),
     };
     prewarm_track_hls(state, &track).await;
-    Ok(track_dto(track))
+    Ok((track_dto(track), is_new))
 }
 
 async fn normalize_existing_track(

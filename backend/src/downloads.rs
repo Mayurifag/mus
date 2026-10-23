@@ -22,7 +22,7 @@ mod publish;
 #[cfg(test)]
 mod tests;
 
-use diagnostics::{log_versions, safe_failure, yt_dlp_output, DownloadJob};
+use diagnostics::{safe_failure, yt_dlp_output, DownloadJob};
 use info::{source_metadata, SourceMetadata};
 
 use crate::{
@@ -179,7 +179,15 @@ async fn spawn_download(
                 Some(job.payload()),
             );
             let started = Instant::now();
-            tokio::spawn(log_versions().instrument(tracing::Span::current()));
+            tracing::info!(
+                yt_dlp_version = state
+                    .yt_dlp_version
+                    .lock()
+                    .unwrap()
+                    .as_deref()
+                    .unwrap_or("unknown"),
+                "download started"
+            );
             let result = run_download(state.clone(), url, title, artist, artwork_url, tags).await;
             tracing::info!(
                 elapsed_ms = started.elapsed().as_millis() as u64,
@@ -271,7 +279,6 @@ async fn run_download_inner(
         );
         result
     };
-    // Do not drop a subprocess-owning future when the other operation fails.
     let (media_result, artwork_result) = tokio::join!(media, artwork);
     media_result?;
     let jpeg_path = artwork_result?;

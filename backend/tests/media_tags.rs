@@ -505,13 +505,13 @@ async fn cut_and_preview_remove_the_exact_samples_without_touching_original_duri
         fs::copy(&original, &path).unwrap();
         #[cfg(unix)]
         let original_inode = file_id(&path);
-        let preview = preview_cut(&path, cut, false).await.unwrap();
+        let duration = read_cut_source(&path).await.unwrap().duration;
+        let preview = preview_cut(&path, cut, duration, false).await.unwrap();
         assert_eq!(fs::read(&path).unwrap(), before);
         let preview_path = tmp.path().join("preview.wav");
         fs::write(&preview_path, preview).unwrap();
         let mut expected = samples[..(start_seconds * 44100.0) as usize * 2].to_vec();
         expected.extend_from_slice(&samples[(end_seconds * 44100.0) as usize * 2..]);
-        // Preview is stereo; the actual source and saved edit remain mono.
         let preview_samples = decoded_samples(&preview_path);
         assert_eq!(preview_samples.len(), expected.len() * 2);
         for (frame, sample) in preview_samples
@@ -569,6 +569,9 @@ async fn cut_supported_formats_preserves_tags_cover_and_wav_bit_depth() {
             let cover = tmp.path().join("cover.jpg");
             create_jpeg(&cover);
             add_id3_cover(&path, &cover);
+            let mut tag = Tag::read_from_path(&path).unwrap();
+            tag.set_duration(3000);
+            tag.write_to_path(&path, Version::Id3v23).unwrap();
         }
         let result = apply_audio_update(
             &path,
@@ -593,13 +596,13 @@ async fn cut_supported_formats_preserves_tags_cover_and_wav_bit_depth() {
         } else {
             &data["format"]["tags"]
         };
-        // The ID3 cover helper adds ID3 tags to WAV but ffmpeg's RIFF INFO tags are preserved too.
         if ext != "wav" {
             assert_eq!(tags["title"], "Original title", "{ext}");
             assert_eq!(tags["artist"], "Original artist", "{ext}");
         }
         if ext == "mp3" || ext == "wav" {
             assert_has_attached_cover(&data);
+            assert!(Tag::read_from_path(&path).unwrap().duration().is_none());
         }
         if ext == "wav" {
             assert_eq!(source.codec, "pcm_s24le");
@@ -608,7 +611,6 @@ async fn cut_supported_formats_preserves_tags_cover_and_wav_bit_depth() {
             assert_eq!(source.codec, "alac");
         }
 
-        // A cut can be saved together with the rest of the metadata form.
         apply_audio_update(
             &path,
             &tmp.path().join("cache"),
@@ -665,4 +667,38 @@ async fn invalid_cuts_leave_the_original_unchanged() {
         assert_eq!(fs::read(&path).unwrap(), original);
     }
     assert!(!tmp.path().join("cache").exists());
+}
+
+#[tokio::test]
+async fn failed_publication_restores_original_bytes_identity_and_mtime() {
+    let tmp = TempDir::new().unwrap();
+    let path = tmp.path().join("song.wav");
+    create_wav_with_id3v24(&path);
+    let before = fs::read(&path).unwrap();
+    let modified = fs::metadata(&path).unwrap().modified().unwrap();
+    #[cfg(unix)]
+    let original_id = file_id(&path);
+    let cache = tmp.path().join("cache");
+    let destination = tmp.path().join("missing/song.wav");
+    let result = apply_audio_update(
+        &path,
+        &cache,
+        AudioUpdate {
+            title: Some("New title"),
+            artist: None,
+            cover_jpeg_path: None,
+            target_path: Some(&destination),
+            standardize_tags: false,
+            update_mtime: true,
+            remove_section: None,
+        },
+    )
+    .await;
+    assert!(result.is_err());
+    assert_eq!(fs::read(&path).unwrap(), before);
+    assert_eq!(fs::metadata(&path).unwrap().modified().unwrap(), modified);
+    #[cfg(unix)]
+    assert_eq!(file_id(&path), original_id);
+    assert!(fs::read_dir(&cache).unwrap().next().is_none());
+    assert!(!destination.exists());
 }

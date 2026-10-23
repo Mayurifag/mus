@@ -65,6 +65,11 @@ async function getFileStats(
 test.describe("Authenticated User Flows", () => {
   test("playback controls work correctly", async ({ page }) => {
     await page.goto("/");
+    await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute(
+      "content",
+      "only dark",
+    );
+    await expect(page.locator('meta[name="darkreader-lock"]')).toHaveCount(1);
 
     const midnightEchoesTrack = page
       .locator('[data-testid="track-item"]')
@@ -143,7 +148,6 @@ test.describe("Authenticated User Flows", () => {
     await expect(midnightEchoesTrack).toHaveClass(/bg-secondary/);
     await expect(lunaTrack).not.toHaveClass(/bg-secondary/);
 
-    // Preview a real edit, then save it and verify both playback and file metadata.
     const beforeCutDuration =
       (await parseFile(sourceFile)).format.duration ?? 0;
     const beforeCutBytes = await fs.readFile(sourceFile);
@@ -155,6 +159,18 @@ test.describe("Authenticated User Flows", () => {
     await expect(cutStart).toBeVisible();
     await cutStart.fill("0:00.250");
     await page.getByLabel("To", { exact: true }).fill("0:00.750");
+    await expect(
+      page.getByRole("region", { name: "Removed section" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "Preview join" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Cut start plus 1 second" }).click();
+    await expect(cutStart).toHaveValue("0:01.250");
+    await page
+      .getByRole("button", { name: "Cut start minus 1 second" })
+      .click();
+    await expect(cutStart).toHaveValue("0:00.250");
     const saveCut = page.getByRole("button", { name: "Save & cut" });
     await expect(saveCut).toBeDisabled();
 
@@ -167,8 +183,16 @@ test.describe("Authenticated User Flows", () => {
       "paused",
       true,
     );
+    await page.getByRole("button", { name: "Hear removed section" }).click();
+    const removedPreview = page.getByLabel("Selected section preview");
+    await expect(removedPreview).toHaveJSProperty("readyState", 4);
+    await expect(preview).toBeVisible();
+    await expect(preview).toHaveJSProperty("paused", true);
+    await expect(page.locator('label[for="confirm-cut"]')).toHaveCSS(
+      "cursor",
+      "pointer",
+    );
 
-    // The timeline handles are keyboard-operable, and editing invalidates confirmation.
     await page
       .getByRole("checkbox", { name: "Apply this cut when saving" })
       .check();

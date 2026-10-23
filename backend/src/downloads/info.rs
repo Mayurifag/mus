@@ -8,9 +8,8 @@ use reqwest::{Client, Request, Url};
 use serde::Deserialize;
 use serde_json::Value;
 use tokio::process::Command;
-use tracing::Instrument;
 
-use super::diagnostics::{log_versions, youtube_video_id, yt_dlp_output};
+use super::diagnostics::{youtube_video_id, yt_dlp_output};
 
 pub(super) const OEMBED_TIMEOUT: Duration = Duration::from_secs(2);
 const EXTRACTOR_TIMEOUT: Duration = Duration::from_secs(8);
@@ -85,7 +84,6 @@ pub(super) async fn metadata_from_sources(
 ) -> Result<SourceMetadata> {
     if let Some((client, request)) = oembed {
         let started = Instant::now();
-        // The outer deadline also bounds response validation and slow/chunked bodies.
         match tokio::time::timeout(OEMBED_TIMEOUT, read_oembed(&client, request)).await {
             Ok(Ok(data)) => {
                 tracing::info!(
@@ -102,8 +100,6 @@ pub(super) async fn metadata_from_sources(
         }
     }
     let started = Instant::now();
-    // Diagnostics must not hold up the name form, even if a version probe hangs.
-    tokio::spawn(log_versions().instrument(tracing::Span::current()));
     let output = yt_dlp_output(fallback, EXTRACTOR_TIMEOUT).await;
     tracing::info!(
         source = "yt-dlp",

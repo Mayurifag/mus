@@ -449,6 +449,7 @@ pub async fn get_cut_info(
     State(state): State<AppState>,
     AxumPath(id): AxumPath<String>,
 ) -> Result<Json<Value>, AppError> {
+    get_track(&state, &id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
     let _guard = state.mutation_lock(format!("track:{id}")).await;
     let track = get_track(&state, &id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
     let source = read_cut_source(Path::new(&track.file_path)).await?;
@@ -467,13 +468,20 @@ pub async fn get_cut_preview(
     AxumPath(id): AxumPath<String>,
     Json(request): Json<CutPreviewRequest>,
 ) -> Result<Response, AppError> {
+    get_track(&state, &id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
     let _guard = state.mutation_lock(format!("track:{id}")).await;
     let track = get_track(&state, &id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
     let path = Path::new(&track.file_path);
     let source = read_cut_source(path).await?;
     validate_cut(request.remove_section, source.duration)
         .map_err(|error| AppError::bad_request(&error.to_string()))?;
-    let audio = preview_cut(path, request.remove_section, request.selection_only).await?;
+    let audio = preview_cut(
+        path,
+        request.remove_section,
+        source.duration,
+        request.selection_only,
+    )
+    .await?;
     Ok((
         [
             (header::CONTENT_TYPE, "audio/wav"),

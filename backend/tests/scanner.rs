@@ -151,6 +151,75 @@ async fn scan_music_dir_skips_unparseable_audio_files() {
 }
 
 #[tokio::test]
+async fn exact_copies_do_not_change_the_registered_path_or_repeat_added_events() {
+    let (_tmp, state) = make_state();
+    let original = state.music_dir.join("Ace of Base - Happy Nation.mp3");
+    create_mp3(&original, "Happy Nation", "Ace of Base");
+    scan_music_dir(state.clone()).await.unwrap();
+    let registered = db::list_tracks(&state).unwrap().remove(0);
+    let duplicate = state.music_dir.join("another copy.mp3");
+    fs::copy(&original, &duplicate).unwrap();
+    let before = fs::read(&duplicate).unwrap();
+    let mut events = state.events.subscribe();
+
+    for _ in 0..2 {
+        scan_music_dir(state.clone()).await.unwrap();
+        let tracks = db::list_tracks(&state).unwrap();
+        assert_eq!(tracks.len(), 1);
+        assert_eq!(tracks[0].id, registered.id);
+        assert_eq!(tracks[0].file_path, registered.file_path);
+        assert_eq!(tracks[0].added_at, registered.added_at);
+        assert_eq!(fs::read(&duplicate).unwrap(), before);
+        assert!(original.is_file());
+        while let Ok(event) = events.try_recv() {
+            assert_ne!(
+                event.action_key.as_deref(),
+                Some("track_added"),
+                "Exact copies are not new tracks"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn initial_scan_announces_identical_copies_only_once() {
+    let (_tmp, state) = make_state();
+    let first = state.music_dir.join("first copy.mp3");
+    let second = state.music_dir.join("second copy.mp3");
+    create_mp3(&first, "Happy Nation", "Ace of Base");
+    fs::copy(&first, &second).unwrap();
+    let mut events = state.events.subscribe();
+    scan_music_dir(state.clone()).await.unwrap();
+    assert_eq!(db::list_tracks(&state).unwrap().len(), 1);
+    let mut added = 0;
+    while let Ok(event) = events.try_recv() {
+        if event.action_key.as_deref() == Some("track_added") {
+            added += 1;
+        }
+    }
+    assert_eq!(added, 1);
+}
+
+#[tokio::test]
+async fn remaining_copy_keeps_the_library_entry_when_registered_copy_disappears() {
+    let (_tmp, state) = make_state();
+    let original = state.music_dir.join("original.wav");
+    write_silent_wav(&original);
+    scan_music_dir(state.clone()).await.unwrap();
+    let registered = db::list_tracks(&state).unwrap().remove(0);
+    let duplicate = state.music_dir.join("another copy.wav");
+    fs::copy(&original, &duplicate).unwrap();
+    fs::remove_file(&original).unwrap();
+    scan_music_dir(state.clone()).await.unwrap();
+    let tracks = db::list_tracks(&state).unwrap();
+    assert_eq!(tracks.len(), 1);
+    assert_eq!(tracks[0].id, registered.id);
+    assert_eq!(tracks[0].added_at, registered.added_at);
+    assert_eq!(tracks[0].file_path, duplicate.to_string_lossy());
+    assert!(duplicate.is_file());
+}
+
+#[tokio::test]
 async fn scan_music_dir_removes_existing_unparseable_audio_files() {
     let (_tmp, state) = make_state();
     let path = state.music_dir.join("broken.mp3");

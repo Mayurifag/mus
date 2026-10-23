@@ -1,17 +1,15 @@
 <script lang="ts">
-  import { onDestroy, tick } from "svelte";
+  import { onDestroy } from "svelte";
   import { Slider } from "bits-ui";
-  import { Scissors, Play, X } from "@lucide/svelte";
+  import { Scissors, X } from "@lucide/svelte";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Checkbox } from "$lib/components/ui/checkbox";
   import { audioServiceStore } from "$lib/stores/audioServiceStore";
-  import {
-    fetchTrackCutInfo,
-    fetchTrackCutPreview,
-  } from "$lib/services/apiClient";
+  import { fetchTrackCutInfo } from "$lib/services/apiClient";
   import type { AudioCut, Track } from "$lib/types";
   import { formatCutTime, parseCutTime, isValidCut } from "./trackCut";
+  import TrackCutPreview from "./TrackCutPreview.svelte";
 
   let {
     track,
@@ -27,25 +25,34 @@
   let duration = $state(0);
   let loading = $state(false);
   let error = $state("");
-  let startText = $state("");
-  let endText = $state("");
+  let times = $state({ start: "", end: "" });
   let confirmed = $state(false);
-  let previewUrl = $state("");
-  let previewLoading = $state(false);
-  let previewSelection = $state(false);
-  let audio: HTMLAudioElement | undefined = $state();
+  let activePreview = $state<"removed" | "join" | null>(null);
+  const boundaries = [
+    { key: "start", label: "Remove from", placeholder: "0:30.000" },
+    { key: "end", label: "To", placeholder: "0:45.000" },
+  ] as const;
   let infoRequest: AbortController | undefined;
-  let previewRequest: AbortController | undefined;
 
+  const endpoints = $derived({
+    start: parseCutTime(times.start),
+    end: parseCutTime(times.end),
+  });
   const selection = $derived({
-    start_seconds: parseCutTime(startText),
-    end_seconds: parseCutTime(endText),
+    start_seconds: endpoints.start,
+    end_seconds: endpoints.end,
   });
   const rangeValid = $derived(isValidCut(selection, duration));
-  const sliderValues = $derived(
+  const timelineSteps = 1000;
+  const sliderTimes = $derived(
     rangeValid
-      ? [selection.start_seconds, Math.min(selection.end_seconds, duration)]
+      ? [endpoints.start, Math.min(endpoints.end, duration)]
       : [0, duration],
+  );
+  const sliderValues = $derived(
+    sliderTimes.map((seconds) =>
+      duration > 0 ? Math.round((seconds / duration) * timelineSteps) : 0,
+    ),
   );
 
   $effect(() => {
@@ -55,29 +62,26 @@
     );
   });
 
-  function clearPreview() {
-    previewRequest?.abort();
-    previewRequest = undefined;
-    audio?.pause();
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    previewUrl = "";
-    previewLoading = false;
-  }
-
-  function changeTimes(values?: number[]) {
-    if (values) {
-      startText = formatCutTime(values[0]);
-      endText = formatCutTime(values[1]);
-    }
+  function resetCut() {
     confirmed = false;
     error = "";
-    clearPreview();
+    activePreview = null;
+  }
+
+  function nudgeTime(boundary: "start" | "end", delta: number) {
+    const value = endpoints[boundary];
+    if (!Number.isFinite(value)) return;
+    times[boundary] = formatCutTime(
+      Math.max(0, Math.min(duration, value + delta)),
+    );
+    resetCut();
   }
 
   function changeSlider(values: number[]) {
-    // Controlled-value updates must not overwrite an unfinished timestamp input.
     if (values[0] === sliderValues[0] && values[1] === sliderValues[1]) return;
-    changeTimes(values);
+    times.start = formatCutTime((values[0] / timelineSteps) * duration);
+    times.end = formatCutTime((values[1] / timelineSteps) * duration);
+    resetCut();
   }
 
   async function expand() {
@@ -91,10 +95,10 @@
       if (request.signal.aborted) return;
       duration = info.duration_seconds;
       const middle = duration / 2;
-      startText = formatCutTime(
+      times.start = formatCutTime(
         Math.max(0, middle - Math.min(5, duration / 4)),
       );
-      endText = formatCutTime(
+      times.end = formatCutTime(
         Math.min(duration, middle + Math.min(5, duration / 4)),
       );
     } catch {
@@ -107,49 +111,17 @@
 
   function discard() {
     infoRequest?.abort();
-    clearPreview();
     expanded = false;
-    confirmed = false;
     duration = 0;
-    error = "";
+    resetCut();
   }
 
-  async function preview(selectionOnly: boolean) {
-    if (!rangeValid) return;
-    clearPreview();
-    error = "";
-    previewLoading = true;
-    previewSelection = selectionOnly;
-    const request = new AbortController();
-    previewRequest = request;
-    try {
-      const blob = await fetchTrackCutPreview(
-        track.id,
-        selection,
-        selectionOnly,
-        request.signal,
-      );
-      if (request.signal.aborted) return;
-      previewUrl = URL.createObjectURL(blob);
-      await tick();
-      if (request.signal.aborted) return;
-      $audioServiceStore?.pause();
-      try {
-        await audio?.play();
-      } catch {
-        // Browsers that block delayed playback still expose the audio controls.
-      }
-    } catch {
-      if (!request.signal.aborted) error = "Preview failed. Please try again.";
-    } finally {
-      if (!request.signal.aborted) previewLoading = false;
-    }
+  function activatePreview(kind: "removed" | "join") {
+    activePreview = kind;
+    $audioServiceStore?.pause();
   }
 
-  onDestroy(() => {
-    infoRequest?.abort();
-    clearPreview();
-  });
+  onDestroy(() => infoRequest?.abort());
 </script>
 
 <section class="rounded-lg border" aria-label="Remove audio section">
@@ -199,8 +171,8 @@
             value={sliderValues}
             onValueChange={changeSlider}
             min={0}
-            max={duration}
-            step={0.01}
+            max={timelineSteps}
+            step={1}
             {disabled}
             class="relative flex h-12 w-full touch-none items-center select-none"
           >
@@ -216,7 +188,7 @@
                 <Slider.Thumb
                   {index}
                   aria-label={index === 0 ? "Cut start" : "Cut end"}
-                  aria-valuetext={formatCutTime(sliderValues[index])}
+                  aria-valuetext={formatCutTime(sliderTimes[index])}
                   class="border-destructive bg-background focus-visible:ring-ring z-10 block h-11 w-4 cursor-ew-resize rounded-md border-2 shadow-sm focus-visible:ring-2 focus-visible:outline-none"
                 />
               {/each}
@@ -230,28 +202,38 @@
         </div>
 
         <div class="grid grid-cols-2 gap-3">
-          <div class="space-y-1.5">
-            <label for="cut-start" class="text-sm font-medium"
-              >Remove from</label
-            ><Input
-              id="cut-start"
-              bind:value={startText}
-              oninput={() => changeTimes()}
-              placeholder="0:30.000"
-              class="font-mono"
-              {disabled}
-            />
-          </div>
-          <div class="space-y-1.5">
-            <label for="cut-end" class="text-sm font-medium">To</label><Input
-              id="cut-end"
-              bind:value={endText}
-              oninput={() => changeTimes()}
-              placeholder="0:45.000"
-              class="font-mono"
-              {disabled}
-            />
-          </div>
+          {#each boundaries as boundary (boundary.key)}
+            <div class="space-y-1.5">
+              <label for={`cut-${boundary.key}`} class="text-sm font-medium"
+                >{boundary.label}</label
+              >
+              <Input
+                id={`cut-${boundary.key}`}
+                bind:value={times[boundary.key]}
+                oninput={resetCut}
+                placeholder={boundary.placeholder}
+                class="font-mono"
+                {disabled}
+              />
+              <div class="flex gap-2">
+                {#each [-1, 1] as delta (delta)}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="flex-1"
+                    aria-label={`Cut ${boundary.key} ${delta > 0 ? "plus" : "minus"} 1 second`}
+                    onclick={() => nudgeTime(boundary.key, delta)}
+                    disabled={disabled ||
+                      !Number.isFinite(endpoints[boundary.key]) ||
+                      (delta < 0
+                        ? endpoints[boundary.key] <= 0
+                        : endpoints[boundary.key] >= duration)}
+                    >{delta > 0 ? "+1 sec" : "−1 sec"}</Button
+                  >
+                {/each}
+              </div>
+            </div>
+          {/each}
         </div>
         {#if rangeValid}
           <p class="text-sm" aria-live="polite">
@@ -272,48 +254,25 @@
           </p>
         {/if}
 
-        <div class="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onclick={() => preview(false)}
-            disabled={disabled || !rangeValid || previewLoading}
-            ><Play class="mr-2 h-4 w-4" />{previewLoading && !previewSelection
-              ? "Preparing..."
-              : "Preview join"}</Button
-          >
-          <Button
-            variant="ghost"
-            size="sm"
-            onclick={() => preview(true)}
-            disabled={disabled || !rangeValid || previewLoading}
-            >{previewLoading && previewSelection
-              ? "Preparing..."
-              : "Hear removed section"}</Button
-          >
+        <div class="grid gap-3 sm:grid-cols-2">
+          {#key `${track.id}|${times.start}|${times.end}`}
+            <TrackCutPreview
+              trackId={track.id}
+              cut={selection}
+              selectionOnly
+              active={activePreview === "removed"}
+              disabled={disabled || !rangeValid}
+              onActivate={() => activatePreview("removed")}
+            />
+            <TrackCutPreview
+              trackId={track.id}
+              cut={selection}
+              active={activePreview === "join"}
+              disabled={disabled || !rangeValid}
+              onActivate={() => activatePreview("join")}
+            />
+          {/key}
         </div>
-        {#if previewUrl}
-          <div class="bg-muted/40 space-y-2 rounded-md p-3">
-            <p class="text-muted-foreground text-xs">
-              {previewSelection
-                ? "First 8 seconds of the selected section"
-                : "The actual join · up to 4 seconds on either side, with the selection removed"}
-            </p>
-            <audio
-              bind:this={audio}
-              src={previewUrl}
-              controls
-              preload="auto"
-              class="h-10 w-full"
-              aria-label={previewSelection
-                ? "Selected section preview"
-                : "Cut join preview"}
-              onplay={() => $audioServiceStore?.pause()}
-              onerror={() =>
-                (error = "Unable to play preview. Please try again.")}
-            ></audio>
-          </div>
-        {/if}
         <div class="space-y-2 border-t pt-3">
           <p class="text-muted-foreground text-xs">
             Nothing changes until you save. Saving permanently removes this
@@ -325,7 +284,11 @@
               id="confirm-cut"
               bind:checked={confirmed}
               disabled={disabled || !rangeValid}
-            /><label for="confirm-cut" class="text-sm leading-none"
+            /><label
+              for="confirm-cut"
+              class={disabled || !rangeValid
+                ? "cursor-not-allowed text-sm leading-none"
+                : "cursor-pointer text-sm leading-none"}
               >Apply this cut when saving</label
             >
           </div>

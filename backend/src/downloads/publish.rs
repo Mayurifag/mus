@@ -41,7 +41,6 @@ pub(super) async fn publish_download(
     Ok(())
 }
 
-// Only call on the private download staging file, never on a mounted music file.
 pub(super) fn prepare_tags(
     path: &Path,
     title: Option<&str>,

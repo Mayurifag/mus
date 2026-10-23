@@ -43,7 +43,9 @@ pub async fn read_cut_source(path: &Path) -> Result<CutSource> {
 }
 
 pub fn validate_cut(cut: AudioCut, duration: f64) -> Result<()> {
-    if !cut.start_seconds.is_finite()
+    if !duration.is_finite()
+        || duration <= 0.0
+        || !cut.start_seconds.is_finite()
         || !cut.end_seconds.is_finite()
         || cut.start_seconds < 0.0
         || cut.end_seconds <= cut.start_seconds
@@ -57,7 +59,6 @@ pub fn validate_cut(cut: AudioCut, duration: f64) -> Result<()> {
     Ok(())
 }
 
-// Both the saved edit and its preview use the same sample-accurate join.
 pub fn cut_filter(cut: AudioCut, duration: f64, preview: bool) -> String {
     let end = cut.end_seconds.min(duration);
     let before = if preview {
@@ -86,17 +87,20 @@ fn trim_filter(start: f64, end: f64) -> String {
     format!("[0:a:0]atrim=start={start}:end={end},asetpts=PTS-STARTPTS[out]")
 }
 
-pub async fn preview_cut(path: &Path, cut: AudioCut, selection_only: bool) -> Result<Vec<u8>> {
-    let source = read_cut_source(path).await?;
-    validate_cut(cut, source.duration)?;
+pub async fn preview_cut(
+    path: &Path,
+    cut: AudioCut,
+    duration: f64,
+    selection_only: bool,
+) -> Result<Vec<u8>> {
+    validate_cut(cut, duration)?;
     let filter = if selection_only {
-        // Keep previews bounded even when the selected section is very long.
         trim_filter(
             cut.start_seconds,
             cut.end_seconds.min(cut.start_seconds + 8.0),
         )
     } else {
-        cut_filter(cut, source.duration, true)
+        cut_filter(cut, duration, true)
     };
     let mut command = Command::new("ffmpeg");
     command

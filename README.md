@@ -22,8 +22,9 @@ until I will be sure it is ready to be in alpha stage.
 - File edits combine tag, artwork, rename, and mtime updates before publishing the final file, so library order stays
   tied to first discovery
 - Useful editor of artists/title metadata
-- Remove unwanted audio sections from Edit track with a draggable timeline, precise timestamps, and an audible preview
-  of the actual join before saving. Cuts modify the original file after confirmation; lossy formats are re-encoded.
+- Remove unwanted audio sections from Edit track with a draggable timeline, precise timestamps, and one-second boundary
+  buttons. Compare removed-section and join previews side by side before saving. Cuts modify the original file after
+  confirmation; lossy formats are re-encoded.
 - Download new files using yt-dlp with SponsorBlock segment removal. Custom vk.ru support incoming
 - Mobile support via responsive web UI. No plans for natives yet
 - No dumb features like "Repeat all playlist" (repeat only current track)
@@ -37,7 +38,9 @@ until I will be sure it is ready to be in alpha stage.
 
 This is dockerized single container (yes!) which contains a static Svelte frontend served by the Rust backend, sqlite,
 official yt-dlp nightly zipapp and ffmpeg. Only the music directory and `/app_data/.cache` app-state directory are meant
-to be mounted. SQLite, generated covers, HLS, and rewrite staging files live under `/app_data/.cache`.
+to be mounted. SQLite, generated covers, HLS, and rewrite staging files live under `/app_data/.cache`. In-place edits
+keep a private backup in that cache until publication succeeds. Failed writes restore the original; if restoration also
+fails, the error identifies the retained backup. This is not an automatic power-loss recovery system.
 
 In e2e folder I made setup to run playwright tests against production docker image, so it is not bound to Rust/Svelte
 source files.
@@ -51,4 +54,5 @@ Audio playback is served as HLS. Generated playlists and segments live under `/a
 music directory.
 
 Track IDs are full BLAKE3 content hashes, reused as the HLS cache key so cached audio survives database rebuilds when
-file bytes do not change.
+file bytes do not change. Identical file copies share one library entry. Scanning keeps its registered path while that
+file exists, without deleting copies or repeatedly announcing them as new tracks.
