@@ -36,7 +36,8 @@ use crate::{
     state::AppState,
     system::{get_permissions, get_system_info, rescan, update_yt_dlp},
     tracks::{
-        delete_track, get_cover_original, get_cover_small, get_tracks, update_track, upload_track,
+        delete_track, get_cover_original, get_cover_small, get_cut_info, get_cut_preview,
+        get_tracks, update_track, upload_track,
     },
     util::now,
 };
@@ -50,6 +51,8 @@ pub fn app(state: AppState) -> Router {
         .route("/api/v1/artwork/search", get(search_artwork))
         .route("/api/v1/artwork/search/stream", get(stream_artwork))
         .route("/api/v1/tracks/upload", post(upload_track))
+        .route("/api/v1/tracks/{id}/cut-info", get(get_cut_info))
+        .route("/api/v1/tracks/{id}/cut-preview", post(get_cut_preview))
         .route(
             "/api/v1/tracks/{id}",
             patch(update_track).delete(delete_track),

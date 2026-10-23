@@ -407,6 +407,118 @@ async fn system_info_reports_missing_music_directory() {
 }
 
 #[tokio::test]
+async fn cut_preview_is_read_only_and_rejects_invalid_ranges() {
+    let app = TestApp::new();
+    let path = app.state.music_dir.join("song.wav");
+    write_silent_wav(&path);
+    let original = fs::read(&path).unwrap();
+    app.insert_track(
+        TRACK_ID,
+        "Song",
+        "Artist",
+        path.to_str().unwrap(),
+        false,
+        "COMPLETE",
+    );
+    let response = app
+        .request(
+            Method::GET,
+            &format!("/api/v1/tracks/{TRACK_ID}/cut-info"),
+            Body::empty(),
+        )
+        .await;
+    assert_eq!(body_json(response).await["duration_seconds"], 1.0);
+    let response = app
+        .json(
+            Method::POST,
+            &format!("/api/v1/tracks/{TRACK_ID}/cut-preview"),
+            json!({"remove_section": {"start_seconds": 0.25, "end_seconds": 0.75}}),
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers()[header::CONTENT_TYPE], "audio/wav");
+    assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+    let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    assert_eq!(&bytes[..4], b"RIFF");
+    assert_eq!(fs::read(&path).unwrap(), original);
+    for cut in [
+        json!({"start_seconds": -1, "end_seconds": 0.5}),
+        json!({"start_seconds": 0.5, "end_seconds": 0.25}),
+        json!({"start_seconds": 0, "end_seconds": 2}),
+        json!({"start_seconds": 0, "end_seconds": 1}),
+    ] {
+        for (method, uri, payload) in [
+            (
+                Method::POST,
+                format!("/api/v1/tracks/{TRACK_ID}/cut-preview"),
+                json!({"remove_section": cut}),
+            ),
+            (
+                Method::PATCH,
+                format!("/api/v1/tracks/{TRACK_ID}"),
+                json!({"remove_section": cut}),
+            ),
+        ] {
+            assert_eq!(
+                app.json(method, &uri, payload).await.status(),
+                StatusCode::BAD_REQUEST
+            );
+            assert_eq!(fs::read(&path).unwrap(), original);
+        }
+    }
+}
+
+#[tokio::test]
+async fn cut_updates_duration_hash_and_events_without_reordering_the_track() {
+    let app = TestApp::new();
+    let path = app.state.music_dir.join("song.wav");
+    write_silent_wav(&path);
+    app.insert_track(
+        TRACK_ID,
+        "Song",
+        "Artist",
+        path.to_str().unwrap(),
+        false,
+        "COMPLETE",
+    );
+    app.set_tags(TRACK_ID, &["right-version"]);
+    let mut events = app.state.events.subscribe();
+    let response = app
+        .json(
+            Method::PATCH,
+            &format!("/api/v1/tracks/{TRACK_ID}"),
+            json!({"remove_section": {"start_seconds": 0.25, "end_seconds": 0.75}}),
+        )
+        .await;
+    assert_eq!(body_json(response).await["status"], "queued");
+    let event = tokio::time::timeout(std::time::Duration::from_secs(10), events.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        event.action_key.as_deref(),
+        Some("track_updated"),
+        "{event:?}"
+    );
+    let payload = event.action_payload.unwrap();
+    assert_eq!(payload["previous_id"], TRACK_ID);
+    assert_eq!(payload["tags"][0]["name"], "right-version");
+    assert_ne!(payload["id"], TRACK_ID);
+    assert_eq!(payload["duration"], 0); // Existing API durations are whole seconds.
+    let new_id = payload["id"].as_str().unwrap();
+    let conn = app.state.db.lock().unwrap();
+    let added_at: i64 = conn
+        .query_row(
+            "SELECT added_at FROM track WHERE id = ?1",
+            params![new_id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(added_at, 1000);
+    assert_eq!(mus_backend::util::file_content_hash(&path).unwrap(), new_id);
+}
+
+#[tokio::test]
 async fn tracks_hls_contract() {
     let app = TestApp::new();
     let missing = app

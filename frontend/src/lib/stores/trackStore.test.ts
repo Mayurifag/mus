@@ -106,6 +106,18 @@ describe("trackStore", () => {
     expect(Object.getOwnPropertyDescriptor(counts, "__proto__")?.value).toBe(1);
   });
 
+  it("keeps selection, history, and library order when an audio edit changes the content ID", () => {
+    trackStore.setTracks(mockTracks);
+    trackStore.setCurrentTrackIndex(1);
+    const edited = { ...mockTracks[1], id: "new-content-hash", duration: 210 };
+    trackStore.updateTrack(edited, mockTracks[1].id);
+    const state = get(trackStore);
+    expect(state.tracks).toEqual([mockTracks[0], edited, mockTracks[2]]);
+    expect(state.currentTrackIndex).toBe(1);
+    expect(state.currentTrack).toEqual(edited);
+    expect(state.playHistory).toEqual([edited]);
+  });
+
   it("should set currentTrackIndex to null when tracks array is empty", () => {
     trackStore.setTracks(mockTracks);
     expect(get(trackStore).currentTrackIndex).toBe(0);

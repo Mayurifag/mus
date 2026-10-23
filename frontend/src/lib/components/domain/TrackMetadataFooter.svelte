@@ -9,6 +9,8 @@
     isUploading,
     isFormValid,
     hasSavableChanges,
+    hasCut = false,
+    cutValid = true,
     onCancel,
     onSave,
     onDeleteClick,
@@ -18,6 +20,8 @@
     isUploading: boolean;
     isFormValid: boolean;
     hasSavableChanges: boolean;
+    hasCut?: boolean;
+    cutValid?: boolean;
     onCancel: () => void;
     onSave: () => void;
     onDeleteClick: () => void;
@@ -26,9 +30,11 @@
   const saveTitle = $derived(
     !isFormValid
       ? "Please fill in required fields (title and primary artist)"
-      : !hasSavableChanges
-        ? "No changes to save"
-        : "Save",
+      : !cutValid
+        ? "Confirm or discard the audio cut before saving"
+        : !hasSavableChanges
+          ? "No changes to save"
+          : "Save",
   );
 </script>
 
@@ -60,6 +66,7 @@
     </Button>
     <Button
       onclick={onSave}
+      variant={hasCut ? "destructive" : "default"}
       disabled={!hasSavableChanges || isUploading}
       class="cursor-pointer"
       title={saveTitle}
@@ -68,7 +75,7 @@
         Saving...
       {:else}
         <Save class="mr-2 h-4 w-4" />
-        Save
+        {hasCut ? "Save & cut" : "Save"}
       {/if}
     </Button>
   </div>

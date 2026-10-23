@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ArtworkSearchResult, Track } from "$lib/types";
+  import type { ArtworkSearchResult, AudioCut, Track } from "$lib/types";
   import { onDestroy, onMount } from "svelte";
   import * as Dialog from "$lib/components/ui/dialog";
   import {
@@ -18,6 +18,7 @@
   import TrackDeleteDialog from "./TrackDeleteDialog.svelte";
   import TrackMetadataFooter from "./TrackMetadataFooter.svelte";
   import TrackMetadataForm from "./TrackMetadataForm.svelte";
+  import TrackCutEditor from "./TrackCutEditor.svelte";
   import {
     buildTrackUpdatePayload,
     formatArtistString,
@@ -70,6 +71,8 @@
   let renameFile = $state(true);
   let artistIdCounter = 0;
   let artists = $state<ArtistRow[]>([]);
+  let cut = $state<AudioCut | null>(null);
+  let cutValid = $state(true);
 
   const sanitizedTitle = $derived(sanitizeMetadataInput(title));
   const sanitizedArtists = $derived(sanitizeArtistRows(artists));
@@ -78,8 +81,8 @@
   );
   const isFilenameTooLong = $derived(generatedFilename.length > 255);
   const currentArtistString = $derived(formatArtistString(sanitizedArtists));
-  const updatePayload = $derived(
-    buildTrackUpdatePayload({
+  const updatePayload = $derived({
+    ...buildTrackUpdatePayload({
       track,
       title: sanitizedTitle,
       artist: currentArtistString,
@@ -87,7 +90,8 @@
       filename: generatedFilename,
       artworkUrl: selectedArtwork?.image_url,
     }),
-  );
+    ...(cut ? { remove_section: cut } : {}),
+  });
   const isFormValid = $derived(
     isTrackMetadataFormValid({
       mode,
@@ -98,7 +102,9 @@
     }),
   );
   const hasSavableChanges = $derived(
-    isFormValid && (mode === "create" || Object.keys(updatePayload).length > 0),
+    isFormValid &&
+      cutValid &&
+      (mode === "create" || Object.keys(updatePayload).length > 0),
   );
 
   const fallbackArtworkUrl = $derived.by(() => {
@@ -190,6 +196,7 @@
   }
 
   async function handleSave() {
+    if (!hasSavableChanges || isUploading) return;
     if (mode === "edit") {
       await handleUpdate();
     } else if (isDownload) {
@@ -304,12 +311,25 @@
       onRemoveArtist={removeArtist}
     />
 
+    {#if mode === "edit" && track && $permissionsStore.can_write_music_files}
+      <TrackCutEditor
+        {track}
+        onChange={(nextCut, valid) => {
+          cut = nextCut;
+          cutValid = valid;
+        }}
+        disabled={isUploading}
+      />
+    {/if}
+
     <TrackMetadataFooter
       {mode}
       canDelete={$permissionsStore.can_write_music_files}
       {isUploading}
       {isFormValid}
       {hasSavableChanges}
+      hasCut={cut !== null}
+      {cutValid}
       onCancel={closeModal}
       onSave={handleSave}
       onDeleteClick={() => (confirmDeleteOpen = true)}

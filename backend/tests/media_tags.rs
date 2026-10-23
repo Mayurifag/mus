@@ -9,8 +9,10 @@ use id3::{
     Tag, TagLike, Version,
 };
 use mus_backend::media::{
-    apply_audio_update, extract_cover, standardize_audio_tags, write_audio_tags, AudioUpdate,
+    apply_audio_update, extract_cover, preview_cut, read_cut_source, standardize_audio_tags,
+    write_audio_tags, AudioUpdate,
 };
+use mus_backend::models::AudioCut;
 use serde_json::Value;
 use tempfile::TempDir;
 
@@ -221,6 +223,7 @@ async fn combined_audio_update_publishes_tags_cover_rename_and_mtime() {
         &path,
         &cache_dir,
         AudioUpdate {
+            remove_section: None,
             title: Some("New title"),
             artist: Some("New artist"),
             cover_jpeg_path: Some(&cover_path),
@@ -261,6 +264,7 @@ async fn combined_audio_update_normalizes_rename_and_tag_text() {
         &path,
         &cache_dir,
         AudioUpdate {
+            remove_section: None,
             title: Some("Бедныи\u{0306} Русскии\u{0306}"),
             artist: Some("LIL KRYSTALLL"),
             cover_jpeg_path: None,
@@ -441,4 +445,224 @@ async fn extract_cover_supports_wav_id3_cover() {
     assert!(extract_cover(&path, &covers_dir, "1").await.unwrap());
     assert!(covers_dir.join("1_original.webp").is_file());
     assert!(covers_dir.join("1_small.webp").is_file());
+}
+
+fn cut_update(cut: AudioCut) -> AudioUpdate<'static> {
+    AudioUpdate {
+        title: None,
+        artist: None,
+        cover_jpeg_path: None,
+        target_path: None,
+        standardize_tags: false,
+        update_mtime: true,
+        remove_section: Some(cut),
+    }
+}
+
+fn decoded_samples(path: &Path) -> Vec<u8> {
+    let output = Command::new("ffmpeg")
+        .args(["-v", "error", "-i"])
+        .arg(path)
+        .args([
+            "-map",
+            "0:a:0",
+            "-f",
+            "s16le",
+            "-c:a",
+            "pcm_s16le",
+            "pipe:1",
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    output.stdout
+}
+
+#[tokio::test]
+async fn cut_and_preview_remove_the_exact_samples_without_touching_original_during_preview() {
+    let tmp = TempDir::new().unwrap();
+    let original = tmp.path().join("original.wav");
+    run(Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=997:duration=3:sample_rate=44100",
+            "-c:a",
+            "pcm_s16le",
+        ])
+        .arg(&original));
+    let before = fs::read(&original).unwrap();
+    let samples = decoded_samples(&original);
+
+    for (start_seconds, end_seconds) in [(0.0, 1.0), (1.0, 2.0), (2.0, 3.0)] {
+        let cut = AudioCut {
+            start_seconds,
+            end_seconds,
+        };
+        let path = tmp.path().join("edit.wav");
+        fs::copy(&original, &path).unwrap();
+        #[cfg(unix)]
+        let original_inode = file_id(&path);
+        let preview = preview_cut(&path, cut, false).await.unwrap();
+        assert_eq!(fs::read(&path).unwrap(), before);
+        let preview_path = tmp.path().join("preview.wav");
+        fs::write(&preview_path, preview).unwrap();
+        let mut expected = samples[..(start_seconds * 44100.0) as usize * 2].to_vec();
+        expected.extend_from_slice(&samples[(end_seconds * 44100.0) as usize * 2..]);
+        // Preview is stereo; the actual source and saved edit remain mono.
+        let preview_samples = decoded_samples(&preview_path);
+        assert_eq!(preview_samples.len(), expected.len() * 2);
+        for (frame, sample) in preview_samples
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .zip(expected.as_chunks::<2>().0.iter())
+        {
+            let left = i16::from_le_bytes([frame[0], frame[1]]) as f64;
+            let mono = i16::from_le_bytes([sample[0], sample[1]]) as f64;
+            assert!((left - mono * std::f64::consts::FRAC_1_SQRT_2).abs() < 2.0);
+        }
+        apply_audio_update(&path, &tmp.path().join("cache"), cut_update(cut))
+            .await
+            .unwrap();
+        assert_eq!(decoded_samples(&path), expected);
+        #[cfg(unix)]
+        assert_eq!(file_id(&path), original_inode);
+    }
+    assert!(fs::read_dir(tmp.path().join("cache"))
+        .unwrap()
+        .next()
+        .is_none());
+}
+
+#[tokio::test]
+async fn cut_supported_formats_preserves_tags_cover_and_wav_bit_depth() {
+    let tmp = TempDir::new().unwrap();
+    for (ext, codec) in [
+        ("mp3", "libmp3lame"),
+        ("flac", "flac"),
+        ("wav", "pcm_s24le"),
+        ("m4a", "aac"),
+        ("m4a", "alac"),
+        ("ogg", "libvorbis"),
+    ] {
+        let path = tmp.path().join(format!("song.{ext}"));
+        let mut command = Command::new("ffmpeg");
+        command.args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=997:duration=3",
+            "-c:a",
+            codec,
+            "-metadata",
+            "title=Original title",
+            "-metadata",
+            "artist=Original artist",
+        ]);
+        command.arg(&path);
+        run(&mut command);
+        if ext == "mp3" || ext == "wav" {
+            let cover = tmp.path().join("cover.jpg");
+            create_jpeg(&cover);
+            add_id3_cover(&path, &cover);
+        }
+        let result = apply_audio_update(
+            &path,
+            &tmp.path().join("cache"),
+            cut_update(AudioCut {
+                start_seconds: 1.0,
+                end_seconds: 2.0,
+            }),
+        )
+        .await
+        .unwrap();
+        assert!(result.content_changed);
+        let source = read_cut_source(&path).await.unwrap();
+        assert!(
+            (source.duration - 2.0).abs() < 0.15,
+            "{ext}: {}",
+            source.duration
+        );
+        let data = probe(&path);
+        let tags = if ext == "ogg" {
+            &data["streams"][0]["tags"]
+        } else {
+            &data["format"]["tags"]
+        };
+        // The ID3 cover helper adds ID3 tags to WAV but ffmpeg's RIFF INFO tags are preserved too.
+        if ext != "wav" {
+            assert_eq!(tags["title"], "Original title", "{ext}");
+            assert_eq!(tags["artist"], "Original artist", "{ext}");
+        }
+        if ext == "mp3" || ext == "wav" {
+            assert_has_attached_cover(&data);
+        }
+        if ext == "wav" {
+            assert_eq!(source.codec, "pcm_s24le");
+        }
+        if codec == "alac" {
+            assert_eq!(source.codec, "alac");
+        }
+
+        // A cut can be saved together with the rest of the metadata form.
+        apply_audio_update(
+            &path,
+            &tmp.path().join("cache"),
+            AudioUpdate {
+                title: Some("Edited title"),
+                artist: Some("Edited artist"),
+                ..cut_update(AudioCut {
+                    start_seconds: 0.5,
+                    end_seconds: 1.0,
+                })
+            },
+        )
+        .await
+        .unwrap();
+        let edited = probe(&path);
+        let edited_tags = if ext == "ogg" {
+            &edited["streams"][0]["tags"]
+        } else {
+            &edited["format"]["tags"]
+        };
+        assert_eq!(edited_tags["title"], "Edited title", "{ext}");
+        assert_eq!(edited_tags["artist"], "Edited artist", "{ext}");
+    }
+    assert!(fs::read_dir(tmp.path().join("cache"))
+        .unwrap()
+        .next()
+        .is_none());
+}
+
+#[tokio::test]
+async fn invalid_cuts_leave_the_original_unchanged() {
+    let tmp = TempDir::new().unwrap();
+    let path = tmp.path().join("song.wav");
+    create_wav_with_id3v24(&path);
+    let original = fs::read(&path).unwrap();
+    for (start_seconds, end_seconds) in [
+        (0.0, 0.1),
+        (-1.0, 0.05),
+        (0.08, 0.02),
+        (0.05, 5.0),
+        (f64::NAN, 0.05),
+        (0.0, f64::INFINITY),
+    ] {
+        assert!(apply_audio_update(
+            &path,
+            &tmp.path().join("cache"),
+            cut_update(AudioCut {
+                start_seconds,
+                end_seconds
+            })
+        )
+        .await
+        .is_err());
+        assert_eq!(fs::read(&path).unwrap(), original);
+    }
+    assert!(!tmp.path().join("cache").exists());
 }

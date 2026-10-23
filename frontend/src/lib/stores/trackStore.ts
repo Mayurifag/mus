@@ -513,23 +513,21 @@ function createTrackStore() {
           currentTrackIndex: newCurrentTrackIndex,
         };
       }),
-    updateTrack: (updatedTrack: Track) =>
+    updateTrack: (updatedTrack: Track, previousId = updatedTrack.id) =>
       update((state) => {
-        const trackIndex = state.tracks.findIndex(
-          (t) => t.id === updatedTrack.id,
-        );
+        const trackIndex = state.tracks.findIndex((t) => t.id === previousId);
         if (trackIndex === -1) return state;
 
         const newTracks = [...state.tracks];
         newTracks[trackIndex] = updatedTrack;
 
         const newCurrentTrack =
-          state.currentTrack?.id === updatedTrack.id
+          state.currentTrack?.id === previousId
             ? updatedTrack
             : state.currentTrack;
 
         const newPlayHistory = state.playHistory.map((t) =>
-          t.id === updatedTrack.id ? updatedTrack : t,
+          t.id === previousId ? updatedTrack : t,
         );
 
         return {

@@ -54,7 +54,7 @@ vi.mock("svelte-sonner", () => ({
 }));
 
 // Mock environment variables
-vi.mock("$app/environment", () => ({
+vi.mock("$app/env", () => ({
   browser: true,
 }));
 
@@ -242,6 +242,19 @@ describe("eventHandlerService", () => {
       handleMusEvent(payload);
 
       expect(trackStore.deleteTrack).toHaveBeenCalledWith("1");
+    });
+
+    it("passes the previous content ID when a cut replaces a track", () => {
+      handleMusEvent({
+        action_key: "track_updated",
+        message_to_show: null,
+        message_level: null,
+        action_payload: { id: "new-id", previous_id: "old-id" },
+      });
+      expect(trackStore.updateTrack).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "new-id" }),
+        "old-id",
+      );
     });
 
     it("should not call trackStore methods when action_payload is missing", () => {

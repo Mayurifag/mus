@@ -4,7 +4,7 @@ FROM node:24-alpine3.22
 
 WORKDIR /app
 
-RUN npm install -g npm@11.14.1 markdownlint-cli2
+RUN npm install -g npm@12.2.1
 
 COPY frontend/package*.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-fund

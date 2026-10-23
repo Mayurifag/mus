@@ -17,6 +17,11 @@ export interface TrackTag {
   display_name: string;
 }
 
+export interface AudioCut {
+  start_seconds: number;
+  end_seconds: number;
+}
+
 export interface ArtworkSearchResult {
   id: string;
   source: string;

@@ -28,6 +28,7 @@ pub(super) async fn publish_download(
         downloaded,
         cache_dir,
         AudioUpdate {
+            remove_section: None,
             title: None,
             artist: None,
             cover_jpeg_path: None,

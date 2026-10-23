@@ -1,5 +1,6 @@
 import type {
   ArtworkSearchResult,
+  AudioCut,
   Track,
   PlayerState,
   MusEvent,
@@ -115,6 +116,7 @@ export async function updateTrack(
     rename_file?: boolean;
     artwork_url?: string;
     tags?: string[];
+    remove_section?: AudioCut;
   },
 ): Promise<{ status: string; track?: Track }> {
   try {
@@ -135,6 +137,38 @@ export async function updateTrack(
     console.error("Error updating track:", error);
     throw error;
   }
+}
+
+export async function fetchTrackCutInfo(
+  trackId: string,
+  signal?: AbortSignal,
+): Promise<{ duration_seconds: number }> {
+  const response = await fetch(`${API_BASE_URL}/tracks/${trackId}/cut-info`, {
+    signal,
+  });
+  return handleApiResponse(response);
+}
+
+export async function fetchTrackCutPreview(
+  trackId: string,
+  cut: AudioCut,
+  selectionOnly: boolean,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const response = await fetch(
+    `${API_BASE_URL}/tracks/${trackId}/cut-preview`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        remove_section: cut,
+        selection_only: selectionOnly,
+      }),
+      signal,
+    },
+  );
+  if (!response.ok) throw new Error("Unable to generate audio preview");
+  return response.blob();
 }
 
 export async function searchArtwork({

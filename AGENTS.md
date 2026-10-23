@@ -6,6 +6,12 @@
 - Use `make rebuild-backend-image` to refresh baked backend tools like yt-dlp without deleting volumes.
 - Install yt-dlp from the official upstream nightly zipapp in all backend images, not distro packages; the app expects `yt-dlp --update-to nightly` to work.
 - Use `make rebuild-frontend-image` to refresh baked frontend tools like npm.
+- Compose frontend dependencies live in the `app_node_modules` volume, not host `frontend/node_modules`. Use
+  `make front-reinstall` to rebuild that generated dependency tree when major upgrades conflict with old installs.
+- SvelteKit 3 configuration lives in `frontend/vite.config.ts`; service-worker types have their own tsconfig.
+- Keep frontend TypeScript on 6.x until SvelteKit and typescript-eslint support 7.x; E2E can use 7.x independently.
+- Frontend security overrides patch cookie under optional Kit 2 peers and KaTeX under micromark-extension-math; remove
+  each override when its upstream dependency range allows patched releases.
 - Use `make prod-image` to rebuild the production image locally.
 - Use `make prod-image-fresh` only when Docker cache must be bypassed.
 - Use `make e2e-current-image` after `make prod-image` when the image is already built and the e2e rebuild would only re-fetch registry metadata.

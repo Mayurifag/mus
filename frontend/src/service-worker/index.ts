@@ -1,13 +1,16 @@
 /// <reference types="@sveltejs/kit" />
 /// <reference lib="webworker" />
 
-import { build, files, prerendered, version } from "$service-worker";
+import { version } from "$app/env";
+import { immutable, assets, prerendered } from "$app/manifest";
 import { isStaticAsset, shouldSkipCache } from "$lib/utils/serviceWorkerCache";
 
 declare const self: ServiceWorkerGlobalScope;
 
 const CACHE_NAME = `mus-cache-${version}`;
-const ASSETS_TO_CACHE = [...build, ...files, ...prerendered];
+const ASSETS_TO_CACHE = [...immutable, ...assets, ...prerendered].map(
+  (asset) => new URL(asset.path, self.location.href).pathname,
+);
 
 self.addEventListener("install", (event) => {
   async function addAllToCache() {

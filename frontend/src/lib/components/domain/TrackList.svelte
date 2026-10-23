@@ -6,7 +6,7 @@
   import TrackMetadataModal from "./TrackMetadataModal.svelte";
   import { trackStore } from "$lib/stores/trackStore";
   import { createWindowVirtualizer } from "@tanstack/svelte-virtual";
-  import { browser } from "$app/environment";
+  import { browser } from "$app/env";
   import { updateEffectStats } from "$lib/utils/monitoredEffect";
   import { parseArtists } from "$lib/utils/formatters";
   import { get } from "svelte/store";

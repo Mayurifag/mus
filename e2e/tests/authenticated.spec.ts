@@ -142,5 +142,65 @@ test.describe("Authenticated User Flows", () => {
     await expect(page.locator("audio")).toHaveJSProperty("paused", false);
     await expect(midnightEchoesTrack).toHaveClass(/bg-secondary/);
     await expect(lunaTrack).not.toHaveClass(/bg-secondary/);
+
+    // Preview a real edit, then save it and verify both playback and file metadata.
+    const beforeCutDuration =
+      (await parseFile(sourceFile)).format.duration ?? 0;
+    const beforeCutBytes = await fs.readFile(sourceFile);
+    await midnightEchoesTrack
+      .locator('button[aria-label="Edit track"]')
+      .click();
+    await page.getByRole("button", { name: "Select section" }).click();
+    const cutStart = page.getByLabel("Remove from");
+    await expect(cutStart).toBeVisible();
+    await cutStart.fill("0:00.250");
+    await page.getByLabel("To", { exact: true }).fill("0:00.750");
+    const saveCut = page.getByRole("button", { name: "Save & cut" });
+    await expect(saveCut).toBeDisabled();
+
+    await page.getByRole("button", { name: "Preview join" }).click();
+    const preview = page.getByLabel("Cut join preview");
+    await expect(preview).toBeVisible();
+    await expect(preview).toHaveJSProperty("readyState", 4);
+    expect(await fs.readFile(sourceFile)).toEqual(beforeCutBytes);
+    await expect(page.locator("audio").first()).toHaveJSProperty(
+      "paused",
+      true,
+    );
+
+    // The timeline handles are keyboard-operable, and editing invalidates confirmation.
+    await page
+      .getByRole("checkbox", { name: "Apply this cut when saving" })
+      .check();
+    await expect(saveCut).toBeEnabled();
+    const startHandle = page.getByRole("slider", {
+      name: "Cut start",
+      exact: true,
+    });
+    await startHandle.focus();
+    await startHandle.press("ArrowRight");
+    await expect(saveCut).toBeDisabled();
+    await expect(preview).not.toBeVisible();
+    await cutStart.fill("0:00.250");
+    await page
+      .getByRole("checkbox", { name: "Apply this cut when saving" })
+      .check();
+    await saveCut.click();
+    await expect(
+      page.getByRole("button", { name: "Select section" }),
+    ).not.toBeVisible();
+    await expect
+      .poll(async () => (await parseFile(sourceFile)).format.duration ?? 0)
+      .toBeCloseTo(beforeCutDuration - 0.5, 2);
+    await expect(midnightEchoesTrack).toBeVisible();
+    await expect(midnightEchoesTrack).not.toHaveAttribute(
+      "id",
+      `track-item-${trackId}`,
+    );
+    await midnightEchoesTrack.click();
+    await expect(page.locator("audio").first()).toHaveJSProperty(
+      "paused",
+      false,
+    );
   });
 });

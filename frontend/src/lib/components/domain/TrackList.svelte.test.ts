@@ -5,7 +5,7 @@ import type { Track } from "$lib/types";
 import "@testing-library/jest-dom/vitest";
 
 // Mock the browser environment
-vi.mock("$app/environment", () => ({
+vi.mock("$app/env", () => ({
   browser: false,
 }));
 

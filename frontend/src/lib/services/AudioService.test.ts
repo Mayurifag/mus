@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { AudioService } from "./AudioService";
 import type { Track } from "$lib/types";
 import { trackStore } from "$lib/stores/trackStore";
@@ -49,6 +49,7 @@ vi.mock("$lib/stores/trackStore", () => ({
 }));
 
 describe("AudioService", () => {
+  const originalTitle = document.title;
   let audioService: AudioService;
   let mockAudio: HTMLAudioElement;
 
@@ -66,6 +67,7 @@ describe("AudioService", () => {
   };
 
   beforeEach(() => {
+    document.title = "";
     mockHls.isSupported.mockReset();
     mockHls.isSupported.mockReturnValue(true);
     mockHls.instances.length = 0;
@@ -98,6 +100,11 @@ describe("AudioService", () => {
     // Reset mock calls
     vi.mocked(trackStore.nextTrack).mockClear();
     mocks.toast.info.mockClear();
+  });
+
+  afterEach(() => {
+    audioService.destroy();
+    document.title = originalTitle;
   });
 
   it("should set up event listeners on construction", () => {
@@ -335,48 +342,24 @@ describe("AudioService", () => {
   });
 
   it("should set document.title when updateAudioSource is called with new track", () => {
-    const mockDocument = {
-      title: "",
-    };
-    (globalThis as unknown as { document: typeof mockDocument }).document =
-      mockDocument;
-
     audioService.updateAudioSource(mockTrack, true);
 
-    expect(mockDocument.title).toBe("Test Artist - Test Track");
+    expect(document.title).toBe("Test Artist - Test Track");
   });
 
   it("should not set document.title for same track ID", () => {
-    const mockDocument = {
-      title: "Initial Title",
-    };
-    (globalThis as unknown as { document: typeof mockDocument }).document =
-      mockDocument;
+    document.title = "Initial Title";
 
     audioService.updateAudioSource(mockTrack, true);
-    expect(mockDocument.title).toBe("Test Artist - Test Track");
+    expect(document.title).toBe("Test Artist - Test Track");
 
-    mockDocument.title = "Changed Title";
+    document.title = "Changed Title";
     audioService.updateAudioSource(mockTrack, false);
 
-    expect(mockDocument.title).toBe("Changed Title");
-  });
-
-  it("should handle updateAudioSource when document is undefined", () => {
-    (globalThis as unknown as { document: undefined }).document = undefined;
-
-    expect(() => {
-      audioService.updateAudioSource(mockTrack, true);
-    }).not.toThrow();
+    expect(document.title).toBe("Changed Title");
   });
 
   it("should format artists correctly in document.title with semicolon-separated artists", () => {
-    const mockDocument = {
-      title: "",
-    };
-    (globalThis as unknown as { document: typeof mockDocument }).document =
-      mockDocument;
-
     const trackWithMultipleArtists: Track = {
       ...mockTrack,
       artist: "Artist One;Artist Two;Artist Three",
@@ -384,7 +367,7 @@ describe("AudioService", () => {
 
     audioService.updateAudioSource(trackWithMultipleArtists, true);
 
-    expect(mockDocument.title).toBe(
+    expect(document.title).toBe(
       "Artist One, Artist Two, Artist Three - Test Track",
     );
   });

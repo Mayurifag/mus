@@ -2,6 +2,10 @@
 front-install:
 	@$(COMPOSE) run --no-TTY --rm frontend npm install --no-fund
 
+.PHONY: front-reinstall
+front-reinstall:
+	@$(COMPOSE) run --no-TTY --rm frontend sh -c 'find /app/node_modules -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + && npm install --no-fund'
+
 .PHONY: front-npm-install
 front-npm-install:
 	@$(COMPOSE) run --no-TTY --rm frontend npm install --no-fund $(ARGS)
@@ -17,6 +21,14 @@ front-npm-uninstall:
 .PHONY: front-npm-update
 front-npm-update:
 	@$(COMPOSE) run --no-TTY --rm frontend npm update
+
+.PHONY: front-npm-outdated
+front-npm-outdated:
+	@$(COMPOSE) run --no-TTY --rm frontend npm outdated
+
+.PHONY: front-audit
+front-audit:
+	@$(COMPOSE) run --no-TTY --rm frontend npm audit
 
 .PHONY: front-build
 front-build:

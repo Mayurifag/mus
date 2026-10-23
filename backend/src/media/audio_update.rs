@@ -10,7 +10,10 @@ use filetime::{set_file_mtime, FileTime};
 use id3::{frame::Picture, frame::PictureType, Tag, TagLike, Version};
 use tokio::process::Command;
 
+use crate::models::AudioCut;
 use crate::util::{normalize_artists, normalize_text, now_nanos, run_command_status};
+
+use super::cut::{cut_filter, read_cut_source, validate_cut};
 
 pub struct AudioUpdate<'a> {
     pub title: Option<&'a str>,
@@ -19,6 +22,7 @@ pub struct AudioUpdate<'a> {
     pub target_path: Option<&'a Path>,
     pub standardize_tags: bool,
     pub update_mtime: bool,
+    pub remove_section: Option<AudioCut>,
 }
 
 pub struct AudioUpdateResult {
@@ -41,6 +45,7 @@ pub async fn apply_audio_update(
         target_path: update.target_path,
         standardize_tags: update.standardize_tags,
         update_mtime: update.update_mtime,
+        remove_section: update.remove_section,
     };
     let destination = update.target_path.unwrap_or(path);
     let path_changed = destination != path;
@@ -48,6 +53,7 @@ pub async fn apply_audio_update(
     let media_changed = update.title.is_some()
         || update.artist.is_some()
         || update.cover_jpeg_path.is_some()
+        || update.remove_section.is_some()
         || standardize_id3;
 
     if !path_changed && !media_changed {
@@ -60,13 +66,18 @@ pub async fn apply_audio_update(
 
     let modified = update.update_mtime.then(FileTime::now);
     if media_changed {
-        let tmp = if supports_id3(path) {
+        let tmp = if update.remove_section.is_some() {
+            cut_audio_to_temp(path, cache_dir, &update).await?
+        } else if supports_id3(path) {
             rewrite_id3_to_temp(path, cache_dir, &update, standardize_id3)?
         } else {
             rewrite_audio_to_temp(path, cache_dir, &update).await?
         };
         if let Some(modified) = modified {
-            set_file_mtime(&tmp, modified)?;
+            if let Err(error) = set_file_mtime(&tmp, modified) {
+                let _ = fs::remove_file(&tmp);
+                return Err(error.into());
+            }
         }
         if let Err(error) = publish_updated_file(&tmp, path, destination, modified) {
             let _ = fs::remove_file(tmp);
@@ -94,6 +105,7 @@ pub async fn standardize_audio_tags(path: &Path, cache_dir: &Path) -> Result<()>
             target_path: None,
             standardize_tags: true,
             update_mtime: true,
+            remove_section: None,
         },
     )
     .await?;
@@ -116,6 +128,7 @@ pub async fn write_audio_tags(
             target_path: None,
             standardize_tags: false,
             update_mtime: true,
+            remove_section: None,
         },
     )
     .await?;
@@ -133,6 +146,7 @@ pub async fn write_audio_cover(path: &Path, cache_dir: &Path, jpeg_path: &Path) 
             target_path: None,
             standardize_tags: false,
             update_mtime: true,
+            remove_section: None,
         },
     )
     .await?;
@@ -191,6 +205,140 @@ fn rewrite_id3_to_temp(
         }
         Ok(())
     }) {
+        let _ = fs::remove_file(&tmp);
+        return Err(error);
+    }
+    Ok(tmp)
+}
+
+async fn cut_audio_to_temp(
+    path: &Path,
+    cache_dir: &Path,
+    update: &AudioUpdate<'_>,
+) -> Result<PathBuf> {
+    let cut = update.remove_section.unwrap();
+    let source = read_cut_source(path).await?;
+    validate_cut(cut, source.duration)?;
+    let ext = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let mut command = Command::new("ffmpeg");
+    command
+        .args(["-v", "error", "-nostdin", "-y", "-i"])
+        .arg(path);
+    let id3 = supports_id3(path);
+    if !id3 {
+        if let Some(cover) = update.cover_jpeg_path {
+            command.arg("-i").arg(cover);
+        }
+    }
+    command.args([
+        "-filter_complex",
+        &cut_filter(cut, source.duration, false),
+        "-map",
+        "[out]",
+    ]);
+    if ext != "wav" {
+        command.args([
+            "-map",
+            if !id3 && update.cover_jpeg_path.is_some() {
+                "1:v:0"
+            } else {
+                "0:v?"
+            },
+            "-c:v",
+            "copy",
+            "-disposition:v",
+            "attached_pic",
+        ]);
+    }
+    command.args([
+        "-map_metadata",
+        "0",
+        "-map_metadata:s:a:0",
+        "0:s:a:0",
+        "-map_chapters",
+        "-1",
+    ]);
+    match ext.as_str() {
+        "mp3" => {
+            command.args(["-c:a", "libmp3lame", "-q:a", "2", "-id3v2_version", "3"]);
+        }
+        "flac" => {
+            command.args(["-c:a", "flac"]);
+        }
+        "wav" => {
+            command.args([
+                "-c:a",
+                if source.codec.starts_with("pcm_") {
+                    &source.codec
+                } else {
+                    "pcm_s24le"
+                },
+            ]);
+        }
+        "m4a" => {
+            if source.codec == "alac" {
+                command.args(["-c:a", "alac"]);
+            } else {
+                command.args(["-c:a", "aac", "-b:a", "256k"]);
+            }
+        }
+        "ogg" => {
+            command.args(["-c:a", "libvorbis", "-q:a", "6"]);
+        }
+        _ => return Err(anyhow!("Cutting this audio format is not supported")),
+    }
+    if let Some(title) = update.title {
+        command.arg("-metadata").arg(format!("title={title}"));
+        command.arg("-metadata:s:a:0").arg(format!("title={title}"));
+    }
+    if let Some(artist) = update.artist {
+        command.arg("-metadata").arg(format!("artist={artist}"));
+        command
+            .arg("-metadata:s:a:0")
+            .arg(format!("artist={artist}"));
+    }
+    let tmp = allocate_path(cache_dir, "cut", path)?;
+    command
+        .arg(&tmp)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    let result = async {
+        let status = run_command_status(command, Duration::from_secs(300)).await?;
+        if !status.success() || fs::metadata(&tmp)?.len() == 0 {
+            return Err(anyhow!("ffmpeg failed to cut audio"));
+        }
+        if id3 {
+            let mut tag = Tag::read_from_path(path).unwrap_or_else(|_| Tag::new());
+            // Chapter timestamps no longer describe the shortened audio.
+            tag.remove("CHAP");
+            tag.remove("CTOC");
+            if let Some(title) = update.title {
+                tag.set_title(title);
+            }
+            if let Some(artist) = update.artist {
+                tag.set_artist(artist);
+            }
+            if let Some(cover) = update.cover_jpeg_path {
+                tag.remove_all_pictures();
+                tag.add_frame(Picture {
+                    mime_type: "image/jpeg".into(),
+                    picture_type: PictureType::CoverFront,
+                    description: String::new(),
+                    data: fs::read(cover)?,
+                });
+            }
+            tag.write_to_path(&tmp, Version::Id3v23)?;
+        }
+        // Do not publish an unreadable or empty output over the original.
+        read_cut_source(&tmp).await?;
+        Ok(())
+    }
+    .await;
+    if let Err(error) = result {
         let _ = fs::remove_file(&tmp);
         return Err(error);
     }

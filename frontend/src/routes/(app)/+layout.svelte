@@ -25,7 +25,7 @@
   } from "$lib/services/playerStateService";
   import { updateEffectStats } from "$lib/utils/monitoredEffect";
   import * as Sheet from "$lib/components/ui/sheet";
-  import { browser } from "$app/environment";
+  import { browser } from "$app/env";
   import { Toaster } from "$lib/components/ui/sonner";
   import type { PlayerState, Track } from "$lib/types";
 

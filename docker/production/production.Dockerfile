@@ -6,7 +6,7 @@ COPY frontend/package*.json ./
 ENV VITE_INTERNAL_API_HOST=""
 ENV VITE_PUBLIC_API_HOST=""
 RUN --mount=type=cache,target=/root/.npm \
-    npm install -g npm@11.14.1 \
+    npm install -g npm@12.2.1 \
     && npm ci --no-fund --prefer-offline
 COPY frontend/ ./
 RUN npm run build

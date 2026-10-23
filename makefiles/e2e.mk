@@ -26,6 +26,18 @@ e2e-dev-smoke:
 e2e-update-deps:
 	@cd e2e && npm update
 
+.PHONY: e2e-install
+e2e-install:
+	@cd e2e && npm install --no-fund
+
+.PHONY: e2e-outdated
+e2e-outdated:
+	@cd e2e && npm outdated
+
+.PHONY: e2e-audit
+e2e-audit:
+	@cd e2e && npm audit
+
 .PHONY: e2e-report
 e2e-report:
 	if command -v xdg-open >/dev/null 2>&1; then \

@@ -2,13 +2,11 @@
 
 ## Description
 
-I made this project because I do not like any other projects to have visually
-simple yet very powerful selfhosted solution to listen, manage and download
-music.
+I made this project because I do not like any other projects to have visually simple yet very powerful selfhosted
+solution to listen, manage and download music.
 
-I already use it daily yet I don't think its ready to use. There will be no
-instructions and demonstrations here yet, until I will be sure it is ready to be
-in alpha stage.
+I already use it daily yet I don't think its ready to use. There will be no instructions and demonstrations here yet,
+until I will be sure it is ready to be in alpha stage.
 
 ![Web version screenshot](./.github/screenshot.webp)
 
@@ -19,41 +17,38 @@ in alpha stage.
 - Minimal setup hussle - single docker container, little configuration
 - Easy new music upload flow
 - Auto-rename files to have single format
-- Upload/edit/download flows write artist/title tags; MP3/WAV/AIFF use Rust ID3
-  and other supported media use ffmpeg when tags must be rewritten
-- File edits combine tag, artwork, rename, and mtime updates before publishing the
-  final file, so library order stays tied to first discovery
+- Upload/edit/download flows write artist/title tags; MP3/WAV/AIFF use Rust ID3 and other supported media use ffmpeg
+  when tags must be rewritten
+- File edits combine tag, artwork, rename, and mtime updates before publishing the final file, so library order stays
+  tied to first discovery
 - Useful editor of artists/title metadata
-- Download new files using yt-dlp with SponsorBlock segment removal. Custom vk.ru
-  support incoming
+- Remove unwanted audio sections from Edit track with a draggable timeline, precise timestamps, and an audible preview
+  of the actual join before saving. Cuts modify the original file after confirmation; lossy formats are re-encoded.
+- Download new files using yt-dlp with SponsorBlock segment removal. Custom vk.ru support incoming
 - Mobile support via responsive web UI. No plans for natives yet
 - No dumb features like "Repeat all playlist" (repeat only current track)
-- Intelligently disable features requiring write support if mounted folder is
-  read-only
-- Various little things to make experience smooth (virtual list of music files,
-  automatic webp cover preview generation on upload and much more)
-- Fast, minimal server resource usage - project was already rewritten from
-  Python and SSR Node.js usage to simple frontend and Rust to reduce memory
-  usage.
+- Intelligently disable features requiring write support if mounted folder is read-only
+- Various little things to make experience smooth (virtual list of music files, automatic webp cover preview generation
+  on upload and much more)
+- Fast, minimal server resource usage - project was already rewritten from Python and SSR Node.js usage to simple
+  frontend and Rust to reduce memory usage.
 
 ## Technical details
 
-This is dockerized single container (yes!) which contains a static Svelte
-frontend served by the Rust backend, sqlite, official yt-dlp nightly zipapp and ffmpeg.
-Only the music directory and `/app_data/.cache` app-state directory are meant to
-be mounted. SQLite, generated covers, HLS, and rewrite staging files live under
-`/app_data/.cache`.
+This is dockerized single container (yes!) which contains a static Svelte frontend served by the Rust backend, sqlite,
+official yt-dlp nightly zipapp and ffmpeg. Only the music directory and `/app_data/.cache` app-state directory are meant
+to be mounted. SQLite, generated covers, HLS, and rewrite staging files live under `/app_data/.cache`.
 
-In e2e folder I made setup to run playwright tests against production docker
-image, so it is not bound to Rust/Svelte source files.
+In e2e folder I made setup to run playwright tests against production docker image, so it is not bound to Rust/Svelte
+source files.
 
 ## Production
 
-Production deployments are expected to sit behind external authentication. Use
-`make prod-verify` before shipping image changes.
+Production deployments are expected to sit behind external authentication. Use `make prod-verify` before shipping image
+changes.
 
-Audio playback is served as HLS. Generated playlists and segments live under
-`/app_data/.cache/hls`, not the mounted music directory.
+Audio playback is served as HLS. Generated playlists and segments live under `/app_data/.cache/hls`, not the mounted
+music directory.
 
-Track IDs are full BLAKE3 content hashes, reused as the HLS cache key so cached
-audio survives database rebuilds when file bytes do not change.
+Track IDs are full BLAKE3 content hashes, reused as the HLS cache key so cached audio survives database rebuilds when
+file bytes do not change.

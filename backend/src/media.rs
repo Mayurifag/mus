@@ -12,6 +12,9 @@ use tokio::process::Command;
 use crate::util::{normalize_artists, normalize_text, run_command_output, run_command_status};
 
 mod audio_update;
+mod cut;
+
+pub use cut::{preview_cut, read_cut_source, validate_cut};
 
 pub use audio_update::{
     apply_audio_update, standardize_audio_tags, write_audio_cover, write_audio_tags, AudioUpdate,

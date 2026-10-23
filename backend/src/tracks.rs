@@ -24,8 +24,11 @@ use crate::{
     error::AppError,
     events::broadcast,
     hls::prewarm_track_hls,
-    media::{apply_audio_update, extract_cover, AudioUpdate},
-    models::{TrackDto, TrackUpdate},
+    media::{
+        apply_audio_update, extract_cover, preview_cut, read_cut_source, read_metadata,
+        validate_cut, AudioUpdate,
+    },
+    models::{AudioCut, TrackDto, TrackUpdate},
     scanner::upsert_path,
     state::AppState,
     util::{
@@ -104,6 +107,11 @@ pub async fn update_track(
         return Err(AppError::forbidden("Music directory is read-only"));
     }
     let track = get_track(&state, &id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
+    if let Some(cut) = update.remove_section {
+        let source = read_cut_source(Path::new(&track.file_path)).await?;
+        validate_cut(cut, source.duration)
+            .map_err(|error| AppError::bad_request(&error.to_string()))?;
+    }
     let new_title = normalize_text(&update.title.clone().unwrap_or_else(|| track.title.clone()));
     let new_artist = normalize_artists(
         &update
@@ -131,19 +139,24 @@ pub async fn update_track(
             return Err(AppError::conflict("A file with this name already exists"));
         }
     }
-    let new_tags = update
-        .tags
-        .clone()
-        .unwrap_or_else(|| inferred_tag_names(&new_title, &new_artist, &new_path));
     let old_tags = track
         .tags
         .iter()
         .map(|tag| tag.name.clone())
         .collect::<Vec<_>>();
+    let new_tags = update.tags.clone().unwrap_or_else(|| {
+        if update.remove_section.is_some() && new_title == track.title && new_artist == track.artist
+        {
+            old_tags.clone()
+        } else {
+            inferred_tag_names(&new_title, &new_artist, &new_path)
+        }
+    });
     if new_title == track.title
         && new_artist == track.artist
         && !rename_file
         && artwork_url.is_none()
+        && update.remove_section.is_none()
         && new_tags == old_tags
     {
         return Ok(Json(json!({"status": "no_changes"})));
@@ -159,7 +172,11 @@ pub async fn update_track(
                     "track_updated",
                     Some("Track updated"),
                     Some("success"),
-                    Some(json!(dto)),
+                    Some({
+                        let mut payload = json!(dto);
+                        payload["previous_id"] = json!(requested_id);
+                        payload
+                    }),
                 );
             }
             Err(error) => {
@@ -211,10 +228,6 @@ async fn apply_track_update(
             return Err(AppError::conflict("A file with this name already exists"));
         }
     }
-    let new_tags = update
-        .tags
-        .clone()
-        .unwrap_or_else(|| inferred_tag_names(&new_title, &new_artist, &new_path));
     let tags_changed = new_title != track.title || new_artist != track.artist;
 
     let old_tags = track
@@ -222,10 +235,18 @@ async fn apply_track_update(
         .iter()
         .map(|tag| tag.name.clone())
         .collect::<Vec<_>>();
+    let new_tags = update.tags.clone().unwrap_or_else(|| {
+        if update.remove_section.is_some() && !tags_changed {
+            old_tags.clone()
+        } else {
+            inferred_tag_names(&new_title, &new_artist, &new_path)
+        }
+    });
     let only_tags_changed = new_title == track.title
         && new_artist == track.artist
         && !rename_file
         && artwork_url.is_none()
+        && update.remove_section.is_none()
         && new_tags != old_tags;
     if only_tags_changed {
         db::set_track_tags(&state, &track.id, &new_tags)?;
@@ -234,7 +255,7 @@ async fn apply_track_update(
             .ok_or_else(|| AppError::not_found("Track not found"));
     }
 
-    if artwork_url.is_none() {
+    if artwork_url.is_none() && update.remove_section.is_none() {
         if rename_file && new_path != Path::new(&track.file_path) {
             let update_result = apply_audio_update(
                 Path::new(&track.file_path),
@@ -246,6 +267,7 @@ async fn apply_track_update(
                     target_path: Some(new_path.as_path()),
                     standardize_tags: false,
                     update_mtime: true,
+                    remove_section: None,
                 },
             )
             .await?;
@@ -294,6 +316,7 @@ async fn apply_track_update(
             target_path,
             standardize_tags: false,
             update_mtime: true,
+            remove_section: update.remove_section,
         },
     )
     .await;
@@ -306,6 +329,9 @@ async fn apply_track_update(
     track.file_path = new_path.to_string_lossy().to_string();
     track.title = new_title;
     track.artist = new_artist;
+    if update.remove_section.is_some() {
+        track.duration = read_metadata(&new_path).await?.duration;
+    }
     let file_meta = fs::metadata(&new_path)?;
     if update_result.changed {
         track.updated_at = file_meta
@@ -352,6 +378,10 @@ fn spawn_hls_prewarm(state: AppState, track: crate::models::Track) {
 fn spawn_audio_tag_sync(state: AppState, track: crate::models::Track) {
     tokio::spawn(async move {
         let track_id = track.id.clone();
+        let _guard = state.mutation_lock(format!("track:{track_id}")).await;
+        let Ok(Some(track)) = get_track(&state, &track_id) else {
+            return;
+        };
         let path = PathBuf::from(&track.file_path);
         let result = apply_audio_update(
             &path,
@@ -363,6 +393,7 @@ fn spawn_audio_tag_sync(state: AppState, track: crate::models::Track) {
                 target_path: None,
                 standardize_tags: false,
                 update_mtime: true,
+                remove_section: None,
             },
         )
         .await;
@@ -412,6 +443,45 @@ fn same_file_metadata(left: &fs::Metadata, right: &fs::Metadata) -> bool {
 #[cfg(not(unix))]
 fn same_file_metadata(left: &fs::Metadata, right: &fs::Metadata) -> bool {
     left.len() == right.len() && left.modified().ok() == right.modified().ok()
+}
+
+pub async fn get_cut_info(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+) -> Result<Json<Value>, AppError> {
+    let _guard = state.mutation_lock(format!("track:{id}")).await;
+    let track = get_track(&state, &id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
+    let source = read_cut_source(Path::new(&track.file_path)).await?;
+    Ok(Json(json!({"duration_seconds": source.duration})))
+}
+
+#[derive(Deserialize)]
+pub struct CutPreviewRequest {
+    remove_section: AudioCut,
+    #[serde(default)]
+    selection_only: bool,
+}
+
+pub async fn get_cut_preview(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+    Json(request): Json<CutPreviewRequest>,
+) -> Result<Response, AppError> {
+    let _guard = state.mutation_lock(format!("track:{id}")).await;
+    let track = get_track(&state, &id)?.ok_or_else(|| AppError::not_found("Track not found"))?;
+    let path = Path::new(&track.file_path);
+    let source = read_cut_source(path).await?;
+    validate_cut(request.remove_section, source.duration)
+        .map_err(|error| AppError::bad_request(&error.to_string()))?;
+    let audio = preview_cut(path, request.remove_section, request.selection_only).await?;
+    Ok((
+        [
+            (header::CONTENT_TYPE, "audio/wav"),
+            (header::CACHE_CONTROL, "no-store"),
+        ],
+        audio,
+    )
+        .into_response())
 }
 
 pub async fn delete_track(
@@ -564,6 +634,7 @@ pub async fn upload_track(
             target_path: Some(&path),
             standardize_tags: false,
             update_mtime: true,
+            remove_section: None,
         },
     )
     .await;

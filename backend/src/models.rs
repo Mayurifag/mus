@@ -66,6 +66,13 @@ pub struct TrackUpdate {
     pub rename_file: Option<bool>,
     pub artwork_url: Option<String>,
     pub tags: Option<Vec<String>>,
+    pub remove_section: Option<AudioCut>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub struct AudioCut {
+    pub start_seconds: f64,
+    pub end_seconds: f64,
 }
 
 #[derive(Deserialize)]

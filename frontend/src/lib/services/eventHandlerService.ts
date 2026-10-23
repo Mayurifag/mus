@@ -40,7 +40,12 @@ export function handleMusEvent(payload: MusEvent): void {
     case "track_updated":
       if (payload.action_payload) {
         const track = apiClient.createTrackWithUrls(payload.action_payload);
-        trackStore.updateTrack(track);
+        const previousId = payload.action_payload.previous_id;
+        if (typeof previousId === "string") {
+          trackStore.updateTrack(track, previousId);
+        } else {
+          trackStore.updateTrack(track);
+        }
       }
       void syncTracks();
       break;

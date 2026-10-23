@@ -537,6 +537,7 @@ async fn upsert_path_with_snapshot(
         path,
         &state.data_dir.join(".cache"),
         AudioUpdate {
+            remove_section: None,
             title: None,
             artist: None,
             cover_jpeg_path: None,
@@ -648,6 +649,7 @@ async fn normalize_existing_track(
         path,
         &state.data_dir.join(".cache"),
         AudioUpdate {
+            remove_section: None,
             title: (normalized_title != track.title).then_some(normalized_title.as_str()),
             artist: (normalized_artist != track.artist).then_some(normalized_artist.as_str()),
             cover_jpeg_path: None,

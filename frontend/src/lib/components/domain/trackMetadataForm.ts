@@ -1,4 +1,4 @@
-import type { Track } from "$lib/types";
+import type { AudioCut, Track } from "$lib/types";
 
 export type TrackMetadataMode = "edit" | "create";
 
@@ -12,6 +12,7 @@ export type TrackUpdatePayload = {
   artist?: string;
   rename_file?: boolean;
   artwork_url?: string;
+  remove_section?: AudioCut;
 };
 
 export function sanitizeMetadataInput(value: string): string {

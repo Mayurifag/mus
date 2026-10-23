@@ -11,7 +11,7 @@ const TRACKS_URL = `${API_BASE_URL}/tracks`;
 const PLAYER_STATE_URL = `${API_BASE_URL}/player/state`;
 
 // Mock the environment module
-vi.mock("$app/environment", () => ({
+vi.mock("$app/env", () => ({
   dev: true,
   browser: true,
 }));
