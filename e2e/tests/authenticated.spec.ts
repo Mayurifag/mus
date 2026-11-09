@@ -64,6 +64,42 @@ async function getFileStats(
 
 test.describe("Authenticated User Flows", () => {
   test("playback controls work correctly", async ({ page }) => {
+    let savedTrackId = "";
+    await expect
+      .poll(async () => {
+        const response = await page.request.get("/api/v1/tracks");
+        if (!response.ok()) return "";
+        const tracks = (await response.json()) as {
+          id: string;
+          artist: string;
+        }[];
+        savedTrackId =
+          tracks.find((track) => track.artist === "The Midnight Echoes")?.id ??
+          "";
+        return savedTrackId;
+      })
+      .toMatch(/^[0-9a-f]{64}$/);
+    const saved = await page.request.post("/api/v1/player/state", {
+      data: {
+        current_track_id: savedTrackId,
+        progress_seconds: 1,
+        volume_level: 1,
+        is_muted: false,
+        is_playing: true,
+        is_shuffle: false,
+        is_repeat: false,
+      },
+    });
+    expect(saved.ok()).toBe(true);
+    await page.addInitScript({
+      content: `
+        const play = HTMLMediaElement.prototype.play;
+        HTMLMediaElement.prototype.play = function () {
+          this.dataset.playCalls = String(Number(this.dataset.playCalls ?? 0) + 1);
+          return play.call(this);
+        };
+      `,
+    });
     await page.goto("/");
     await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute(
       "content",
@@ -80,7 +116,20 @@ test.describe("Authenticated User Flows", () => {
 
     await expect(midnightEchoesTrack).toBeVisible({ timeout: 5000 });
     await expect(lunaTrack).toBeVisible();
+    await expect(page.locator(".fixed.bottom-0")).toContainText(
+      "The Midnight Echoes - Digital Dreams",
+    );
+    await expect(midnightEchoesTrack).toHaveClass(/bg-secondary/);
     await expect(page.locator("audio")).toHaveJSProperty("paused", true);
+    await expect(page.locator("audio")).not.toHaveAttribute(
+      "data-play-calls",
+      /.+/,
+    );
+    await expect(
+      midnightEchoesTrack
+        .getByTestId("track-progress-slider")
+        .getByRole("slider"),
+    ).toHaveAttribute("aria-valuenow", "1");
 
     await lunaTrack.click();
 
@@ -226,5 +275,34 @@ test.describe("Authenticated User Flows", () => {
       "paused",
       false,
     );
+
+    await midnightEchoesTrack
+      .locator('button[aria-label="Edit track"]')
+      .click();
+    await page.getByRole("checkbox", { name: "Cover", exact: true }).check();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    const categories = async () => {
+      const response = await page.request.get("/api/v1/tracks");
+      const tracks = (await response.json()) as {
+        artist: string;
+        tags: { name: string }[];
+      }[];
+      return (
+        tracks
+          .find((track) => track.artist === "The Midnight Echoes")
+          ?.tags.map((tag) => tag.name) ?? []
+      );
+    };
+    await expect.poll(categories).toEqual(["cover"]);
+    await page.reload();
+    await expect(midnightEchoesTrack).toBeVisible();
+    await midnightEchoesTrack
+      .locator('button[aria-label="Edit track"]')
+      .click();
+    const cover = page.getByRole("checkbox", { name: "Cover", exact: true });
+    await expect(cover).toBeChecked();
+    await cover.uncheck();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect.poll(categories).toEqual([]);
   });
 });

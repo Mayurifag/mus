@@ -10,6 +10,7 @@
   import FilenameDisplay from "./FilenameDisplay.svelte";
   import {
     displayedFilename,
+    artistSuggestions,
     type ArtistRow,
     type TrackMetadataMode,
   } from "./trackMetadataForm";
@@ -19,11 +20,12 @@
     track,
     file,
     metadata,
+    sourceDuration,
+    artistCounts = {},
+    titleSuggestions = [],
     title = $bindable(),
     renameFile = $bindable(),
     artists = $bindable(),
-    sanitizedTitle,
-    sanitizedArtists,
     generatedFilename,
     isFilenameTooLong,
     isFormValid,
@@ -38,11 +40,12 @@
     track?: Track;
     file?: File;
     metadata?: AudioMetadata;
+    sourceDuration?: number | null;
+    artistCounts?: Record<string, number>;
+    titleSuggestions?: string[];
     title: string;
     renameFile: boolean;
     artists: ArtistRow[];
-    sanitizedTitle: string;
-    sanitizedArtists: ArtistRow[];
     generatedFilename: string;
     isFilenameTooLong: boolean;
     isFormValid: boolean;
@@ -59,7 +62,12 @@
   );
   const duration = $derived(
     mode === "create"
-      ? (metadata?.duration as number | undefined)
+      ? ((metadata?.duration as number | undefined) ??
+          (sourceDuration &&
+          Number.isFinite(sourceDuration) &&
+          sourceDuration > 0
+            ? sourceDuration
+            : undefined))
       : track?.duration,
   );
 </script>
@@ -101,10 +109,26 @@
           id="title"
           bind:value={title}
           placeholder="Enter track title"
-          class={!isFormValid && sanitizedTitle.trim() === ""
+          class={!isFormValid && title.trim() === ""
             ? "border-destructive"
             : ""}
         />
+        {#if titleSuggestions.length > 0}
+          <div
+            class="text-muted-foreground flex flex-wrap items-center gap-1 text-xs"
+            role="group"
+            aria-label="Possible existing title spellings"
+          >
+            <span>Possible existing title (check recording):</span>
+            {#each titleSuggestions as suggestion (suggestion)}
+              <button
+                type="button"
+                class="hover:text-foreground rounded border px-2 py-1"
+                onclick={() => (title = suggestion)}>{suggestion}</button
+              >
+            {/each}
+          </div>
+        {/if}
       </div>
 
       <div class="space-y-3">
@@ -116,6 +140,7 @@
           <Button
             variant="outline"
             size="sm"
+            aria-label="Add artist"
             onclick={onAddArtist}
             class="h-8 w-8 p-0"
           >
@@ -125,27 +150,48 @@
 
         <div class="space-y-2">
           {#each artists as artist, index (artist.id)}
-            <div class="flex gap-2">
-              <Input
-                bind:value={artist.value}
-                placeholder={index === 0
-                  ? "Primary artist (required)"
-                  : "Additional artist"}
-                class={!isFormValid &&
-                index === 0 &&
-                sanitizedArtists[index]?.value.trim() === ""
-                  ? "border-destructive"
-                  : ""}
-              />
-              {#if artists.length > 1}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onclick={() => onRemoveArtist(artist.id)}
-                  class="h-10 w-10 flex-shrink-0 p-0"
+            {@const suggestions = artistSuggestions(artist.value, artistCounts)}
+            <div class="space-y-1">
+              <div class="flex gap-2">
+                <Input
+                  bind:value={artist.value}
+                  placeholder={index === 0
+                    ? "Primary artist (required)"
+                    : "Additional artist"}
+                  class={!isFormValid &&
+                  index === 0 &&
+                  artist.value.trim() === ""
+                    ? "border-destructive"
+                    : ""}
+                />
+                {#if artists.length > 1}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-label="Remove artist {index + 1}"
+                    onclick={() => onRemoveArtist(artist.id)}
+                    class="h-10 w-10 flex-shrink-0 p-0"
+                  >
+                    <X class="h-4 w-4" />
+                  </Button>
+                {/if}
+              </div>
+              {#if suggestions.length > 0}
+                <div
+                  class="text-muted-foreground flex flex-wrap items-center gap-1 text-xs"
+                  role="group"
+                  aria-label="Artist suggestions for row {index + 1}"
                 >
-                  <X class="h-4 w-4" />
-                </Button>
+                  <span>Existing artists:</span>
+                  {#each suggestions as suggestion (suggestion)}
+                    <button
+                      type="button"
+                      class="hover:text-foreground rounded border px-2 py-1"
+                      onclick={() => (artist.value = suggestion)}
+                      >{suggestion} ({artistCounts[suggestion]})</button
+                    >
+                  {/each}
+                </div>
               {/if}
             </div>
           {/each}

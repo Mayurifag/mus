@@ -1,7 +1,5 @@
 use std::{
-    fs,
-    future::Future,
-    io,
+    fs, io,
     path::Path,
     path::PathBuf,
     process::Stdio,
@@ -18,6 +16,7 @@ mod diagnostics;
 mod info;
 #[cfg(test)]
 mod latency_tests;
+mod parser;
 mod publish;
 #[cfg(test)]
 mod tests;
@@ -30,13 +29,11 @@ use crate::{
     db,
     error::AppError,
     events::broadcast,
-    metadata::{parse_track_metadata, TrackMetadata},
     models::{ConfirmDownloadRequest, MetadataResponse, UrlRequest},
     scanner::upsert_path,
     state::AppState,
     util::{
-        audio_paths, can_write, clean_title, extract_artist_title, generate_filename,
-        inferred_tag_names, normalize_artists, normalize_text, now_nanos,
+        audio_paths, can_write, generate_filename, normalize_artists, normalize_text, now_nanos,
     },
 };
 
@@ -53,8 +50,7 @@ pub async fn fetch_metadata(
     async {
         let started = Instant::now();
         let data = source_metadata(&req.url).await?;
-        let response =
-            metadata_response(&data, parse_track_metadata(&data.title, &data.channel)).await;
+        let response = metadata_response(&data, &db::artist_values(&state)?);
         tracing::info!(
             elapsed_ms = started.elapsed().as_millis() as u64,
             "download name form ready"
@@ -65,55 +61,32 @@ pub async fn fetch_metadata(
     .await
 }
 
-async fn metadata_response(
-    data: &SourceMetadata,
-    ai: impl Future<Output = Option<TrackMetadata>>,
-) -> MetadataResponse {
-    let started = Instant::now();
-    let parsed = tokio::time::timeout(Duration::from_secs(2), ai).await;
-    tracing::info!(
-        elapsed_ms = started.elapsed().as_millis() as u64,
-        timed_out = parsed.is_err(),
-        "download name enrichment finished"
+fn metadata_response(data: &SourceMetadata, library_artists: &[String]) -> MetadataResponse {
+    let parsed = parser::with_library_artists(
+        parser::parse(&data.title, &data.channel, data.artist.as_deref()),
+        library_artists,
     );
-    let (artist, title, mut tag_names) = match parsed.ok().flatten() {
-        Some(metadata) => (metadata.artist, metadata.title, metadata.tags),
-        None => data
-            .artist
-            .as_deref()
-            .map(|artist| (artist.to_string(), clean_title(&data.title), Vec::new()))
-            .unwrap_or_else(|| {
-                let (artist, title) = extract_artist_title(&data.title, &data.channel);
-                (artist, title, Vec::new())
-            }),
-    };
-    let title = normalize_text(&title);
-    let artist = normalize_artists(&artist);
-    for tag_name in inferred_tag_names(&title, &artist, Path::new(&data.title)) {
-        if !tag_names.contains(&tag_name) {
-            tag_names.push(tag_name);
-        }
-    }
     MetadataResponse {
-        title,
-        artist,
-        thumbnail_url: data.thumbnail_url.clone(),
-        duration: data.duration,
-        tags: tag_names
+        tags: parsed
+            .tags
             .into_iter()
             .map(|name| crate::models::Tag {
-                display_name: match name.as_str() {
+                display_name: match name {
                     "right-version" => "Right version",
                     "ai-cover" => "AI cover",
                     "cover" => "Cover",
                     "ost" => "OST",
                     "mashup" => "Mashup",
-                    _ => name.as_str(),
+                    _ => name,
                 }
                 .into(),
-                name,
+                name: name.into(),
             })
             .collect(),
+        title: parsed.title,
+        artist: parsed.artist,
+        thumbnail_url: data.thumbnail_url.clone(),
+        duration: data.duration,
     }
 }
 
@@ -121,7 +94,7 @@ pub async fn start_download(
     State(state): State<AppState>,
     Json(req): Json<UrlRequest>,
 ) -> Result<(StatusCode, Json<Value>), AppError> {
-    spawn_download(state, req.url, None, None, None, Vec::new()).await?;
+    spawn_download(state, req.url, None, None, None, None).await?;
     Ok((StatusCode::ACCEPTED, Json(json!({"status": "accepted"}))))
 }
 
@@ -141,7 +114,7 @@ pub async fn confirm_download(
         Some(title),
         Some(artist),
         req.artwork_url.filter(|url| !url.trim().is_empty()),
-        req.tags.unwrap_or_default(),
+        req.tags,
     )
     .await?;
     Ok((StatusCode::ACCEPTED, Json(json!({"status": "accepted"}))))
@@ -153,7 +126,7 @@ async fn spawn_download(
     title: Option<String>,
     artist: Option<String>,
     artwork_url: Option<String>,
-    tags: Vec<String>,
+    tags: Option<Vec<String>>,
 ) -> Result<(), AppError> {
     if !can_write(&state.music_dir) {
         return Err(AppError::forbidden(
@@ -232,7 +205,7 @@ async fn run_download(
     title: Option<String>,
     artist: Option<String>,
     artwork_url: Option<String>,
-    tags: Vec<String>,
+    tags: Option<Vec<String>>,
 ) -> Result<PathBuf> {
     let cache_dir = state.data_dir.join(".cache");
     fs::create_dir_all(&cache_dir)?;
@@ -249,7 +222,7 @@ async fn run_download_inner(
     title: Option<String>,
     artist: Option<String>,
     artwork_url: Option<String>,
-    tags: Vec<String>,
+    tags: Option<Vec<String>>,
     tmp: &std::path::Path,
 ) -> Result<PathBuf> {
     let title = title.map(|title| normalize_text(&title));
@@ -296,7 +269,7 @@ async fn run_download_inner(
             .unwrap_or("download.mp3")
             .to_string(),
     };
-    let final_path = state.music_dir.join(final_name);
+    let mut final_path = state.music_dir.join(final_name);
     let started = Instant::now();
     publish::publish_download(
         &downloaded,
@@ -311,15 +284,45 @@ async fn run_download_inner(
         elapsed_ms = started.elapsed().as_millis() as u64,
         "download tags and publication finished"
     );
+    let published_metadata = fs::metadata(&final_path)?;
     let started = Instant::now();
     let track = upsert_path(state, &final_path, title, artist).await?;
-    db::add_track_tags(state, &track.id, &tags)?;
+    let registered = db::get_track(state, &track.id)?
+        .ok_or_else(|| anyhow!("downloaded track disappeared during registration"))?;
+    let registered_path = PathBuf::from(&registered.file_path);
+    let same_path = registered_path == final_path || (cfg!(unix) && !final_path.exists());
+    if same_path && same_file(&published_metadata, &fs::metadata(&registered_path)?) {
+        if let Some(tags) = tags {
+            anyhow::ensure!(
+                db::set_download_tags(state, &track.id, &registered_path, &tags)?,
+                "downloaded track moved before categories could be saved"
+            );
+        }
+        final_path = registered_path;
+    } else {
+        tracing::info!(
+            track_id = track.id,
+            "download shares an existing track; its tags were not changed"
+        );
+    }
     tracing::info!(
         track_id = track.id,
         elapsed_ms = started.elapsed().as_millis() as u64,
         "download library registration and HLS prewarm finished"
     );
     Ok(final_path)
+}
+
+#[cfg(unix)]
+fn same_file(left: &fs::Metadata, right: &fs::Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    left.dev() == right.dev() && left.ino() == right.ino()
+}
+
+#[cfg(not(unix))]
+fn same_file(_: &fs::Metadata, _: &fs::Metadata) -> bool {
+    // Without a stable file identity, accept only the unchanged publication path above.
+    true
 }
 
 fn download_command(url: &str, tmp: &Path, embed_thumbnail: bool) -> Command {

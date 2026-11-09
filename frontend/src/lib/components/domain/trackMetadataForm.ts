@@ -1,4 +1,5 @@
 import type { AudioCut, Track } from "$lib/types";
+import { parseArtists } from "$lib/utils/formatters";
 
 export type TrackMetadataMode = "edit" | "create";
 
@@ -12,8 +13,96 @@ export type TrackUpdatePayload = {
   artist?: string;
   rename_file?: boolean;
   artwork_url?: string;
+  tags?: string[];
   remove_section?: AudioCut;
 };
+
+function oneEditApart(left: string, right: string): boolean {
+  const a = Array.from(left);
+  const b = Array.from(right);
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  let j = 0;
+  let edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      i++;
+      j++;
+      continue;
+    }
+    if (++edits > 1) return false;
+    if (a.length >= b.length) i++;
+    if (a.length <= b.length) j++;
+  }
+  return edits + Number(i < a.length || j < b.length) <= 1;
+}
+
+export function artistSuggestions(
+  value: string,
+  counts: Record<string, number>,
+): string[] {
+  const key = (name: string) => name.normalize("NFC").trim().toLowerCase();
+  const compact = (name: string) => key(name).replace(/[^\p{L}\p{N}]/gu, "");
+  const query = key(value);
+  const compactQuery = compact(value);
+  if (!query || Array.from(query).length > 80) return [];
+  return Object.keys(counts)
+    .filter((name) => name !== value && Array.from(name).length <= 80)
+    .map((name) => {
+      const candidate = key(name);
+      const compactCandidate = compact(name);
+      const rank =
+        candidate === query
+          ? 0
+          : compactQuery && compactCandidate === compactQuery
+            ? 1
+            : candidate.includes(query) || query.includes(candidate)
+              ? 2
+              : query.length >= 4 && oneEditApart(query, candidate)
+                ? 3
+                : 4;
+      return { name, rank };
+    })
+    .filter(({ rank }) => rank < 4)
+    .sort(
+      (a, b) =>
+        a.rank - b.rank ||
+        counts[b.name] - counts[a.name] ||
+        a.name.localeCompare(b.name),
+    )
+    .slice(0, 5)
+    .map(({ name }) => name);
+}
+
+export function existingTitleSuggestions(
+  title: string,
+  artists: ArtistRow[],
+  duration: number | null | undefined,
+  tracks: Track[],
+): string[] {
+  if (!duration || duration <= 0 || !Number.isFinite(duration)) return [];
+  const key = (value: string) => value.normalize("NFC").trim().toLowerCase();
+  const expectedArtists = artists
+    .map((artist) => key(artist.value))
+    .filter(Boolean)
+    .sort();
+  if (!key(title) || expectedArtists.length === 0) return [];
+  return [
+    ...new Set(
+      tracks
+        .filter(
+          (track) =>
+            track.title !== title &&
+            key(track.title) === key(title) &&
+            track.duration > 0 &&
+            Math.abs(track.duration - duration) <= 3 &&
+            JSON.stringify(parseArtists(track.artist).map(key).sort()) ===
+              JSON.stringify(expectedArtists),
+        )
+        .map((track) => track.title),
+    ),
+  ];
+}
 
 export function sanitizeMetadataInput(value: string): string {
   return value.replace(/[<>:"/\\|?*]/g, "");

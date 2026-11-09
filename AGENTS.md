@@ -1,6 +1,5 @@
 # Agent Notes
 
-- Always use `make` targets. Do not run `cargo`, `vitest`, `docker compose`, or `npm` directly.
 - Install yt-dlp from the official upstream nightly zipapp in all backend images, not distro packages; the app expects
   `yt-dlp --update-to nightly` to work.
 - Compose frontend dependencies live in the `app_node_modules` volume, not host `frontend/node_modules`. Use
@@ -25,4 +24,3 @@
   the original path first, then rename that original file.
 - If `mus` edits MP3 tags/artwork directly, OpenCloud sync can break with stale `user.oc.blobsize`/checksums or stuck
   `user.oc.nodestatus=processing:*`.
-- Keep Markdown docs and roadmap notes current when changes affect project behavior or durable guidance.

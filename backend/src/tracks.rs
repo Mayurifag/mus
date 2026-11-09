@@ -144,8 +144,12 @@ pub async fn update_track(
         .iter()
         .map(|tag| tag.name.clone())
         .collect::<Vec<_>>();
+    let keep_selected_tags = db::track_tags_finalized(&state, &track.id)?;
     let new_tags = update.tags.clone().unwrap_or_else(|| {
-        if update.remove_section.is_some() && new_title == track.title && new_artist == track.artist
+        if keep_selected_tags
+            || (update.remove_section.is_some()
+                && new_title == track.title
+                && new_artist == track.artist)
         {
             old_tags.clone()
         } else {
@@ -158,6 +162,7 @@ pub async fn update_track(
         && artwork_url.is_none()
         && update.remove_section.is_none()
         && new_tags == old_tags
+        && (update.tags.is_none() || keep_selected_tags)
     {
         return Ok(Json(json!({"status": "no_changes"})));
     }
@@ -235,8 +240,9 @@ async fn apply_track_update(
         .iter()
         .map(|tag| tag.name.clone())
         .collect::<Vec<_>>();
+    let keep_selected_tags = db::track_tags_finalized(&state, &track.id)?;
     let new_tags = update.tags.clone().unwrap_or_else(|| {
-        if update.remove_section.is_some() && !tags_changed {
+        if keep_selected_tags || (update.remove_section.is_some() && !tags_changed) {
             old_tags.clone()
         } else {
             inferred_tag_names(&new_title, &new_artist, &new_path)
@@ -247,9 +253,9 @@ async fn apply_track_update(
         && !rename_file
         && artwork_url.is_none()
         && update.remove_section.is_none()
-        && new_tags != old_tags;
+        && (new_tags != old_tags || (update.tags.is_some() && !keep_selected_tags));
     if only_tags_changed {
-        db::set_track_tags(&state, &track.id, &new_tags)?;
+        db::set_track_tags(&state, &track.id, &new_tags, update.tags.is_some())?;
         return get_track(&state, &track.id)?
             .map(track_dto)
             .ok_or_else(|| AppError::not_found("Track not found"));
@@ -287,7 +293,7 @@ async fn apply_track_update(
         track.file_signature = Some(file_signature(&file_meta));
 
         save_track(&state, &old_id, &track)?;
-        db::set_track_tags(&state, &track.id, &new_tags)?;
+        db::set_track_tags(&state, &track.id, &new_tags, update.tags.is_some())?;
         track.tags = get_track(&state, &track.id)?
             .map(|track| track.tags)
             .unwrap_or_default();
@@ -359,7 +365,7 @@ async fn apply_track_update(
             .unwrap_or(false);
     }
     save_track(&state, &old_id, &track)?;
-    db::set_track_tags(&state, &track.id, &new_tags)?;
+    db::set_track_tags(&state, &track.id, &new_tags, update.tags.is_some())?;
     track.tags = get_track(&state, &track.id)?
         .map(|track| track.tags)
         .unwrap_or_default();
@@ -654,8 +660,6 @@ pub async fn upload_track(
         return Err(error.into());
     }
     let track = upsert_path(&state, &path, Some(title), Some(artist)).await?;
-    let tags = inferred_tag_names(&track.title, &track.artist, &path);
-    db::add_track_tags(&state, &track.id, &tags)?;
     tracing::info!(track_id = track.id, "track uploaded");
     Ok(Json(
         json!({"success": true, "message": "File uploaded and queued for processing."}),

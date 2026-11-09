@@ -11,8 +11,10 @@
   } from "$lib/services/apiClient";
   import { toast } from "svelte-sonner";
   import { permissionsStore } from "$lib/stores/permissionsStore";
-  import { trackStore } from "$lib/stores/trackStore";
+  import { artistCountsStore, trackStore } from "$lib/stores/trackStore";
   import { parseArtists } from "$lib/utils/formatters";
+  import { categoryLabels, categoryNames } from "$lib/utils/categoryMarkers";
+  import { Checkbox } from "$lib/components/ui/checkbox";
 
   import ArtworkSearchModal from "./ArtworkSearchModal.svelte";
   import TrackDeleteDialog from "./TrackDeleteDialog.svelte";
@@ -21,6 +23,7 @@
   import TrackCutEditor from "./TrackCutEditor.svelte";
   import {
     buildTrackUpdatePayload,
+    existingTitleSuggestions,
     formatArtistString,
     isTrackMetadataFormValid,
     previewFilename,
@@ -38,6 +41,8 @@
     file,
     suggestedTitle,
     suggestedArtist,
+    suggestedTags = [],
+    sourceDuration,
     coverDataUrl,
     metadata,
     isDownload = false,
@@ -50,6 +55,8 @@
     file?: File;
     suggestedTitle?: string;
     suggestedArtist?: string;
+    suggestedTags?: string[];
+    sourceDuration?: number | null;
     coverDataUrl?: string | null;
     metadata?: AudioMetadata;
     isDownload?: boolean;
@@ -71,32 +78,50 @@
   let renameFile = $state(true);
   let artistIdCounter = 0;
   let artists = $state<ArtistRow[]>([]);
+  let selectedTags = $state<string[]>([]);
   let cut = $state<AudioCut | null>(null);
   let cutValid = $state(true);
 
-  const sanitizedTitle = $derived(sanitizeMetadataInput(title));
-  const sanitizedArtists = $derived(sanitizeArtistRows(artists));
   const generatedFilename = $derived(
-    previewFilename(sanitizedArtists, sanitizedTitle, file?.name),
+    previewFilename(
+      sanitizeArtistRows(artists),
+      sanitizeMetadataInput(title),
+      file?.name,
+    ),
   );
   const isFilenameTooLong = $derived(generatedFilename.length > 255);
-  const currentArtistString = $derived(formatArtistString(sanitizedArtists));
+  const hasSourceDuration = $derived(
+    typeof sourceDuration === "number" &&
+      Number.isFinite(sourceDuration) &&
+      sourceDuration > 0,
+  );
+  const currentArtistString = $derived(formatArtistString(artists));
+  const originalTags = $derived(
+    (track?.tags ?? [])
+      .map((tag) => tag.name)
+      .filter((tag) => categoryNames.includes(tag)),
+  );
+  const tagsChanged = $derived(
+    selectedTags.length !== originalTags.length ||
+      selectedTags.some((tag) => !originalTags.includes(tag)),
+  );
   const updatePayload = $derived({
     ...buildTrackUpdatePayload({
       track,
-      title: sanitizedTitle,
+      title,
       artist: currentArtistString,
       renameFile,
       filename: generatedFilename,
       artworkUrl: selectedArtwork?.image_url,
     }),
+    ...(mode === "edit" && tagsChanged ? { tags: selectedTags } : {}),
     ...(cut ? { remove_section: cut } : {}),
   });
   const isFormValid = $derived(
     isTrackMetadataFormValid({
       mode,
-      title: sanitizedTitle,
-      primaryArtist: sanitizedArtists[0]?.value,
+      title,
+      primaryArtist: artists[0]?.value,
       renameFile,
       filenameTooLong: isFilenameTooLong,
     }),
@@ -141,9 +166,13 @@
     if (mode === "edit" && track) {
       title = track.title;
       artists = artistRows(track.artist);
+      selectedTags = (track.tags ?? [])
+        .map((tag) => tag.name)
+        .filter((tag) => categoryNames.includes(tag));
     } else if (mode === "create" && isDownload) {
       title = suggestedTitle ?? "";
       artists = artistRows(suggestedArtist);
+      selectedTags = suggestedTags.filter((tag) => categoryNames.includes(tag));
     } else if (mode === "create" && file) {
       title =
         suggestedTitle || metadata?.title || file.name.replace(/\.[^/.]+$/, "");
@@ -212,9 +241,9 @@
     isUploading = true;
     try {
       await onDownloadConfirm(
-        sanitizedTitle,
+        title,
         currentArtistString,
-        [],
+        selectedTags,
         selectedArtwork?.image_url,
       );
       hideModal();
@@ -233,7 +262,7 @@
     try {
       await uploadTrack(
         file,
-        sanitizedTitle,
+        title,
         currentArtistString,
         selectedArtwork?.image_url,
       );
@@ -295,11 +324,19 @@
       {track}
       {file}
       {metadata}
+      {sourceDuration}
+      artistCounts={isDownload ? $artistCountsStore : {}}
+      titleSuggestions={isDownload
+        ? existingTitleSuggestions(
+            title,
+            artists,
+            sourceDuration,
+            $trackStore.tracks,
+          )
+        : []}
       bind:title
       bind:renameFile
       bind:artists
-      {sanitizedTitle}
-      {sanitizedArtists}
       {generatedFilename}
       {isFilenameTooLong}
       {isFormValid}
@@ -310,6 +347,52 @@
       onAddArtist={addArtist}
       onRemoveArtist={removeArtist}
     />
+
+    {#if isDownload}
+      <div class="text-muted-foreground space-y-1 text-sm" role="note">
+        <p>
+          Review artist credits and recording markers such as Acoustic or Live.
+        </p>
+        {#if artists.filter((artist) => artist.value.trim()).length > 1}
+          <p>
+            Multiple credits may include other contributors; check each one.
+          </p>
+        {/if}
+        {#if hasSourceDuration}
+          <p>Similar durations do not prove recordings are the same.</p>
+        {:else}
+          <p>
+            Source duration is unavailable; check the recording version
+            manually.
+          </p>
+        {/if}
+      </div>
+    {/if}
+
+    {#if isDownload || mode === "edit"}
+      <fieldset class="space-y-2">
+        <legend class="text-sm font-medium">Categories</legend>
+        <div class="flex flex-wrap gap-4">
+          {#each categoryNames as tag (tag)}
+            <div class="flex items-center gap-2">
+              <Checkbox
+                id="{isDownload ? 'download' : 'track'}-category-{tag}"
+                checked={selectedTags.includes(tag)}
+                onCheckedChange={(checked) => {
+                  selectedTags = checked
+                    ? [...selectedTags, tag]
+                    : selectedTags.filter((value) => value !== tag);
+                }}
+              />
+              <label
+                for="{isDownload ? 'download' : 'track'}-category-{tag}"
+                class="text-sm">{categoryLabels[tag]}</label
+              >
+            </div>
+          {/each}
+        </div>
+      </fieldset>
+    {/if}
 
     {#if mode === "edit" && track && $permissionsStore.can_write_music_files}
       <TrackCutEditor
@@ -339,7 +422,7 @@
 
 <ArtworkSearchModal
   bind:open={artworkSearchOpen}
-  title={sanitizedTitle}
+  {title}
   artist={currentArtistString}
   selectedUrl={selectedArtwork?.image_url ?? null}
   onSelect={handleArtworkSelect}

@@ -25,7 +25,6 @@ export function restorePlayerState(
     progress_seconds,
     volume_level,
     is_muted,
-    is_playing,
     is_shuffle,
     is_repeat,
   } = playerState;
@@ -41,7 +40,7 @@ export function restorePlayerState(
       trackStore.setCurrentTrackIndex(trackIndex);
       audioService.updateAudioSource(
         tracks[trackIndex],
-        is_playing,
+        false,
         progress_seconds,
       );
       return current_track_id;

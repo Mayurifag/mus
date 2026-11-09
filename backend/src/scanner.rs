@@ -609,7 +609,7 @@ async fn upsert_path_with_snapshot(
             )?
         }
     };
-    db::add_track_tags(state, &id, &inferred_tag_names(&title, &artist, &path))?;
+    db::add_inferred_track_tags(state, &id, &inferred_tag_names(&title, &artist, &path))?;
     let has_cover = extract_cover(&path, &state.covers_dir, &id)
         .await
         .unwrap_or(false);

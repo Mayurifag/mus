@@ -382,11 +382,65 @@ async fn patch_can_update_only_tags() {
             )
             .unwrap();
         if count == 5 {
+            assert!(mus_backend::db::track_tags_finalized(&app.state, TRACK_ID).unwrap());
+            {
+                let mut conn = app.state.db.lock().unwrap();
+                mus_backend::db::init_db(&mut conn).unwrap();
+            }
+            assert_eq!(
+                mus_backend::db::get_track(&app.state, TRACK_ID)
+                    .unwrap()
+                    .unwrap()
+                    .tags
+                    .len(),
+                5
+            );
             return;
         }
         tokio::time::sleep(std::time::Duration::from_millis(25)).await;
     }
     panic!("tags were not updated");
+}
+
+#[tokio::test]
+async fn patch_finalizes_an_explicit_empty_category_selection() {
+    let app = TestApp::new();
+    let file_path = app.state.music_dir.join("song.mp3");
+    fs::write(&file_path, b"audio").unwrap();
+    app.insert_track(
+        TRACK_ID,
+        "Song (cover)",
+        "Artist",
+        file_path.to_str().unwrap(),
+        false,
+        "COMPLETE",
+    );
+
+    let response = app
+        .json(
+            Method::PATCH,
+            &format!("/api/v1/tracks/{TRACK_ID}"),
+            json!({"tags": []}),
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    tokio::time::timeout(std::time::Duration::from_secs(3), async {
+        while !mus_backend::db::track_tags_finalized(&app.state, TRACK_ID).unwrap() {
+            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .unwrap();
+
+    {
+        let mut conn = app.state.db.lock().unwrap();
+        mus_backend::db::init_db(&mut conn).unwrap();
+    }
+    assert!(mus_backend::db::get_track(&app.state, TRACK_ID)
+        .unwrap()
+        .unwrap()
+        .tags
+        .is_empty());
 }
 
 #[tokio::test]
@@ -433,6 +487,52 @@ async fn patch_reinfers_tags_when_renaming_track() {
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
     panic!("tags were not reinferred after rename");
+}
+
+#[tokio::test]
+async fn editing_a_download_keeps_its_selected_categories() {
+    let app = TestApp::new();
+    let file_path = app.state.music_dir.join("song.wav");
+    write_silent_wav(&file_path);
+    app.insert_track(
+        TRACK_ID,
+        "Song",
+        "Artist",
+        file_path.to_str().unwrap(),
+        false,
+        "COMPLETE",
+    );
+    assert!(
+        mus_backend::db::set_download_tags(&app.state, TRACK_ID, &file_path, &["ost".into()])
+            .unwrap()
+    );
+    let response = app
+        .json(
+            Method::PATCH,
+            &format!("/api/v1/tracks/{TRACK_ID}"),
+            json!({"title":"Song (cover)"}),
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    for _ in 0..40 {
+        let track = mus_backend::db::list_tracks(&app.state)
+            .unwrap()
+            .pop()
+            .unwrap();
+        if track.title == "Song (cover)" {
+            assert_eq!(
+                track
+                    .tags
+                    .iter()
+                    .map(|tag| tag.name.as_str())
+                    .collect::<Vec<_>>(),
+                ["ost"]
+            );
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    panic!("track update did not finish");
 }
 
 #[tokio::test]

@@ -1,17 +1,17 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1
 
-FROM node:24-alpine3.22 AS frontend-builder
+FROM node:26-alpine3.24 AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 ENV VITE_INTERNAL_API_HOST=""
 ENV VITE_PUBLIC_API_HOST=""
 RUN --mount=type=cache,target=/root/.npm \
-    npm install -g npm@12.2.1 \
+    npm install -g npm@12.2.2 \
     && npm ci --no-fund --prefer-offline
 COPY frontend/ ./
 RUN npm run build
 
-FROM rust:1-alpine3.22 AS backend-builder
+FROM rust:1-alpine3.24 AS backend-builder
 WORKDIR /app/backend
 RUN apk add --no-cache build-base
 COPY backend/Cargo.toml backend/Cargo.lock ./
@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     && cargo build --locked --release \
     && cp target/release/mus-backend /tmp/mus-backend
 
-FROM alpine:3.22
+FROM alpine:3.24
 ARG TARGETARCH
 ARG BUILD_DATE
 ARG COMMIT_SHA

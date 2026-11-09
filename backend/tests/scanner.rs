@@ -124,6 +124,83 @@ fn init_db_migrates_existing_schema() {
     assert_eq!(file_signature, "file_signature");
 }
 
+#[test]
+fn category_choice_migration_keeps_existing_track_and_tags() {
+    let (_tmp, state) = make_state();
+    let id = "1111111111111111111111111111111111111111111111111111111111111111";
+    let mut conn = state.db.lock().unwrap();
+    conn.execute_batch("ALTER TABLE track DROP COLUMN tags_finalized; PRAGMA user_version = 5;")
+        .unwrap();
+    conn.execute(
+        "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,content_hash) VALUES (?1,'Song','Artist',1,'/old/song.mp3',1,1,?1)",
+        params![id],
+    ).unwrap();
+    conn.execute(
+        "INSERT INTO track_tag (track_id,tag_id) SELECT ?1,id FROM tag WHERE name='ost'",
+        params![id],
+    )
+    .unwrap();
+    db::init_db(&mut conn).unwrap();
+    let row: (String, bool, String) = conn.query_row(
+        "SELECT track.title, track.tags_finalized, tag.name FROM track JOIN track_tag ON track_tag.track_id=track.id JOIN tag ON tag.id=track_tag.tag_id WHERE track.id=?1",
+        params![id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    ).unwrap();
+    assert_eq!(row, ("Song".into(), false, "ost".into()));
+}
+
+#[tokio::test]
+async fn confirmed_download_tags_survive_restart_and_changed_file() {
+    let (_tmp, state) = make_state();
+    let chosen = state.music_dir.join("Artist - Song (cover).mp3");
+    let legacy = state.music_dir.join("Artist - Old (cover).mp3");
+    create_mp3(&chosen, "Song (cover)", "Artist");
+    create_mp3(&legacy, "Old (cover)", "Artist");
+    scan_music_dir(state.clone()).await.unwrap();
+    let tracks = db::list_tracks(&state).unwrap();
+    let chosen_track = tracks
+        .iter()
+        .find(|track| track.file_path == chosen.to_string_lossy())
+        .unwrap();
+    let legacy_track = tracks
+        .iter()
+        .find(|track| track.file_path == legacy.to_string_lossy())
+        .unwrap();
+    assert_eq!(chosen_track.tags[0].name, "cover");
+    assert!(!db::set_download_tags(&state, &legacy_track.id, &chosen, &["ost".into()]).unwrap());
+    assert!(!db::track_tags_finalized(&state, &legacy_track.id).unwrap());
+    assert!(db::set_download_tags(&state, &chosen_track.id, &chosen, &[]).unwrap());
+    {
+        let mut conn = state.db.lock().unwrap();
+        db::init_db(&mut conn).unwrap();
+    }
+    assert!(db::get_track(&state, &chosen_track.id)
+        .unwrap()
+        .unwrap()
+        .tags
+        .is_empty());
+    assert_eq!(
+        db::get_track(&state, &legacy_track.id)
+            .unwrap()
+            .unwrap()
+            .tags[0]
+            .name,
+        "cover"
+    );
+
+    let mut tag = Tag::read_from_path(&chosen).unwrap();
+    tag.set_album("Updated album");
+    tag.write_to_path(&chosen, Version::Id3v23).unwrap();
+    scan_music_dir(state.clone()).await.unwrap();
+    let updated = db::list_tracks(&state)
+        .unwrap()
+        .into_iter()
+        .find(|track| track.file_path == chosen.to_string_lossy())
+        .unwrap();
+    assert_ne!(updated.id, chosen_track.id);
+    assert!(db::track_tags_finalized(&state, &updated.id).unwrap());
+    assert!(updated.tags.is_empty());
+}
+
 #[tokio::test]
 async fn scan_music_dir_finds_nested_audio_files() {
     let (_tmp, state) = make_state();
@@ -340,7 +417,7 @@ async fn scan_music_dir_broadcasts_added_tracks() {
 }
 
 #[tokio::test]
-async fn scan_music_dir_normalizes_comma_artists_and_renames_filename() {
+async fn scan_music_dir_preserves_comma_artists_without_structured_boundaries() {
     let (_tmp, state) = make_state();
     let path = state
         .music_dir
@@ -349,18 +426,11 @@ async fn scan_music_dir_normalizes_comma_artists_and_renames_filename() {
 
     scan_music_dir(state.clone()).await.unwrap();
 
-    let renamed_path = state
-        .music_dir
-        .join("aikko, katanacss, INSPACE, playingtheangel - song.mp3");
     let tracks = db::list_tracks(&state).unwrap();
     assert_eq!(tracks.len(), 1);
-    assert_eq!(
-        tracks[0].artist,
-        "aikko; katanacss; INSPACE; playingtheangel"
-    );
-    assert_eq!(tracks[0].file_path, renamed_path.to_string_lossy());
-    assert!(!path.exists());
-    assert!(renamed_path.exists());
+    assert_eq!(tracks[0].artist, "aikko,katanacss,INSPACE,playingtheangel");
+    assert_eq!(tracks[0].file_path, path.to_string_lossy());
+    assert!(path.exists());
 }
 
 #[tokio::test]
@@ -421,7 +491,7 @@ async fn scan_music_dir_normalizes_unchanged_existing_tracks() {
         conn.execute(
             "UPDATE track SET artist = ?1 WHERE file_path = ?2",
             params![
-                "aikko,katanacss,INSPACE,playingtheange",
+                "aikko; katanacss;INSPACE;playingtheange",
                 path.to_string_lossy()
             ],
         )

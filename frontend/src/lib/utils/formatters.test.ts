@@ -6,23 +6,31 @@ import {
 } from "./formatters";
 
 describe("formatters", () => {
-  it("parses semicolon and comma separated artists", () => {
+  it("preserves commas inside artist names", () => {
+    expect(parseArtists("Tyler, The Creator; Guest")).toEqual([
+      "Tyler, The Creator",
+      "Guest",
+    ]);
+    expect(normalizeArtistsForStorage("Tyler, The Creator; Guest")).toBe(
+      "Tyler, The Creator; Guest",
+    );
+  });
+
+  it("parses semicolon separated artists and preserves commas", () => {
     expect(parseArtists("aikko,katanacss; INSPACE, playingtheangel")).toEqual([
-      "aikko",
-      "katanacss",
-      "INSPACE",
-      "playingtheangel",
+      "aikko,katanacss",
+      "INSPACE, playingtheangel",
     ]);
   });
 
   it("formats artists with readable comma spacing", () => {
-    expect(formatArtistsForDisplay("aikko,katanacss,INSPACE")).toBe(
+    expect(formatArtistsForDisplay("aikko; katanacss; INSPACE")).toBe(
       "aikko, katanacss, INSPACE",
     );
   });
 
   it("normalizes artists for storage", () => {
-    expect(normalizeArtistsForStorage("aikko,katanacss,INSPACE")).toBe(
+    expect(normalizeArtistsForStorage("aikko; katanacss;INSPACE")).toBe(
       "aikko; katanacss; INSPACE",
     );
   });

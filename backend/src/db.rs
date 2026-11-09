@@ -101,6 +101,7 @@ const MIGRATIONS: &[M<'static>] = &[
         INSERT INTO tag (name, display_name) VALUES ('right-version', 'Right version'), ('ai-cover', 'AI cover'), ('cover', 'Cover'), ('ost', 'OST'), ('mashup', 'Mashup');
         "#,
     ),
+    M::up("ALTER TABLE track ADD COLUMN tags_finalized BOOLEAN NOT NULL DEFAULT 0"),
 ];
 
 pub fn init_db(conn: &mut Connection) -> Result<()> {
@@ -136,7 +137,8 @@ fn remove_deprecated_tags(conn: &Connection) -> Result<()> {
 
 fn ensure_inferred_category_tags(conn: &Connection) -> Result<()> {
     let tracks = {
-        let mut stmt = conn.prepare("SELECT id, title, artist, file_path FROM track")?;
+        let mut stmt = conn
+            .prepare("SELECT id, title, artist, file_path FROM track WHERE tags_finalized = 0")?;
         let rows = stmt.query_map([], |row| {
             Ok((
                 row.get::<_, String>(0)?,
@@ -160,6 +162,15 @@ fn ensure_inferred_category_tags(conn: &Connection) -> Result<()> {
 
 pub fn list_tracks(state: &AppState) -> Result<Vec<Track>> {
     list_tracks_inner(state, None)
+}
+
+pub fn artist_values(state: &AppState) -> Result<Vec<String>> {
+    let conn = state.db.lock().unwrap();
+    let mut stmt = conn.prepare("SELECT DISTINCT artist FROM track")?;
+    let artists = stmt
+        .query_map([], |row| row.get(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(artists)
 }
 
 pub fn list_tracks_by_category(state: &AppState, category: &str) -> Result<Vec<Track>> {
@@ -225,20 +236,67 @@ pub fn save_track(state: &AppState, old_id: &str, track: &Track) -> Result<()> {
     Ok(())
 }
 
-pub fn set_track_tags(state: &AppState, track_id: &str, tag_names: &[String]) -> Result<()> {
-    let conn = state.db.lock().unwrap();
-    set_track_tags_conn(&conn, track_id, tag_names)
+pub fn set_track_tags(
+    state: &AppState,
+    track_id: &str,
+    tag_names: &[String],
+    finalize: bool,
+) -> Result<()> {
+    let mut conn = state.db.lock().unwrap();
+    let tx = conn.transaction()?;
+    if finalize {
+        tx.execute(
+            "UPDATE track SET tags_finalized = 1 WHERE id = ?1",
+            params![track_id],
+        )?;
+    }
+    set_track_tags_conn(&tx, track_id, tag_names)?;
+    tx.commit()?;
+    Ok(())
 }
 
-pub fn add_track_tags(state: &AppState, track_id: &str, tag_names: &[String]) -> Result<()> {
+pub fn add_inferred_track_tags(
+    state: &AppState,
+    track_id: &str,
+    tag_names: &[String],
+) -> Result<()> {
     let conn = state.db.lock().unwrap();
     for name in valid_tag_names(tag_names) {
         conn.execute(
-            "INSERT OR IGNORE INTO track_tag (track_id, tag_id) SELECT ?1, id FROM tag WHERE name = ?2",
+            "INSERT OR IGNORE INTO track_tag (track_id, tag_id) SELECT track.id, tag.id FROM track JOIN tag ON tag.name = ?2 WHERE track.id = ?1 AND track.tags_finalized = 0",
             params![track_id, name],
         )?;
     }
     Ok(())
+}
+
+pub fn set_download_tags(
+    state: &AppState,
+    track_id: &str,
+    published_path: &Path,
+    tag_names: &[String],
+) -> Result<bool> {
+    let mut conn = state.db.lock().unwrap();
+    let tx = conn.transaction()?;
+    let changed = tx.execute(
+        "UPDATE track SET tags_finalized = 1 WHERE id = ?1 AND file_path = ?2",
+        params![track_id, published_path.to_string_lossy().as_ref()],
+    )?;
+    if changed == 0 {
+        return Ok(false);
+    }
+    set_track_tags_conn(&tx, track_id, tag_names)?;
+    tx.commit()?;
+    Ok(true)
+}
+
+pub fn track_tags_finalized(state: &AppState, track_id: &str) -> Result<bool> {
+    let conn = state.db.lock().unwrap();
+    Ok(conn.query_row(
+        "SELECT tags_finalized FROM track WHERE id = ?1",
+        params![track_id],
+        |row| row.get(0),
+    )?)
 }
 
 fn set_track_tags_conn(conn: &Connection, track_id: &str, tag_names: &[String]) -> Result<()> {

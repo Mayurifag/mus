@@ -1,6 +1,6 @@
 export function parseArtists(artistString: string): string[] {
   return artistString
-    .split(/[;,]/)
+    .split(";")
     .map((artist) => artist.trim())
     .filter(Boolean);
 }

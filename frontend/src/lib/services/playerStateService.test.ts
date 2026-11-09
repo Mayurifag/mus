@@ -34,7 +34,7 @@ describe("playerStateService", () => {
     vi.resetAllMocks();
   });
 
-  it("restores the global player state to the saved track", () => {
+  it("restores the saved track and position without starting playback", () => {
     const tracks = [track("1"), track("2")];
     trackStore.setTracks(tracks);
     const audioService = {
@@ -56,7 +56,7 @@ describe("playerStateService", () => {
     expect(audioService.initializeState).toHaveBeenCalledWith(0.7, true, true);
     expect(audioService.updateAudioSource).toHaveBeenCalledWith(
       tracks[1],
-      true,
+      false,
       45.5,
     );
     expect(get(trackStore).currentTrack?.id).toBe("2");

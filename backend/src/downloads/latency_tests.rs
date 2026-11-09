@@ -1,5 +1,5 @@
 use std::{
-    fs, future,
+    fs,
     path::Path,
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -87,6 +87,12 @@ fn oembed_body() -> String {
     .to_string()
 }
 
+fn metadata_output(data: serde_json::Value) -> Command {
+    let mut command = Command::new("printf");
+    command.arg("%s").arg(data.to_string());
+    command
+}
+
 #[test]
 fn oembed_uses_only_fixed_host_and_canonical_validated_id() {
     let client = info::oembed_client().build().unwrap();
@@ -125,7 +131,7 @@ async fn fast_oembed_never_starts_ytdlp_and_returns_nullable_duration() {
         info::metadata_from_sources(Some((client, request)), Command::new("does-not-exist"))
             .await
             .unwrap();
-    let response = metadata_response(&source, future::ready(None)).await;
+    let response = metadata_response(&source, &[]);
     server.abort();
     let _ = server.await;
     assert_eq!(calls.load(Ordering::SeqCst), 1);
@@ -137,6 +143,165 @@ async fn fast_oembed_never_starts_ytdlp_and_returns_nullable_duration() {
         .unwrap()
         .starts_with("https://i.ytimg.com/"));
     assert!(started.elapsed() < Duration::from_secs(1));
+}
+
+#[tokio::test]
+async fn ambiguous_oembed_uses_structured_credits_without_losing_version() {
+    let body = json!({"title":"Song (Acoustic)", "author_name":"Artist - Topic"}).to_string();
+    let (client, request, server, _) = oembed_server(StatusCode::OK, body, Duration::ZERO).await;
+    let extracted = json!({
+        "title":"Song (Acoustic)", "artist":"ARTIST, Guest", "artists":["ARTIST", "Guest"], "channel":"artistworld", "duration":180
+    });
+    let source = info::metadata_from_sources(Some((client, request)), metadata_output(extracted))
+        .await
+        .unwrap();
+    server.abort();
+    let _ = server.await;
+    let response = metadata_response(&source, &[]);
+    assert_eq!(response.title, "Song (Acoustic)");
+    assert_eq!(response.artist, "Artist; Guest");
+    assert_eq!(response.duration, Some(180.0));
+}
+
+#[tokio::test]
+async fn structured_artist_list_preserves_commas_in_names() {
+    let body = json!({"title":"Song", "author_name":"Tyler, The Creator - Topic"}).to_string();
+    let (client, request, server, _) = oembed_server(StatusCode::OK, body, Duration::ZERO).await;
+    let extracted = json!({
+        "title":"Song", "artist":"Tyler, The Creator, Guest",
+        "artists":["Tyler, The Creator", "Guest"], "duration":180
+    });
+    let source = info::metadata_from_sources(Some((client, request)), metadata_output(extracted))
+        .await
+        .unwrap();
+    server.abort();
+    let _ = server.await;
+    let response = metadata_response(&source, &[]);
+    assert_eq!(response.artist, "Tyler, The Creator; Guest");
+    assert_eq!(response.title, "Song");
+}
+
+#[tokio::test]
+async fn extractor_keeps_source_artist_credits_without_guessing_comma_boundaries() {
+    for (artists, raw, expected) in [
+        (
+            json!(["Tyler, The Creator", "Guest"]),
+            json!(null),
+            Some("Tyler, The Creator; Guest"),
+        ),
+        (
+            json!(["Tyler, The Creator", "Guest"]),
+            json!("Tyler, The Creator,Guest"),
+            Some("Tyler, The Creator; Guest"),
+        ),
+        (
+            json!(["Artist", "Guest"]),
+            json!("Artist"),
+            Some("Artist; Guest"),
+        ),
+        (
+            json!(["Artist", "Guest"]),
+            json!("Other"),
+            Some("Artist; Guest; Other"),
+        ),
+        (
+            json!(["Artist", null, 2, "Guest"]),
+            json!(null),
+            Some("Artist; Guest"),
+        ),
+        (json!([]), json!("Artist, Guest"), Some("Artist, Guest")),
+        (
+            json!("malformed"),
+            json!("Tyler, The Creator"),
+            Some("Tyler, The Creator"),
+        ),
+        (json!(null), json!(null), None),
+    ] {
+        let data = json!({"title":"Song", "artists":artists, "artist":raw});
+        let source = info::metadata_from_sources(None, metadata_output(data))
+            .await
+            .unwrap();
+        assert_eq!(source.artist.as_deref(), expected);
+    }
+}
+
+#[tokio::test]
+async fn topic_is_not_duplicated_in_an_ambiguous_comma_credit() {
+    for (topic, artist, expected) in [
+        ("Artist - Topic", "Artist, Guest", "Artist, Guest"),
+        (
+            "Tyler, The Creator - Topic",
+            "Tyler, The Creator, Guest",
+            "Tyler, The Creator, Guest",
+        ),
+        ("Artist - Topic", "Other, Guest", "Artist; Other, Guest"),
+    ] {
+        let body = json!({"title":"Song", "author_name":topic}).to_string();
+        let (client, request, server, _) =
+            oembed_server(StatusCode::OK, body, Duration::ZERO).await;
+        let source = info::metadata_from_sources(
+            Some((client, request)),
+            metadata_output(json!({"title":"Song", "artist":artist})),
+        )
+        .await
+        .unwrap();
+        server.abort();
+        let _ = server.await;
+        assert_eq!(metadata_response(&source, &[]).artist, expected);
+    }
+}
+
+#[tokio::test]
+async fn optional_extraction_failure_keeps_oembed_metadata() {
+    let body = json!({"title":"Song (Acoustic)", "author_name":"Artist - Topic"}).to_string();
+    let (client, request, server, _) = oembed_server(StatusCode::OK, body, Duration::ZERO).await;
+    let source =
+        info::metadata_from_sources(Some((client, request)), Command::new("does-not-exist"))
+            .await
+            .unwrap();
+    server.abort();
+    let _ = server.await;
+    let response = metadata_response(&source, &[]);
+    assert_eq!(response.title, "Song (Acoustic)");
+    assert_eq!(response.artist, "Artist");
+    assert_eq!(response.duration, None);
+}
+
+#[tokio::test]
+async fn conflicting_source_title_does_not_replace_oembed_version() {
+    let body = json!({"title":"Song (Acoustic)", "author_name":"Artist - Topic"}).to_string();
+    let (client, request, server, _) = oembed_server(StatusCode::OK, body, Duration::ZERO).await;
+    let extracted = json!({"title":"Song (Live)", "artist":"Other", "duration":180});
+    let source = info::metadata_from_sources(Some((client, request)), metadata_output(extracted))
+        .await
+        .unwrap();
+    server.abort();
+    let _ = server.await;
+    let response = metadata_response(&source, &[]);
+    assert_eq!(response.title, "Song (Acoustic)");
+    assert_eq!(response.artist, "Artist");
+    assert_eq!(response.duration, None);
+}
+
+#[test]
+fn conflicting_topic_and_structured_credits_remain_editable() {
+    let oembed = SourceMetadata {
+        title: "Song".into(),
+        artist: None,
+        channel: "Artist - Topic".into(),
+        thumbnail_url: None,
+        duration: None,
+    };
+    let extracted = SourceMetadata {
+        title: "Song".into(),
+        artist: Some("Other".into()),
+        channel: "Publisher".into(),
+        thumbnail_url: None,
+        duration: Some(180.0),
+    };
+    let response = metadata_response(&info::merge_metadata(oembed, extracted), &[]);
+    assert_eq!(response.artist, "Artist; Other");
+    assert_eq!(response.duration, Some(180.0));
 }
 
 #[tokio::test]
@@ -187,8 +352,8 @@ async fn slow_oembed_is_cut_off_at_two_seconds_then_uses_fallback() {
     assert!(elapsed >= Duration::from_millis(1900) && elapsed < Duration::from_secs(4));
 }
 
-#[tokio::test]
-async fn ai_has_one_total_two_second_budget_and_preserves_local_fallback_tags() {
+#[test]
+fn local_metadata_parsing_preserves_inferred_tags() {
     let data = SourceMetadata {
         title: "Artist - Song (AI cover)".into(),
         artist: None,
@@ -196,10 +361,7 @@ async fn ai_has_one_total_two_second_budget_and_preserves_local_fallback_tags() 
         thumbnail_url: None,
         duration: None,
     };
-    let started = Instant::now();
-    let response = metadata_response(&data, future::pending()).await;
-    let elapsed = started.elapsed();
-    assert!(elapsed >= Duration::from_millis(1900) && elapsed < Duration::from_secs(4));
+    let response = metadata_response(&data, &[]);
     assert_eq!(response.title, "Song (AI cover)");
     assert_eq!(response.artist, "Artist");
     assert_eq!(
@@ -210,6 +372,73 @@ async fn ai_has_one_total_two_second_budget_and_preserves_local_fallback_tags() 
             .collect::<Vec<_>>(),
         ["ai-cover"]
     );
+
+    let data = SourceMetadata {
+        title: "Song Official Audio".into(),
+        artist: Some("Artist, Guest".into()),
+        channel: "Publisher".into(),
+        thumbnail_url: None,
+        duration: Some(123.0),
+    };
+    let response = metadata_response(&data, &[]);
+    assert_eq!(response.title, "Song");
+    assert_eq!(response.artist, "Artist, Guest");
+    assert_eq!(response.duration, Some(123.0));
+    assert!(response.tags.is_empty());
+}
+
+#[test]
+fn acoustic_metadata_uses_topic_or_structured_artist() {
+    for (channel, artist) in [("Artist - Topic", None), ("artistworld", Some("Artist"))] {
+        let data = SourceMetadata {
+            title: "Song (Acoustic)".into(),
+            artist: artist.map(str::to_string),
+            channel: channel.into(),
+            thumbnail_url: None,
+            duration: Some(180.0),
+        };
+        let response = metadata_response(&data, &[]);
+        assert_eq!(response.title, "Song (Acoustic)");
+        assert_eq!(response.artist, "Artist");
+    }
+}
+
+#[test]
+fn metadata_uses_title_artist_when_uploader_is_unrelated() {
+    let data = SourceMetadata {
+        title: "Artist  - Song".into(),
+        artist: None,
+        channel: "Different Uploader".into(),
+        thumbnail_url: None,
+        duration: None,
+    };
+    let response = metadata_response(&data, &[]);
+    assert_eq!(response.title, "Song");
+    assert_eq!(response.artist, "Artist");
+}
+
+#[test]
+fn metadata_uses_local_artist_spellings_without_changing_the_library() {
+    let tmp = TempDir::new().unwrap();
+    let state = crate::app::test_state(
+        tmp.path().to_path_buf(),
+        rusqlite::Connection::open_in_memory().unwrap(),
+    );
+    {
+        let conn = state.db.lock().unwrap();
+        conn.execute("INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,content_hash) VALUES (?1,'Old','Artist',1,'/old/song.mp3',1,1,?1)", rusqlite::params!["1".repeat(64)]).unwrap();
+    }
+    let data = SourceMetadata {
+        title: "Song".into(),
+        artist: None,
+        channel: "ARTIST - Topic".into(),
+        thumbnail_url: None,
+        duration: None,
+    };
+    let response = metadata_response(&data, &crate::db::artist_values(&state).unwrap());
+    assert_eq!(response.artist, "Artist");
+    assert_eq!(response.title, "Song");
+    assert_eq!(crate::db::list_tracks(&state).unwrap()[0].artist, "Artist");
 }
 
 #[tokio::test]

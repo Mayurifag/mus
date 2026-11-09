@@ -8,7 +8,6 @@ pub mod errors;
 pub mod events;
 pub mod hls;
 pub mod media;
-pub mod metadata;
 pub mod models;
 pub mod player;
 pub mod scanner;

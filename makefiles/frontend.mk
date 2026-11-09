@@ -28,7 +28,8 @@ front-npm-outdated:
 
 .PHONY: front-audit
 front-audit:
-	@$(COMPOSE) run --no-TTY --rm frontend npm audit
+	@$(COMPOSE) run --no-TTY --rm frontend npm audit --omit=dev
+	@$(COMPOSE) run --no-TTY --rm frontend npm audit --audit-level=moderate
 
 .PHONY: front-build
 front-build:

@@ -9,7 +9,11 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio::process::Command;
 
-use super::diagnostics::{youtube_video_id, yt_dlp_output};
+use super::{
+    diagnostics::{youtube_video_id, yt_dlp_output},
+    parser,
+};
+use crate::util::{normalize_text, parse_artists};
 
 pub(super) const OEMBED_TIMEOUT: Duration = Duration::from_secs(2);
 const EXTRACTOR_TIMEOUT: Duration = Duration::from_secs(8);
@@ -91,7 +95,13 @@ pub(super) async fn metadata_from_sources(
                     elapsed_ms = started.elapsed().as_millis() as u64,
                     "download metadata ready"
                 );
-                return Ok(data);
+                if !parser::needs_structured_artist(&data.title, &data.channel) {
+                    return Ok(data);
+                }
+                return Ok(match extract_metadata(fallback).await {
+                    Ok(extracted) => merge_metadata(data, extracted),
+                    Err(_) => data,
+                });
             }
             _ => tracing::info!(
                 elapsed_ms = started.elapsed().as_millis() as u64,
@@ -99,6 +109,10 @@ pub(super) async fn metadata_from_sources(
             ),
         }
     }
+    extract_metadata(fallback).await
+}
+
+async fn extract_metadata(fallback: Command) -> Result<SourceMetadata> {
     let started = Instant::now();
     let output = yt_dlp_output(fallback, EXTRACTOR_TIMEOUT).await;
     tracing::info!(
@@ -114,9 +128,40 @@ pub(super) async fn metadata_from_sources(
         .filter(|title| !title.trim().is_empty())
         .ok_or_else(|| anyhow!("yt-dlp returned no title"))?
         .to_string();
+    let raw_artist = text("artist")
+        .map(str::trim)
+        .filter(|artist| !artist.is_empty());
+    let artists = data
+        .get("artists")
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::trim)
+                .filter(|artist| !artist.is_empty())
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .filter(|artists| !artists.is_empty());
+    let artist = match artists {
+        Some(mut artists) => {
+            if let Some(raw) = raw_artist {
+                let raw_key = credit_key(raw);
+                if credit_list_key(raw) != credit_list_key(&artists.join(", "))
+                    && credit_list_key(raw) != credit_list_key(&artists.join("; "))
+                    && !artists.iter().any(|artist| credit_key(artist) == raw_key)
+                {
+                    artists.push(raw.to_string());
+                }
+            }
+            Some(artists.join("; "))
+        }
+        None => raw_artist.map(str::to_string),
+    };
     Ok(SourceMetadata {
         title,
-        artist: text("artist").map(str::to_string),
+        artist,
         channel: text("channel")
             .or_else(|| text("uploader"))
             .unwrap_or("")
@@ -124,6 +169,52 @@ pub(super) async fn metadata_from_sources(
         thumbnail_url: text("thumbnail").map(str::to_string),
         duration: data.get("duration").and_then(Value::as_f64),
     })
+}
+
+fn credit_key(value: &str) -> String {
+    normalize_text(value)
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+}
+
+fn credit_list_key(value: &str) -> String {
+    credit_key(value)
+        .replace(" ,", ",")
+        .replace(", ", ",")
+        .replace(" ;", ";")
+        .replace("; ", ";")
+}
+
+pub(super) fn merge_metadata(
+    mut oembed: SourceMetadata,
+    extracted: SourceMetadata,
+) -> SourceMetadata {
+    if credit_key(&oembed.title) != credit_key(&extracted.title) {
+        return oembed;
+    }
+    if let Some(artist) = extracted.artist.filter(|artist| !artist.trim().is_empty()) {
+        let mut artists = parse_artists(&artist);
+        if let Some(topic) = parser::topic_artist(&oembed.channel) {
+            for name in parse_artists(topic).into_iter().rev() {
+                if let Some(existing) = artists
+                    .iter_mut()
+                    .find(|artist| credit_key(artist) == credit_key(&name))
+                {
+                    *existing = name;
+                } else if !artists
+                    .iter()
+                    .any(|artist| parser::channel_at_start_of_comma_credit(artist, &name))
+                {
+                    artists.insert(0, name);
+                }
+            }
+        }
+        oembed.artist = Some(artists.join("; "));
+    }
+    oembed.duration = extracted.duration;
+    oembed
 }
 
 async fn read_oembed(client: &Client, request: Request) -> Result<SourceMetadata> {

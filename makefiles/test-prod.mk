@@ -8,13 +8,9 @@ test-prod: test-prod-stop
 	echo "Using music path: $$MUSIC_PATH" && \
 	docker run -d --name mus-prod-test -p 127.0.0.1:4124:8000 \
 		--security-opt no-new-privileges:true \
-		-e SECRET_KEY=test-secret-key-123 \
 		-v "$$MUSIC_PATH":/app_data/music \
 		mus:test
-	@echo "Waiting for container to start..."
 	@echo "Production container started at http://localhost:4124"
-	@echo "Authentication enabled with SECRET_KEY=test-secret-key-123"
-	@echo "Magic link: http://localhost:4124/login?token=test-secret-key-123"
 	@echo "Use 'make test-prod-stop' to stop and clean up"
 
 .PHONY: test-prod-stop

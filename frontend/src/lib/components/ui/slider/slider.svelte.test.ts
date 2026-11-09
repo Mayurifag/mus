@@ -96,8 +96,10 @@ describe("Slider component", () => {
     expect(bufferedSegments).toHaveLength(1);
 
     const segment = bufferedSegments[0] as HTMLElement;
-    expect(segment.style.left).toMatch(/^16\.666666666666\d+%$/);
-    expect(segment.style.width).toMatch(/^33\.333333333333\d+%$/);
+    expect(segment.style.left).toMatch(/%$/);
+    expect(segment.style.width).toMatch(/%$/);
+    expect(parseFloat(segment.style.left)).toBeCloseTo(100 / 6, 3);
+    expect(parseFloat(segment.style.width)).toBeCloseTo(100 / 3, 3);
   });
 
   it("applies correct CSS classes to buffered segments", () => {

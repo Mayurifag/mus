@@ -1,58 +1,30 @@
-# mus - selfhosted music player/downloader/manager
+# mus
 
-## Description
+mus is a self-hosted music player, downloader, and library manager with a simple web interface for desktop and mobile.
 
-I made this project because I do not like any other projects to have visually simple yet very powerful selfhosted
-solution to listen, manage and download music.
-
-I already use it daily yet I don't think its ready to use. There will be no instructions and demonstrations here yet,
-until I will be sure it is ready to be in alpha stage.
+**Status:** mus is used daily by its author, but it is not yet ready for general use. Setup instructions are not
+available yet.
 
 ![Web version screenshot](./.github/screenshot.webp)
 
 ## Features
 
-- File watcher for external uploads and automatical processing to play later!
-- Minimal UI/UX to click least buttons possible
-- Minimal setup hussle - single docker container, little configuration
-- Easy new music upload flow
-- Auto-rename files to have single format
-- Upload/edit/download flows write artist/title tags; MP3/WAV/AIFF use Rust ID3 and other supported media use ffmpeg
-  when tags must be rewritten
-- File edits combine tag, artwork, rename, and mtime updates before publishing the final file, so library order stays
-  tied to first discovery
-- Useful editor of artists/title metadata
-- Remove unwanted audio sections from Edit track with a draggable timeline, precise timestamps, and one-second boundary
-  buttons. Compare removed-section and join previews side by side before saving. Cuts modify the original file after
-  confirmation; lossy formats are re-encoded.
-- Download new files using yt-dlp with SponsorBlock segment removal. Custom vk.ru support incoming
-- Mobile support via responsive web UI. No plans for natives yet
-- No dumb features like "Repeat all playlist" (repeat only current track)
-- Intelligently disable features requiring write support if mounted folder is read-only
-- Various little things to make experience smooth (virtual list of music files, automatic webp cover preview generation
-  on upload and much more)
-- Fast, minimal server resource usage - project was already rewritten from Python and SSR Node.js usage to simple
-  frontend and Rust to reduce memory usage.
+- Play music in your browser and repeat individual tracks. The app remembers the last track and position without
+  starting playback automatically.
+- Automatically discover files added to your music folder.
+- Upload music or download it from YouTube and other supported sources, with SponsorBlock segment removal.
+- Review and edit suggested artists, titles, and categories before downloading.
+- Edit track artists, titles, artwork, and filenames.
+- Remove parts of a track using a timeline, with previews and confirmation before saving.
+- Show identical files as one library entry without deleting the extra copies.
+- Disable actions that need write access when the music folder is read-only.
 
-## Technical details
+## Data and security
 
-This is dockerized single container (yes!) which contains a static Svelte frontend served by the Rust backend, sqlite,
-official yt-dlp nightly zipapp and ffmpeg. Only the music directory and `/app_data/.cache` app-state directory are meant
-to be mounted. SQLite, generated covers, HLS, and rewrite staging files live under `/app_data/.cache`. In-place edits
-keep a private backup in that cache until publication succeeds. Failed writes restore the original; if restoration also
-fails, the error identifies the retained backup. This is not an automatic power-loss recovery system.
+mus runs in a single Docker container. Mount your music folder at `/app_data/music` and persistent app data at
+`/app_data/.cache`. Back up both.
 
-In e2e folder I made setup to run playwright tests against production docker image, so it is not bound to Rust/Svelte
-source files.
+**mus may rename files and update their metadata when scanning a writable music folder.** Editing changes the original
+files, and cutting a track re-encodes lossy audio.
 
-## Production
-
-Production deployments are expected to sit behind external authentication. Use `make prod-verify` before shipping image
-changes.
-
-Audio playback is served as HLS. Generated playlists and segments live under `/app_data/.cache/hls`, not the mounted
-music directory.
-
-Track IDs are full BLAKE3 content hashes, reused as the HLS cache key so cached audio survives database rebuilds when
-file bytes do not change. Identical file copies share one library entry. Scanning keeps its registered path while that
-file exists, without deleting copies or repeatedly announcing them as new tracks.
+**mus has no built-in authentication.** Protect it with external authentication before exposing it.
