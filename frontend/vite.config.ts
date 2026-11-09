@@ -18,12 +18,7 @@ export default defineConfig({
     alias: { $lib: fileURLToPath(new URL("./src/lib", import.meta.url)) },
   },
   optimizeDeps: {
-    include: [
-      "music-metadata",
-      "@lucide/svelte",
-      "@tanstack/svelte-virtual",
-      "bits-ui",
-    ],
+    include: ["music-metadata", "@lucide/svelte", "bits-ui"],
   },
   test: {
     coverage: {

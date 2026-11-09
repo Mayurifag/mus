@@ -4,19 +4,6 @@ import { render, screen } from "@testing-library/svelte";
 import type { Track } from "$lib/types";
 import "@testing-library/jest-dom/vitest";
 
-// Mock the browser environment
-vi.mock("$app/env", () => ({
-  browser: false,
-}));
-
-// Mock TanStack Virtual
-vi.mock("@tanstack/svelte-virtual", () => ({
-  createWindowVirtualizer: vi.fn(() => ({
-    getTotalSize: () => 1000,
-    getVirtualItems: () => [],
-  })),
-}));
-
 // Mock the trackStore
 const mockTrackStoreData = vi.hoisted(() => ({
   currentTrackIndex: 0,
@@ -120,5 +107,16 @@ describe("TrackList component", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Artist 1")).toBeInTheDocument();
     expect(screen.getByText("1 song")).toBeInTheDocument();
+  });
+
+  it("renders every track in a large library", () => {
+    mockTrackStoreData.tracks = Array.from({ length: 600 }, (_, index) => ({
+      ...mockTracks[0],
+      id: String(index),
+    }));
+
+    render(TrackList);
+
+    expect(TrackItem).toHaveBeenCalledTimes(600);
   });
 });

@@ -2,7 +2,7 @@ import type { Track, TimeRange } from "$lib/types";
 import { writable } from "svelte/store";
 import { trackStore } from "$lib/stores/trackStore";
 import { formatArtistsForDisplay } from "$lib/utils/formatters";
-import Hls from "hls.js";
+import Hls from "hls.js/light";
 import {
   clearMediaSession,
   setupMediaSessionHandlers,

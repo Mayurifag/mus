@@ -57,6 +57,7 @@ import type { AudioService } from "$lib/services/AudioService";
 import "@testing-library/jest-dom/vitest";
 import TrackItem from "./TrackItem.svelte";
 import { trackStore } from "$lib/stores/trackStore";
+import { permissionsStore } from "$lib/stores/permissionsStore";
 
 describe("TrackItem component", () => {
   let mockTrack: Track;
@@ -80,6 +81,7 @@ describe("TrackItem component", () => {
     vi.mocked(trackStore.setArtistFilter).mockClear();
     mockTrackStoreState.selectedArtist = null;
     mockTrackStoreState.tracks = [mockTrack, { ...mockTrack, id: "2" }];
+    permissionsStore.set({ can_write_music_files: false });
   });
 
   it("renders track details correctly", () => {
@@ -160,6 +162,21 @@ describe("TrackItem component", () => {
 
     const trackItemDiv = container.querySelector('[data-testid="track-item"]');
     expect(trackItemDiv?.id).toBe(`track-item-${mockTrack.id}`);
+  });
+
+  it("opens the editor without playing the track", async () => {
+    permissionsStore.set({ can_write_music_files: true });
+    const onEdit = vi.fn();
+    render(TrackItem, { track: mockTrack, index: 0, onEdit });
+
+    const edit = screen.getByRole("button", { name: "Edit track" });
+    await fireEvent.mouseDown(edit, { button: 0 });
+    await fireEvent.mouseUp(edit, { button: 0 });
+    await fireEvent.click(edit);
+    await fireEvent.keyDown(edit, { key: "Enter" });
+
+    expect(onEdit).toHaveBeenCalledWith(mockTrack);
+    expect(trackStore.playTrack).not.toHaveBeenCalled();
   });
 
   it("renders title-derived category links", async () => {

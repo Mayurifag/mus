@@ -21,6 +21,10 @@ use serde_json::{json, Value};
 use tokio::fs as async_fs;
 use tower::ServiceExt;
 use tower_http::{
+    compression::{
+        predicate::{DefaultPredicate, NotForContentType, Predicate},
+        CompressionLayer,
+    },
     cors::{AllowOrigin, CorsLayer},
     services::ServeFile,
 };
@@ -89,6 +93,14 @@ pub fn app(state: AppState) -> Router {
         .route("/api/v1/errors/tracks", get(get_errored_tracks))
         .route("/api/v1/errors/tracks/{id}/requeue", post(requeue_track))
         .fallback(static_asset)
+        .layer(
+            CompressionLayer::new().compress_when(
+                DefaultPredicate::new()
+                    .and(NotForContentType::const_new("audio/"))
+                    // Compression buffers incremental artwork results.
+                    .and(NotForContentType::const_new("application/x-ndjson")),
+            ),
+        )
         .layer(middleware::from_fn(request_logging))
         .layer(cors_layer())
         .with_state(state)

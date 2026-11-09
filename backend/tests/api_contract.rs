@@ -1,10 +1,11 @@
-use std::fs;
+use std::{fs, io::Read};
 
 use axum::{
     body::{to_bytes, Body},
     http::{header, Method, Request, StatusCode},
     Router,
 };
+use flate2::read::GzDecoder;
 use mus_backend::{
     app::{app, test_state},
     state::AppState,
@@ -46,6 +47,20 @@ impl TestApp {
                     .method(method)
                     .uri(uri)
                     .body(body)
+                    .unwrap(),
+            )
+            .await
+            .unwrap()
+    }
+
+    async fn get_with_gzip(&self, uri: &str) -> axum::response::Response {
+        self.router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(uri)
+                    .header(header::ACCEPT_ENCODING, "gzip")
+                    .body(Body::empty())
                     .unwrap(),
             )
             .await
@@ -113,6 +128,129 @@ async fn body_text(response: axum::response::Response) -> String {
             .to_vec(),
     )
     .unwrap()
+}
+
+async fn gzip_body(response: axum::response::Response) -> Vec<u8> {
+    let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let mut decoded = Vec::new();
+    GzDecoder::new(bytes.as_ref())
+        .read_to_end(&mut decoded)
+        .unwrap();
+    decoded
+}
+
+#[tokio::test]
+async fn gzip_compresses_track_data_without_changing_it() {
+    let app = TestApp::new();
+    app.insert_track(
+        TRACK_ID,
+        "Song",
+        "Artist",
+        "/music/song.mp3",
+        false,
+        "COMPLETE",
+    );
+
+    let plain = app
+        .request(Method::GET, "/api/v1/tracks", Body::empty())
+        .await;
+    assert!(!plain.headers().contains_key(header::CONTENT_ENCODING));
+    let expected = body_json(plain).await;
+
+    let compressed = app.get_with_gzip("/api/v1/tracks").await;
+    assert_eq!(compressed.headers()[header::CONTENT_ENCODING], "gzip");
+    assert!(compressed.headers()[header::VARY]
+        .to_str()
+        .unwrap()
+        .contains("accept-encoding"));
+    let decoded: Value = serde_json::from_slice(&gzip_body(compressed).await).unwrap();
+    assert_eq!(decoded, expected);
+}
+
+#[tokio::test]
+async fn gzip_compresses_static_javascript() {
+    let test_app = TestApp::new();
+    let static_dir = test_app._tmp.path().join("static");
+    let asset_dir = static_dir.join("_app/immutable");
+    fs::create_dir_all(&asset_dir).unwrap();
+    let script = "console.log('music');\n".repeat(100);
+    fs::write(asset_dir.join("app.js"), &script).unwrap();
+    let mut state = test_app.state.clone();
+    state.static_dir = Some(static_dir);
+    let response = app(state)
+        .oneshot(
+            Request::builder()
+                .uri("/_app/immutable/app.js")
+                .header(header::ACCEPT_ENCODING, "gzip")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.headers()[header::CONTENT_ENCODING], "gzip");
+    assert_eq!(
+        response.headers()[header::CACHE_CONTROL],
+        "public, immutable, max-age=31536000"
+    );
+    assert_eq!(gzip_body(response).await, script.as_bytes());
+}
+
+#[tokio::test]
+async fn gzip_skips_artwork_search_stream() {
+    let app = TestApp::new();
+    let response = app
+        .get_with_gzip("/api/v1/artwork/search/stream?title=Song&artist=Artist")
+        .await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers()[header::CONTENT_TYPE],
+        "application/x-ndjson"
+    );
+    assert!(!response.headers().contains_key(header::CONTENT_ENCODING));
+}
+
+#[tokio::test]
+async fn gzip_skips_event_streams_and_hls_audio() {
+    let app = TestApp::new();
+    let events = app.get_with_gzip("/api/v1/events/track-updates").await;
+    assert!(!events.headers().contains_key(header::CONTENT_ENCODING));
+    assert!(events.headers()[header::CONTENT_TYPE]
+        .to_str()
+        .unwrap()
+        .starts_with("text/event-stream"));
+
+    let source = app.state.music_dir.join("song.mp3");
+    fs::write(&source, b"audio").unwrap();
+    app.insert_track(
+        TRACK_ID,
+        "Song",
+        "Artist",
+        source.to_str().unwrap(),
+        false,
+        "COMPLETE",
+    );
+    let hls_dir = app
+        .state
+        .data_dir
+        .join(".cache/hls")
+        .join(TRACK_ID)
+        .join(TRACK_ID);
+    fs::create_dir_all(&hls_dir).unwrap();
+    let audio = b"audio data".repeat(10);
+    fs::write(hls_dir.join("init.mp4"), &audio).unwrap();
+    let response = app
+        .get_with_gzip(&format!(
+            "/api/v1/tracks/{TRACK_ID}/hls/{TRACK_ID}/init.mp4"
+        ))
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(!response.headers().contains_key(header::CONTENT_ENCODING));
+    assert_eq!(
+        to_bytes(response.into_body(), usize::MAX).await.unwrap(),
+        audio
+    );
 }
 
 #[tokio::test]

@@ -35,14 +35,9 @@
     onEdit?: (track: Track) => void;
   } = $props();
 
-  // Make track data reactive to prop changes
   const trackTitle = $derived(displayTrackTitle(track));
-  const trackArtist = $derived(track.artist);
-  const trackDuration = $derived(track.duration);
-  const trackHasCover = $derived(track.has_cover);
-  const trackCoverSmallUrl = $derived(track.cover_small_url);
+  const coverUrl = $derived(track.has_cover ? track.cover_small_url : null);
   const trackCategories = $derived(trackCategoryNames(track));
-  let canWriteMusicFiles = $derived($permissionsStore.can_write_music_files);
 
   function playTrack() {
     if (!audioService) {
@@ -114,25 +109,12 @@
   data-testid="track-item"
   id="track-item-{track.id}"
 >
-  <div
-    class="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-md"
-  >
-    {#if trackHasCover && trackCoverSmallUrl}
-      <img
-        src={trackCoverSmallUrl}
-        alt="Album art for {trackTitle}"
-        class="h-full w-full object-cover"
-        loading="lazy"
-      />
-    {:else}
-      <img
-        src="/images/no-cover.svg"
-        alt="No Album Cover"
-        class="h-full w-full object-cover"
-        loading="lazy"
-      />
-    {/if}
-  </div>
+  <img
+    src={coverUrl || "/images/no-cover.svg"}
+    alt={coverUrl ? `Album art for ${trackTitle}` : "No Album Cover"}
+    class="h-14 w-14 shrink-0 rounded-md object-cover"
+    loading="lazy"
+  />
 
   <div class="flex min-w-0 flex-1 flex-col">
     <div class="flex min-w-0 items-center gap-2">
@@ -151,7 +133,7 @@
       {/each}
     </div>
     <span class="text-muted-foreground truncate text-sm">
-      <ArtistLinks artist={trackArtist} />
+      <ArtistLinks artist={track.artist} />
     </span>
 
     {#if isSelected}
@@ -177,28 +159,24 @@
     {/if}
   </div>
 
-  <div class="text-muted-foreground flex flex-col items-end text-sm">
-    <span>{formatDuration(trackDuration)}</span>
-  </div>
+  <span class="text-muted-foreground shrink-0 text-sm">
+    {formatDuration(track.duration)}
+  </span>
 
-  <div
-    class="hidden md:block"
-    onclick={(e) => e.stopPropagation()}
-    onkeydown={(e) => e.stopPropagation()}
-    onmousedown={(e) => e.stopPropagation()}
-    onmouseup={(e) => e.stopPropagation()}
-    role="button"
-    tabindex="-1"
-  >
-    {#if canWriteMusicFiles}
-      <button
-        class="text-muted-foreground icon-glow-effect cursor-pointer rounded-md p-1 transition-colors"
-        onclick={() => onEdit?.(track)}
-        aria-label="Edit track"
-        title="Edit"
-      >
-        <Pencil class="h-5 w-5" />
-      </button>
-    {/if}
-  </div>
+  {#if $permissionsStore.can_write_music_files}
+    <button
+      class="text-muted-foreground icon-glow-effect hidden cursor-pointer rounded-md p-1 transition-colors md:block"
+      onclick={(event) => {
+        event.stopPropagation();
+        onEdit?.(track);
+      }}
+      onkeydown={(event) => event.stopPropagation()}
+      onmousedown={(event) => event.stopPropagation()}
+      onmouseup={(event) => event.stopPropagation()}
+      aria-label="Edit track"
+      title="Edit"
+    >
+      <Pencil class="h-5 w-5" />
+    </button>
+  {/if}
 </div>

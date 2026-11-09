@@ -5,11 +5,9 @@
   import TrackItem from "./TrackItem.svelte";
   import LazyTrackMetadataModal from "./LazyTrackMetadataModal.svelte";
   import { trackStore } from "$lib/stores/trackStore";
-  import { createWindowVirtualizer } from "@tanstack/svelte-virtual";
   import { browser } from "$app/env";
   import { updateEffectStats } from "$lib/utils/monitoredEffect";
   import { parseArtists } from "$lib/utils/formatters";
-  import { get } from "svelte/store";
   import { ArrowLeft } from "@lucide/svelte";
   import { clearArtistFilter } from "$lib/utils/artistFilterNavigation";
   import {
@@ -43,10 +41,6 @@
     ),
   );
   const visibleTrackCount = $derived(trackRows.length);
-  const shouldVirtualize = $derived(visibleTrackCount >= 500);
-  const currentVisibleIndex = $derived(
-    trackRows.findIndex((row) => row.track.id === $trackStore.currentTrack?.id),
-  );
 
   // Audio playback state variables
   let isPlaying = $state(false);
@@ -54,22 +48,9 @@
   let duration = $state(0);
   let bufferedRanges = $state<TimeRange[]>([]);
 
-  const virtualizer = browser
-    ? createWindowVirtualizer(virtualizerOptions(0))
-    : null;
-  let virtualizerCount = -1;
   let editModalOpen = $state(false);
   let editingTrack = $state<Track | null>(null);
   let initialScrollDone = false;
-
-  function virtualizerOptions(count: number) {
-    return {
-      count,
-      estimateSize: () => 72,
-      overscan: 12,
-      getScrollElement: () => window,
-    };
-  }
 
   // Subscribe to audio service stores
   $effect(() => {
@@ -106,19 +87,6 @@
     }
   });
 
-  $effect(() => {
-    updateEffectStats("TrackList_VirtualizerCountUpdate");
-
-    if (
-      virtualizer &&
-      shouldVirtualize &&
-      virtualizerCount !== visibleTrackCount
-    ) {
-      virtualizerCount = visibleTrackCount;
-      $virtualizer!.setOptions(virtualizerOptions(visibleTrackCount));
-    }
-  });
-
   function openEditModal(track: Track) {
     editingTrack = track;
     editModalOpen = true;
@@ -137,30 +105,18 @@
 
   $effect(() => {
     updateEffectStats("TrackList_InitialScroll");
+    if (!browser || initialScrollDone || $trackStore.tracksLoading) return;
 
-    if (
-      !initialScrollDone &&
-      virtualizer &&
-      shouldVirtualize &&
-      currentVisibleIndex !== -1
-    ) {
-      const currentVirtualizer = virtualizer;
-      tick().then(() => {
-        if (currentVisibleIndex !== -1) {
-          get(currentVirtualizer).scrollToIndex(currentVisibleIndex, {
-            align: "center",
-          });
-        }
+    initialScrollDone = true;
+    const trackId = $trackStore.currentTrack?.id;
+    if (trackId && trackRows.some((row) => row.track.id === trackId)) {
+      void tick().then(() => {
+        document.getElementById(`track-item-${trackId}`)?.scrollIntoView({
+          block: "center",
+        });
       });
-      initialScrollDone = true;
     }
   });
-
-  function measureElement(node: HTMLElement) {
-    if (virtualizer && shouldVirtualize) {
-      get(virtualizer).measureElement(node);
-    }
-  }
 
   function clearActiveFilter() {
     if (selectedArtist) {
@@ -171,35 +127,7 @@
   }
 </script>
 
-{#snippet renderTrack(row: { track: Track; index: number })}
-  {#if $trackStore.currentTrack?.id === row.track.id}
-    <TrackItem
-      track={row.track}
-      index={row.index}
-      isSelected={true}
-      {audioService}
-      {currentTime}
-      {duration}
-      {isPlaying}
-      {bufferedRanges}
-      onEdit={openEditModal}
-    />
-  {:else}
-    <TrackItem
-      track={row.track}
-      index={row.index}
-      isSelected={false}
-      {audioService}
-      onEdit={openEditModal}
-    />
-  {/if}
-{/snippet}
-
-<div
-  class="flex flex-col"
-  data-testid="track-list"
-  aria-busy={$trackStore.tracksLoading}
->
+<div data-testid="track-list" aria-busy={$trackStore.tracksLoading}>
   {#if selectedArtist || selectedCategory}
     <button
       type="button"
@@ -260,23 +188,28 @@
         No songs found for this filter.
       </p>
     </div>
-  {:else if shouldVirtualize && virtualizer}
-    <div class="relative" style="height: {$virtualizer!.getTotalSize()}px">
-      {#each $virtualizer!.getVirtualItems() as item (trackRows[item.index]?.track.id || `missing-${item.index}`)}
-        {#if trackRows[item.index]}
-          <div
-            style="position: absolute; width: 100%; transform: translateY({item.start}px)"
-            data-index={item.index}
-            use:measureElement
-          >
-            {@render renderTrack(trackRows[item.index])}
-          </div>
-        {/if}
-      {/each}
-    </div>
   {:else}
     {#each trackRows as row (row.track.id)}
-      {@render renderTrack(row)}
+      {#if $trackStore.currentTrack?.id === row.track.id}
+        <TrackItem
+          track={row.track}
+          index={row.index}
+          isSelected={true}
+          {audioService}
+          {currentTime}
+          {duration}
+          {isPlaying}
+          {bufferedRanges}
+          onEdit={openEditModal}
+        />
+      {:else}
+        <TrackItem
+          track={row.track}
+          index={row.index}
+          {audioService}
+          onEdit={openEditModal}
+        />
+      {/if}
     {/each}
   {/if}
 </div>

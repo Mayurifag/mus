@@ -15,7 +15,7 @@ Object.defineProperty(window, "matchMedia", {
   })),
 });
 
-// Mock window.scrollTo to prevent warnings from virtual scrolling
+// Mock window.scrollTo for scroll restoration tests
 Object.defineProperty(window, "scrollTo", {
   value: vi.fn(),
   writable: true,

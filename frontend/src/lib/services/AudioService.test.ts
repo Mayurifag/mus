@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("hls.js", () => {
+vi.mock("hls.js/light", () => {
   class MockHls {
     static Events = { ERROR: "hlsError" };
     static isSupported = mockHls.isSupported;
