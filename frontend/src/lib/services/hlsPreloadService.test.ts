@@ -87,6 +87,7 @@ describe("hlsPreloadService", () => {
     const tracks = [track("1"), track("2", "Other"), track("3")];
     const baseState: TrackStoreState = {
       tracks,
+      tracksLoading: false,
       currentTrackIndex: 0,
       playHistory: [tracks[0]],
       historyPosition: 0,

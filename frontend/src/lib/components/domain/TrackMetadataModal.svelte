@@ -8,6 +8,7 @@
     uploadTrack,
     deleteTrack,
     preloadArtworkSearch,
+    trackUpdatesConnectionStatus,
   } from "$lib/services/apiClient";
   import { toast } from "svelte-sonner";
   import { permissionsStore } from "$lib/stores/permissionsStore";
@@ -131,6 +132,9 @@
       cutValid &&
       (mode === "create" || Object.keys(updatePayload).length > 0),
   );
+  const downloadUnavailable = $derived(
+    isDownload && $trackUpdatesConnectionStatus !== "connected",
+  );
 
   const fallbackArtworkUrl = $derived.by(() => {
     if (mode === "edit" && track?.has_cover) {
@@ -225,7 +229,7 @@
   }
 
   async function handleSave() {
-    if (!hasSavableChanges || isUploading) return;
+    if (!hasSavableChanges || isUploading || downloadUnavailable) return;
     if (mode === "edit") {
       await handleUpdate();
     } else if (isDownload) {
@@ -367,6 +371,11 @@
           </p>
         {/if}
       </div>
+      {#if downloadUnavailable}
+        <p class="text-muted-foreground text-sm" role="status">
+          Waiting for live updates before starting the download.
+        </p>
+      {/if}
     {/if}
 
     {#if isDownload || mode === "edit"}
@@ -411,6 +420,7 @@
       {isUploading}
       {isFormValid}
       {hasSavableChanges}
+      saveDisabled={downloadUnavailable}
       hasCut={cut !== null}
       {cutValid}
       onCancel={closeModal}

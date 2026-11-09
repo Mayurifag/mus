@@ -4,9 +4,9 @@
   import { trackStore } from "$lib/stores/trackStore";
   import { audioServiceStore } from "$lib/stores/audioServiceStore";
   import { permissionsStore } from "$lib/stores/permissionsStore";
-  import type { PermissionsState } from "$lib/stores/permissionsStore";
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
   import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
+  import DownloadReviewModal from "$lib/components/domain/DownloadReviewModal.svelte";
   import {
     closeTrackUpdateEvents,
     fetchPermissions,
@@ -27,7 +27,6 @@
   import * as Sheet from "$lib/components/ui/sheet";
   import { browser } from "$app/env";
   import { Toaster } from "$lib/components/ui/sonner";
-  import type { PlayerState, Track } from "$lib/types";
 
   // Touch handling for swipe gestures
   let startX = $state<number | null>(null);
@@ -64,31 +63,34 @@
   }
 
   onMount(() => {
-    Promise.all([fetchTracks(), fetchPlayerState(), fetchPermissions()])
-      .then(
-        ([tracks, playerState, permissions]: [
-          Track[],
-          PlayerState,
-          PermissionsState,
-        ]) => {
-          permissionsStore.set(permissions);
-          trackStore.setTracks(tracks);
-          initializeAudioService();
-          lastCurrentTrackId = restorePlayerState(
-            audioService,
-            tracks,
-            playerState,
-          );
-          setupEventListeners();
-        },
-      )
+    let mounted = true;
+    void fetchPermissions().then((permissions) => {
+      if (mounted) permissionsStore.set(permissions);
+    });
+
+    void Promise.all([fetchTracks(), fetchPlayerState()])
+      .then(([tracks, playerState]) => {
+        if (!mounted) return;
+        trackStore.setTracks(tracks);
+        initializeAudioService();
+        lastCurrentTrackId = restorePlayerState(
+          audioService,
+          tracks,
+          playerState,
+        );
+        setupEventListeners();
+      })
       .catch((error) => {
+        if (!mounted) return;
         console.error("Failed to load initial app data", error);
-        permissionsStore.set({ can_write_music_files: false });
         trackStore.setTracks([]);
         initializeAudioService();
         setupEventListeners();
       });
+
+    return () => {
+      mounted = false;
+    };
   });
 
   // Clean up event source on component destroy
@@ -239,6 +241,7 @@
   </main>
 
   <Toaster position="top-right" />
+  <DownloadReviewModal />
 
   <!-- Desktop Sidebar - positioned fixed on the right -->
   <aside

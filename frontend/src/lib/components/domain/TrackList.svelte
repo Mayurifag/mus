@@ -3,7 +3,7 @@
   import type { AudioService } from "$lib/services/AudioService";
   import type { TimeRange, Track } from "$lib/types";
   import TrackItem from "./TrackItem.svelte";
-  import TrackMetadataModal from "./TrackMetadataModal.svelte";
+  import LazyTrackMetadataModal from "./LazyTrackMetadataModal.svelte";
   import { trackStore } from "$lib/stores/trackStore";
   import { createWindowVirtualizer } from "@tanstack/svelte-virtual";
   import { browser } from "$app/env";
@@ -195,7 +195,11 @@
   {/if}
 {/snippet}
 
-<div class="flex flex-col" data-testid="track-list">
+<div
+  class="flex flex-col"
+  data-testid="track-list"
+  aria-busy={$trackStore.tracksLoading}
+>
   {#if selectedArtist || selectedCategory}
     <button
       type="button"
@@ -225,7 +229,26 @@
     </button>
   {/if}
 
-  {#if $trackStore.tracks.length === 0}
+  {#if $trackStore.tracksLoading}
+    <div role="status" aria-label="Loading tracks">
+      <span class="sr-only">Loading tracks...</span>
+      <div class="motion-safe:animate-pulse" aria-hidden="true">
+        {#each [60, 45, 70, 50, 65, 40, 55, 68] as width (width)}
+          <div class="flex items-center gap-4 p-2">
+            <div class="bg-muted/30 h-14 w-14 shrink-0 rounded-md"></div>
+            <div class="flex min-w-0 flex-1 flex-col gap-2">
+              <div
+                class="bg-muted/30 h-4 max-w-72 rounded"
+                style="width: {width}%"
+              ></div>
+              <div class="bg-muted/20 h-3 w-28 max-w-full rounded"></div>
+            </div>
+            <div class="bg-muted/20 h-3 w-8 rounded"></div>
+          </div>
+        {/each}
+      </div>
+    </div>
+  {:else if $trackStore.tracks.length === 0}
     <div class="flex h-32 w-full flex-col items-center justify-center">
       <p class="text-muted-foreground mb-2 text-center">
         No tracks available. Wait a second, we are scanning your music library.
@@ -259,7 +282,7 @@
 </div>
 
 {#if editingTrack}
-  <TrackMetadataModal
+  <LazyTrackMetadataModal
     bind:open={editModalOpen}
     mode="edit"
     track={editingTrack}

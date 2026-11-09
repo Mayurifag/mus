@@ -22,6 +22,7 @@ const mockTrackStoreData = vi.hoisted(() => ({
   currentTrackIndex: 0,
   currentTrack: null as Track | null,
   tracks: [] as Track[],
+  tracksLoading: false,
   selectedArtist: null as string | null,
 }));
 
@@ -83,6 +84,22 @@ describe("TrackList component", () => {
     vi.mocked(TrackItem).mockClear();
     mockTrackStoreData.selectedArtist = null;
     mockTrackStoreData.currentTrack = null;
+    mockTrackStoreData.tracksLoading = false;
+  });
+
+  it("shows placeholders instead of the empty state while loading", () => {
+    mockTrackStoreData.tracks = [];
+    mockTrackStoreData.tracksLoading = true;
+    render(TrackList);
+
+    expect(
+      screen.getByRole("status", { name: "Loading tracks" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/No tracks available/)).not.toBeInTheDocument();
+    expect(screen.getByTestId("track-list")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
   });
 
   it("renders empty state messages when no tracks are available", () => {

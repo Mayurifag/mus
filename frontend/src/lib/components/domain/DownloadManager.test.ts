@@ -9,8 +9,6 @@ import * as apiClient from "$lib/services/apiClient";
 // Mock dependencies
 vi.mock("$lib/services/apiClient", () => ({
   fetchMetadata: vi.fn(),
-  confirmDownload: vi.fn(),
-  startDownload: vi.fn(),
 }));
 
 vi.mock("svelte-sonner", () => ({
@@ -20,13 +18,6 @@ vi.mock("svelte-sonner", () => ({
     info: vi.fn(),
     warning: vi.fn(),
   },
-}));
-
-// Minimal mock for TrackMetadataModal to avoid full Dialog complexity in unit tests
-vi.mock("./TrackMetadataModal.svelte", () => ({
-  default: vi.fn().mockImplementation(() => ({
-    $$: { ctx: [] },
-  })),
 }));
 
 describe("DownloadManager", () => {

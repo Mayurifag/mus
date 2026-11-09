@@ -1,7 +1,7 @@
 <script lang="ts">
   import { downloadStore } from "$lib/stores/downloadStore";
   import { permissionsStore } from "$lib/stores/permissionsStore";
-  import { fetchMetadata, confirmDownload } from "$lib/services/apiClient";
+  import { fetchMetadata } from "$lib/services/apiClient";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import {
@@ -12,10 +12,8 @@
     Lock,
   } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
-  import TrackMetadataModal from "./TrackMetadataModal.svelte";
 
   let url = $state("");
-  let reviewModalOpen = $state(false);
 
   async function handleDownload() {
     if (!["idle", "failed"].includes($downloadStore.state)) return;
@@ -41,7 +39,6 @@
         duration: metadata.duration,
         tags: (metadata.tags ?? []).map((tag) => tag.name),
       });
-      // $effect below opens the modal when state becomes awaiting_review
     } catch (error) {
       if (
         $downloadStore.state !== "fetching_metadata" ||
@@ -82,27 +79,6 @@
     }
   }
 
-  async function handleDownloadConfirm(
-    title: string,
-    artist: string,
-    tags: string[],
-    artworkUrl?: string,
-  ) {
-    const storeUrl = $downloadStore.url;
-    if (!storeUrl) return;
-    await confirmDownload(storeUrl, title, artist, artworkUrl, tags);
-    url = "";
-    downloadStore.startDownload();
-    reviewModalOpen = false;
-  }
-
-  function handleModalClose() {
-    if ($downloadStore.state === "awaiting_review") {
-      downloadStore.reset();
-    }
-    reviewModalOpen = false;
-  }
-
   const isFetchingMetadata = $derived(
     $downloadStore.state === "fetching_metadata",
   );
@@ -116,10 +92,13 @@
   const canWriteFiles = $derived($permissionsStore.can_write_music_files);
   const progress = $derived($downloadStore.progress);
   let resetCompletedTimeout: ReturnType<typeof setTimeout> | null = null;
+  let lastConfirmation: { url: string } | null = null;
 
   $effect(() => {
-    if (isAwaitingReview) {
-      reviewModalOpen = true;
+    const confirmation = $downloadStore.confirmation;
+    if (confirmation && confirmation !== lastConfirmation) {
+      lastConfirmation = confirmation;
+      if (url.trim() === confirmation.url) url = "";
     }
   });
 
@@ -224,18 +203,3 @@
     </div>
   {/if}
 </div>
-
-{#if isAwaitingReview || reviewModalOpen}
-  <TrackMetadataModal
-    bind:open={reviewModalOpen}
-    mode="create"
-    isDownload={true}
-    suggestedTitle={$downloadStore.title ?? undefined}
-    suggestedArtist={$downloadStore.artist ?? undefined}
-    suggestedTags={$downloadStore.tags}
-    sourceDuration={$downloadStore.duration}
-    coverDataUrl={$downloadStore.thumbnailUrl}
-    onDownloadConfirm={handleDownloadConfirm}
-    onClose={handleModalClose}
-  />
-{/if}

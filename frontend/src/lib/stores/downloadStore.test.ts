@@ -19,6 +19,7 @@ describe("downloadStore", () => {
       duration: null,
       tags: [],
       progress: null,
+      confirmation: null,
     });
   });
 
@@ -60,6 +61,7 @@ describe("downloadStore", () => {
       duration: null,
       tags: [],
       progress: null,
+      confirmation: null,
     });
   });
 

@@ -19,6 +19,7 @@ export interface DownloadStoreState {
   duration: number | null;
   tags: string[];
   progress: DownloadProgress | null;
+  confirmation: { url: string } | null;
 }
 
 const initialState: DownloadStoreState = {
@@ -31,6 +32,7 @@ const initialState: DownloadStoreState = {
   duration: null,
   tags: [],
   progress: null,
+  confirmation: null,
 };
 
 function createDownloadStore() {
@@ -75,6 +77,8 @@ function createDownloadStore() {
         error: null,
         progress: null,
       })),
+    confirm: (url: string) =>
+      update((state) => ({ ...state, confirmation: { url } })),
     setCompleted: () =>
       update((state) => ({
         ...state,

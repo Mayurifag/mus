@@ -9,6 +9,7 @@
     isUploading,
     isFormValid,
     hasSavableChanges,
+    saveDisabled = false,
     hasCut = false,
     cutValid = true,
     onCancel,
@@ -20,6 +21,7 @@
     isUploading: boolean;
     isFormValid: boolean;
     hasSavableChanges: boolean;
+    saveDisabled?: boolean;
     hasCut?: boolean;
     cutValid?: boolean;
     onCancel: () => void;
@@ -67,9 +69,9 @@
     <Button
       onclick={onSave}
       variant={hasCut ? "destructive" : "default"}
-      disabled={!hasSavableChanges || isUploading}
+      disabled={!hasSavableChanges || isUploading || saveDisabled}
       class="cursor-pointer"
-      title={saveTitle}
+      title={saveDisabled ? "Waiting for live updates" : saveTitle}
     >
       {#if isUploading}
         Saving...

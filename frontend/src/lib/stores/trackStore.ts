@@ -12,6 +12,7 @@ import { trackCategoryNames } from "$lib/utils/categoryMarkers";
 
 export interface TrackStoreState {
   tracks: Track[];
+  tracksLoading: boolean;
   currentTrackIndex: number | null;
   playHistory: Track[];
   historyPosition: number;
@@ -24,6 +25,7 @@ export interface TrackStoreState {
 
 const initialState: TrackStoreState = {
   tracks: [],
+  tracksLoading: true,
   currentTrackIndex: null,
   playHistory: [],
   historyPosition: -1,
@@ -237,6 +239,7 @@ function createTrackStore() {
     subscribe,
     setTracks: (tracks: Track[]) =>
       update((state) => {
+        state = { ...state, tracksLoading: false };
         if (tracks.length === 0) {
           return { ...state, ...createEmptyState(tracks) };
         }

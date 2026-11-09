@@ -51,6 +51,7 @@ describe("trackStore", () => {
   it("should initialize with default values", () => {
     const state = get(trackStore);
     expect(state.tracks).toEqual([]);
+    expect(state.tracksLoading).toBe(true);
     expect(state.currentTrackIndex).toBeNull();
     expect(state.playHistory).toEqual([]);
     expect(state.historyPosition).toBe(-1);
@@ -62,6 +63,7 @@ describe("trackStore", () => {
   it("should set tracks and maintain current track index if possible", () => {
     trackStore.setTracks(mockTracks);
     expect(get(trackStore).tracks).toEqual(mockTracks);
+    expect(get(trackStore).tracksLoading).toBe(false);
     expect(get(trackStore).currentTrackIndex).toBe(0);
     expect(get(trackStore).currentTrack).toEqual(mockTracks[0]);
 
@@ -124,7 +126,13 @@ describe("trackStore", () => {
 
     trackStore.setTracks([]);
     expect(get(trackStore).tracks).toEqual([]);
+    expect(get(trackStore).tracksLoading).toBe(false);
     expect(get(trackStore).currentTrackIndex).toBeNull();
+  });
+
+  it("finishes loading an empty library", () => {
+    trackStore.setTracks([]);
+    expect(get(trackStore).tracksLoading).toBe(false);
   });
 
   it("should not auto-select first track when current track already exists", () => {
