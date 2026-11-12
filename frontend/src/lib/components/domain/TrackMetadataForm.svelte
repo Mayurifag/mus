@@ -27,6 +27,7 @@
     renameFile = $bindable(),
     artists = $bindable(),
     generatedFilename,
+    filenameBytes,
     isFilenameTooLong,
     isFormValid,
     selectedArtwork,
@@ -47,6 +48,7 @@
     renameFile: boolean;
     artists: ArtistRow[];
     generatedFilename: string;
+    filenameBytes: number;
     isFilenameTooLong: boolean;
     isFormValid: boolean;
     selectedArtwork: ArtworkSearchResult | null;
@@ -209,10 +211,10 @@
           class="border-destructive/30 bg-destructive/10 rounded-lg border p-3"
         >
           <div class="text-destructive text-sm font-medium">
-            Filename is too long (max 255 characters)
+            Filename is too long (max 255 UTF-8 bytes)
           </div>
           <div class="text-destructive/80 mt-1 text-xs">
-            Current length: {generatedFilename.length} characters
+            Current length: {filenameBytes} bytes
           </div>
         </div>
       {/if}

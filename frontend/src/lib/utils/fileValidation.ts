@@ -43,23 +43,3 @@ export function validateAudioFile(
 
   return { isValid: true, extension };
 }
-
-export function validateFileCount(
-  files: FileList | null,
-  expectedCount: number = 1,
-  showToast: boolean = true,
-): boolean {
-  if (!files || files.length !== expectedCount) {
-    const error =
-      expectedCount === 1
-        ? "Please drop exactly one file"
-        : `Please drop exactly ${expectedCount} files`;
-    if (showToast) toast.error(error);
-    return false;
-  }
-  return true;
-}
-
-export function getFileExtension(filename: string): string {
-  return filename.toLowerCase().split(".").pop() || "";
-}

@@ -1,3 +1,5 @@
+//! Media edits, format preservation, file identity, and recovery integration tests.
+
 use std::time::SystemTime;
 use std::{fs, path::Path, process::Command};
 
@@ -10,7 +12,7 @@ use id3::{
 };
 use mus_backend::media::{
     apply_audio_update, extract_cover, preview_cut, read_cut_source, standardize_audio_tags,
-    write_audio_tags, AudioUpdate,
+    write_audio_tags, AudioUpdate, CutPreview,
 };
 use mus_backend::models::AudioCut;
 use serde_json::Value;
@@ -174,6 +176,117 @@ fn assert_no_mus_files(dir: &Path) {
 #[cfg(unix)]
 fn file_id(path: &Path) -> u64 {
     fs::metadata(path).unwrap().ino()
+}
+
+#[tokio::test]
+async fn id3_parse_failures_preserve_original_tags_and_audio() {
+    let tmp = TempDir::new().unwrap();
+    let path = tmp.path().join("song.mp3");
+    run(Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=997:duration=1",
+            "-c:a",
+            "libmp3lame",
+            "-metadata",
+            "title=Original title",
+            "-metadata",
+            "album=Album to preserve",
+        ])
+        .arg(&path));
+    let mut original = fs::read(&path).unwrap();
+    let title = original
+        .windows(4)
+        .position(|bytes| bytes == b"TIT2")
+        .unwrap();
+    // An invalid text encoding makes this frame unreadable, not absent.
+    original[title + 10] = 0xff;
+    fs::write(&path, &original).unwrap();
+    assert!(Tag::read_from_path(&path).is_err());
+    let modified = fs::metadata(&path).unwrap().modified().unwrap();
+    let cache = tmp.path().join("cache");
+
+    for update in [
+        AudioUpdate {
+            title: Some("New title"),
+            artist: None,
+            cover_jpeg_path: None,
+            target_path: None,
+            standardize_tags: false,
+            update_mtime: true,
+            remove_section: None,
+        },
+        AudioUpdate {
+            title: None,
+            artist: None,
+            cover_jpeg_path: None,
+            target_path: None,
+            standardize_tags: true,
+            update_mtime: true,
+            remove_section: None,
+        },
+        cut_update(AudioCut {
+            start_seconds: 0.02,
+            end_seconds: 0.05,
+        }),
+    ] {
+        let error = apply_audio_update(&path, &cache, update)
+            .await
+            .err()
+            .expect("unreadable tags must not be replaced");
+        assert!(error.downcast_ref::<id3::Error>().is_some(), "{error:#}");
+        assert_eq!(fs::read(&path).unwrap(), original);
+        assert_eq!(fs::metadata(&path).unwrap().modified().unwrap(), modified);
+        if cache.exists() {
+            assert!(fs::read_dir(&cache).unwrap().next().is_none());
+        }
+    }
+}
+
+#[tokio::test]
+async fn id3_writes_accept_audio_without_existing_tags() {
+    let tmp = TempDir::new().unwrap();
+    for (ext, codec) in [
+        ("mp3", "libmp3lame"),
+        ("wav", "pcm_s16le"),
+        ("aiff", "pcm_s16be"),
+    ] {
+        let path = tmp.path().join(format!("untagged.{ext}"));
+        run(Command::new("ffmpeg")
+            .args([
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=997:duration=0.1",
+                "-c:a",
+                codec,
+            ])
+            .arg(&path));
+        Tag::remove_from_path(&path).unwrap();
+        assert!(id3::no_tag_ok(Tag::read_from_path(&path))
+            .unwrap()
+            .is_none());
+        let samples = decoded_samples(&path);
+
+        standardize_audio_tags(&path, &tmp.path().join("cache"))
+            .await
+            .unwrap();
+        assert_eq!(
+            Tag::read_from_path(&path).unwrap().version(),
+            Version::Id3v23
+        );
+        write_audio_tags(&path, &tmp.path().join("cache"), "Title", "Artist")
+            .await
+            .unwrap();
+        let tag = Tag::read_from_path(&path).unwrap();
+        assert_eq!(tag.title(), Some("Title"));
+        assert_eq!(tag.artist(), Some("Artist"));
+        assert_eq!(decoded_samples(&path), samples);
+    }
 }
 
 #[tokio::test]
@@ -506,7 +619,9 @@ async fn cut_and_preview_remove_the_exact_samples_without_touching_original_duri
         #[cfg(unix)]
         let original_inode = file_id(&path);
         let duration = read_cut_source(&path).await.unwrap().duration;
-        let preview = preview_cut(&path, cut, duration, false).await.unwrap();
+        let preview = preview_cut(&path, cut, duration, CutPreview::Join)
+            .await
+            .unwrap();
         assert_eq!(fs::read(&path).unwrap(), before);
         let preview_path = tmp.path().join("preview.wav");
         fs::write(&preview_path, preview).unwrap();

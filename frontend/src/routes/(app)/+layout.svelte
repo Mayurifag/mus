@@ -1,18 +1,17 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import type { Snippet } from "svelte";
+  import type { Track } from "$lib/types";
   import { trackStore } from "$lib/stores/trackStore";
   import { audioServiceStore } from "$lib/stores/audioServiceStore";
   import { permissionsStore } from "$lib/stores/permissionsStore";
   import PlayerFooter from "$lib/components/layout/PlayerFooter.svelte";
   import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
   import DownloadReviewModal from "$lib/components/domain/DownloadReviewModal.svelte";
-  import {
-    closeTrackUpdateEvents,
-    fetchPermissions,
-    fetchPlayerState,
-    fetchTracks,
-  } from "$lib/services/apiClient";
+  import { fetchTracks } from "$lib/services/trackClient";
+  import { fetchPermissions } from "$lib/services/systemClient";
+  import { fetchPlayerState } from "$lib/services/playerClient";
+  import { closeTrackUpdateEvents } from "$lib/services/trackEventsClient";
   import { initEventHandlerService } from "$lib/services/eventHandlerService";
   import { AudioService } from "$lib/services/AudioService";
   import {
@@ -42,7 +41,7 @@
   let eventSource = $state<EventSource | null>(null);
   let sheetOpen = $state(false);
   let isPlaying = $state(false);
-  let lastCurrentTrackId: string | null = null;
+  let lastCurrentTrack: Track | null = null;
   let lastPlayRequestId = 0;
 
   function initializeAudioService() {
@@ -73,11 +72,13 @@
         if (!mounted) return;
         trackStore.setTracks(tracks);
         initializeAudioService();
-        lastCurrentTrackId = restorePlayerState(
+        const restoredTrackId = restorePlayerState(
           audioService,
           tracks,
           playerState,
         );
+        lastCurrentTrack =
+          tracks.find((track) => track.id === restoredTrackId) ?? null;
         setupEventListeners();
       })
       .catch((error) => {
@@ -147,11 +148,7 @@
   // TODO: maybe we should do that inside audio service idk
   $effect(() => {
     updateEffectStats("Layout_TrackChangeHandler");
-    if (
-      audioService &&
-      $trackStore.currentTrack &&
-      $trackStore.currentTrack.id !== lastCurrentTrackId
-    ) {
+    if (audioService && $trackStore.currentTrack !== lastCurrentTrack) {
       const shouldAutoPlay =
         isPlaying || $trackStore.playRequestId !== lastPlayRequestId;
       audioService.updateAudioSource($trackStore.currentTrack, shouldAutoPlay);
@@ -162,7 +159,7 @@
           $trackStore.is_shuffle,
         );
       }
-      lastCurrentTrackId = $trackStore.currentTrack.id;
+      lastCurrentTrack = $trackStore.currentTrack;
       lastPlayRequestId = $trackStore.playRequestId;
     }
   });

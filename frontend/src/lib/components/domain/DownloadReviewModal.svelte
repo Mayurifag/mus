@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { confirmDownload } from "$lib/services/apiClient";
+  import { confirmDownload } from "$lib/services/downloadClient";
   import { downloadStore } from "$lib/stores/downloadStore";
   import LazyTrackMetadataModal from "./LazyTrackMetadataModal.svelte";
 

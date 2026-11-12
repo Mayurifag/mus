@@ -1,39 +1,40 @@
-use std::{fs, time::Duration};
+use std::time::Duration;
+use tokio::fs;
 
 use axum::{extract::State, Json};
 use serde_json::{json, Value};
 
 use crate::{
-    error::AppError,
-    events,
-    models::MusicDirectoryStatus,
-    scanner::scan_music_dir,
-    state::AppState,
-    util::{can_write, command_output_text_with_timeout},
+    error::AppError, events, files::can_write, models::MusicDirectoryStatus,
+    process::command_output_text_with_timeout, scanner::scan_music_dir, state::AppState,
 };
 
 pub async fn get_permissions(State(state): State<AppState>) -> Json<Value> {
-    Json(json!({"can_write_music_files": can_write(&state.music_dir)}))
+    Json(json!({"can_write_music_files": can_write(&state.music_dir).await}))
 }
 
 pub async fn get_system_info(State(state): State<AppState>) -> Json<Value> {
-    let yt_dlp_version = state.yt_dlp_version.lock().unwrap().clone();
+    let yt_dlp_version = state.yt_dlp_version.lock().await.clone();
     Json(json!({
         "app_date": state.app_date,
         "commit_sha": state.commit_sha,
-        "music_dir": music_directory_status(&state),
+        "music_dir": music_directory_status(&state).await,
         "yt_dlp_version": yt_dlp_version,
     }))
 }
 
-fn music_directory_status(state: &AppState) -> MusicDirectoryStatus {
-    let exists = state.music_dir.exists();
-    let is_directory = state.music_dir.is_dir();
-    let is_empty = is_directory.then(|| {
-        fs::read_dir(&state.music_dir)
-            .map(|mut entries| entries.next().is_none())
-            .unwrap_or(false)
-    });
+async fn music_directory_status(state: &AppState) -> MusicDirectoryStatus {
+    let metadata = fs::metadata(&state.music_dir).await;
+    let exists = metadata.is_ok();
+    let is_directory = metadata.is_ok_and(|meta| meta.is_dir());
+    let is_empty = if is_directory {
+        Some(match fs::read_dir(&state.music_dir).await {
+            Ok(mut entries) => matches!(entries.next_entry().await, Ok(None)),
+            Err(_) => false,
+        })
+    } else {
+        None
+    };
     let warning = if !exists {
         Some("Music directory is missing. Check the /app_data/music mount.".to_string())
     } else if !is_directory {
@@ -47,7 +48,7 @@ fn music_directory_status(state: &AppState) -> MusicDirectoryStatus {
         exists,
         is_directory,
         is_empty,
-        can_write: can_write(&state.music_dir),
+        can_write: can_write(&state.music_dir).await,
         warning,
     }
 }
@@ -64,7 +65,7 @@ pub async fn update_yt_dlp(State(state): State<AppState>) -> Result<Json<Value>,
         command_output_text_with_timeout("yt-dlp", &["--version"], Duration::from_secs(10))
             .await
             .ok();
-    *state.yt_dlp_version.lock().unwrap() = version.clone();
+    *state.yt_dlp_version.lock().await = version.clone();
     events::broadcast(
         &state,
         "yt_dlp_updated",

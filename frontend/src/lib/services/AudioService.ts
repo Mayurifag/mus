@@ -1,5 +1,5 @@
 import type { Track, TimeRange } from "$lib/types";
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 import { trackStore } from "$lib/stores/trackStore";
 import { formatArtistsForDisplay } from "$lib/utils/formatters";
 import Hls from "hls.js/light";
@@ -18,9 +18,11 @@ export class AudioService {
   private currentTrackId: string | null = null;
   private pendingHlsUrl: string | null = null;
   private hasRequestedLoad = false;
+  private pendingInitialTime: number | null = null;
   private hls: Hls | null = null;
+  private readonly initialTitle =
+    typeof document === "undefined" ? "" : document.title;
 
-  // Convert internal state to reactive stores
   private _volume = writable(1.0);
   private _isMuted = writable(false);
   private _isPlaying = writable(false);
@@ -29,33 +31,8 @@ export class AudioService {
   private _isRepeat = writable(false);
   private _currentBufferedRanges = writable<TimeRange[]>([]);
 
-  // Keep current values for efficient getter access
-  private _currentVolume = 1.0;
-  private _currentIsMuted = false;
-  private _currentIsPlaying = false;
-  private _currentCurrentTime = 0;
-  private _currentDuration = 0;
-  private _currentIsRepeat = false;
-  private _currentCurrentBufferedRanges: TimeRange[] = [];
-  private storeUnsubscribers: Array<() => void> = [];
-
   constructor(audio: HTMLAudioElement) {
     this.audio = audio;
-
-    // Subscribe to our own stores to keep current values in sync
-    this.storeUnsubscribers.push(
-      this._volume.subscribe((value) => (this._currentVolume = value)),
-      this._isMuted.subscribe((value) => (this._currentIsMuted = value)),
-      this._isPlaying.subscribe((value) => (this._currentIsPlaying = value)),
-      this._currentTime.subscribe(
-        (value) => (this._currentCurrentTime = value),
-      ),
-      this._duration.subscribe((value) => (this._currentDuration = value)),
-      this._isRepeat.subscribe((value) => (this._currentIsRepeat = value)),
-      this._currentBufferedRanges.subscribe(
-        (value) => (this._currentCurrentBufferedRanges = value),
-      ),
-    );
 
     this.setupEventListeners();
   }
@@ -75,23 +52,30 @@ export class AudioService {
   }
 
   private handlePlay = (): void => {
+    if (this.currentTrackId === null) return;
     this._isPlaying.set(true);
     updateMediaSessionPlaybackState(true);
   };
 
   private handlePause = (): void => {
     this._isPlaying.set(false);
-    updateMediaSessionPlaybackState(false);
+    if (this.currentTrackId !== null) updateMediaSessionPlaybackState(false);
   };
 
   private handleLoadedMetadata = (): void => {
+    if (this.currentTrackId === null) return;
+    if (this.pendingInitialTime !== null) {
+      const time = this.pendingInitialTime;
+      this.pendingInitialTime = null;
+      this.setTime(time);
+    }
     if (this.audio && !isNaN(this.audio.duration)) {
       this._duration.set(this.audio.duration);
     }
   };
 
   private handleTimeUpdate = (): void => {
-    if (this.isSeeking) return;
+    if (this.currentTrackId === null || this.isSeeking) return;
 
     if (this.audio && !isNaN(this.audio.currentTime)) {
       this._currentTime.set(this.audio.currentTime);
@@ -99,7 +83,8 @@ export class AudioService {
   };
 
   private handleEnded = (): void => {
-    if (this._currentIsRepeat) {
+    if (this.currentTrackId === null) return;
+    if (this.isRepeat) {
       if (this.audio) {
         this.audio.currentTime = 0;
         this.audio.play().catch((error) => {
@@ -137,6 +122,7 @@ export class AudioService {
   }
 
   private updateBufferedRanges(): void {
+    if (this.currentTrackId === null) return;
     if (this.audio && this.audio.buffered) {
       const ranges = this.convertTimeRangesToArray(this.audio.buffered);
       this._currentBufferedRanges.set(ranges);
@@ -197,25 +183,26 @@ export class AudioService {
     isPlaying: boolean,
     initialTime = 0,
   ): void {
-    if (!track) return;
+    if (!track) {
+      this.clearSource();
+      return;
+    }
+
+    if (typeof document !== "undefined") {
+      document.title = `${formatArtistsForDisplay(track.artist)} - ${displayTrackTitle(track)}`;
+    }
+    updateMediaSessionMetadata(track);
 
     const shouldUpdateSource = this.currentTrackId !== track.id;
     this.currentTrackId = track.id;
     if (shouldUpdateSource) {
-      const seekAfterMetadata = () => this.setTime(initialTime);
       this.destroyHls();
       this.hasRequestedLoad = false;
       this.pendingHlsUrl = track.hls_url;
-      this.audio.addEventListener("loadedmetadata", seekAfterMetadata, {
-        once: true,
-      });
-      if (typeof document !== "undefined") {
-        document.title = `${formatArtistsForDisplay(track.artist)} - ${displayTrackTitle(track)}`;
-      }
+      this.pendingInitialTime = initialTime;
       this._currentTime.set(initialTime);
       this._duration.set(0);
       this._currentBufferedRanges.set([]);
-      updateMediaSessionMetadata(track);
 
       if (isPlaying) {
         this.loadSource();
@@ -227,6 +214,7 @@ export class AudioService {
   }
 
   play(): void {
+    if (this.currentTrackId === null) return;
     this.loadSource();
     this.audio.play().catch((error) => this.handlePlayError(error));
   }
@@ -238,18 +226,19 @@ export class AudioService {
   setVolume(volume: number): void {
     const newVolume = Math.max(0, Math.min(1, volume));
     this._volume.set(newVolume);
-    this.audio.volume = this._currentIsMuted ? 0 : newVolume;
+    this.audio.volume = this.isMuted ? 0 : newVolume;
   }
 
   toggleMute(): void {
     this._isMuted.update((muted) => {
       const newMuted = !muted;
-      this.audio.volume = newMuted ? 0 : this._currentVolume;
+      this.audio.volume = newMuted ? 0 : this.volume;
       return newMuted;
     });
   }
 
   setTime(time: number): void {
+    if (this.pendingInitialTime !== null) this.pendingInitialTime = time;
     this._currentTime.set(time);
     this.loadSource();
     this.audio.currentTime = time;
@@ -269,31 +258,31 @@ export class AudioService {
   }
 
   get volume(): number {
-    return this._currentVolume;
+    return get(this._volume);
   }
 
   get isMuted(): boolean {
-    return this._currentIsMuted;
+    return get(this._isMuted);
   }
 
   get isPlaying(): boolean {
-    return this._currentIsPlaying;
+    return get(this._isPlaying);
   }
 
   get currentTime(): number {
-    return this._currentCurrentTime;
+    return get(this._currentTime);
   }
 
   get duration(): number {
-    return this._currentDuration;
+    return get(this._duration);
   }
 
   get isRepeat(): boolean {
-    return this._currentIsRepeat;
+    return get(this._isRepeat);
   }
 
   get currentBufferedRanges(): TimeRange[] {
-    return this._currentCurrentBufferedRanges;
+    return get(this._currentBufferedRanges);
   }
 
   // Store getters for reactive subscriptions
@@ -343,6 +332,7 @@ export class AudioService {
   }
 
   private setupActionHandlers = (): void => {
+    if (this.currentTrackId === null) return;
     setupMediaSessionHandlers({
       play: () => this.play(),
       pause: () => this.pause(),
@@ -352,8 +342,30 @@ export class AudioService {
     });
   };
 
-  destroy(): void {
+  private clearSource(): void {
+    this.currentTrackId = null;
+    this.pendingHlsUrl = null;
+    this.pendingInitialTime = null;
+    this.hasRequestedLoad = false;
+    this.isSeeking = false;
     this.pause();
+    this.destroyHls();
+    if (typeof this.audio.removeAttribute === "function") {
+      this.audio.removeAttribute("src");
+    } else {
+      this.audio.src = "";
+    }
+    this.audio.load();
+    this._isPlaying.set(false);
+    this._currentTime.set(0);
+    this._duration.set(0);
+    this._currentBufferedRanges.set([]);
+    clearMediaSession();
+    if (typeof document !== "undefined") document.title = this.initialTitle;
+  }
+
+  destroy(): void {
+    this.clearSource();
     this.audio.controls = false;
     this.audio.removeEventListener("loadedmetadata", this.handleLoadedMetadata);
     this.audio.removeEventListener("timeupdate", this.handleTimeUpdate);
@@ -364,18 +376,5 @@ export class AudioService {
     this.audio.removeEventListener("playing", this.setupActionHandlers);
     this.audio.removeEventListener("progress", this.handleProgress);
     this.audio.removeEventListener("suspend", this.handleSuspend);
-    this.storeUnsubscribers.forEach((unsubscribe) => unsubscribe());
-    this.storeUnsubscribers = [];
-    clearMediaSession();
-    this.destroyHls();
-    if (typeof this.audio.removeAttribute === "function") {
-      this.audio.removeAttribute("src");
-    } else {
-      this.audio.src = "";
-    }
-    this.currentTrackId = null;
-    this.pendingHlsUrl = null;
-    this.hasRequestedLoad = false;
-    this.audio.load();
   }
 }

@@ -6,15 +6,20 @@ import DownloadReviewModal from "./DownloadReviewModal.svelte";
 import { downloadStore } from "$lib/stores/downloadStore";
 import { permissionsStore } from "$lib/stores/permissionsStore";
 import { trackStore } from "$lib/stores/trackStore";
-import * as apiClient from "$lib/services/apiClient";
+import * as apiClient from "$lib/services/downloadClient";
+import { trackUpdatesConnectionStatus } from "$lib/services/trackEventsClient";
 import { handleMusEvent } from "$lib/services/eventHandlerService";
 import { get } from "svelte/store";
 import { existingTitleSuggestions } from "./trackMetadataForm";
 
-vi.mock("$lib/services/apiClient", async (importOriginal) => ({
+vi.mock("$lib/services/downloadClient", async (importOriginal) => ({
   ...(await importOriginal<typeof apiClient>()),
   fetchMetadata: vi.fn(),
   confirmDownload: vi.fn(),
+}));
+
+vi.mock("$lib/services/trackClient", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("$lib/services/trackClient")>()),
   fetchTracks: vi.fn().mockResolvedValue([]),
 }));
 
@@ -28,7 +33,7 @@ describe("download metadata review", () => {
     downloadStore.reset();
     trackStore.reset();
     permissionsStore.set({ can_write_music_files: true });
-    apiClient.trackUpdatesConnectionStatus.set("connected");
+    trackUpdatesConnectionStatus.set("connected");
     vi.mocked(apiClient.fetchMetadata).mockResolvedValue({
       title: "Song (AI cover)",
       artist: "Artist",
@@ -247,7 +252,7 @@ describe("download metadata review", () => {
   });
 
   it("waits for live updates before confirming a download", async () => {
-    apiClient.trackUpdatesConnectionStatus.set("disconnected");
+    trackUpdatesConnectionStatus.set("disconnected");
     renderDownload();
     await fireEvent.input(
       screen.getByPlaceholderText("Enter YouTube URL or other supported link"),
@@ -263,11 +268,11 @@ describe("download metadata review", () => {
     await fireEvent.click(save);
     expect(apiClient.confirmDownload).not.toHaveBeenCalled();
 
-    apiClient.trackUpdatesConnectionStatus.set("connected");
+    trackUpdatesConnectionStatus.set("connected");
     await waitFor(() => expect(save).toBeEnabled());
-    apiClient.trackUpdatesConnectionStatus.set("reconnecting");
+    trackUpdatesConnectionStatus.set("reconnecting");
     await waitFor(() => expect(save).toBeDisabled());
-    apiClient.trackUpdatesConnectionStatus.set("connected");
+    trackUpdatesConnectionStatus.set("connected");
     await waitFor(() => expect(save).toBeEnabled());
     await fireEvent.click(save);
     expect(apiClient.confirmDownload).toHaveBeenCalledOnce();
@@ -296,7 +301,7 @@ describe("download metadata review", () => {
     );
     expect(get(downloadStore).state).toBe("awaiting_review");
 
-    apiClient.trackUpdatesConnectionStatus.set("reconnecting");
+    trackUpdatesConnectionStatus.set("reconnecting");
     resolve();
     await waitFor(() => expect(get(downloadStore).state).toBe("downloading"));
     await waitFor(() => expect(input).toHaveValue(""));

@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ArtworkSearchResult } from "$lib/types";
   import * as Dialog from "$lib/components/ui/dialog";
-  import { searchArtworkStream } from "$lib/services/apiClient";
+  import { searchArtworkStream } from "$lib/services/artworkClient";
   import { toast } from "svelte-sonner";
   import { onDestroy } from "svelte";
 

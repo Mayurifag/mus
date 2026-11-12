@@ -9,6 +9,10 @@ import {
 } from "$lib/stores/trackNavigation";
 import { parseArtists } from "$lib/utils/formatters";
 import { trackCategoryNames } from "$lib/utils/categoryMarkers";
+import {
+  navigateFilteredTracks,
+  selectedTrackIndexes,
+} from "$lib/stores/filteredTrackNavigation";
 
 export interface TrackStoreState {
   tracks: Track[];
@@ -35,6 +39,24 @@ const initialState: TrackStoreState = {
   selectedCategory: null,
   playRequestId: 0,
 };
+
+function replaceTrack(
+  state: TrackStoreState,
+  track: Track,
+  previousId: string,
+): TrackStoreState {
+  return {
+    ...state,
+    tracks: state.tracks.map((entry) =>
+      entry.id === previousId ? track : entry,
+    ),
+    currentTrack:
+      state.currentTrack?.id === previousId ? track : state.currentTrack,
+    playHistory: state.playHistory.map((entry) =>
+      entry.id === previousId ? track : entry,
+    ),
+  };
+}
 
 function createTrackStore() {
   const { subscribe, set, update } = writable<TrackStoreState>(initialState);
@@ -64,174 +86,21 @@ function createTrackStore() {
     tracks: Track[],
     newIndex: number,
   ): Partial<TrackStoreState> => {
-    const newHistory =
-      state.playHistory.length > 0 ? state.playHistory : [tracks[newIndex]];
-    const newPosition =
-      state.playHistory.length > 0 ? state.historyPosition : 0;
+    const tracksById = new Map(tracks.map((track) => [track.id, track]));
+    let newPosition = state.historyPosition;
+    const newHistory: Track[] = [];
+    for (const [position, entry] of state.playHistory.entries()) {
+      const track = tracksById.get(entry.id);
+      if (track) newHistory.push(track);
+      else if (position < state.historyPosition) newPosition--;
+    }
 
     return {
       tracks,
       currentTrackIndex: newIndex,
       currentTrack: tracks[newIndex],
-      playHistory: newHistory,
-      historyPosition: newPosition,
-    };
-  };
-
-  const trackMatchesArtist = (track: Track, artist: string): boolean =>
-    parseArtists(track.artist).includes(artist);
-
-  const trackMatchesCategory = (track: Track, category: string): boolean =>
-    trackCategoryNames(track).includes(category);
-
-  const getSelectedFilterTrackIndexes = (state: TrackStoreState): number[] => {
-    const selectedArtist = state.selectedArtist;
-    const selectedCategory = state.selectedCategory;
-    if (!selectedArtist && !selectedCategory) return [];
-
-    return state.tracks.reduce<number[]>((indexes, track, index) => {
-      if (
-        (!selectedArtist || trackMatchesArtist(track, selectedArtist)) &&
-        (!selectedCategory || trackMatchesCategory(track, selectedCategory))
-      ) {
-        indexes.push(index);
-      }
-      return indexes;
-    }, []);
-  };
-
-  const findScopedTrackIndex = (
-    state: TrackStoreState,
-    scopedIndexes: number[],
-    targetTrack: Track,
-  ): number =>
-    scopedIndexes.find(
-      (trackIndex) => state.tracks[trackIndex].id === targetTrack.id,
-    ) ?? -1;
-
-  const getScopedHistoryMove = (
-    state: TrackStoreState,
-    scopedIndexes: number[],
-    startPosition: number,
-    direction: 1 | -1,
-  ): { trackIndex: number; historyPosition: number } | null => {
-    for (
-      let position = startPosition;
-      position >= 0 && position < state.playHistory.length;
-      position += direction
-    ) {
-      const trackIndex = findScopedTrackIndex(
-        state,
-        scopedIndexes,
-        state.playHistory[position],
-      );
-      if (trackIndex !== -1) {
-        return { trackIndex, historyPosition: position };
-      }
-    }
-
-    return null;
-  };
-
-  const getSequentialScopedTrackIndex = (
-    state: TrackStoreState,
-    scopedIndexes: number[],
-    direction: 1 | -1,
-  ): number => {
-    const currentPosition =
-      state.currentTrackIndex === null
-        ? -1
-        : scopedIndexes.indexOf(state.currentTrackIndex);
-    const scopedPosition =
-      currentPosition === -1
-        ? direction === 1
-          ? 0
-          : scopedIndexes.length - 1
-        : (currentPosition + direction + scopedIndexes.length) %
-          scopedIndexes.length;
-
-    return scopedIndexes[scopedPosition];
-  };
-
-  const getRandomScopedTrackIndex = (
-    state: TrackStoreState,
-    scopedIndexes: number[],
-  ): number => {
-    const currentInScope =
-      state.currentTrackIndex !== null &&
-      scopedIndexes.includes(state.currentTrackIndex);
-    const availableIndexes =
-      currentInScope && scopedIndexes.length > 1
-        ? scopedIndexes.filter(
-            (trackIndex) => trackIndex !== state.currentTrackIndex,
-          )
-        : scopedIndexes;
-
-    return availableIndexes[
-      Math.floor(Math.random() * availableIndexes.length)
-    ];
-  };
-
-  const navigateSelectedArtistTrack = (
-    state: TrackStoreState,
-    scopedIndexes: number[],
-    direction: 1 | -1,
-  ): Partial<TrackStoreState> => {
-    if (state.is_shuffle) {
-      const historyMove = getScopedHistoryMove(
-        state,
-        scopedIndexes,
-        state.historyPosition + direction,
-        direction,
-      );
-
-      if (historyMove) {
-        return {
-          currentTrackIndex: historyMove.trackIndex,
-          currentTrack: state.tracks[historyMove.trackIndex],
-          historyPosition: historyMove.historyPosition,
-        };
-      }
-    }
-
-    const trackIndex =
-      state.is_shuffle && direction === 1
-        ? getRandomScopedTrackIndex(state, scopedIndexes)
-        : getSequentialScopedTrackIndex(state, scopedIndexes, direction);
-    const track = state.tracks[trackIndex];
-
-    if (!state.is_shuffle) {
-      return {
-        currentTrackIndex: trackIndex,
-        currentTrack: track,
-      };
-    }
-
-    const currentInScope =
-      state.currentTrackIndex !== null &&
-      scopedIndexes.includes(state.currentTrackIndex);
-    if (direction === 1 && currentInScope && scopedIndexes.length === 1) {
-      return {};
-    }
-
-    const scopedHistory = state.playHistory
-      .slice(0, Math.max(state.historyPosition + 1, 0))
-      .filter(
-        (track) => findScopedTrackIndex(state, scopedIndexes, track) !== -1,
-      );
-
-    if (scopedHistory.length === 0 && currentInScope && state.currentTrack) {
-      scopedHistory.push(state.currentTrack);
-    }
-
-    const playHistory =
-      direction === 1 ? [...scopedHistory, track] : [track, ...scopedHistory];
-
-    return {
-      currentTrackIndex: trackIndex,
-      currentTrack: track,
-      playHistory,
-      historyPosition: direction === 1 ? playHistory.length - 1 : 0,
+      playHistory: newHistory.length > 0 ? newHistory : [tracks[newIndex]],
+      historyPosition: newHistory.length > 0 ? newPosition : 0,
     };
   };
 
@@ -381,12 +250,10 @@ function createTrackStore() {
         };
 
         if (state.selectedArtist || state.selectedCategory) {
-          const scopedIndexes = getSelectedFilterTrackIndexes(state);
+          const scopedIndexes = selectedTrackIndexes(state);
           if (scopedIndexes.length === 0) return state;
 
-          return nextState({
-            ...navigateSelectedArtistTrack(state, scopedIndexes, 1),
-          });
+          return nextState(navigateFilteredTracks(state, scopedIndexes, 1));
         }
 
         if (state.currentTrackIndex === null) {
@@ -415,12 +282,12 @@ function createTrackStore() {
         }
 
         if (state.selectedArtist || state.selectedCategory) {
-          const scopedIndexes = getSelectedFilterTrackIndexes(state);
+          const scopedIndexes = selectedTrackIndexes(state);
           if (scopedIndexes.length === 0) return state;
 
           return {
             ...state,
-            ...navigateSelectedArtistTrack(state, scopedIndexes, -1),
+            ...navigateFilteredTracks(state, scopedIndexes, -1),
           };
         }
 
@@ -491,20 +358,7 @@ function createTrackStore() {
       update((state) => {
         const existingIndex = state.tracks.findIndex((t) => t.id === track.id);
         if (existingIndex !== -1) {
-          const newTracks = [...state.tracks];
-          newTracks[existingIndex] = track;
-          const newCurrentTrack =
-            state.currentTrack?.id === track.id ? track : state.currentTrack;
-          const newPlayHistory = state.playHistory.map((t) =>
-            t.id === track.id ? track : t,
-          );
-
-          return {
-            ...state,
-            tracks: newTracks,
-            currentTrack: newCurrentTrack,
-            playHistory: newPlayHistory,
-          };
+          return replaceTrack(state, track, track.id);
         }
 
         const newTracks = [track, ...state.tracks];
@@ -521,24 +375,7 @@ function createTrackStore() {
         const trackIndex = state.tracks.findIndex((t) => t.id === previousId);
         if (trackIndex === -1) return state;
 
-        const newTracks = [...state.tracks];
-        newTracks[trackIndex] = updatedTrack;
-
-        const newCurrentTrack =
-          state.currentTrack?.id === previousId
-            ? updatedTrack
-            : state.currentTrack;
-
-        const newPlayHistory = state.playHistory.map((t) =>
-          t.id === previousId ? updatedTrack : t,
-        );
-
-        return {
-          ...state,
-          tracks: newTracks,
-          currentTrack: newCurrentTrack,
-          playHistory: newPlayHistory,
-        };
+        return replaceTrack(state, updatedTrack, previousId);
       }),
     deleteTrack: (trackId: string) => {
       return update((state) => {
@@ -565,24 +402,26 @@ function createTrackStore() {
           }
         }
 
-        const deletedTrackHistoryIndex = state.playHistory.findIndex(
-          (t) => t.id === trackId,
-        );
-        const newPlayHistory = state.playHistory.filter(
-          (t) => t.id !== trackId,
-        );
         let newHistoryPosition = state.historyPosition;
+        const newPlayHistory = state.playHistory.filter((track, position) => {
+          if (track.id !== trackId) return true;
+          if (position < state.historyPosition) newHistoryPosition--;
+          return false;
+        });
+        newHistoryPosition = Math.min(
+          newHistoryPosition,
+          newPlayHistory.length - 1,
+        );
 
-        if (
-          deletedTrackHistoryIndex !== -1 &&
-          deletedTrackHistoryIndex < state.historyPosition
-        ) {
-          newHistoryPosition--;
-        } else if (
-          deletedTrackHistoryIndex !== -1 &&
-          deletedTrackHistoryIndex === state.historyPosition
-        ) {
-          newHistoryPosition = newPlayHistory.length - 1;
+        if (state.currentTrack?.id === trackId && newCurrentTrack) {
+          const replacementId = newCurrentTrack.id;
+          newHistoryPosition = newPlayHistory.findIndex(
+            (track) => track.id === replacementId,
+          );
+          if (newHistoryPosition === -1) {
+            newHistoryPosition = newPlayHistory.length;
+            newPlayHistory.push(newCurrentTrack);
+          }
         }
 
         return {

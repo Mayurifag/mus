@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use reqwest::{Client, Request, Url};
 use serde::Deserialize;
 use serde_json::Value;
@@ -13,7 +13,7 @@ use super::{
     diagnostics::{youtube_video_id, yt_dlp_output},
     parser,
 };
-use crate::util::{normalize_text, parse_artists};
+use crate::audio_names::{normalize_text, parse_artists};
 
 pub(super) const OEMBED_TIMEOUT: Duration = Duration::from_secs(2);
 const EXTRACTOR_TIMEOUT: Duration = Duration::from_secs(8);
@@ -92,7 +92,7 @@ pub(super) async fn metadata_from_sources(
             Ok(Ok(data)) => {
                 tracing::info!(
                     source = "youtube_oembed",
-                    elapsed_ms = started.elapsed().as_millis() as u64,
+                    elapsed_ms = started.elapsed().as_millis(),
                     "download metadata ready"
                 );
                 if !parser::needs_structured_artist(&data.title, &data.channel) {
@@ -104,7 +104,7 @@ pub(super) async fn metadata_from_sources(
                 });
             }
             _ => tracing::info!(
-                elapsed_ms = started.elapsed().as_millis() as u64,
+                elapsed_ms = started.elapsed().as_millis(),
                 "YouTube oEmbed unavailable; using bounded extraction"
             ),
         }
@@ -117,12 +117,12 @@ async fn extract_metadata(fallback: Command) -> Result<SourceMetadata> {
     let output = yt_dlp_output(fallback, EXTRACTOR_TIMEOUT).await;
     tracing::info!(
         source = "yt-dlp",
-        elapsed_ms = started.elapsed().as_millis() as u64,
+        elapsed_ms = started.elapsed().as_millis(),
         success = output.is_ok(),
         "download metadata extraction finished"
     );
-    let data: Value = serde_json::from_slice(&output?.stdout)
-        .map_err(|_| anyhow!("yt-dlp returned invalid metadata"))?;
+    let data: Value =
+        serde_json::from_slice(&output?.stdout).context("yt-dlp returned invalid metadata")?;
     let text = |key| data.get(key).and_then(Value::as_str);
     let title = text("title")
         .filter(|title| !title.trim().is_empty())
@@ -221,23 +221,18 @@ async fn read_oembed(client: &Client, request: Request) -> Result<SourceMetadata
     let mut response = client
         .execute(request)
         .await
-        .map_err(|_| anyhow!("oEmbed request failed"))?;
+        .context("oEmbed request failed")?;
     if !response.status().is_success() {
         return Err(anyhow!("oEmbed unavailable"));
     }
     let mut body = Vec::new();
-    while let Some(chunk) = response
-        .chunk()
-        .await
-        .map_err(|_| anyhow!("oEmbed body unavailable"))?
-    {
+    while let Some(chunk) = response.chunk().await.context("oEmbed body unavailable")? {
         if body.len() + chunk.len() > MAX_OEMBED_BYTES {
             return Err(anyhow!("oEmbed response too large"));
         }
         body.extend_from_slice(&chunk);
     }
-    let data: OEmbed =
-        serde_json::from_slice(&body).map_err(|_| anyhow!("Invalid oEmbed metadata"))?;
+    let data: OEmbed = serde_json::from_slice(&body).context("Invalid oEmbed metadata")?;
     if data.title.trim().is_empty() || data.author_name.trim().is_empty() {
         return Err(anyhow!("Incomplete oEmbed metadata"));
     }

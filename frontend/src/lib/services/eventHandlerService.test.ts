@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { initEventHandlerService, handleMusEvent } from "./eventHandlerService";
-import * as apiClient from "./apiClient";
+import * as apiClient from "./trackClient";
+import { connectTrackUpdateEvents } from "./trackEventsClient";
 import { trackStore } from "$lib/stores/trackStore";
 import { recentEventsStore } from "$lib/stores/recentEventsStore";
 import { downloadStore } from "$lib/stores/downloadStore";
@@ -8,11 +9,12 @@ import { ytDlpVersionStore } from "$lib/stores/systemStore";
 import type { MusEvent, Track } from "$lib/types";
 
 // Mock dependencies
-vi.mock("./apiClient", () => ({
-  connectTrackUpdateEvents: vi.fn(),
+vi.mock("./trackClient", () => ({
   createTrackWithUrls: vi.fn(),
   fetchTracks: vi.fn(),
 }));
+
+vi.mock("./trackEventsClient", () => ({ connectTrackUpdateEvents: vi.fn() }));
 
 vi.mock("$lib/stores/trackStore", () => ({
   trackStore: {
@@ -64,7 +66,7 @@ describe("eventHandlerService", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
 
     // Set up createTrackWithUrls mock to return the input data
-    const apiClient = await import("./apiClient");
+    const apiClient = await import("./trackClient");
     vi.mocked(apiClient.createTrackWithUrls).mockImplementation(
       (data) => data as Track,
     );
@@ -343,19 +345,18 @@ describe("eventHandlerService", () => {
   describe("initEventHandlerService", () => {
     it("should initialize the event source and return it", async () => {
       const mockEventSource = { close: vi.fn() };
-      vi.mocked(apiClient.connectTrackUpdateEvents).mockReturnValue(
+      vi.mocked(connectTrackUpdateEvents).mockReturnValue(
         mockEventSource as unknown as EventSource,
       );
       vi.mocked(apiClient.fetchTracks).mockResolvedValue([]);
 
       const result = initEventHandlerService();
 
-      expect(apiClient.connectTrackUpdateEvents).toHaveBeenCalledWith(
+      expect(connectTrackUpdateEvents).toHaveBeenCalledWith(
         expect.any(Function),
         expect.any(Function),
       );
-      const onOpen = vi.mocked(apiClient.connectTrackUpdateEvents).mock
-        .calls[0][1];
+      const onOpen = vi.mocked(connectTrackUpdateEvents).mock.calls[0][1];
       onOpen?.();
       await vi.waitFor(() => {
         expect(trackStore.setTracks).toHaveBeenCalledWith([]);

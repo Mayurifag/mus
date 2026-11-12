@@ -1,5 +1,6 @@
 import { toast } from "svelte-sonner";
-import * as apiClient from "./apiClient";
+import { createTrackWithUrls, fetchTracks } from "./trackClient";
+import { connectTrackUpdateEvents } from "./trackEventsClient";
 import { trackStore } from "$lib/stores/trackStore";
 import { recentEventsStore } from "$lib/stores/recentEventsStore";
 import { downloadStore } from "$lib/stores/downloadStore";
@@ -33,13 +34,13 @@ export function handleMusEvent(payload: MusEvent): void {
   switch (payload.action_key) {
     case "track_added":
       if (payload.action_payload) {
-        const track = apiClient.createTrackWithUrls(payload.action_payload);
+        const track = createTrackWithUrls(payload.action_payload);
         trackStore.addTrack(track);
       }
       break;
     case "track_updated":
       if (payload.action_payload) {
-        const track = apiClient.createTrackWithUrls(payload.action_payload);
+        const track = createTrackWithUrls(payload.action_payload);
         const previousId = payload.action_payload.previous_id;
         if (typeof previousId === "string") {
           trackStore.updateTrack(track, previousId);
@@ -95,7 +96,7 @@ export function handleMusEvent(payload: MusEvent): void {
 
 async function syncTracks(): Promise<void> {
   try {
-    const tracks = await apiClient.fetchTracks();
+    const tracks = await fetchTracks();
     trackStore.setTracks(tracks);
   } catch (error) {
     console.error("Failed to sync tracks", error);
@@ -107,7 +108,7 @@ async function syncTracks(): Promise<void> {
  * @returns The EventSource instance for the SSE connection
  */
 export function initEventHandlerService(): EventSource {
-  const eventSource = apiClient.connectTrackUpdateEvents(handleMusEvent, () => {
+  const eventSource = connectTrackUpdateEvents(handleMusEvent, () => {
     void syncTracks();
   });
 

@@ -5,10 +5,10 @@ import TrackCutEditor from "./TrackCutEditor.svelte";
 import {
   fetchTrackCutInfo,
   fetchTrackCutPreview,
-} from "$lib/services/apiClient";
+} from "$lib/services/trackClient";
 import type { Track } from "$lib/types";
 
-vi.mock("$lib/services/apiClient", () => ({
+vi.mock("$lib/services/trackClient", () => ({
   fetchTrackCutInfo: vi.fn(),
   fetchTrackCutPreview: vi.fn(),
 }));

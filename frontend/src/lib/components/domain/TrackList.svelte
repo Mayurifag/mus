@@ -5,15 +5,12 @@
   import TrackItem from "./TrackItem.svelte";
   import LazyTrackMetadataModal from "./LazyTrackMetadataModal.svelte";
   import { trackStore } from "$lib/stores/trackStore";
+  import { selectedTrackIndexes } from "$lib/stores/filteredTrackNavigation";
   import { browser } from "$app/env";
   import { updateEffectStats } from "$lib/utils/monitoredEffect";
-  import { parseArtists } from "$lib/utils/formatters";
   import { ArrowLeft } from "@lucide/svelte";
   import { clearArtistFilter } from "$lib/utils/artistFilterNavigation";
-  import {
-    categoryLabels,
-    trackCategoryNames,
-  } from "$lib/utils/categoryMarkers";
+  import { categoryLabels } from "$lib/utils/categoryMarkers";
 
   let { audioService }: { audioService?: AudioService } = $props();
 
@@ -24,21 +21,11 @@
       ? (categoryLabels[selectedCategory] ?? selectedCategory)
       : "",
   );
-  const trackRows = $derived.by(() =>
-    $trackStore.tracks.reduce<{ track: Track; index: number }[]>(
-      (rows, track, index) => {
-        if (
-          (!selectedArtist ||
-            parseArtists(track.artist).includes(selectedArtist)) &&
-          (!selectedCategory ||
-            trackCategoryNames(track).includes(selectedCategory))
-        ) {
-          rows.push({ track, index });
-        }
-        return rows;
-      },
-      [],
-    ),
+  const trackRows = $derived(
+    selectedTrackIndexes($trackStore).map((index) => ({
+      track: $trackStore.tracks[index],
+      index,
+    })),
   );
   const visibleTrackCount = $derived(trackRows.length);
 

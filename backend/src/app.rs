@@ -1,53 +1,53 @@
-use std::{
-    collections::HashMap,
-    path::{Component, Path, PathBuf},
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc, Mutex,
-    },
-};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use axum::{
-    body::Body,
-    extract::{Request, State},
-    http::{header, HeaderMap, HeaderValue, Method, StatusCode, Uri},
+    extract::Request,
+    http::{header, HeaderValue, Method},
     middleware::{self, Next},
-    response::{IntoResponse, Response},
+    response::Response,
     routing::{get, patch, post},
     Json, Router,
 };
-use rusqlite::Connection;
 use serde_json::{json, Value};
-use tokio::fs as async_fs;
-use tower::ServiceExt;
 use tower_http::{
     compression::{
         predicate::{DefaultPredicate, NotForContentType, Predicate},
         CompressionLayer,
     },
     cors::{AllowOrigin, CorsLayer},
-    services::ServeFile,
 };
+
+mod static_assets;
+use static_assets::static_asset;
 
 use crate::{
     artwork::{search_artwork, stream_artwork},
-    db::init_db,
     downloads::{confirm_download, fetch_metadata, start_download},
-    errors::{get_errored_tracks, requeue_track},
     events::{track_updates, trigger_event},
     hls::{get_hls_playlist, get_hls_segment},
     player::{get_player_state, save_player_state},
     state::AppState,
     system::{get_permissions, get_system_info, rescan, update_yt_dlp},
+    time::now,
     tracks::{
         delete_track, get_cover_original, get_cover_small, get_cut_info, get_cut_preview,
-        get_tracks, update_track, upload_track,
+        get_errored_tracks, get_tracks, requeue_track, update_track, upload_track,
     },
-    util::now,
 };
 
 static REQUEST_COUNTER: AtomicU64 = AtomicU64::new(1);
 
+/// Builds the HTTP API and optional static frontend using shared application state.
+///
+/// The router has no built-in authentication; deployments must provide external
+/// authentication. This function does not start scanning, watching, or a listener.
+///
+/// ```
+/// # fn example(state: mus_backend::state::AppState) {
+/// let router = mus_backend::app::app(state);
+/// # let _ = router;
+/// # }
+/// ```
 pub fn app(state: AppState) -> Router {
     Router::new()
         .route("/api/healthcheck.json", get(healthcheck))
@@ -109,18 +109,15 @@ pub fn app(state: AppState) -> Router {
 fn cors_layer() -> CorsLayer {
     CorsLayer::new()
         .allow_origin(AllowOrigin::predicate(|origin, _| {
-            origin
-                .to_str()
-                .map(|origin| {
-                    matches!(
-                        origin,
-                        "http://localhost:5173"
-                            | "http://localhost:5174"
-                            | "http://127.0.0.1:5173"
-                            | "http://127.0.0.1:5174"
-                    )
-                })
-                .unwrap_or(false)
+            origin.to_str().is_ok_and(|origin| {
+                matches!(
+                    origin,
+                    "http://localhost:5173"
+                        | "http://localhost:5174"
+                        | "http://127.0.0.1:5173"
+                        | "http://127.0.0.1:5174"
+                )
+            })
         }))
         .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
         .allow_headers([header::CONTENT_TYPE])
@@ -157,108 +154,6 @@ async fn request_logging(request: Request, next: Next) -> Response {
     response
 }
 
-pub fn test_state(data_dir: PathBuf, mut conn: Connection) -> AppState {
-    let music_dir = data_dir.join("music");
-    let cache_dir = data_dir.join(".cache");
-    let covers_dir = cache_dir.join("covers");
-    std::fs::create_dir_all(&music_dir).unwrap();
-    std::fs::create_dir_all(&covers_dir).unwrap();
-    init_db(&mut conn).unwrap();
-    let (events, _) = tokio::sync::broadcast::channel(100);
-    AppState {
-        db: Arc::new(Mutex::new(conn)),
-        data_dir,
-        static_dir: None,
-        music_dir,
-        covers_dir,
-        events,
-        download_lock: Arc::new(Mutex::new(false)),
-        mutation_locks: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
-        app_date: "2026-05-17".into(),
-        commit_sha: Some("test-sha".into()),
-        yt_dlp_version: Arc::new(Mutex::new(Some("test-version".into()))),
-    }
-}
-
 async fn healthcheck() -> Json<Value> {
     Json(json!({"status": "healthy", "timestamp": now()}))
-}
-
-async fn static_asset(
-    State(state): State<AppState>,
-    uri: Uri,
-    headers: HeaderMap,
-) -> Result<Response, StatusCode> {
-    let path = uri.path();
-    if path.starts_with("/api/") {
-        return Ok((StatusCode::NOT_FOUND, Json(json!({"detail": "Not Found"}))).into_response());
-    }
-    let Some(static_dir) = state.static_dir else {
-        return Err(StatusCode::NOT_FOUND);
-    };
-
-    let requested = static_path(&static_dir, path).ok_or(StatusCode::NOT_FOUND)?;
-    let file_path = if async_fs::metadata(&requested)
-        .await
-        .map(|meta| meta.is_file())
-        .unwrap_or(false)
-    {
-        requested
-    } else {
-        static_dir.join("index.html")
-    };
-    if !async_fs::metadata(&file_path)
-        .await
-        .map(|meta| meta.is_file())
-        .unwrap_or(false)
-    {
-        return Err(StatusCode::NOT_FOUND);
-    }
-
-    let mut request = Request::new(Body::empty());
-    *request.headers_mut() = headers;
-    let mut response = ServeFile::new(file_path)
-        .oneshot(request)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .into_response();
-
-    response.headers_mut().insert(
-        header::CACHE_CONTROL,
-        if path.starts_with("/_app/immutable/") {
-            HeaderValue::from_static("public, immutable, max-age=31536000")
-        } else {
-            HeaderValue::from_static("no-cache")
-        },
-    );
-    response.headers_mut().insert(
-        header::HeaderName::from_static("x-frame-options"),
-        HeaderValue::from_static("DENY"),
-    );
-    response.headers_mut().insert(
-        header::X_CONTENT_TYPE_OPTIONS,
-        HeaderValue::from_static("nosniff"),
-    );
-    response.headers_mut().insert(
-        header::HeaderName::from_static("referrer-policy"),
-        HeaderValue::from_static("strict-origin-when-cross-origin"),
-    );
-
-    Ok(response)
-}
-
-fn static_path(static_dir: &Path, uri_path: &str) -> Option<PathBuf> {
-    let relative = uri_path.trim_start_matches('/');
-    if relative.is_empty() {
-        return Some(static_dir.join("index.html"));
-    }
-
-    let mut path = static_dir.to_path_buf();
-    for component in Path::new(relative).components() {
-        match component {
-            Component::Normal(value) => path.push(value),
-            _ => return None,
-        }
-    }
-    Some(path)
 }

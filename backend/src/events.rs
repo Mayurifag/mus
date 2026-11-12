@@ -8,7 +8,7 @@ use crate::{models::MusEvent, state::AppState};
 
 pub async fn track_updates(
     State(state): State<AppState>,
-) -> Sse<impl Stream<Item = Result<Event, std::convert::Infallible>>> {
+) -> Sse<impl Stream<Item = Result<Event, axum::Error>>> {
     let mut rx = state.events.subscribe();
     tracing::info!(
         receivers = state.events.receiver_count(),
@@ -19,7 +19,7 @@ pub async fn track_updates(
             match rx.recv().await {
                 Ok(event) => {
                     tracing::info!(action = event.action_key.as_deref().unwrap_or(""), "sse track update event sent");
-                    yield Ok(Event::default().json_data(event).unwrap());
+                    yield Event::default().json_data(event);
                 }
                 Err(broadcast::error::RecvError::Lagged(skipped)) => {
                     tracing::warn!(skipped, "sse track updates lagged");

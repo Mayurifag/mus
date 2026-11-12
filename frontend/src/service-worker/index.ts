@@ -7,7 +7,8 @@ import { isStaticAsset, shouldSkipCache } from "$lib/utils/serviceWorkerCache";
 
 declare const self: ServiceWorkerGlobalScope;
 
-const CACHE_NAME = `mus-cache-${version}`;
+const CACHE_PREFIX = "mus-cache-";
+const CACHE_NAME = `${CACHE_PREFIX}${version}`;
 const ASSETS_TO_CACHE = [...immutable, ...assets, ...prerendered].map(
   (asset) => new URL(asset.path, self.location.href).pathname,
 );
@@ -27,7 +28,7 @@ self.addEventListener("activate", (event) => {
   async function deleteOldCaches() {
     const keys = await caches.keys();
     for (const key of keys) {
-      if (key !== CACHE_NAME) {
+      if (key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME) {
         await caches.delete(key);
       }
     }
@@ -50,13 +51,19 @@ self.addEventListener("fetch", (event) => {
 
   if (isStaticAsset(url.pathname)) {
     event.respondWith(
-      caches.match(request).then(async (cachedResponse) => {
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cachedResponse = await cache.match(request);
         if (cachedResponse) {
           return cachedResponse;
         }
         const networkResponse = await fetch(request);
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(request, networkResponse.clone());
+        if (networkResponse.ok) {
+          try {
+            await cache.put(request, networkResponse.clone());
+          } catch (error) {
+            console.error("[SW] Failed to cache asset:", error);
+          }
+        }
         return networkResponse;
       }),
     );
@@ -70,7 +77,8 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request).catch(async () => {
-        const rootResponse = await caches.match("/");
+        const cache = await caches.open(CACHE_NAME);
+        const rootResponse = await cache.match("/");
         return (
           rootResponse ??
           new Response("You are currently offline.", {

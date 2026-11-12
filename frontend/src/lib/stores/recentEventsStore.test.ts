@@ -1,20 +1,14 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { get } from "svelte/store";
 import { recentEventsStore } from "./recentEventsStore";
 import type { MusEvent } from "$lib/types";
 
-// Mock crypto.randomUUID
-Object.defineProperty(global, "crypto", {
-  value: {
-    randomUUID: vi.fn(() => "test-uuid"),
-  },
-});
-
 describe("recentEventsStore", () => {
   beforeEach(() => {
     recentEventsStore.clear();
-    vi.clearAllMocks();
   });
+
+  afterEach(() => vi.unstubAllGlobals());
 
   it("should start with empty events", () => {
     const events = get(recentEventsStore);
@@ -35,7 +29,7 @@ describe("recentEventsStore", () => {
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({
       ...testEvent,
-      id: "test-uuid",
+      id: expect.any(String),
     });
     expect(events[0].timestamp).toBeTypeOf("number");
   });
@@ -62,6 +56,21 @@ describe("recentEventsStore", () => {
     expect(events).toHaveLength(2);
     expect(events[0].message_to_show).toBe("Second event");
     expect(events[1].message_to_show).toBe("First event");
+  });
+
+  it("assigns unique local keys without requiring crypto.randomUUID", () => {
+    vi.stubGlobal("crypto", {});
+    const event: MusEvent = {
+      message_to_show: "Deleted track",
+      message_level: "info",
+      action_key: "track_deleted",
+      action_payload: { id: "deleted" },
+    };
+    recentEventsStore.addEvent(event);
+    recentEventsStore.addEvent(event);
+    const events = get(recentEventsStore);
+    expect(events).toHaveLength(2);
+    expect(new Set(events.map((entry) => entry.id)).size).toBe(2);
   });
 
   it("should limit events to maximum of 10", () => {

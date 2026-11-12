@@ -7,10 +7,11 @@ export interface ApiErrorOptions {
   context?: string;
 }
 
-export async function handleApiResponse<T>(
+/** Checks status without consuming successful JSON, binary, or empty responses. */
+export async function ensureApiResponse(
   response: Response,
   options: ApiErrorOptions = {},
-): Promise<T> {
+): Promise<void> {
   const {
     showToast = false,
     toastMessage,
@@ -38,8 +39,14 @@ export async function handleApiResponse<T>(
 
     throw new Error(errorMessage);
   }
+}
 
-  return await response.json();
+export async function handleApiResponse<T>(
+  response: Response,
+  options: ApiErrorOptions = {},
+): Promise<T> {
+  await ensureApiResponse(response, options);
+  return response.json();
 }
 
 export async function safeApiCall<T>(

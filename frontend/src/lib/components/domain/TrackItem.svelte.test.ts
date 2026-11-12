@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { parseArtists } from "$lib/utils/formatters";
 
 const mockTrackStoreState = vi.hoisted(() => ({
   selectedArtist: null as string | null,
@@ -19,11 +20,7 @@ const mockArtistCountsStore = vi.hoisted(() => ({
   subscribe: vi.fn((callback: (value: Record<string, number>) => void) => {
     const counts = new Map<string, number>();
     for (const track of mockTrackStoreState.tracks) {
-      const artists = track.artist
-        .split(/[;,]/)
-        .map((value) => value.trim())
-        .filter(Boolean);
-      for (const artist of new Set(artists)) {
+      for (const artist of new Set(parseArtists(track.artist))) {
         counts.set(artist, (counts.get(artist) ?? 0) + 1);
       }
     }
@@ -35,19 +32,6 @@ const mockArtistCountsStore = vi.hoisted(() => ({
 vi.mock("$lib/stores/trackStore", () => ({
   artistCountsStore: mockArtistCountsStore,
   trackStore: mockTrackStore,
-}));
-
-// Mock the playerStore (now only UI state)
-vi.mock("$lib/stores/playerStore", () => ({
-  playerStore: {
-    subscribe: vi.fn().mockImplementation((callback) => {
-      callback({
-        currentTrack: null,
-        is_shuffle: false,
-      });
-      return () => {};
-    }),
-  },
 }));
 
 import { describe, it, expect, beforeEach } from "vitest";

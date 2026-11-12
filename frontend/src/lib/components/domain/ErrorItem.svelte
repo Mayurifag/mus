@@ -1,7 +1,7 @@
 <script lang="ts">
   import { RotateCcw, Trash2 } from "@lucide/svelte";
   import type { Track } from "$lib/types";
-  import { requeueTrack, deleteTrack } from "$lib/services/apiClient";
+  import { requeueTrack, deleteTrack } from "$lib/services/trackClient";
   import { toast } from "svelte-sonner";
   import ArtistLinks from "$lib/components/domain/ArtistLinks.svelte";
 
@@ -34,7 +34,9 @@
       toast.success(`Deleted "${track.title}"`);
       onDelete?.();
     } catch (error) {
-      toast.error("Failed to delete track");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete track",
+      );
       console.error("Error deleting track:", error);
     }
   }

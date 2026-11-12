@@ -11,6 +11,7 @@ const mockTrackStoreData = vi.hoisted(() => ({
   tracks: [] as Track[],
   tracksLoading: false,
   selectedArtist: null as string | null,
+  selectedCategory: null as string | null,
 }));
 
 const mockTrackStore = vi.hoisted(() => ({
@@ -70,6 +71,7 @@ describe("TrackList component", () => {
     // Clear mocks
     vi.mocked(TrackItem).mockClear();
     mockTrackStoreData.selectedArtist = null;
+    mockTrackStoreData.selectedCategory = null;
     mockTrackStoreData.currentTrack = null;
     mockTrackStoreData.tracksLoading = false;
   });
@@ -108,6 +110,33 @@ describe("TrackList component", () => {
     expect(screen.getByText("Artist 1")).toBeInTheDocument();
     expect(screen.getByText("1 song")).toBeInTheDocument();
   });
+
+  it.each(["artist", "category"])(
+    "keeps full-library row indexes when filtering by %s",
+    (filter) => {
+      const cover = { name: "cover", display_name: "Cover" };
+      mockTrackStoreData.tracks = [
+        { ...mockTracks[0], artist: "Artist 10" },
+        { ...mockTracks[1], artist: "Artist 2; Artist 1", tags: [cover] },
+        { ...mockTracks[0], id: "3" },
+        { ...mockTracks[0], id: "4", artist: "Other", tags: [cover] },
+      ];
+      if (filter === "artist") mockTrackStoreData.selectedArtist = "Artist 1";
+      else mockTrackStoreData.selectedCategory = "cover";
+
+      render(TrackList);
+
+      const rows = vi.mocked(TrackItem).mock.calls.map(([, props]) => ({
+        id: props.track.id,
+        index: props.index,
+      }));
+      expect(rows).toEqual([
+        { id: "2", index: 1 },
+        filter === "artist" ? { id: "3", index: 2 } : { id: "4", index: 3 },
+      ]);
+      expect(screen.getByText("2 songs")).toBeInTheDocument();
+    },
+  );
 
   it("renders every track in a large library", () => {
     mockTrackStoreData.tracks = Array.from({ length: 600 }, (_, index) => ({

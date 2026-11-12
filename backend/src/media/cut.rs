@@ -4,13 +4,24 @@ use anyhow::{anyhow, Result};
 use serde_json::Value;
 use tokio::process::Command;
 
-use crate::{models::AudioCut, util::run_command_output};
+use crate::{models::AudioCut, process::run_command_output};
 
+/// Audio stream information used for cut validation and codec selection.
 pub struct CutSource {
+    /// Finite, positive source duration in seconds.
     pub duration: f64,
+    /// ffprobe's audio codec name.
     pub codec: String,
 }
 
+/// Reads the first audio stream's codec and finite positive format duration.
+///
+/// # Errors
+/// Returns errors for unavailable tools, timeout, malformed probe data, missing
+/// audio streams, or unavailable duration. See the [media example](crate::media).
+///
+/// # Panics
+/// Panics if polled without a Tokio runtime with I/O and time enabled.
 pub async fn read_cut_source(path: &Path) -> Result<CutSource> {
     let mut command = Command::new("ffprobe");
     command
@@ -42,6 +53,20 @@ pub async fn read_cut_source(path: &Path) -> Result<CutSource> {
     Ok(CutSource { duration, codec })
 }
 
+/// Validates a removal range, retaining at least 0.1 seconds of audio.
+///
+/// Allows at most 0.001 seconds of end-offset tolerance for rounding.
+///
+/// # Errors
+/// Returns an error for non-finite/nonpositive duration, non-finite offsets,
+/// reversed/out-of-range offsets, or insufficient remaining audio.
+///
+/// ```
+/// use mus_backend::{media::validate_cut, models::AudioCut};
+/// validate_cut(AudioCut { start_seconds: 1.0, end_seconds: 2.0 }, 10.0)?;
+/// assert!(validate_cut(AudioCut { start_seconds: 0.0, end_seconds: 10.0 }, 10.0).is_err());
+/// # Ok::<(), anyhow::Error>(())
+/// ```
 pub fn validate_cut(cut: AudioCut, duration: f64) -> Result<()> {
     if !duration.is_finite()
         || duration <= 0.0
@@ -59,18 +84,12 @@ pub fn validate_cut(cut: AudioCut, duration: f64) -> Result<()> {
     Ok(())
 }
 
-pub fn cut_filter(cut: AudioCut, duration: f64, preview: bool) -> String {
+pub(super) fn cut_filter(cut: AudioCut, duration: f64) -> String {
+    removal_filter(cut, duration, 0.0, duration)
+}
+
+fn removal_filter(cut: AudioCut, duration: f64, before: f64, after: f64) -> String {
     let end = cut.end_seconds.min(duration);
-    let before = if preview {
-        (cut.start_seconds - 4.0).max(0.0)
-    } else {
-        0.0
-    };
-    let after = if preview {
-        (end + 4.0).min(duration)
-    } else {
-        duration
-    };
     if cut.start_seconds == 0.0 {
         return trim_filter(end, after);
     }
@@ -87,20 +106,42 @@ fn trim_filter(start: f64, end: f64) -> String {
     format!("[0:a:0]atrim=start={start}:end={end},asetpts=PTS-STARTPTS[out]")
 }
 
+/// Which part of a proposed cut to preview without changing the source.
+#[derive(Debug, Clone, Copy)]
+pub enum CutPreview {
+    /// Up to four seconds on either side of the join after removal.
+    Join,
+    /// Up to eight seconds of the section selected for removal.
+    Selection,
+}
+
+/// Produces at most eight seconds of stereo WAV preview without modifying the source.
+///
+/// See [`CutPreview`] for the preview window and the [media example](crate::media).
+///
+/// # Errors
+/// Returns invalid-range, subprocess, timeout, or invalid-output errors.
+///
+/// # Panics
+/// Panics if valid input is processed without a Tokio runtime with I/O and time enabled.
 pub async fn preview_cut(
     path: &Path,
     cut: AudioCut,
     duration: f64,
-    selection_only: bool,
+    preview: CutPreview,
 ) -> Result<Vec<u8>> {
     validate_cut(cut, duration)?;
-    let filter = if selection_only {
-        trim_filter(
+    let filter = match preview {
+        CutPreview::Selection => trim_filter(
             cut.start_seconds,
             cut.end_seconds.min(cut.start_seconds + 8.0),
-        )
-    } else {
-        cut_filter(cut, duration, true)
+        ),
+        CutPreview::Join => removal_filter(
+            cut,
+            duration,
+            (cut.start_seconds - 4.0).max(0.0),
+            (cut.end_seconds.min(duration) + 4.0).min(duration),
+        ),
     };
     let mut command = Command::new("ffmpeg");
     command

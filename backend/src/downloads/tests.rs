@@ -1,7 +1,6 @@
 use std::{
     fs,
     io::{self, Write},
-    os::unix::fs::PermissionsExt,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -11,7 +10,10 @@ use tempfile::TempDir;
 use tokio::process::Command;
 use tracing::{instrument::WithSubscriber, Instrument};
 
-use super::diagnostics::{safe_failure, yt_dlp_output, DownloadJob};
+use super::{
+    diagnostics::{safe_failure, yt_dlp_output, DownloadJob},
+    worker::{run_download_inner, DownloadNaming, DownloadOptions},
+};
 
 fn test_mp3(path: &std::path::Path, title: &str) {
     let output = std::process::Command::new("ffmpeg")
@@ -45,7 +47,7 @@ async fn download_preserves_acoustic_marker_in_file_and_library() {
     use id3::TagLike;
 
     let tmp = TempDir::new().unwrap();
-    let state = crate::app::test_state(
+    let state = crate::test_support::test_state(
         tmp.path().join("data"),
         rusqlite::Connection::open_in_memory().unwrap(),
     );
@@ -54,13 +56,17 @@ async fn download_preserves_acoustic_marker_in_file_and_library() {
     fs::create_dir(&work).unwrap();
     test_mp3(&source, "Original title");
     let parsed = super::parser::parse("Artist - Song (Acoustic) (Official Video)", "Artist", None);
-    let path = super::run_download_inner(
+    let path = run_download_inner(
         &state,
         copy_command(&source, &work),
-        Some(parsed.title),
-        Some(parsed.artist),
-        None,
-        Some(vec![]),
+        DownloadOptions {
+            naming: DownloadNaming::Custom {
+                title: parsed.title,
+                artist: parsed.artist,
+            },
+            tags: Some(vec![]),
+            ..DownloadOptions::default()
+        },
         &work,
     )
     .await
@@ -72,7 +78,7 @@ async fn download_preserves_acoustic_marker_in_file_and_library() {
         Some("Song (Acoustic)")
     );
     assert_eq!(
-        crate::db::list_tracks(&state).unwrap()[0].title,
+        crate::db::list_tracks(&state).await.unwrap()[0].title,
         "Song (Acoustic)"
     );
 }
@@ -80,7 +86,7 @@ async fn download_preserves_acoustic_marker_in_file_and_library() {
 #[tokio::test]
 async fn unconfirmed_download_categories_are_inferred_after_registration_and_rename() {
     let tmp = TempDir::new().unwrap();
-    let state = crate::app::test_state(
+    let state = crate::test_support::test_state(
         tmp.path().join("data"),
         rusqlite::Connection::open_in_memory().unwrap(),
     );
@@ -88,20 +94,19 @@ async fn unconfirmed_download_categories_are_inferred_after_registration_and_ren
     let work = tmp.path().join("work");
     fs::create_dir(&work).unwrap();
     test_mp3(&source, "Song (cover)");
-    let path = super::run_download_inner(
+    let path = run_download_inner(
         &state,
         copy_command(&source, &work),
-        None,
-        None,
-        None,
-        None,
+        DownloadOptions::default(),
         &work,
     )
     .await
     .unwrap();
     assert_eq!(path.file_name().unwrap(), "Artist - Song (cover).mp3");
-    let track = crate::db::list_tracks(&state).unwrap().pop().unwrap();
-    assert!(!crate::db::track_tags_finalized(&state, &track.id).unwrap());
+    let track = crate::db::list_tracks(&state).await.unwrap().pop().unwrap();
+    assert!(!crate::db::track_tags_finalized(&state, &track.id)
+        .await
+        .unwrap());
     assert_eq!(
         track
             .tags
@@ -116,6 +121,7 @@ async fn unconfirmed_download_categories_are_inferred_after_registration_and_ren
     }
     assert_eq!(
         crate::db::get_track(&state, &track.id)
+            .await
             .unwrap()
             .unwrap()
             .tags[0]
@@ -125,9 +131,9 @@ async fn unconfirmed_download_categories_are_inferred_after_registration_and_ren
 }
 
 #[tokio::test]
-async fn confirmed_empty_categories_override_scanner_inference() {
+async fn confirmed_download_categories_follow_the_registered_rename() {
     let tmp = TempDir::new().unwrap();
-    let state = crate::app::test_state(
+    let state = crate::test_support::test_state(
         tmp.path().join("data"),
         rusqlite::Connection::open_in_memory().unwrap(),
     );
@@ -135,25 +141,62 @@ async fn confirmed_empty_categories_override_scanner_inference() {
     let work = tmp.path().join("work");
     fs::create_dir(&work).unwrap();
     test_mp3(&source, "Song (cover)");
-    super::run_download_inner(
+    let path = run_download_inner(
         &state,
         copy_command(&source, &work),
-        Some("Song (cover)".into()),
-        Some("Artist".into()),
-        None,
-        Some(vec![]),
+        DownloadOptions {
+            tags: Some(vec!["ost".into()]),
+            ..DownloadOptions::default()
+        },
         &work,
     )
     .await
     .unwrap();
-    let track = crate::db::list_tracks(&state).unwrap().pop().unwrap();
+    assert_eq!(path.file_name().unwrap(), "Artist - Song (cover).mp3");
+    let track = crate::db::list_tracks(&state).await.unwrap().pop().unwrap();
+    assert!(crate::db::track_tags_finalized(&state, &track.id)
+        .await
+        .unwrap());
+    assert_eq!(track.tags[0].name, "ost");
+}
+
+#[tokio::test]
+async fn confirmed_empty_categories_override_scanner_inference() {
+    let tmp = TempDir::new().unwrap();
+    let state = crate::test_support::test_state(
+        tmp.path().join("data"),
+        rusqlite::Connection::open_in_memory().unwrap(),
+    );
+    let source = tmp.path().join("source.mp3");
+    let work = tmp.path().join("work");
+    fs::create_dir(&work).unwrap();
+    test_mp3(&source, "Song (cover)");
+    run_download_inner(
+        &state,
+        copy_command(&source, &work),
+        DownloadOptions {
+            naming: DownloadNaming::Custom {
+                title: "Song (cover)".into(),
+                artist: "Artist".into(),
+            },
+            tags: Some(vec![]),
+            ..DownloadOptions::default()
+        },
+        &work,
+    )
+    .await
+    .unwrap();
+    let track = crate::db::list_tracks(&state).await.unwrap().pop().unwrap();
     assert!(track.tags.is_empty());
-    assert!(crate::db::track_tags_finalized(&state, &track.id).unwrap());
+    assert!(crate::db::track_tags_finalized(&state, &track.id)
+        .await
+        .unwrap());
     {
         let mut conn = state.db.lock().unwrap();
         crate::db::init_db(&mut conn).unwrap();
     }
     assert!(crate::db::get_track(&state, &track.id)
+        .await
         .unwrap()
         .unwrap()
         .tags
@@ -163,7 +206,7 @@ async fn confirmed_empty_categories_override_scanner_inference() {
 #[tokio::test]
 async fn direct_download_does_not_keep_ambiguous_scanner_tags() {
     let tmp = TempDir::new().unwrap();
-    let state = crate::app::test_state(
+    let state = crate::test_support::test_state(
         tmp.path().join("data"),
         rusqlite::Connection::open_in_memory().unwrap(),
     );
@@ -171,25 +214,25 @@ async fn direct_download_does_not_keep_ambiguous_scanner_tags() {
     let work = tmp.path().join("work");
     fs::create_dir(&work).unwrap();
     test_mp3(&source, "Discover");
-    super::run_download_inner(
+    run_download_inner(
         &state,
         copy_command(&source, &work),
-        None,
-        None,
-        None,
-        None,
+        DownloadOptions::default(),
         &work,
     )
     .await
     .unwrap();
-    let track = crate::db::list_tracks(&state).unwrap().pop().unwrap();
+    let track = crate::db::list_tracks(&state).await.unwrap().pop().unwrap();
     assert!(track.tags.is_empty());
-    assert!(!crate::db::track_tags_finalized(&state, &track.id).unwrap());
+    assert!(!crate::db::track_tags_finalized(&state, &track.id)
+        .await
+        .unwrap());
     {
         let mut conn = state.db.lock().unwrap();
         crate::db::init_db(&mut conn).unwrap();
     }
     assert!(crate::db::get_track(&state, &track.id)
+        .await
         .unwrap()
         .unwrap()
         .tags
@@ -204,7 +247,7 @@ async fn direct_download_reinfers_categories_after_title_edit() {
     };
 
     let tmp = TempDir::new().unwrap();
-    let state = crate::app::test_state(
+    let state = crate::test_support::test_state(
         tmp.path().join("data"),
         rusqlite::Connection::open_in_memory().unwrap(),
     );
@@ -212,19 +255,18 @@ async fn direct_download_reinfers_categories_after_title_edit() {
     let work = tmp.path().join("work");
     fs::create_dir(&work).unwrap();
     test_mp3(&source, "Song");
-    super::run_download_inner(
+    run_download_inner(
         &state,
         copy_command(&source, &work),
-        None,
-        None,
-        None,
-        None,
+        DownloadOptions::default(),
         &work,
     )
     .await
     .unwrap();
-    let track = crate::db::list_tracks(&state).unwrap().pop().unwrap();
-    assert!(!crate::db::track_tags_finalized(&state, &track.id).unwrap());
+    let track = crate::db::list_tracks(&state).await.unwrap().pop().unwrap();
+    assert!(!crate::db::track_tags_finalized(&state, &track.id)
+        .await
+        .unwrap());
     let update = crate::models::TrackUpdate {
         title: Some("Song (cover)".into()),
         artist: None,
@@ -239,6 +281,7 @@ async fn direct_download_reinfers_categories_after_title_edit() {
     let updated = tokio::time::timeout(Duration::from_secs(3), async {
         loop {
             if let Some(track) = crate::db::list_tracks(&state)
+                .await
                 .unwrap()
                 .into_iter()
                 .find(|track| {
@@ -261,13 +304,20 @@ async fn direct_download_reinfers_categories_after_title_edit() {
             .collect::<Vec<_>>(),
         ["cover"]
     );
-    assert!(!crate::db::track_tags_finalized(&state, &updated.id).unwrap());
-    crate::db::set_track_tags(&state, &updated.id, &[], false).unwrap();
+    assert!(!crate::db::track_tags_finalized(&state, &updated.id)
+        .await
+        .unwrap());
+    crate::db::set_track_tags(&state, &updated.id, &[], false)
+        .await
+        .unwrap();
     {
         let mut conn = state.db.lock().unwrap();
         crate::db::init_db(&mut conn).unwrap();
     }
-    let restored = crate::db::get_track(&state, &updated.id).unwrap().unwrap();
+    let restored = crate::db::get_track(&state, &updated.id)
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(
         restored
             .tags
@@ -281,7 +331,7 @@ async fn direct_download_reinfers_categories_after_title_edit() {
 #[tokio::test]
 async fn confirm_without_categories_does_not_finalize_inferred_tags() {
     let tmp = TempDir::new().unwrap();
-    let state = crate::app::test_state(
+    let state = crate::test_support::test_state(
         tmp.path().join("data"),
         rusqlite::Connection::open_in_memory().unwrap(),
     );
@@ -289,19 +339,24 @@ async fn confirm_without_categories_does_not_finalize_inferred_tags() {
     let work = tmp.path().join("work");
     fs::create_dir(&work).unwrap();
     test_mp3(&source, "Song (cover)");
-    super::run_download_inner(
+    run_download_inner(
         &state,
         copy_command(&source, &work),
-        Some("Song (cover)".into()),
-        Some("Artist".into()),
-        None,
-        None,
+        DownloadOptions {
+            naming: DownloadNaming::Custom {
+                title: "Song (cover)".into(),
+                artist: "Artist".into(),
+            },
+            ..DownloadOptions::default()
+        },
         &work,
     )
     .await
     .unwrap();
-    let track = crate::db::list_tracks(&state).unwrap().pop().unwrap();
-    assert!(!crate::db::track_tags_finalized(&state, &track.id).unwrap());
+    let track = crate::db::list_tracks(&state).await.unwrap().pop().unwrap();
+    assert!(!crate::db::track_tags_finalized(&state, &track.id)
+        .await
+        .unwrap());
     assert_eq!(
         track
             .tags
@@ -321,7 +376,7 @@ async fn duplicate_upload_keeps_confirmed_categories() {
     use tower::ServiceExt;
 
     let tmp = TempDir::new().unwrap();
-    let state = crate::app::test_state(
+    let state = crate::test_support::test_state(
         tmp.path().join("data"),
         rusqlite::Connection::open_in_memory().unwrap(),
     );
@@ -338,8 +393,12 @@ async fn duplicate_upload_keeps_confirmed_categories() {
     .await
     .unwrap();
     crate::scanner::scan_music_dir(state.clone()).await.unwrap();
-    let track = crate::db::list_tracks(&state).unwrap().pop().unwrap();
-    assert!(crate::db::set_download_tags(&state, &track.id, &original, &[]).unwrap());
+    let track = crate::db::list_tracks(&state).await.unwrap().pop().unwrap();
+    assert!(
+        crate::db::set_download_tags(&state, &track.id, &original, &[])
+            .await
+            .unwrap()
+    );
 
     let boundary = "review-boundary";
     let mut body = format!("--{boundary}\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nSong (cover)\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"artist\"\r\n\r\nArtist\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"copy.mp3\"\r\nContent-Type: audio/mpeg\r\n\r\n").into_bytes();
@@ -360,10 +419,15 @@ async fn duplicate_upload_keeps_confirmed_categories() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(crate::db::list_tracks(&state).unwrap().len(), 1);
-    let saved = crate::db::get_track(&state, &track.id).unwrap().unwrap();
+    assert_eq!(crate::db::list_tracks(&state).await.unwrap().len(), 1);
+    let saved = crate::db::get_track(&state, &track.id)
+        .await
+        .unwrap()
+        .unwrap();
     assert!(saved.tags.is_empty());
-    assert!(crate::db::track_tags_finalized(&state, &track.id).unwrap());
+    assert!(crate::db::track_tags_finalized(&state, &track.id)
+        .await
+        .unwrap());
 }
 
 #[tokio::test]
@@ -371,7 +435,7 @@ async fn download_preserves_comma_in_artist_name() {
     use id3::TagLike;
 
     let tmp = TempDir::new().unwrap();
-    let state = crate::app::test_state(
+    let state = crate::test_support::test_state(
         tmp.path().join("data"),
         rusqlite::Connection::open_in_memory().unwrap(),
     );
@@ -379,13 +443,17 @@ async fn download_preserves_comma_in_artist_name() {
     let work = tmp.path().join("work");
     fs::create_dir(&work).unwrap();
     test_mp3(&source, "Song");
-    let path = super::run_download_inner(
+    let path = run_download_inner(
         &state,
         copy_command(&source, &work),
-        Some("Song".into()),
-        Some("Tyler, The Creator; Guest".into()),
-        None,
-        Some(vec![]),
+        DownloadOptions {
+            naming: DownloadNaming::Custom {
+                title: "Song".into(),
+                artist: "Tyler, The Creator; Guest".into(),
+            },
+            tags: Some(vec![]),
+            ..DownloadOptions::default()
+        },
         &work,
     )
     .await
@@ -399,7 +467,7 @@ async fn download_preserves_comma_in_artist_name() {
         Some("Tyler, The Creator; Guest")
     );
     assert_eq!(
-        crate::db::list_tracks(&state).unwrap()[0].artist,
+        crate::db::list_tracks(&state).await.unwrap()[0].artist,
         "Tyler, The Creator; Guest"
     );
     crate::scanner::scan_music_dir(state.clone()).await.unwrap();
@@ -407,7 +475,7 @@ async fn download_preserves_comma_in_artist_name() {
         let mut conn = state.db.lock().unwrap();
         crate::db::init_db(&mut conn).unwrap();
     }
-    let track = crate::db::list_tracks(&state).unwrap().pop().unwrap();
+    let track = crate::db::list_tracks(&state).await.unwrap().pop().unwrap();
     assert_eq!(track.artist, "Tyler, The Creator; Guest");
     assert_eq!(std::path::Path::new(&track.file_path), path);
 }
@@ -415,7 +483,7 @@ async fn download_preserves_comma_in_artist_name() {
 #[tokio::test]
 async fn confirmed_categories_replace_inferred_categories() {
     let tmp = TempDir::new().unwrap();
-    let state = crate::app::test_state(
+    let state = crate::test_support::test_state(
         tmp.path().join("data"),
         rusqlite::Connection::open_in_memory().unwrap(),
     );
@@ -423,18 +491,22 @@ async fn confirmed_categories_replace_inferred_categories() {
     let work = tmp.path().join("work");
     fs::create_dir(&work).unwrap();
     test_mp3(&source, "Song (cover)");
-    super::run_download_inner(
+    run_download_inner(
         &state,
         copy_command(&source, &work),
-        Some("Song (cover)".into()),
-        Some("Artist".into()),
-        None,
-        Some(vec!["ost".into()]),
+        DownloadOptions {
+            naming: DownloadNaming::Custom {
+                title: "Song (cover)".into(),
+                artist: "Artist".into(),
+            },
+            tags: Some(vec!["ost".into()]),
+            ..DownloadOptions::default()
+        },
         &work,
     )
     .await
     .unwrap();
-    let track = crate::db::list_tracks(&state).unwrap().pop().unwrap();
+    let track = crate::db::list_tracks(&state).await.unwrap().pop().unwrap();
     assert_eq!(
         track
             .tags
@@ -449,6 +521,7 @@ async fn confirmed_categories_replace_inferred_categories() {
     }
     assert_eq!(
         crate::db::get_track(&state, &track.id)
+            .await
             .unwrap()
             .unwrap()
             .tags[0]
@@ -460,7 +533,7 @@ async fn confirmed_categories_replace_inferred_categories() {
 #[tokio::test]
 async fn duplicate_download_does_not_change_existing_track_categories() {
     let tmp = TempDir::new().unwrap();
-    let state = crate::app::test_state(
+    let state = crate::test_support::test_state(
         tmp.path().join("data"),
         rusqlite::Connection::open_in_memory().unwrap(),
     );
@@ -469,21 +542,26 @@ async fn duplicate_download_does_not_change_existing_track_categories() {
     fs::create_dir(&work).unwrap();
     test_mp3(&original, "Song (cover)");
     crate::scanner::scan_music_dir(state.clone()).await.unwrap();
-    let track = crate::db::list_tracks(&state).unwrap().pop().unwrap();
-    crate::db::set_track_tags(&state, &track.id, &["ost".into()], false).unwrap();
-    let result = super::run_download_inner(
+    let track = crate::db::list_tracks(&state).await.unwrap().pop().unwrap();
+    crate::db::set_track_tags(&state, &track.id, &["ost".into()], false)
+        .await
+        .unwrap();
+    let result = run_download_inner(
         &state,
         copy_command(&original, &work),
-        None,
-        None,
-        None,
-        Some(vec!["mashup".into()]),
+        DownloadOptions {
+            tags: Some(vec!["mashup".into()]),
+            ..DownloadOptions::default()
+        },
         &work,
     )
     .await
     .unwrap();
     assert_eq!(result.file_name().unwrap(), "download.mp3");
-    let current = crate::db::get_track(&state, &track.id).unwrap().unwrap();
+    let current = crate::db::get_track(&state, &track.id)
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(
         current
             .tags
@@ -492,7 +570,9 @@ async fn duplicate_download_does_not_change_existing_track_categories() {
             .collect::<Vec<_>>(),
         ["ost"]
     );
-    assert!(!crate::db::track_tags_finalized(&state, &track.id).unwrap());
+    assert!(!crate::db::track_tags_finalized(&state, &track.id)
+        .await
+        .unwrap());
 }
 
 #[derive(Clone, Default)]
@@ -568,7 +648,6 @@ exit 1
 "#,
     )
     .unwrap();
-    fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
     let logs = LogBuffer::default();
     let writer = logs.clone();
     let subscriber = tracing::Dispatch::new(
@@ -582,7 +661,8 @@ exit 1
     let payload = job.payload();
     let span = tracing::dispatcher::with_default(&subscriber, || job.span("download"));
     async {
-        let mut command = Command::new(&executable);
+        let mut command = Command::new("sh");
+        command.arg(&executable);
         command.args(["--dump-json", "--no-playlist", "--", "https://example.com"]);
         let output = yt_dlp_output(command, Duration::from_secs(2))
             .await
@@ -596,7 +676,8 @@ exit 1
             ("--http403", &["source refused media access"][..]),
             ("--generic-error", &["Check media tools"][..]),
         ] {
-            let mut command = Command::new(&executable);
+            let mut command = Command::new("sh");
+            command.arg(&executable);
             command.arg(arg);
             let error = yt_dlp_output(command, Duration::from_secs(2))
                 .await
@@ -616,12 +697,17 @@ exit 1
             .await
             .unwrap_err();
         assert!(safe_failure(&error.to_string()).contains("Python"));
+        assert_eq!(
+            error.downcast_ref::<std::io::Error>().unwrap().kind(),
+            std::io::ErrorKind::NotFound
+        );
         let mut slow = Command::new("sleep");
         slow.arg("5");
         let error = yt_dlp_output(slow, Duration::from_millis(10))
             .await
             .unwrap_err();
         assert!(safe_failure(&error.to_string()).contains("timed out"));
+        assert!(error.is::<tokio::time::error::Elapsed>());
     }
     .instrument(span)
     .with_subscriber(subscriber)
@@ -648,7 +734,7 @@ fn arbitrary_errors_are_not_exposed() {
 #[tokio::test]
 async fn failed_job_broadcasts_safe_correlated_events_and_releases_lock() {
     let tmp = TempDir::new().unwrap();
-    let mut state = crate::app::test_state(
+    let mut state = crate::test_support::test_state(
         tmp.path().to_path_buf(),
         rusqlite::Connection::open_in_memory().unwrap(),
     );
@@ -658,10 +744,7 @@ async fn failed_job_broadcasts_safe_correlated_events_and_releases_lock() {
     super::spawn_download(
         state.clone(),
         "https://user:private-password@youtu.be/dQw4w9WgXcQ?token=private-token".into(),
-        None,
-        None,
-        None,
-        None,
+        DownloadOptions::default(),
     )
     .await
     .unwrap();
@@ -684,13 +767,13 @@ async fn failed_job_broadcasts_safe_correlated_events_and_releases_lock() {
         assert!(!serialized.contains("private-"));
         assert!(!serialized.contains("https://"));
     }
-    assert!(!*state.download_lock.lock().unwrap());
+    assert_eq!(state.download_lock.available_permits(), 1);
 }
 
 #[tokio::test]
 async fn artwork_failure_waits_for_media_and_its_child() {
     let tmp = TempDir::new().unwrap();
-    let state = crate::app::test_state(
+    let state = crate::test_support::test_state(
         tmp.path().join("data"),
         rusqlite::Connection::open_in_memory().unwrap(),
     );
@@ -736,7 +819,16 @@ wait "$worker"
     let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
     let dir = tmp.path().to_path_buf();
     let mut inner = tokio::spawn(async move {
-        super::run_download_inner(&state, command, None, None, Some(artwork_url), None, &dir).await
+        run_download_inner(
+            &state,
+            command,
+            DownloadOptions {
+                artwork_url: Some(artwork_url),
+                ..DownloadOptions::default()
+            },
+            &dir,
+        )
+        .await
     });
     let artwork_observed =
         tokio::time::timeout(Duration::from_secs(3), artwork_failed.notified()).await;

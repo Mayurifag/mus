@@ -1,35 +1,25 @@
 import type { Track } from "$lib/types";
 import type { TrackStoreState } from "$lib/stores/trackStore";
-import { parseArtists } from "$lib/utils/formatters";
+import { selectedTrackIndexes } from "$lib/stores/filteredTrackNavigation";
 
 export function getNextTrackForPreload(state: TrackStoreState): Track | null {
   if (state.tracks.length === 0 || state.currentTrackIndex === null) {
     return null;
   }
 
+  const indexes = selectedTrackIndexes(state);
   if (state.is_shuffle) {
-    return state.playHistory[state.historyPosition + 1] ?? null;
+    for (const track of state.playHistory.slice(state.historyPosition + 1)) {
+      const index = indexes.find(
+        (index) => state.tracks[index].id === track.id,
+      );
+      if (index !== undefined) return state.tracks[index];
+    }
+    return null;
   }
-
-  if (state.selectedArtist) {
-    const scopedIndexes = state.tracks.reduce<number[]>(
-      (indexes, track, index) => {
-        if (parseArtists(track.artist).includes(state.selectedArtist!)) {
-          indexes.push(index);
-        }
-        return indexes;
-      },
-      [],
-    );
-    const currentScopedIndex = scopedIndexes.indexOf(state.currentTrackIndex);
-    if (currentScopedIndex === -1 || scopedIndexes.length === 0) return null;
-
-    return state.tracks[
-      scopedIndexes[(currentScopedIndex + 1) % scopedIndexes.length]
-    ];
-  }
-
-  return state.tracks[(state.currentTrackIndex + 1) % state.tracks.length];
+  if (indexes.length === 0) return null;
+  const position = indexes.indexOf(state.currentTrackIndex);
+  return state.tracks[indexes[(position + 1) % indexes.length]];
 }
 
 export class HlsPreloadService {

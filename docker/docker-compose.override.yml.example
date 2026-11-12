@@ -17,9 +17,6 @@ services:
   backend:
     ports:
       - "8002:8001"
-    command: >
-      sh -c "sudo chown -R appuser:$$(id -gn appuser) /app/target /cargo 2>/dev/null || true;
-      cargo-watch -w src -w Cargo.toml -w Cargo.lock -x 'run --locked'"
     volumes: *x-backend-volumes
     environment:
       <<: *x-backend-environment

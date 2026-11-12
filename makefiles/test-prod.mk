@@ -23,10 +23,14 @@ test-prod-stop:
 
 .PHONY: prod-downloader-smoke
 prod-downloader-smoke:
-	@docker run --rm --network none --user 65534:65534 --entrypoint python3 mus:latest -c 'import sys, subprocess; sys.path.insert(0, "/usr/local/bin/yt-dlp"); import yt_dlp, yt_dlp_ejs; from yt_dlp_ejs.yt import solver; subprocess.run(["node", "--version"], check=True); subprocess.run(["yt-dlp", "--version"], check=True); opts = yt_dlp.parse_options().ydl_opts; assert set(opts["js_runtimes"]) == {"node"}, "System config must enable Node"; assert not opts["remote_components"]; assert yt_dlp.YoutubeDL(opts)._js_runtimes["node"].info.supported; assert solver.lib() and solver.core(); print("Offline downloader runtime checks passed; bundled EJS:", yt_dlp_ejs.version)'
+	@docker run --rm --network none --user 65534:65534 --entrypoint python3 mus:latest -c 'import sys, subprocess; sys.path.insert(0, "/usr/local/bin/yt-dlp"); import yt_dlp, yt_dlp_ejs; from yt_dlp_ejs.yt import solver; assert sys.version_info >= (3, 15, 2), "Python must be 3.15.2 or newer"; subprocess.run(["node", "--version"], check=True); subprocess.run(["yt-dlp", "--version"], check=True); opts = yt_dlp.parse_options().ydl_opts; assert set(opts["js_runtimes"]) == {"node"}, "System config must enable Node"; assert not opts["remote_components"]; runtime = yt_dlp.YoutubeDL(opts)._js_runtimes["node"].info; assert runtime and runtime.supported and runtime.version_tuple >= (26, 13, 1), "Node must be 26.13.1 or newer"; assert solver.lib() and solver.core(); print("Offline downloader runtime checks passed; bundled EJS:", yt_dlp_ejs.version)'
+
+.PHONY: prod-entrypoint-smoke
+prod-entrypoint-smoke:
+	@docker run --rm -i --network none --entrypoint python3 mus:latest - < docker/production/test_entrypoint.py
 
 .PHONY: prod-smoke
-prod-smoke: prod-downloader-smoke
+prod-smoke: prod-downloader-smoke prod-entrypoint-smoke
 	@docker image inspect mus:latest >/dev/null
 	@docker rm -f mus-smoke-test 2>/dev/null || true
 	@MUSIC_TMP=$$(mktemp -d); \

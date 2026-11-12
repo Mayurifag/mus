@@ -108,6 +108,32 @@ describe("trackStore", () => {
     expect(Object.getOwnPropertyDescriptor(counts, "__proto__")?.value).toBe(1);
   });
 
+  it.each([0, 2])(
+    "reconciles shuffle history at cursor %i after a refresh misses an edit and a deletion",
+    (position) => {
+      trackStore.setTracks(mockTracks);
+      trackStore.setCurrentTrackIndex(1);
+      trackStore.setCurrentTrackIndex(0);
+      trackStore.setCurrentTrackIndex(2);
+      trackStore.setShuffle(true);
+      for (let cursor = 2; cursor > position; cursor--)
+        trackStore.previousTrack();
+      expect(get(trackStore).currentTrack).toEqual(
+        mockTracks[position === 0 ? 1 : 2],
+      );
+      const updated = { ...mockTracks[2], title: "Refreshed title" };
+
+      trackStore.setTracks([mockTracks[1], updated]);
+
+      expect(get(trackStore).playHistory).toEqual([mockTracks[1], updated]);
+      expect(get(trackStore).historyPosition).toBe(position === 0 ? 0 : 1);
+      if (position === 2) trackStore.previousTrack();
+      trackStore.nextTrack();
+      expect(get(trackStore).currentTrack).toBe(updated);
+      expect(get(trackStore).currentTrackIndex).toBe(1);
+    },
+  );
+
   it("keeps selection, history, and library order when an audio edit changes the content ID", () => {
     trackStore.setTracks(mockTracks);
     trackStore.setCurrentTrackIndex(1);
@@ -346,6 +372,164 @@ describe("trackStore", () => {
     expect(get(trackStore).currentTrack).toEqual(artistTracks[2]);
 
     vi.restoreAllMocks();
+  });
+
+  it.each(["artist", "category"])(
+    "keeps forward shuffle history when Previous extends the %s-filtered history",
+    (filter) => {
+      const tracks = mockTracks.map((track) => ({
+        ...track,
+        artist: "Artist A",
+        tags: [{ name: "cover", display_name: "Cover" }],
+      }));
+      vi.spyOn(Math, "random").mockReturnValue(0);
+      try {
+        trackStore.setTracks(tracks);
+        if (filter === "artist") trackStore.setArtistFilter("Artist A");
+        else trackStore.setCategoryFilter("cover");
+        trackStore.setShuffle(true);
+        trackStore.nextTrack();
+        trackStore.nextTrack();
+        const history = [...get(trackStore).playHistory];
+        trackStore.previousTrack();
+        trackStore.previousTrack();
+        trackStore.previousTrack();
+        expect(get(trackStore).playHistory).toEqual([tracks[2], ...history]);
+        for (const track of history) {
+          trackStore.nextTrack();
+          expect(get(trackStore).currentTrack).toEqual(track);
+        }
+      } finally {
+        vi.restoreAllMocks();
+      }
+    },
+  );
+
+  describe.each(["all", "artist", "category"])(
+    "%s-filtered shuffle history deletion",
+    (filter) => {
+      beforeEach(() => {
+        const tracks = mockTracks.map((track) => ({
+          ...track,
+          artist: "Artist A",
+          tags: [{ name: "cover", display_name: "Cover" }],
+        }));
+        trackStore.setTracks(tracks);
+        if (filter === "artist") trackStore.setArtistFilter("Artist A");
+        if (filter === "category") trackStore.setCategoryFilter("cover");
+        trackStore.setShuffle(true);
+        vi.spyOn(Math, "random")
+          .mockReturnValue(0)
+          .mockReturnValueOnce(0)
+          .mockReturnValueOnce(0)
+          .mockReturnValueOnce(0.99);
+        for (let step = 0; step < 5; step++) trackStore.nextTrack();
+        expect(get(trackStore).playHistory.map((track) => track.id)).toEqual([
+          "1",
+          "2",
+          "1",
+          "3",
+          "1",
+          "2",
+        ]);
+      });
+
+      afterEach(() => vi.restoreAllMocks());
+
+      it("keeps the exact surviving occurrence after removing all earlier matches", () => {
+        trackStore.deleteTrack("1");
+        const state = get(trackStore);
+        expect(state.playHistory.map((track) => track.id)).toEqual([
+          "2",
+          "3",
+          "2",
+        ]);
+        expect(state.historyPosition).toBe(2);
+        expect(state.currentTrack?.id).toBe("2");
+        trackStore.previousTrack();
+        expect(get(trackStore).currentTrack?.id).toBe("3");
+        trackStore.previousTrack();
+        expect(get(trackStore).currentTrack?.id).toBe("2");
+        trackStore.nextTrack();
+        expect(get(trackStore).currentTrack?.id).toBe("3");
+        trackStore.nextTrack();
+        expect(get(trackStore).currentTrack?.id).toBe("2");
+        expect(get(trackStore).historyPosition).toBe(2);
+      });
+
+      it("adjusts only for removed entries before a surviving middle cursor", () => {
+        trackStore.previousTrack();
+        trackStore.previousTrack();
+        trackStore.deleteTrack("1");
+        expect(get(trackStore).currentTrack?.id).toBe("3");
+        expect(get(trackStore).historyPosition).toBe(1);
+        trackStore.nextTrack();
+        expect(get(trackStore).currentTrack?.id).toBe("2");
+        expect(get(trackStore).historyPosition).toBe(2);
+      });
+
+      it("does not shift the cursor for later removed entries", () => {
+        for (let step = 0; step < 4; step++) trackStore.previousTrack();
+        trackStore.deleteTrack("1");
+        expect(get(trackStore).historyPosition).toBe(0);
+        expect(get(trackStore).playHistory.map((track) => track.id)).toEqual([
+          "2",
+          "3",
+          "2",
+        ]);
+        trackStore.nextTrack();
+        expect(get(trackStore).currentTrack?.id).toBe("3");
+      });
+
+      it("aligns a deleted current entry with the replacement track in history", () => {
+        trackStore.previousTrack();
+        expect(get(trackStore).currentTrack?.id).toBe("1");
+        trackStore.deleteTrack("1");
+        const state = get(trackStore);
+        expect(state.currentTrack?.id).toBe("2");
+        expect(state.playHistory.map((track) => track.id)).toEqual([
+          "2",
+          "3",
+          "2",
+        ]);
+        expect(state.historyPosition).toBe(0);
+        expect(state.playHistory[state.historyPosition]).toEqual(
+          state.currentTrack,
+        );
+        trackStore.nextTrack();
+        expect(get(trackStore).currentTrack?.id).toBe("3");
+      });
+    },
+  );
+
+  it("adds an unvisited replacement to history when deleting the current track", () => {
+    trackStore.setTracks(mockTracks);
+    trackStore.setShuffle(true);
+    trackStore.deleteTrack("1");
+    const state = get(trackStore);
+    expect(state.currentTrack).toEqual(mockTracks[1]);
+    expect(state.playHistory).toEqual([mockTracks[1]]);
+    expect(state.historyPosition).toBe(0);
+    trackStore.nextTrack();
+    expect(get(trackStore).currentTrack).toEqual(mockTracks[2]);
+    expect(get(trackStore).playHistory).toEqual([mockTracks[1], mockTracks[2]]);
+  });
+
+  it("clears the history cursor when deleting the last track with repeated entries", () => {
+    trackStore.setTracks([mockTracks[0]]);
+    trackStore.setShuffle(true);
+    trackStore.previousTrack();
+    trackStore.previousTrack();
+    trackStore.nextTrack();
+    trackStore.nextTrack();
+    expect(get(trackStore).historyPosition).toBe(2);
+    trackStore.deleteTrack("1");
+    const state = get(trackStore);
+    expect(state.tracks).toEqual([]);
+    expect(state.currentTrack).toBeNull();
+    expect(state.currentTrackIndex).toBeNull();
+    expect(state.playHistory).toEqual([]);
+    expect(state.historyPosition).toBe(-1);
   });
 
   describe("shuffle mode navigation", () => {

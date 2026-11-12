@@ -1,14 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/svelte";
-import { get, writable } from "svelte/store";
+import { get } from "svelte/store";
 import RightSidebar from "./RightSidebar.svelte";
 import { handleMusEvent } from "$lib/services/eventHandlerService";
 import { trackStore } from "$lib/stores/trackStore";
-import {
-  fetchSystemInfo,
-  trackUpdatesConnectionStatus,
-  updateYtDlp,
-} from "$lib/services/apiClient";
+import { fetchSystemInfo, updateYtDlp } from "$lib/services/systemClient";
+import { trackUpdatesConnectionStatus } from "$lib/services/trackEventsClient";
 import type { Track } from "$lib/types";
 
 const { defaultSystemInfo } = vi.hoisted(() => ({
@@ -28,11 +25,13 @@ const { defaultSystemInfo } = vi.hoisted(() => ({
 }));
 
 // Mock the API client
-vi.mock("$lib/services/apiClient", () => ({
-  fetchErroredTracks: vi.fn().mockResolvedValue([]),
+vi.mock("$lib/services/systemClient", () => ({
   fetchSystemInfo: vi.fn().mockResolvedValue(defaultSystemInfo),
-  trackUpdatesConnectionStatus: writable("disconnected"),
   updateYtDlp: vi.fn().mockResolvedValue({ yt_dlp_version: null, output: "" }),
+}));
+
+vi.mock("$lib/services/trackClient", () => ({
+  fetchErroredTracks: vi.fn().mockResolvedValue([]),
 }));
 
 describe("RightSidebar", () => {

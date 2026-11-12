@@ -4,7 +4,6 @@ set -eu
 data_dir="${DATA_DIR_PATH:-/app_data}"
 music_dir="$data_dir/music"
 cache_dir="$data_dir/.cache"
-covers_dir="$cache_dir/covers"
 
 if [ -d "$music_dir" ]; then
   runtime_uid="$(stat -c '%u' "$music_dir")"
@@ -33,15 +32,13 @@ fi
 export HOME="$data_dir/.cache"
 
 mkdir -p "$data_dir" "$cache_dir"
-if [ -f "$data_dir/mus.db" ] && [ ! -e "$cache_dir/mus.db" ]; then
-  mv "$data_dir/mus.db" "$cache_dir/mus.db"
-fi
-if [ -d "$data_dir/covers" ] && [ ! -e "$covers_dir" ]; then
-  mv "$data_dir/covers" "$covers_dir"
-fi
-mkdir -p "$covers_dir"
-touch "$cache_dir/mus.db"
-chown "$runtime_uid:$runtime_gid" "$data_dir" "$cache_dir/mus.db"
+# Rust owns migration, including checkpointing the legacy database's WAL.
+for legacy_path in "$data_dir/mus.db" "$data_dir/mus.db-wal" "$data_dir/mus.db-shm" "$data_dir/covers"; do
+  if [ -e "$legacy_path" ]; then
+    chown -R "$runtime_uid:$runtime_gid" "$legacy_path"
+  fi
+done
+chown "$runtime_uid:$runtime_gid" "$data_dir"
 chown -R "$runtime_uid:$runtime_gid" "$cache_dir"
 chown "$runtime_uid:$runtime_gid" /usr/local/bin /usr/local/bin/yt-dlp
 

@@ -1,16 +1,20 @@
+//! Library discovery, identity, and category persistence integration tests.
+
 use std::{fs, path::Path, process::Command, time::Duration};
 
 use filetime::FileTime;
 use id3::{Tag, TagLike, Version};
 use mus_backend::{
-    app::test_state,
     db,
+    files::{file_content_hash, file_signature, inode},
     scanner::scan_music_dir,
-    util::{file_content_hash, file_signature, inode},
 };
 use rusqlite::{params, Connection};
 use tempfile::TempDir;
 use tokio::time::timeout;
+
+mod common;
+use common::test_state;
 
 fn make_state() -> (TempDir, mus_backend::state::AppState) {
     let tmp = TempDir::new().unwrap();
@@ -156,7 +160,7 @@ async fn confirmed_download_tags_survive_restart_and_changed_file() {
     create_mp3(&chosen, "Song (cover)", "Artist");
     create_mp3(&legacy, "Old (cover)", "Artist");
     scan_music_dir(state.clone()).await.unwrap();
-    let tracks = db::list_tracks(&state).unwrap();
+    let tracks = db::list_tracks(&state).await.unwrap();
     let chosen_track = tracks
         .iter()
         .find(|track| track.file_path == chosen.to_string_lossy())
@@ -166,20 +170,32 @@ async fn confirmed_download_tags_survive_restart_and_changed_file() {
         .find(|track| track.file_path == legacy.to_string_lossy())
         .unwrap();
     assert_eq!(chosen_track.tags[0].name, "cover");
-    assert!(!db::set_download_tags(&state, &legacy_track.id, &chosen, &["ost".into()]).unwrap());
-    assert!(!db::track_tags_finalized(&state, &legacy_track.id).unwrap());
-    assert!(db::set_download_tags(&state, &chosen_track.id, &chosen, &[]).unwrap());
+    assert!(
+        !db::set_download_tags(&state, &legacy_track.id, &chosen, &["ost".into()])
+            .await
+            .unwrap()
+    );
+    assert!(!db::track_tags_finalized(&state, &legacy_track.id)
+        .await
+        .unwrap());
+    assert!(
+        db::set_download_tags(&state, &chosen_track.id, &chosen, &[])
+            .await
+            .unwrap()
+    );
     {
         let mut conn = state.db.lock().unwrap();
         db::init_db(&mut conn).unwrap();
     }
     assert!(db::get_track(&state, &chosen_track.id)
+        .await
         .unwrap()
         .unwrap()
         .tags
         .is_empty());
     assert_eq!(
         db::get_track(&state, &legacy_track.id)
+            .await
             .unwrap()
             .unwrap()
             .tags[0]
@@ -192,26 +208,27 @@ async fn confirmed_download_tags_survive_restart_and_changed_file() {
     tag.write_to_path(&chosen, Version::Id3v23).unwrap();
     scan_music_dir(state.clone()).await.unwrap();
     let updated = db::list_tracks(&state)
+        .await
         .unwrap()
         .into_iter()
         .find(|track| track.file_path == chosen.to_string_lossy())
         .unwrap();
     assert_ne!(updated.id, chosen_track.id);
-    assert!(db::track_tags_finalized(&state, &updated.id).unwrap());
+    assert!(db::track_tags_finalized(&state, &updated.id).await.unwrap());
     assert!(updated.tags.is_empty());
 }
 
 #[tokio::test]
 async fn scan_music_dir_finds_nested_audio_files() {
     let (_tmp, state) = make_state();
-    let nested = state.music_dir.join("artist/album");
+    let nested = state.music_dir.join("artist").join("album");
     fs::create_dir_all(&nested).unwrap();
     let path = nested.join("song.wav");
     write_silent_wav(&path);
 
     scan_music_dir(state.clone()).await.unwrap();
 
-    let tracks = db::list_tracks(&state).unwrap();
+    let tracks = db::list_tracks(&state).await.unwrap();
     assert_eq!(tracks.len(), 1);
     assert_eq!(tracks[0].title, "song");
     assert_eq!(tracks[0].file_path, path.to_string_lossy());
@@ -224,7 +241,7 @@ async fn scan_music_dir_skips_unparseable_audio_files() {
 
     scan_music_dir(state.clone()).await.unwrap();
 
-    assert!(db::list_tracks(&state).unwrap().is_empty());
+    assert!(db::list_tracks(&state).await.unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -233,7 +250,7 @@ async fn exact_copies_do_not_change_the_registered_path_or_repeat_added_events()
     let original = state.music_dir.join("Ace of Base - Happy Nation.mp3");
     create_mp3(&original, "Happy Nation", "Ace of Base");
     scan_music_dir(state.clone()).await.unwrap();
-    let registered = db::list_tracks(&state).unwrap().remove(0);
+    let registered = db::list_tracks(&state).await.unwrap().remove(0);
     let duplicate = state.music_dir.join("another copy.mp3");
     fs::copy(&original, &duplicate).unwrap();
     let before = fs::read(&duplicate).unwrap();
@@ -241,7 +258,7 @@ async fn exact_copies_do_not_change_the_registered_path_or_repeat_added_events()
 
     for _ in 0..2 {
         scan_music_dir(state.clone()).await.unwrap();
-        let tracks = db::list_tracks(&state).unwrap();
+        let tracks = db::list_tracks(&state).await.unwrap();
         assert_eq!(tracks.len(), 1);
         assert_eq!(tracks[0].id, registered.id);
         assert_eq!(tracks[0].file_path, registered.file_path);
@@ -267,7 +284,7 @@ async fn initial_scan_announces_identical_copies_only_once() {
     fs::copy(&first, &second).unwrap();
     let mut events = state.events.subscribe();
     scan_music_dir(state.clone()).await.unwrap();
-    assert_eq!(db::list_tracks(&state).unwrap().len(), 1);
+    assert_eq!(db::list_tracks(&state).await.unwrap().len(), 1);
     let mut added = 0;
     while let Ok(event) = events.try_recv() {
         if event.action_key.as_deref() == Some("track_added") {
@@ -283,12 +300,12 @@ async fn remaining_copy_keeps_the_library_entry_when_registered_copy_disappears(
     let original = state.music_dir.join("original.wav");
     write_silent_wav(&original);
     scan_music_dir(state.clone()).await.unwrap();
-    let registered = db::list_tracks(&state).unwrap().remove(0);
+    let registered = db::list_tracks(&state).await.unwrap().remove(0);
     let duplicate = state.music_dir.join("another copy.wav");
     fs::copy(&original, &duplicate).unwrap();
     fs::remove_file(&original).unwrap();
     scan_music_dir(state.clone()).await.unwrap();
-    let tracks = db::list_tracks(&state).unwrap();
+    let tracks = db::list_tracks(&state).await.unwrap();
     assert_eq!(tracks.len(), 1);
     assert_eq!(tracks[0].id, registered.id);
     assert_eq!(tracks[0].added_at, registered.added_at);
@@ -313,7 +330,7 @@ async fn scan_music_dir_removes_existing_unparseable_audio_files() {
 
     scan_music_dir(state.clone()).await.unwrap();
 
-    assert!(db::list_tracks(&state).unwrap().is_empty());
+    assert!(db::list_tracks(&state).await.unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -341,6 +358,7 @@ async fn list_tracks_keeps_discovery_order_when_updated_at_changes() {
 
     assert_eq!(
         db::list_tracks(&state)
+            .await
             .unwrap()
             .into_iter()
             .map(|track| track.id)
@@ -359,6 +377,7 @@ async fn list_tracks_keeps_discovery_order_when_updated_at_changes() {
 
     assert_eq!(
         db::list_tracks(&state)
+            .await
             .unwrap()
             .into_iter()
             .map(|track| track.id)
@@ -426,7 +445,7 @@ async fn scan_music_dir_preserves_comma_artists_without_structured_boundaries() 
 
     scan_music_dir(state.clone()).await.unwrap();
 
-    let tracks = db::list_tracks(&state).unwrap();
+    let tracks = db::list_tracks(&state).await.unwrap();
     assert_eq!(tracks.len(), 1);
     assert_eq!(tracks[0].artist, "aikko,katanacss,INSPACE,playingtheangel");
     assert_eq!(tracks[0].file_path, path.to_string_lossy());
@@ -442,7 +461,7 @@ async fn scan_music_dir_renames_unstructured_filename_from_metadata() {
     scan_music_dir(state.clone()).await.unwrap();
 
     let renamed_path = state.music_dir.join("Artist - song.mp3");
-    let tracks = db::list_tracks(&state).unwrap();
+    let tracks = db::list_tracks(&state).await.unwrap();
     assert_eq!(tracks.len(), 1);
     assert_eq!(tracks[0].title, "song");
     assert_eq!(tracks[0].artist, "Artist");
@@ -469,7 +488,7 @@ async fn scan_music_dir_normalizes_unicode_filenames_to_nfc() {
     scan_music_dir(state.clone()).await.unwrap();
 
     let renamed_path = state.music_dir.join("Слава КПСС - Бедный Русский.mp3");
-    let tracks = db::list_tracks(&state).unwrap();
+    let tracks = db::list_tracks(&state).await.unwrap();
     assert_eq!(tracks.len(), 1);
     assert_eq!(tracks[0].title, "Бедный Русский");
     assert_eq!(tracks[0].file_path, renamed_path.to_string_lossy());
@@ -500,7 +519,7 @@ async fn scan_music_dir_normalizes_unchanged_existing_tracks() {
 
     scan_music_dir(state.clone()).await.unwrap();
 
-    let tracks = db::list_tracks(&state).unwrap();
+    let tracks = db::list_tracks(&state).await.unwrap();
     assert_eq!(tracks.len(), 1);
     assert_eq!(
         tracks[0].artist,
@@ -516,20 +535,109 @@ async fn scan_music_dir_handles_external_create_update_and_delete() {
     set_mtime(&path, 2_000);
 
     scan_music_dir(state.clone()).await.unwrap();
-    let tracks = db::list_tracks(&state).unwrap();
+    let tracks = db::list_tracks(&state).await.unwrap();
     assert_eq!(tracks.len(), 1);
     assert_eq!(tracks[0].updated_at, 2_000);
 
     fs::write(&path, b"second").unwrap();
     set_mtime(&path, 4_000);
     scan_music_dir(state.clone()).await.unwrap();
-    let tracks = db::list_tracks(&state).unwrap();
+    let tracks = db::list_tracks(&state).await.unwrap();
     assert_eq!(tracks.len(), 1);
     assert_eq!(tracks[0].updated_at, 4_000);
 
     fs::remove_file(&path).unwrap();
     scan_music_dir(state.clone()).await.unwrap();
-    assert!(db::list_tracks(&state).unwrap().is_empty());
+    assert!(db::list_tracks(&state).await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn scan_announces_the_previous_id_when_file_contents_change() {
+    use std::io::Write;
+
+    let (_tmp, state) = make_state();
+    let path = state.music_dir.join("song.wav");
+    write_silent_wav(&path);
+    scan_music_dir(state.clone()).await.unwrap();
+    let previous = db::list_tracks(&state).await.unwrap().remove(0);
+    let mut events = state.events.subscribe();
+
+    fs::OpenOptions::new()
+        .append(true)
+        .open(&path)
+        .unwrap()
+        .write_all(b"changed")
+        .unwrap();
+    scan_music_dir(state.clone()).await.unwrap();
+
+    let event = events.recv().await.unwrap();
+    assert_eq!(event.action_key.as_deref(), Some("track_updated"));
+    let payload = event.action_payload.unwrap();
+    let updated = db::list_tracks(&state).await.unwrap().remove(0);
+    assert_ne!(updated.id, previous.id);
+    assert_eq!(payload["previous_id"], previous.id);
+    assert_eq!(payload["id"], updated.id);
+}
+
+#[tokio::test]
+async fn scan_announces_the_previous_id_when_normalizing_metadata() {
+    let (_tmp, state) = make_state();
+    let path = state.music_dir.join("song.wav");
+    write_silent_wav(&path);
+    scan_music_dir(state.clone()).await.unwrap();
+    let previous = db::list_tracks(&state).await.unwrap().remove(0);
+    state
+        .db
+        .lock()
+        .unwrap()
+        .execute(
+            "UPDATE track SET title = ?1 WHERE id = ?2",
+            params!["Cafe\u{301}", previous.id],
+        )
+        .unwrap();
+    let mut events = state.events.subscribe();
+
+    scan_music_dir(state.clone()).await.unwrap();
+
+    let event = events.recv().await.unwrap();
+    assert_eq!(event.action_key.as_deref(), Some("track_updated"));
+    let payload = event.action_payload.unwrap();
+    let updated = db::list_tracks(&state).await.unwrap().remove(0);
+    assert_ne!(updated.id, previous.id);
+    assert_eq!(payload["previous_id"], previous.id);
+    assert_eq!(payload["id"], updated.id);
+    assert_eq!(updated.title, "Café");
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn scan_announces_the_previous_id_when_a_moved_file_also_changes() {
+    use std::io::Write;
+
+    let (_tmp, state) = make_state();
+    let path = state.music_dir.join("song.wav");
+    write_silent_wav(&path);
+    scan_music_dir(state.clone()).await.unwrap();
+    let previous = db::list_tracks(&state).await.unwrap().remove(0);
+    let mut events = state.events.subscribe();
+
+    let moved = state.music_dir.join("moved.wav");
+    fs::rename(path, &moved).unwrap();
+    fs::OpenOptions::new()
+        .append(true)
+        .open(&moved)
+        .unwrap()
+        .write_all(b"changed")
+        .unwrap();
+    scan_music_dir(state.clone()).await.unwrap();
+
+    let event = events.recv().await.unwrap();
+    assert_eq!(event.action_key.as_deref(), Some("track_updated"));
+    let payload = event.action_payload.unwrap();
+    let updated = db::list_tracks(&state).await.unwrap().remove(0);
+    assert_ne!(updated.id, previous.id);
+    assert_eq!(payload["previous_id"], previous.id);
+    assert_eq!(payload["id"], updated.id);
 }
 
 #[tokio::test]
@@ -540,7 +648,7 @@ async fn scan_music_dir_preserves_track_identity_after_move() {
     set_mtime(&path, 2_000);
 
     scan_music_dir(state.clone()).await.unwrap();
-    let tracks = db::list_tracks(&state).unwrap();
+    let tracks = db::list_tracks(&state).await.unwrap();
     let id = tracks[0].id.clone();
     {
         let conn = state.db.lock().unwrap();
@@ -556,7 +664,7 @@ async fn scan_music_dir_preserves_track_identity_after_move() {
     scan_music_dir(state.clone()).await.unwrap();
 
     let renamed_path = state.music_dir.join("Kept Artist - Kept Title.flac");
-    let tracks = db::list_tracks(&state).unwrap();
+    let tracks = db::list_tracks(&state).await.unwrap();
     assert_eq!(tracks.len(), 1);
     assert_eq!(tracks[0].id, id);
     assert_eq!(tracks[0].title, "Kept Title");
@@ -584,19 +692,19 @@ async fn scan_music_dir_skips_unchanged_existing_tracks() {
     }
 
     scan_music_dir(state.clone()).await.unwrap();
-    let tracks = db::list_tracks(&state).unwrap();
+    let tracks = db::list_tracks(&state).await.unwrap();
     assert_eq!(tracks[0].title, "Kept Title");
     assert!(tracks[0].file_signature.is_some());
 
     set_mtime(&path, 3_000);
     scan_music_dir(state.clone()).await.unwrap();
-    let tracks = db::list_tracks(&state).unwrap();
+    let tracks = db::list_tracks(&state).await.unwrap();
     assert_eq!(tracks[0].title, "Kept Title");
 
     fs::write(&path, b"second").unwrap();
     set_mtime(&path, 4_000);
     scan_music_dir(state.clone()).await.unwrap();
-    let tracks = db::list_tracks(&state).unwrap();
+    let tracks = db::list_tracks(&state).await.unwrap();
     assert_eq!(tracks[0].title, "song");
     assert_eq!(tracks[0].updated_at, 4_000);
 }
@@ -622,7 +730,7 @@ async fn scan_music_dir_detects_preserved_mtime_content_changes() {
     set_mtime(&path, 2_000);
     scan_music_dir(state.clone()).await.unwrap();
 
-    let tracks = db::list_tracks(&state).unwrap();
+    let tracks = db::list_tracks(&state).await.unwrap();
     assert_eq!(tracks[0].title, "song");
     assert_eq!(tracks[0].updated_at, 2_000);
     assert_eq!(tracks[0].id, tracks[0].content_hash);
@@ -638,7 +746,7 @@ async fn scan_music_dir_standardizes_id3_tags() {
     tag.write_to_path(&path, Version::Id3v24).unwrap();
     scan_music_dir(state.clone()).await.unwrap();
 
-    let tracks = db::list_tracks(&state).unwrap();
+    let tracks = db::list_tracks(&state).await.unwrap();
     let tag = Tag::read_from_path(&tracks[0].file_path).unwrap();
     assert_eq!(tag.version(), Version::Id3v23);
 }

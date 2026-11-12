@@ -2,7 +2,7 @@
   import { onDestroy, tick } from "svelte";
   import { Play } from "@lucide/svelte";
   import { Button } from "$lib/components/ui/button";
-  import { fetchTrackCutPreview } from "$lib/services/apiClient";
+  import { fetchTrackCutPreview } from "$lib/services/trackClient";
   import type { AudioCut } from "$lib/types";
 
   let {

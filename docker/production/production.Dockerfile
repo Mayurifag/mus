@@ -1,6 +1,6 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.29.0
 
-FROM node:26-alpine3.24 AS frontend-builder
+FROM node:26.13.1-alpine3.24 AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 ENV VITE_INTERNAL_API_HOST=""
@@ -11,7 +11,7 @@ RUN --mount=type=cache,target=/root/.npm \
 COPY frontend/ ./
 RUN npm run build
 
-FROM rust:1-alpine3.24 AS backend-builder
+FROM rust:1.99.1-alpine3.24 AS backend-builder
 WORKDIR /app/backend
 RUN apk add --no-cache build-base
 COPY backend/Cargo.toml backend/Cargo.lock ./
@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     && cargo build --locked --release \
     && cp target/release/mus-backend /tmp/mus-backend
 
-FROM alpine:3.24
+FROM python:3.15.2-alpine3.24@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
 ARG TARGETARCH
 ARG BUILD_DATE
 ARG COMMIT_SHA
@@ -48,12 +48,14 @@ ENV COMMIT_SHA=$COMMIT_SHA
 ENV BUILD_DATE=$BUILD_DATE
 
 COPY docker/yt-dlp.conf /etc/yt-dlp.conf
+# Alpine's Node package can lag behind upstream security releases.
+COPY --from=frontend-builder /usr/local/bin/node /usr/bin/node
 
 RUN apk add --no-cache \
         curl \
         ffmpeg \
-        'nodejs>=22' \
-        python3 \
+        libatomic \
+        libstdc++ \
         sqlite \
         su-exec \
     && curl -fsSL https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
@@ -66,7 +68,8 @@ COPY --from=frontend-builder /app/frontend/build /app/frontend/build
 COPY docker/production/entrypoint.sh /app/entrypoint.sh
 
 RUN mkdir -p /app_data/.cache/covers \
-    && chmod a+rx /app/mus-backend /app/entrypoint.sh
+    && chmod a+rx /app/mus-backend /app/entrypoint.sh \
+    && python3 -m pip --disable-pip-version-check uninstall --yes pip
 
 EXPOSE 8000
 

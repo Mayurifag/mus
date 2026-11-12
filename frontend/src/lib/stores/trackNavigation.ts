@@ -11,7 +11,7 @@ export const calculateNextIndex = (
   tracksLength: number,
 ): number => (currentIndex + 1) % tracksLength;
 
-export const findTrackIndex = (tracks: Track[], targetTrack: Track): number =>
+const findTrackIndex = (tracks: Track[], targetTrack: Track): number =>
   tracks.findIndex((track) => track.id === targetTrack.id);
 
 const moveInHistory = (

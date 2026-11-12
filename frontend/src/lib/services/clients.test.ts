@@ -1,5 +1,6 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
-import * as apiClient from "./apiClient";
+import * as trackClient from "./trackClient";
+import * as playerClient from "./playerClient";
 
 const PUBLIC_API_HOST = import.meta.env.VITE_PUBLIC_API_HOST || "";
 const API_HOST = import.meta.env.SSR
@@ -64,7 +65,7 @@ const mockPlayerState = {
   is_repeat: false,
 };
 
-describe("apiClient", () => {
+describe("API clients", () => {
   const originalConsoleError = console.error;
   const originalFetch = globalThis.fetch;
 
@@ -90,13 +91,13 @@ describe("apiClient", () => {
         mockResponse as unknown as Response,
       );
 
-      const result = await apiClient.fetchTracks();
+      const result = await trackClient.fetchTracks();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(TRACKS_URL);
       expect(result).toEqual([mockTrackTransformed]);
     });
 
-    it("returns empty array when fetch fails", async () => {
+    it("rejects failed refreshes instead of treating them as an empty library", async () => {
       console.error = vi.fn();
       const mockResponse = {
         ok: false,
@@ -106,28 +107,18 @@ describe("apiClient", () => {
         mockResponse as unknown as Response,
       );
 
-      const result = await apiClient.fetchTracks();
-
-      expect(globalThis.fetch).toHaveBeenCalledWith(TRACKS_URL);
-      expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining("fetchTracks"),
-        expect.any(Error),
+      await expect(trackClient.fetchTracks()).rejects.toThrow(
+        "HTTP error! status: 500",
       );
-      expect(result).toEqual([]);
+      expect(globalThis.fetch).toHaveBeenCalledWith(TRACKS_URL);
     });
 
-    it("returns empty array when network error occurs", async () => {
+    it("preserves network failures for the caller", async () => {
       console.error = vi.fn();
-      vi.mocked(globalThis.fetch).mockRejectedValue(new Error("Network error"));
-
-      const result = await apiClient.fetchTracks();
-
+      const error = new Error("Network error");
+      vi.mocked(globalThis.fetch).mockRejectedValue(error);
+      await expect(trackClient.fetchTracks()).rejects.toBe(error);
       expect(globalThis.fetch).toHaveBeenCalledWith(TRACKS_URL);
-      expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining("fetchTracks"),
-        expect.any(Error),
-      );
-      expect(result).toEqual([]);
     });
   });
 
@@ -142,7 +133,7 @@ describe("apiClient", () => {
         mockResponse as unknown as Response,
       );
 
-      const result = await apiClient.fetchPlayerState();
+      const result = await playerClient.fetchPlayerState();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(PLAYER_STATE_URL);
       expect(result).toEqual(mockPlayerState);
@@ -158,7 +149,7 @@ describe("apiClient", () => {
         mockResponse as unknown as Response,
       );
 
-      const result = await apiClient.fetchPlayerState();
+      const result = await playerClient.fetchPlayerState();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(PLAYER_STATE_URL);
       expect(result).toEqual({
@@ -182,7 +173,7 @@ describe("apiClient", () => {
         mockResponse as unknown as Response,
       );
 
-      const result = await apiClient.fetchPlayerState();
+      const result = await playerClient.fetchPlayerState();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(PLAYER_STATE_URL);
       expect(console.error).toHaveBeenCalledWith(
@@ -204,7 +195,7 @@ describe("apiClient", () => {
       console.error = vi.fn();
       vi.mocked(globalThis.fetch).mockRejectedValue(new Error("Network error"));
 
-      const result = await apiClient.fetchPlayerState();
+      const result = await playerClient.fetchPlayerState();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(PLAYER_STATE_URL);
       expect(console.error).toHaveBeenCalledWith(
@@ -231,7 +222,7 @@ describe("apiClient", () => {
         writable: true,
       });
 
-      apiClient.sendPlayerStateBeacon(mockPlayerState);
+      playerClient.sendPlayerStateBeacon(mockPlayerState);
 
       expect(mockSendBeacon).toHaveBeenCalledWith(
         PLAYER_STATE_URL,
@@ -243,7 +234,7 @@ describe("apiClient", () => {
       vi.stubGlobal("navigator", {});
 
       expect(() => {
-        apiClient.sendPlayerStateBeacon(mockPlayerState);
+        playerClient.sendPlayerStateBeacon(mockPlayerState);
       }).not.toThrow();
 
       vi.unstubAllGlobals();

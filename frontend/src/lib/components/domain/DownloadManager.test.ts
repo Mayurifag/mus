@@ -4,10 +4,10 @@ import DownloadManager from "./DownloadManager.svelte";
 import { downloadStore } from "$lib/stores/downloadStore";
 import { permissionsStore } from "$lib/stores/permissionsStore";
 import { get } from "svelte/store";
-import * as apiClient from "$lib/services/apiClient";
+import * as apiClient from "$lib/services/downloadClient";
 
 // Mock dependencies
-vi.mock("$lib/services/apiClient", () => ({
+vi.mock("$lib/services/downloadClient", () => ({
   fetchMetadata: vi.fn(),
 }));
 

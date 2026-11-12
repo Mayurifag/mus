@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   sendPlayerStateBeacon: vi.fn(),
 }));
 
-vi.mock("$lib/services/apiClient", () => ({
+vi.mock("$lib/services/playerClient", () => ({
   sendPlayerStateBeacon: mocks.sendPlayerStateBeacon,
 }));
 

@@ -109,5 +109,19 @@ describe("hlsPreloadService", () => {
         playHistory: [tracks[0], tracks[2]],
       }),
     ).toBe(tracks[2]);
+    tracks[0].tags = tracks[2].tags = [
+      { name: "cover", display_name: "Cover" },
+    ];
+    expect(
+      getNextTrackForPreload({ ...baseState, selectedCategory: "cover" }),
+    ).toBe(tracks[2]);
+    expect(
+      getNextTrackForPreload({
+        ...baseState,
+        selectedCategory: "cover",
+        is_shuffle: true,
+        playHistory: tracks,
+      }),
+    ).toBe(tracks[2]);
   });
 });

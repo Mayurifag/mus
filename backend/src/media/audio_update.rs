@@ -1,5 +1,4 @@
 use std::{
-    fs, io,
     path::{Path, PathBuf},
     process::Stdio,
     time::Duration,
@@ -7,30 +6,81 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use filetime::{set_file_mtime, FileTime};
-use id3::{frame::Picture, frame::PictureType, Tag, TagLike, Version};
+use tempfile::TempPath;
 use tokio::process::Command;
 
 use crate::models::AudioCut;
-use crate::util::{normalize_artists, normalize_text, now_nanos, run_command_status};
+use crate::{
+    audio_names::{normalize_artists, normalize_text},
+    process::run_command_status,
+};
 
-use super::cut::{cut_filter, read_cut_source, validate_cut};
+use super::files::{allocate_path, move_path_and_touch, publish_updated_file};
+use super::id3_tags::{needs_standardization, rewrite_to_temp, supports_id3};
 
+mod cut;
+use cut::cut_audio_to_temp;
+
+/// Requested changes for one staged media rewrite and publication.
 pub struct AudioUpdate<'a> {
+    /// Replacement title; `None` preserves the existing tag.
     pub title: Option<&'a str>,
+    /// Replacement artist credits; `None` preserves the existing tag.
     pub artist: Option<&'a str>,
+    /// JPEG artwork to embed, or `None` to preserve existing artwork.
     pub cover_jpeg_path: Option<&'a Path>,
+    /// Optional new path for the original file after editing.
     pub target_path: Option<&'a Path>,
+    /// Standardize supported ID3 formats to v2.3 even without tag replacements.
     pub standardize_tags: bool,
+    /// Set the resulting file's modification time to the time editing started.
     pub update_mtime: bool,
+    /// Optional audio section to remove; lossy formats are re-encoded.
     pub remove_section: Option<AudioCut>,
 }
 
+/// Published path and changes made by [`apply_audio_update`].
 pub struct AudioUpdateResult {
+    /// Final path after any requested rename.
     pub path: PathBuf,
+    /// Whether bytes or the path changed, not merely whether an update was requested.
     pub changed: bool,
+    /// Whether bytes changed, requiring fingerprint/artwork/HLS refresh by the caller.
     pub content_changed: bool,
 }
 
+/// Stages edits outside the music directory and publishes them with recovery backup.
+///
+/// In-place rewrites preserve the original inode/xattrs. Cross-device moves copy
+/// the file and cannot preserve that identity. Callers must serialize edits to the
+/// same file and update database records and derived caches after publication.
+/// Same-filesystem moves use atomic no-replace renames; unsupported filesystems
+/// fail instead of falling back to an overwriting rename. Cross-device copies
+/// reserve the destination with `create_new` before writing it.
+///
+/// # Errors
+/// Returns invalid-cut, media-tool, worker, filesystem, unsupported-rename, or destination-conflict
+/// errors. Unreadable existing ID3 tags abort rewrites rather than dropping
+/// metadata; a missing ID3 tag is allowed. If restoring original bytes also fails,
+/// the error names a retained
+/// recovery backup; do not discard it before recovering the original.
+///
+/// # Panics
+/// Panics if an edit needs runtime services but the future is polled without a
+/// Tokio runtime with I/O and time enabled.
+///
+/// ```no_run
+/// use std::path::Path;
+/// use mus_backend::media::{apply_audio_update, AudioUpdate};
+/// # async fn example() -> anyhow::Result<()> {
+/// let result = apply_audio_update(Path::new("music/song.mp3"), Path::new(".cache"), AudioUpdate {
+///     title: Some("New title"), artist: None, cover_jpeg_path: None,
+///     target_path: None, standardize_tags: false, update_mtime: true, remove_section: None,
+/// }).await?;
+/// assert!(result.content_changed);
+/// # Ok(())
+/// # }
+/// ```
 pub async fn apply_audio_update(
     path: &Path,
     cache_dir: &Path,
@@ -49,7 +99,12 @@ pub async fn apply_audio_update(
     };
     let destination = update.target_path.unwrap_or(path);
     let path_changed = destination != path;
-    let standardize_id3 = update.standardize_tags && needs_id3_standardization(path);
+    let standardize_id3 = if update.standardize_tags {
+        let path = path.to_path_buf();
+        tokio::task::spawn_blocking(move || needs_standardization(&path)).await??
+    } else {
+        false
+    };
     let media_changed = update.title.is_some()
         || update.artist.is_some()
         || update.cover_jpeg_path.is_some()
@@ -66,25 +121,28 @@ pub async fn apply_audio_update(
 
     let modified = update.update_mtime.then(FileTime::now);
     if media_changed {
-        let tmp = if update.remove_section.is_some() {
-            cut_audio_to_temp(path, cache_dir, &update).await?
+        let tmp = if let Some(cut) = update.remove_section {
+            cut_audio_to_temp(path, cache_dir, &update, cut).await?
         } else if supports_id3(path) {
-            rewrite_id3_to_temp(path, cache_dir, &update)?
+            rewrite_to_temp(path, cache_dir, &update).await?
         } else {
             rewrite_audio_to_temp(path, cache_dir, &update).await?
         };
-        if let Some(modified) = modified {
-            if let Err(error) = set_file_mtime(&tmp, modified) {
-                let _ = fs::remove_file(&tmp);
-                return Err(error.into());
+        let original = path.to_path_buf();
+        let destination = destination.to_path_buf();
+        let cache_dir = cache_dir.to_path_buf();
+        tokio::task::spawn_blocking(move || {
+            if let Some(modified) = modified {
+                set_file_mtime(&tmp, modified)?;
             }
-        }
-        if let Err(error) = publish_updated_file(&tmp, path, destination, modified, cache_dir) {
-            let _ = fs::remove_file(tmp);
-            return Err(error);
-        }
+            publish_updated_file(&tmp, &original, &destination, modified, &cache_dir)
+        })
+        .await??;
     } else {
-        move_path_and_touch(path, destination, modified)?;
+        let source = path.to_path_buf();
+        let destination = destination.to_path_buf();
+        tokio::task::spawn_blocking(move || move_path_and_touch(&source, &destination, modified))
+            .await??;
     }
 
     Ok(AudioUpdateResult {
@@ -94,6 +152,14 @@ pub async fn apply_audio_update(
     })
 }
 
+/// Standardizes supported ID3 formats to v2.3; leaves other formats unchanged.
+///
+/// # Errors
+/// Returns inspection, rewrite, publication, or worker errors. Uses the same
+/// cache/recovery contract as [`apply_audio_update`]; see the [media example](crate::media).
+///
+/// # Panics
+/// Has the runtime requirements of [`apply_audio_update`].
 pub async fn standardize_audio_tags(path: &Path, cache_dir: &Path) -> Result<()> {
     apply_audio_update(
         path,
@@ -112,6 +178,14 @@ pub async fn standardize_audio_tags(path: &Path, cache_dir: &Path) -> Result<()>
     Ok(())
 }
 
+/// Replaces title/artist tags while preserving other tags and artwork.
+///
+/// # Errors
+/// Returns rewrite, publication, or worker errors. Uses the same cache/recovery
+/// contract as [`apply_audio_update`]; see the [media example](crate::media).
+///
+/// # Panics
+/// Has the runtime requirements of [`apply_audio_update`].
 pub async fn write_audio_tags(
     path: &Path,
     cache_dir: &Path,
@@ -135,6 +209,14 @@ pub async fn write_audio_tags(
     Ok(())
 }
 
+/// Replaces embedded artwork with a JPEG while preserving existing text tags.
+///
+/// # Errors
+/// Returns artwork-read, rewrite, publication, or worker errors. Uses the same
+/// cache/recovery contract as [`apply_audio_update`]; see the [media example](crate::media).
+///
+/// # Panics
+/// Has the runtime requirements of [`apply_audio_update`].
 pub async fn write_audio_cover(path: &Path, cache_dir: &Path, jpeg_path: &Path) -> Result<()> {
     apply_audio_update(
         path,
@@ -153,183 +235,12 @@ pub async fn write_audio_cover(path: &Path, cache_dir: &Path, jpeg_path: &Path) 
     Ok(())
 }
 
-fn supports_id3(path: &Path) -> bool {
-    path.extension()
-        .and_then(|v| v.to_str())
-        .is_some_and(|ext| {
-            matches!(
-                ext.to_ascii_lowercase().as_str(),
-                "mp3" | "wav" | "aif" | "aiff"
-            )
-        })
-}
-
-fn needs_id3_standardization(path: &Path) -> bool {
-    supports_id3(path)
-        && Tag::read_from_path(path)
-            .unwrap_or_else(|_| Tag::new())
-            .version()
-            != Version::Id3v23
-}
-
-fn rewrite_id3_to_temp(path: &Path, cache_dir: &Path, update: &AudioUpdate<'_>) -> Result<PathBuf> {
-    let tmp = allocate_path(cache_dir, "audio", path)?;
-    if let Err(error) = copy_over(path, &tmp).and_then(|_| {
-        let mut tag = Tag::read_from_path(&tmp).unwrap_or_else(|_| Tag::new());
-        update_id3_tag(&mut tag, update)?;
-        tag.write_to_path(&tmp, Version::Id3v23)?;
-        Ok(())
-    }) {
-        let _ = fs::remove_file(&tmp);
-        return Err(error);
-    }
-    Ok(tmp)
-}
-
-fn update_id3_tag(tag: &mut Tag, update: &AudioUpdate<'_>) -> Result<()> {
-    if let Some(title) = update.title {
-        tag.set_title(title);
-    }
-    if let Some(artist) = update.artist {
-        tag.set_artist(artist);
-    }
-    if let Some(cover) = update.cover_jpeg_path {
-        tag.remove_all_pictures();
-        tag.add_frame(Picture {
-            mime_type: "image/jpeg".into(),
-            picture_type: PictureType::CoverFront,
-            description: String::new(),
-            data: fs::read(cover)?,
-        });
-    }
-    Ok(())
-}
-
-async fn cut_audio_to_temp(
-    path: &Path,
-    cache_dir: &Path,
-    update: &AudioUpdate<'_>,
-) -> Result<PathBuf> {
-    let cut = update.remove_section.unwrap();
-    let source = read_cut_source(path).await?;
-    validate_cut(cut, source.duration)?;
-    let ext = path
-        .extension()
-        .and_then(|value| value.to_str())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    let mut command = Command::new("ffmpeg");
-    command
-        .args(["-v", "error", "-nostdin", "-y", "-i"])
-        .arg(path);
-    let id3 = supports_id3(path);
-    if !id3 {
-        if let Some(cover) = update.cover_jpeg_path {
-            command.arg("-i").arg(cover);
-        }
-    }
-    command.args([
-        "-filter_complex",
-        &cut_filter(cut, source.duration, false),
-        "-map",
-        "[out]",
-    ]);
-    if ext != "wav" {
-        command.args([
-            "-map",
-            if !id3 && update.cover_jpeg_path.is_some() {
-                "1:v:0"
-            } else {
-                "0:v?"
-            },
-            "-c:v",
-            "copy",
-            "-disposition:v",
-            "attached_pic",
-        ]);
-    }
-    command.args([
-        "-map_metadata",
-        "0",
-        "-map_metadata:s:a:0",
-        "0:s:a:0",
-        "-map_chapters",
-        "-1",
-    ]);
-    match ext.as_str() {
-        "mp3" => {
-            command.args(["-c:a", "libmp3lame", "-q:a", "2", "-id3v2_version", "3"]);
-        }
-        "flac" => {
-            command.args(["-c:a", "flac"]);
-        }
-        "wav" => {
-            command.args([
-                "-c:a",
-                if source.codec.starts_with("pcm_") {
-                    &source.codec
-                } else {
-                    "pcm_s24le"
-                },
-            ]);
-        }
-        "m4a" => {
-            if source.codec == "alac" {
-                command.args(["-c:a", "alac"]);
-            } else {
-                command.args(["-c:a", "aac", "-b:a", "256k"]);
-            }
-        }
-        "ogg" => {
-            command.args(["-c:a", "libvorbis", "-q:a", "6"]);
-        }
-        _ => return Err(anyhow!("Cutting this audio format is not supported")),
-    }
-    if let Some(title) = update.title {
-        command.arg("-metadata").arg(format!("title={title}"));
-        command.arg("-metadata:s:a:0").arg(format!("title={title}"));
-    }
-    if let Some(artist) = update.artist {
-        command.arg("-metadata").arg(format!("artist={artist}"));
-        command
-            .arg("-metadata:s:a:0")
-            .arg(format!("artist={artist}"));
-    }
-    let tmp = allocate_path(cache_dir, "cut", path)?;
-    command
-        .arg(&tmp)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
-    let result = async {
-        let status = run_command_status(command, Duration::from_secs(300)).await?;
-        if !status.success() || fs::metadata(&tmp)?.len() == 0 {
-            return Err(anyhow!("ffmpeg failed to cut audio"));
-        }
-        if id3 {
-            let mut tag = Tag::read_from_path(path).unwrap_or_else(|_| Tag::new());
-            tag.remove("CHAP");
-            tag.remove("CTOC");
-            tag.remove("TLEN");
-            update_id3_tag(&mut tag, update)?;
-            tag.write_to_path(&tmp, Version::Id3v23)?;
-        }
-        read_cut_source(&tmp).await?;
-        Ok(())
-    }
-    .await;
-    if let Err(error) = result {
-        let _ = fs::remove_file(&tmp);
-        return Err(error);
-    }
-    Ok(tmp)
-}
-
 async fn rewrite_audio_to_temp(
     path: &Path,
     cache_dir: &Path,
     update: &AudioUpdate<'_>,
-) -> Result<PathBuf> {
-    let tmp = allocate_path(cache_dir, "audio", path)?;
+) -> Result<TempPath> {
+    let tmp = staging_file(cache_dir, "audio", path).await?;
     let mut command = Command::new("ffmpeg");
     command.args(["-y", "-i"]).arg(path);
     if let Some(jpeg_path) = update.cover_jpeg_path {
@@ -356,185 +267,31 @@ async fn rewrite_audio_to_temp(
         .arg(&tmp)
         .stdout(Stdio::null())
         .stderr(Stdio::null());
-    let status = match run_command_status(command, Duration::from_secs(300)).await {
-        Ok(status) => status,
-        Err(error) => {
-            let _ = fs::remove_file(&tmp);
-            return Err(error);
-        }
-    };
-    if status.success() && tmp.is_file() {
+    let status = run_command_status(command, Duration::from_secs(300)).await?;
+    if status.success()
+        && tokio::fs::metadata(&tmp)
+            .await
+            .is_ok_and(|meta| meta.is_file())
+    {
         Ok(tmp)
     } else {
-        let _ = fs::remove_file(tmp);
         Err(anyhow!("ffmpeg failed to rewrite audio"))
     }
 }
 
-fn publish_updated_file(
-    source: &Path,
-    original: &Path,
-    destination: &Path,
-    modified: Option<FileTime>,
-    cache_dir: &Path,
-) -> Result<()> {
-    if destination != original && path_exists_as_different_file(original, destination)? {
-        return Err(anyhow!("A file with this name already exists"));
-    }
-    let original_mtime = FileTime::from_system_time(fs::metadata(original)?.modified()?);
-    let mut output = fs::OpenOptions::new().write(true).open(original)?;
-    let backup = allocate_path(cache_dir, "backup", original)?;
-    if let Err(error) = copy_over(original, &backup) {
-        let _ = fs::remove_file(&backup);
-        return Err(error);
-    }
-    let result: Result<()> = (|| {
-        write_contents(source, &mut output)?;
-        if let Some(modified) = modified {
-            set_file_mtime(original, modified)?;
-        }
-        if destination != original {
-            move_path_and_touch(original, destination, None)?;
-        }
-        Ok(())
-    })();
-    if let Err(error) = result {
-        if let Err(restore_error) = write_contents(&backup, &mut output)
-            .and_then(|_| set_file_mtime(original, original_mtime).map_err(Into::into))
-        {
-            return Err(anyhow!(
-                "Audio update failed: {error}. Recovery failed: {restore_error}. Original backup retained at {}",
-                backup.display()
-            ));
-        }
-        let _ = fs::remove_file(&backup);
-        return Err(error);
-    }
-    let _ = fs::remove_file(&backup);
-    let _ = fs::remove_file(source);
-    Ok(())
+async fn staging_file(dir: &Path, kind: &'static str, path: &Path) -> Result<TempPath> {
+    let dir = dir.to_path_buf();
+    let path = path.to_path_buf();
+    tokio::task::spawn_blocking(move || allocate_path(&dir, kind, &path)).await?
 }
 
-fn move_path_and_touch(
-    source: &Path,
-    destination: &Path,
-    modified: Option<FileTime>,
-) -> Result<()> {
-    if source == destination {
-        if let Some(modified) = modified {
-            set_file_mtime(destination, modified)?;
-        }
-        return Ok(());
-    }
-    if path_exists_as_different_file(source, destination)? {
-        return Err(anyhow!("A file with this name already exists"));
-    }
-    match fs::rename(source, destination) {
-        Ok(()) => {
-            if let Some(modified) = modified {
-                set_file_mtime(destination, modified)?;
-            }
-            Ok(())
-        }
-        Err(error) if error.kind() == io::ErrorKind::CrossesDevices => {
-            copy_without_replace(source, destination)?;
-            fs::remove_file(source)?;
-            if let Some(modified) = modified {
-                set_file_mtime(destination, modified)?;
-            }
-            Ok(())
-        }
-        Err(error) => Err(error.into()),
-    }
-}
-
-fn copy_over(source: &Path, destination: &Path) -> Result<()> {
-    let mut output = fs::OpenOptions::new().write(true).open(destination)?;
-    write_contents(source, &mut output)
-}
-
-fn write_contents(source: &Path, output: &mut fs::File) -> Result<()> {
-    use io::Seek;
-
-    let mut input = fs::File::open(source)?;
-    output.rewind()?;
-    let length = io::copy(&mut input, output)?;
-    output.set_len(length)?;
-    output.sync_all()?;
-    Ok(())
-}
-
-fn copy_without_replace(source: &Path, destination: &Path) -> Result<()> {
-    let mut input = fs::File::open(source)?;
-    let mut output = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(destination)?;
-    if let Err(error) = io::copy(&mut input, &mut output).and_then(|_| output.sync_all()) {
-        let _ = fs::remove_file(destination);
-        return Err(error.into());
-    }
-    Ok(())
-}
-
-fn path_exists_as_different_file(source: &Path, destination: &Path) -> Result<bool> {
-    let destination_meta = match fs::metadata(destination) {
-        Ok(meta) => meta,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(false),
-        Err(error) => return Err(error.into()),
-    };
-    let source_meta = fs::metadata(source)?;
-    Ok(!same_file_metadata(&source_meta, &destination_meta))
-}
-
-#[cfg(unix)]
-fn same_file_metadata(left: &fs::Metadata, right: &fs::Metadata) -> bool {
-    use std::os::unix::fs::MetadataExt;
-    left.dev() == right.dev() && left.ino() == right.ino()
-}
-
-#[cfg(not(unix))]
-fn same_file_metadata(left: &fs::Metadata, right: &fs::Metadata) -> bool {
-    left.len() == right.len() && left.modified().ok() == right.modified().ok()
-}
-
-fn allocate_path(dir: &Path, kind: &str, path: &Path) -> Result<PathBuf> {
-    fs::create_dir_all(dir)?;
-    for attempt in 0..100 {
-        let mut file_name = format!(".mus-{kind}-{}-{attempt}", now_nanos());
-        if let Some(ext) = path
-            .extension()
-            .and_then(|v| v.to_str())
-            .filter(|v| !v.is_empty())
-        {
-            file_name.push('.');
-            file_name.push_str(ext);
-        }
-        let path = dir.join(file_name);
-        let mut options = fs::OpenOptions::new();
-        options.write(true).create_new(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.mode(0o600);
-        }
-        match options.open(&path) {
-            Ok(_) => return Ok(path),
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
-            Err(error) => return Err(error.into()),
-        }
-    }
-    Err(anyhow!("failed to allocate rewrite file"))
-}
-
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::publish_updated_file;
     use std::{fs, io, path::PathBuf};
     use tempfile::TempDir;
 
     #[test]
-    #[cfg(unix)]
     fn write_failure_restores_original() {
         if let Some(root) = std::env::var_os("MUS_WRITE_FAILURE_TEST") {
             let root = PathBuf::from(root);

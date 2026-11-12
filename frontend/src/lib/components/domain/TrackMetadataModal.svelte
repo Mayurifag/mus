@@ -3,13 +3,12 @@
   import { onDestroy, onMount } from "svelte";
   import * as Dialog from "$lib/components/ui/dialog";
   import {
-    createTrackWithUrls,
     updateTrack,
     uploadTrack,
     deleteTrack,
-    preloadArtworkSearch,
-    trackUpdatesConnectionStatus,
-  } from "$lib/services/apiClient";
+  } from "$lib/services/trackClient";
+  import { preloadArtworkSearch } from "$lib/services/artworkClient";
+  import { trackUpdatesConnectionStatus } from "$lib/services/trackEventsClient";
   import { toast } from "svelte-sonner";
   import { permissionsStore } from "$lib/stores/permissionsStore";
   import { artistCountsStore, trackStore } from "$lib/stores/trackStore";
@@ -28,8 +27,6 @@
     formatArtistString,
     isTrackMetadataFormValid,
     previewFilename,
-    sanitizeArtistRows,
-    sanitizeMetadataInput,
     type ArtistRow,
   } from "./trackMetadataForm";
 
@@ -85,12 +82,15 @@
 
   const generatedFilename = $derived(
     previewFilename(
-      sanitizeArtistRows(artists),
-      sanitizeMetadataInput(title),
-      file?.name,
+      artists,
+      title,
+      file?.name.toLowerCase() ?? track?.filename,
     ),
   );
-  const isFilenameTooLong = $derived(generatedFilename.length > 255);
+  const filenameBytes = $derived(
+    new TextEncoder().encode(generatedFilename).length,
+  );
+  const isFilenameTooLong = $derived(filenameBytes > 255);
   const hasSourceDuration = $derived(
     typeof sourceDuration === "number" &&
       Number.isFinite(sourceDuration) &&
@@ -286,9 +286,6 @@
     isUploading = true;
     try {
       const result = await updateTrack(track.id, updatePayload);
-      if (result.track) {
-        trackStore.updateTrack(createTrackWithUrls(result.track));
-      }
       if (result.status === "queued") {
         toast.info("Updating track...");
       }
@@ -310,7 +307,9 @@
       hideModal();
     } catch (error) {
       console.error("Error deleting track:", error);
-      toast.error("Failed to delete track");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete track",
+      );
     }
   }
 
@@ -342,6 +341,7 @@
       bind:renameFile
       bind:artists
       {generatedFilename}
+      {filenameBytes}
       {isFilenameTooLong}
       {isFormValid}
       {selectedArtwork}

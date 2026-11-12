@@ -1,5 +1,5 @@
 import { trackStore } from "$lib/stores/trackStore";
-import { sendPlayerStateBeacon } from "$lib/services/apiClient";
+import { sendPlayerStateBeacon } from "$lib/services/playerClient";
 import type { AudioService } from "$lib/services/AudioService";
 import type { PlayerState, Track } from "$lib/types";
 

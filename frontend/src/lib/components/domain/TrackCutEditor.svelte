@@ -6,7 +6,7 @@
   import { Input } from "$lib/components/ui/input";
   import { Checkbox } from "$lib/components/ui/checkbox";
   import { audioServiceStore } from "$lib/stores/audioServiceStore";
-  import { fetchTrackCutInfo } from "$lib/services/apiClient";
+  import { fetchTrackCutInfo } from "$lib/services/trackClient";
   import type { AudioCut, Track } from "$lib/types";
   import { formatCutTime, parseCutTime, isValidCut } from "./trackCut";
   import TrackCutPreview from "./TrackCutPreview.svelte";

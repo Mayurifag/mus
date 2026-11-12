@@ -104,15 +104,8 @@ export function existingTitleSuggestions(
   ];
 }
 
-export function sanitizeMetadataInput(value: string): string {
-  return value.replace(/[<>:"/\\|?*]/g, "");
-}
-
-export function sanitizeArtistRows(artists: ArtistRow[]): ArtistRow[] {
-  return artists.map((artist) => ({
-    ...artist,
-    value: sanitizeMetadataInput(artist.value),
-  }));
+function sanitizeFilenamePart(value: string): string {
+  return value.normalize("NFC").replace(/[<>:"/\\|?*]/g, "");
 }
 
 export function formatArtistString(artists: ArtistRow[]): string {
@@ -125,19 +118,11 @@ export function formatArtistString(artists: ArtistRow[]): string {
 export function previewFilename(
   artists: ArtistRow[],
   title: string,
-  fallbackFilename = "untitled.mp3",
+  sourceFilename = "untitled.mp3",
 ): string {
-  const artistNames = artists
-    .filter((artist) => artist.value.trim())
-    .map((artist) => artist.value.trim())
-    .join(", ");
-  const trimmedTitle = title.trim();
-
-  if (!artistNames && !trimmedTitle) return fallbackFilename;
-  if (!artistNames) return `${trimmedTitle}.mp3`;
-  if (!trimmedTitle) return `${artistNames}.mp3`;
-
-  return `${artistNames} - ${trimmedTitle}.mp3`;
+  const artistNames = parseArtists(formatArtistString(artists)).join(", ");
+  const extension = sourceFilename.match(/\.([^.]+)$/)?.[1] ?? "mp3";
+  return `${sanitizeFilenamePart(artistNames)} - ${sanitizeFilenamePart(title)}.${extension}`;
 }
 
 export function displayedFilename(

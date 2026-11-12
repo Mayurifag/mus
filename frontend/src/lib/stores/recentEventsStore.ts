@@ -10,13 +10,14 @@ const MAX_EVENTS = 10;
 
 function createRecentEventsStore() {
   const { subscribe, update } = writable<RecentEvent[]>([]);
+  let nextId = 0;
 
   return {
     subscribe,
     addEvent: (event: MusEvent) => {
       const recentEvent: RecentEvent = {
         ...event,
-        id: crypto.randomUUID(),
+        id: String(nextId++),
         timestamp: Date.now(),
       };
 

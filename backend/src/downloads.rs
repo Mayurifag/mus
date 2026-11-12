@@ -1,15 +1,8 @@
-use std::{
-    fs, io,
-    path::Path,
-    path::PathBuf,
-    process::Stdio,
-    time::{Duration, Instant},
-};
+use std::time::Instant;
 
-use anyhow::{anyhow, Result};
 use axum::{extract::State, http::StatusCode, Json};
 use serde_json::{json, Value};
-use tokio::process::Command;
+use tokio::fs;
 use tracing::Instrument;
 
 mod diagnostics;
@@ -20,28 +13,28 @@ mod parser;
 mod publish;
 #[cfg(test)]
 mod tests;
+mod worker;
 
-use diagnostics::{safe_failure, yt_dlp_output, DownloadJob};
+use diagnostics::{safe_failure, DownloadJob};
 use info::{source_metadata, SourceMetadata};
+use worker::{run_download, DownloadNaming, DownloadOptions};
 
 use crate::{
-    artwork::download_artwork_as_jpeg,
+    audio_names::generate_filename,
+    categories::category_display_name,
     db,
     error::AppError,
     events::broadcast,
+    files::can_write,
     models::{ConfirmDownloadRequest, MetadataResponse, UrlRequest},
-    scanner::upsert_path,
     state::AppState,
-    util::{
-        audio_paths, can_write, generate_filename, normalize_artists, normalize_text, now_nanos,
-    },
 };
 
 pub async fn fetch_metadata(
     State(state): State<AppState>,
     Json(req): Json<UrlRequest>,
 ) -> Result<Json<MetadataResponse>, AppError> {
-    if !can_write(&state.music_dir) {
+    if !can_write(&state.music_dir).await {
         return Err(AppError::forbidden(
             "Download not available - insufficient write permissions to music directory",
         ));
@@ -50,9 +43,9 @@ pub async fn fetch_metadata(
     async {
         let started = Instant::now();
         let data = source_metadata(&req.url).await?;
-        let response = metadata_response(&data, &db::artist_values(&state)?);
+        let response = metadata_response(&data, &db::artist_values(&state).await?);
         tracing::info!(
-            elapsed_ms = started.elapsed().as_millis() as u64,
+            elapsed_ms = started.elapsed().as_millis(),
             "download name form ready"
         );
         Ok(Json(response))
@@ -71,15 +64,7 @@ fn metadata_response(data: &SourceMetadata, library_artists: &[String]) -> Metad
             .tags
             .into_iter()
             .map(|name| crate::models::Tag {
-                display_name: match name {
-                    "right-version" => "Right version",
-                    "ai-cover" => "AI cover",
-                    "cover" => "Cover",
-                    "ost" => "OST",
-                    "mashup" => "Mashup",
-                    _ => name,
-                }
-                .into(),
+                display_name: category_display_name(name).unwrap_or(name).into(),
                 name: name.into(),
             })
             .collect(),
@@ -94,7 +79,7 @@ pub async fn start_download(
     State(state): State<AppState>,
     Json(req): Json<UrlRequest>,
 ) -> Result<(StatusCode, Json<Value>), AppError> {
-    spawn_download(state, req.url, None, None, None, None).await?;
+    spawn_download(state, req.url, DownloadOptions::default()).await?;
     Ok((StatusCode::ACCEPTED, Json(json!({"status": "accepted"}))))
 }
 
@@ -102,19 +87,21 @@ pub async fn confirm_download(
     State(state): State<AppState>,
     Json(req): Json<ConfirmDownloadRequest>,
 ) -> Result<(StatusCode, Json<Value>), AppError> {
-    let artist = normalize_artists(&req.artist);
-    let title = normalize_text(&req.title);
-    let final_name = generate_filename(&artist, &title, "mp3")?;
-    if state.music_dir.join(final_name).exists() {
+    let final_name = generate_filename(&req.artist, &req.title, "mp3")?;
+    if fs::try_exists(state.music_dir.join(final_name)).await? {
         return Err(AppError::conflict("A file with this name already exists"));
     }
     spawn_download(
         state,
         req.url,
-        Some(title),
-        Some(artist),
-        req.artwork_url.filter(|url| !url.trim().is_empty()),
-        req.tags,
+        DownloadOptions {
+            naming: DownloadNaming::Custom {
+                title: req.title,
+                artist: req.artist,
+            },
+            artwork_url: req.artwork_url.filter(|url| !url.trim().is_empty()),
+            tags: req.tags,
+        },
     )
     .await?;
     Ok((StatusCode::ACCEPTED, Json(json!({"status": "accepted"}))))
@@ -123,27 +110,23 @@ pub async fn confirm_download(
 async fn spawn_download(
     state: AppState,
     url: String,
-    title: Option<String>,
-    artist: Option<String>,
-    artwork_url: Option<String>,
-    tags: Option<Vec<String>>,
+    options: DownloadOptions,
 ) -> Result<(), AppError> {
-    if !can_write(&state.music_dir) {
+    if !can_write(&state.music_dir).await {
         return Err(AppError::forbidden(
             "Download not available - insufficient write permissions to music directory",
         ));
     }
-    {
-        let mut locked = state.download_lock.lock().unwrap();
-        if *locked {
-            return Err(AppError::too_many("Download already in progress"));
-        }
-        *locked = true;
-    }
+    let permit = state
+        .download_lock
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| AppError::too_many("Download already in progress"))?;
     let job = DownloadJob::new(&url);
     let span = job.span("download");
     tokio::spawn(
         async move {
+            let _permit = permit;
             broadcast(
                 &state,
                 "download_started",
@@ -152,18 +135,14 @@ async fn spawn_download(
                 Some(job.payload()),
             );
             let started = Instant::now();
+            let yt_dlp_version = state.yt_dlp_version.lock().await.clone();
             tracing::info!(
-                yt_dlp_version = state
-                    .yt_dlp_version
-                    .lock()
-                    .unwrap()
-                    .as_deref()
-                    .unwrap_or("unknown"),
+                yt_dlp_version = yt_dlp_version.as_deref().unwrap_or("unknown"),
                 "download started"
             );
-            let result = run_download(state.clone(), url, title, artist, artwork_url, tags).await;
+            let result = run_download(&state, url, options).await;
             tracing::info!(
-                elapsed_ms = started.elapsed().as_millis() as u64,
+                elapsed_ms = started.elapsed().as_millis(),
                 success = result.is_ok(),
                 "download job finished"
             );
@@ -192,188 +171,8 @@ async fn spawn_download(
                     );
                 }
             }
-            *state.download_lock.lock().unwrap() = false;
         }
         .instrument(span),
     );
     Ok(())
-}
-
-async fn run_download(
-    state: AppState,
-    url: String,
-    title: Option<String>,
-    artist: Option<String>,
-    artwork_url: Option<String>,
-    tags: Option<Vec<String>>,
-) -> Result<PathBuf> {
-    let cache_dir = state.data_dir.join(".cache");
-    fs::create_dir_all(&cache_dir)?;
-    let tmp = unique_download_dir(&cache_dir)?;
-    let command = download_command(&url, &tmp, artwork_url.is_none());
-    let result = run_download_inner(&state, command, title, artist, artwork_url, tags, &tmp).await;
-    let _ = fs::remove_dir_all(tmp);
-    result
-}
-
-async fn run_download_inner(
-    state: &AppState,
-    command: Command,
-    title: Option<String>,
-    artist: Option<String>,
-    artwork_url: Option<String>,
-    tags: Option<Vec<String>>,
-    tmp: &std::path::Path,
-) -> Result<PathBuf> {
-    let title = title.map(|title| normalize_text(&title));
-    let artist = artist.map(|artist| normalize_artists(&artist));
-    let media = async {
-        let started = Instant::now();
-        let result = yt_dlp_output(command, Duration::from_secs(600)).await;
-        tracing::info!(
-            elapsed_ms = started.elapsed().as_millis() as u64,
-            success = result.is_ok(),
-            "download media processing finished"
-        );
-        result
-    };
-    let artwork = async {
-        let started = Instant::now();
-        let result = match artwork_url {
-            Some(url) => download_artwork_as_jpeg(&url, tmp.to_path_buf())
-                .await
-                .map(Some),
-            None => Ok(None),
-        };
-        tracing::info!(
-            elapsed_ms = started.elapsed().as_millis() as u64,
-            success = result.is_ok(),
-            "download artwork processing finished"
-        );
-        result
-    };
-    let (media_result, artwork_result) = tokio::join!(media, artwork);
-    media_result?;
-    let jpeg_path = artwork_result?;
-    let downloaded = audio_paths(tmp)?
-        .into_iter()
-        .next()
-        .ok_or_else(|| anyhow!("Downloaded file not found"))?;
-    let final_name = match (&title, &artist) {
-        (Some(title), Some(artist)) => {
-            generate_filename(artist, title, "mp3").map_err(|error| anyhow!(error.message))?
-        }
-        _ => downloaded
-            .file_name()
-            .and_then(|v| v.to_str())
-            .unwrap_or("download.mp3")
-            .to_string(),
-    };
-    let mut final_path = state.music_dir.join(final_name);
-    let started = Instant::now();
-    publish::publish_download(
-        &downloaded,
-        tmp,
-        &final_path,
-        title.as_deref(),
-        artist.as_deref(),
-        jpeg_path.as_deref(),
-    )
-    .await?;
-    tracing::info!(
-        elapsed_ms = started.elapsed().as_millis() as u64,
-        "download tags and publication finished"
-    );
-    let published_metadata = fs::metadata(&final_path)?;
-    let started = Instant::now();
-    let track = upsert_path(state, &final_path, title, artist).await?;
-    let registered = db::get_track(state, &track.id)?
-        .ok_or_else(|| anyhow!("downloaded track disappeared during registration"))?;
-    let registered_path = PathBuf::from(&registered.file_path);
-    let same_path = registered_path == final_path || (cfg!(unix) && !final_path.exists());
-    if same_path && same_file(&published_metadata, &fs::metadata(&registered_path)?) {
-        if let Some(tags) = tags {
-            anyhow::ensure!(
-                db::set_download_tags(state, &track.id, &registered_path, &tags)?,
-                "downloaded track moved before categories could be saved"
-            );
-        }
-        final_path = registered_path;
-    } else {
-        tracing::info!(
-            track_id = track.id,
-            "download shares an existing track; its tags were not changed"
-        );
-    }
-    tracing::info!(
-        track_id = track.id,
-        elapsed_ms = started.elapsed().as_millis() as u64,
-        "download library registration and HLS prewarm finished"
-    );
-    Ok(final_path)
-}
-
-#[cfg(unix)]
-fn same_file(left: &fs::Metadata, right: &fs::Metadata) -> bool {
-    use std::os::unix::fs::MetadataExt;
-    left.dev() == right.dev() && left.ino() == right.ino()
-}
-
-#[cfg(not(unix))]
-fn same_file(_: &fs::Metadata, _: &fs::Metadata) -> bool {
-    // Without a stable file identity, accept only the unchanged publication path above.
-    true
-}
-
-fn download_command(url: &str, tmp: &Path, embed_thumbnail: bool) -> Command {
-    let output_template = tmp.join("%(artist,uploader|Unknown Artist)s - %(title)s.%(ext)s");
-    let mut cmd = Command::new("yt-dlp");
-    cmd.args([
-        "--format",
-        "bestaudio/best",
-        "--extract-audio",
-        "--audio-format",
-        "mp3",
-        "--audio-quality",
-        "0",
-        "-o",
-    ])
-    .arg(output_template);
-    if embed_thumbnail {
-        cmd.args(["--embed-thumbnail", "--convert-thumbnails", "jpg"]);
-    }
-    cmd.args([
-        "--embed-metadata",
-        "--parse-metadata",
-        "title:%(title)s",
-        "--parse-metadata",
-        "artist:%(artist,uploader|Unknown Artist)s",
-        "--sponsorblock-remove",
-        "all",
-        "--embed-chapters",
-        "--concurrent-fragments",
-        "3",
-        "--throttled-rate",
-        "100K",
-        "--retries",
-        "10",
-        "--no-playlist",
-        "--",
-        url,
-    ])
-    .stdout(Stdio::null())
-    .stderr(Stdio::piped());
-    cmd
-}
-
-fn unique_download_dir(cache_dir: &Path) -> Result<PathBuf> {
-    for attempt in 0..100 {
-        let path = cache_dir.join(format!("download-{}-{attempt}", now_nanos()));
-        match fs::create_dir(&path) {
-            Ok(()) => return Ok(path),
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
-            Err(error) => return Err(error.into()),
-        }
-    }
-    Err(anyhow!("failed to allocate download directory"))
 }

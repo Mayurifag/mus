@@ -79,11 +79,16 @@ describe("AudioService", () => {
       end: vi.fn(),
     };
 
+    const events = new EventTarget();
     mockAudio = {
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      play: vi.fn().mockResolvedValue(undefined),
-      pause: vi.fn(),
+      addEventListener: vi.fn(events.addEventListener.bind(events)),
+      removeEventListener: vi.fn(events.removeEventListener.bind(events)),
+      dispatchEvent: events.dispatchEvent.bind(events),
+      play: vi.fn(() => {
+        events.dispatchEvent(new Event("play"));
+        return Promise.resolve();
+      }),
+      pause: vi.fn(() => events.dispatchEvent(new Event("pause"))),
       load: vi.fn(),
       canPlayType: vi.fn().mockReturnValue(""),
       src: "",
@@ -169,6 +174,7 @@ describe("AudioService", () => {
   });
 
   it("should request playback when advancing after track end", () => {
+    audioService.updateAudioSource(mockTrack, false);
     audioService.setRepeat(false);
 
     const addEventListenerMock =
@@ -182,14 +188,99 @@ describe("AudioService", () => {
     expect(trackStore.nextTrack).toHaveBeenCalledWith(true);
   });
 
-  it("should not update audio source if track is null", () => {
+  it("keeps a user seek made before metadata arrives instead of restoring the old start time", () => {
+    audioService.updateAudioSource(mockTrack, false, 12);
+    audioService.endSeeking(45);
+    mockAudio.dispatchEvent(new Event("loadedmetadata"));
+    expect(mockAudio.currentTime).toBe(45);
+    expect(audioService.currentTime).toBe(45);
+  });
+
+  it("resets the media element if track is null", () => {
     audioService.updateAudioSource(null, true);
 
     expect(mockAudio.src).toBe("");
-    expect(mockAudio.load).not.toHaveBeenCalled();
+    expect(mockAudio.load).toHaveBeenCalledOnce();
+  });
+
+  it.each(["MediaSource", "native"])(
+    "clears an active %s source when the selection becomes null",
+    (mode) => {
+      mockHls.isSupported.mockReturnValue(mode === "MediaSource");
+      vi.mocked(mockAudio.canPlayType).mockReturnValue("maybe");
+      audioService.initializeState(0.7, true, true);
+      audioService.updateAudioSource(mockTrack, true, 32);
+      mockAudio.dispatchEvent(new Event("loadedmetadata"));
+      Object.defineProperty(mockAudio, "buffered", {
+        configurable: true,
+        value: { length: 1, start: () => 0, end: () => 60 },
+      });
+      mockAudio.dispatchEvent(new Event("progress"));
+      audioService.startSeeking();
+      audioService.seek(45);
+      expect(audioService.isPlaying).toBe(true);
+      expect(audioService.duration).toBe(180);
+      expect(audioService.currentBufferedRanges).toHaveLength(1);
+
+      audioService.updateAudioSource(null, false);
+
+      expect(mockAudio.pause).toHaveBeenCalledOnce();
+      if (mode === "MediaSource")
+        expect(mockHls.instances[0].destroy).toHaveBeenCalledOnce();
+      expect(mockAudio.src).toBe("");
+      expect(audioService.isPlaying).toBe(false);
+      expect(audioService.currentTime).toBe(0);
+      expect(audioService.duration).toBe(0);
+      expect(audioService.currentBufferedRanges).toEqual([]);
+      expect(document.title).toBe("");
+      expect(audioService.volume).toBe(0.7);
+      expect(audioService.isMuted).toBe(true);
+      expect(audioService.isRepeat).toBe(true);
+      audioService.play();
+      mockAudio.dispatchEvent(new Event("ended"));
+      expect(mockAudio.play).toHaveBeenCalledOnce();
+      expect(trackStore.nextTrack).not.toHaveBeenCalled();
+
+      audioService.updateAudioSource(mockTrack, false);
+      mockAudio.currentTime = 5;
+      mockAudio.dispatchEvent(new Event("timeupdate"));
+      expect(audioService.currentTime).toBe(5);
+      audioService.play();
+      if (mode === "MediaSource") expect(mockHls.instances).toHaveLength(2);
+      else expect(mockAudio.src).toBe(HLS_URL);
+    },
+  );
+
+  it("does not load a cleared pending source when old metadata arrives", () => {
+    audioService.updateAudioSource(mockTrack, false, 42);
+    audioService.updateAudioSource(null, false);
+    mockAudio.dispatchEvent(new Event("loadedmetadata"));
+    mockAudio.currentTime = 42;
+    mockAudio.dispatchEvent(new Event("timeupdate"));
+    mockAudio.dispatchEvent(new Event("progress"));
+    expect(mockHls.instances).toHaveLength(0);
+    expect(audioService.currentTime).toBe(0);
+    expect(audioService.duration).toBe(0);
+    expect(audioService.currentBufferedRanges).toEqual([]);
+  });
+
+  it("replaces a pending initial seek when the selection changes before metadata loads", () => {
+    audioService.updateAudioSource(mockTrack, false, 42);
+    audioService.updateAudioSource(
+      { ...mockTrack, id: "2", hls_url: "/second.m3u8" },
+      false,
+      12,
+    );
+    mockAudio.dispatchEvent(new Event("loadedmetadata"));
+    expect(mockAudio.currentTime).toBe(12);
+    expect(mockHls.instances).toHaveLength(1);
+    expect(mockHls.instances[0].loadSource).toHaveBeenCalledWith(
+      "/second.m3u8",
+    );
   });
 
   it("should play audio", () => {
+    audioService.updateAudioSource(mockTrack, false);
     audioService.play();
     expect(mockAudio.play).toHaveBeenCalled();
   });
@@ -312,21 +403,8 @@ describe("AudioService", () => {
     );
   });
 
-  it("should call trackStore.nextTrack when track ends without repeat", () => {
-    audioService.setRepeat(false);
-
-    const addEventListenerMock =
-      mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
-    const endedHandler = addEventListenerMock.mock.calls.find(
-      (call: unknown[]) => call[0] === "ended",
-    )?.[1] as () => void;
-
-    endedHandler();
-
-    expect(trackStore.nextTrack).toHaveBeenCalled();
-  });
-
   it("should not call trackStore.nextTrack when track ends with repeat", () => {
+    audioService.updateAudioSource(mockTrack, false);
     audioService.setRepeat(true);
 
     const addEventListenerMock =
@@ -347,16 +425,19 @@ describe("AudioService", () => {
     expect(document.title).toBe("Test Artist - Test Track");
   });
 
-  it("should not set document.title for same track ID", () => {
-    document.title = "Initial Title";
-
+  it("refreshes metadata for the same track without restarting its source", () => {
     audioService.updateAudioSource(mockTrack, true);
-    expect(document.title).toBe("Test Artist - Test Track");
+    audioService.setTime(25);
+    audioService.updateAudioSource(
+      { ...mockTrack, title: "Edited Track" },
+      true,
+    );
 
-    document.title = "Changed Title";
-    audioService.updateAudioSource(mockTrack, false);
-
-    expect(document.title).toBe("Changed Title");
+    expect(document.title).toBe("Test Artist - Edited Track");
+    expect(audioService.currentTime).toBe(25);
+    expect(mockAudio.play).toHaveBeenCalledOnce();
+    expect(mockHls.instances).toHaveLength(1);
+    expect(mockHls.instances[0].destroy).not.toHaveBeenCalled();
   });
 
   it("should format artists correctly in document.title with semicolon-separated artists", () => {
@@ -400,15 +481,7 @@ describe("AudioService", () => {
   it("should seek to initial time after metadata loads", () => {
     audioService.updateAudioSource(mockTrack, false, 42);
 
-    const addEventListenerMock =
-      mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
-    const loadedMetadataHandler = addEventListenerMock.mock.calls.find(
-      (call: unknown[]) =>
-        call[0] === "loadedmetadata" &&
-        (call[2] as { once?: boolean } | undefined)?.once,
-    )?.[1] as () => void;
-
-    loadedMetadataHandler();
+    mockAudio.dispatchEvent(new Event("loadedmetadata"));
 
     expect(mockAudio.currentTime).toBe(42);
     expect(mockHls.instances[0].loadSource).toHaveBeenCalledWith(HLS_URL);
@@ -419,20 +492,15 @@ describe("AudioService", () => {
 
     audioService.updateAudioSource(mockTrack, true);
 
-    const addEventListenerMock =
-      mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
-    const loadedMetadataHandler = addEventListenerMock.mock.calls.find(
-      (call: unknown[]) =>
-        call[0] === "loadedmetadata" &&
-        (call[2] as { once?: boolean } | undefined)?.once,
-    )?.[1] as () => void;
-
-    loadedMetadataHandler();
+    mockAudio.dispatchEvent(new Event("loadedmetadata"));
 
     expect(mockAudio.currentTime).toBe(0);
   });
 
   describe("buffered ranges", () => {
+    beforeEach(() => {
+      audioService.updateAudioSource(mockTrack, false);
+    });
     function setMockBuffered(mockBufferedData: {
       length: number;
       start: (index: number) => number;
@@ -521,7 +589,7 @@ describe("AudioService", () => {
       progressHandler();
       expect(audioService.currentBufferedRanges).toHaveLength(1);
 
-      audioService.updateAudioSource(mockTrack, false);
+      audioService.updateAudioSource({ ...mockTrack, id: "2" }, false);
       expect(audioService.currentBufferedRanges).toEqual([]);
     });
 

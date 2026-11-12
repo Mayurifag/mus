@@ -16,12 +16,12 @@
     selectArtistFilter,
   } from "$lib/utils/artistFilterNavigation";
   import {
-    fetchErroredTracks,
     fetchSystemInfo,
-    trackUpdatesConnectionStatus,
     updateYtDlp,
     type SystemInfo,
-  } from "$lib/services/apiClient";
+  } from "$lib/services/systemClient";
+  import { fetchErroredTracks } from "$lib/services/trackClient";
+  import { trackUpdatesConnectionStatus } from "$lib/services/trackEventsClient";
   import { categoryLabels, categoryNames } from "$lib/utils/categoryMarkers";
   import { onMount } from "svelte";
   import { toast } from "svelte-sonner";
@@ -143,36 +143,6 @@
           isCurrent: offset === 0,
           position: offset,
         });
-      }
-    } else {
-      // Non-shuffle mode: show sequential tracks
-      if (
-        $trackStore.currentTrackIndex !== null &&
-        $trackStore.tracks.length > 0
-      ) {
-        const currentIndex = $trackStore.currentTrackIndex;
-        const totalTracks = $trackStore.tracks.length;
-
-        for (let offset = -5; offset <= 5; offset++) {
-          const trackIndex =
-            (currentIndex + offset + totalTracks) % totalTracks;
-          const track = $trackStore.tracks[trackIndex];
-
-          items.push({
-            track,
-            isCurrent: offset === 0,
-            position: offset,
-          });
-        }
-      } else {
-        // No tracks or no current track
-        for (let offset = -5; offset <= 5; offset++) {
-          items.push({
-            track: null,
-            isCurrent: offset === 0,
-            position: offset,
-          });
-        }
       }
     }
 

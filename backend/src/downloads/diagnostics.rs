@@ -5,7 +5,7 @@ use reqwest::Url;
 use serde_json::{json, Value};
 use tokio::process::Command;
 
-use crate::util::{now_nanos, run_command_output};
+use crate::{process::run_command_output, time::now_nanos};
 
 pub(super) struct DownloadJob {
     id: String,
@@ -105,13 +105,13 @@ pub(super) async fn yt_dlp_output(command: Command, timeout: Duration) -> Result
     let output = run_command_output(command, timeout)
         .await
         .map_err(|error| {
-            let message = if error.to_string() == "command timed out" {
+            let message = if error.is::<tokio::time::error::Elapsed>() {
                 TIMEOUT_HINT
             } else {
                 START_HINT
             };
             tracing::warn!(reason = message, "yt-dlp invocation failed");
-            anyhow!(message)
+            error.context(message)
         })?;
     let hint = source_hint(&String::from_utf8_lossy(&output.stderr));
     if !output.status.success() {

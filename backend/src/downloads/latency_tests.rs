@@ -29,11 +29,10 @@ use super::{
 };
 
 fn fallback_command(tmp: &TempDir) -> Command {
-    use std::os::unix::fs::PermissionsExt;
     let path = tmp.path().join("yt-dlp");
     fs::write(&path, "#!/bin/sh\ncase \"$1\" in\n--version) printf '%s\\n' '2026.10.19.1' ;;\n--dump-json) printf '%s\\n' '{\"title\":\"Fallback Song\",\"artist\":\"Fallback Artist\",\"duration\":123}' ;;\n*) exit 1 ;;\nesac\n").unwrap();
-    fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
-    let mut command = Command::new(path);
+    let mut command = Command::new("sh");
+    command.arg(path);
     command.args(
         info::metadata_command("https://example.com/video")
             .as_std()
@@ -88,8 +87,10 @@ fn oembed_body() -> String {
 }
 
 fn metadata_output(data: serde_json::Value) -> Command {
-    let mut command = Command::new("printf");
-    command.arg("%s").arg(data.to_string());
+    let mut command = Command::new(if cfg!(windows) { "python" } else { "python3" });
+    command
+        .args(["-c", "import sys; print(sys.argv[1])"])
+        .arg(data.to_string());
     command
 }
 
@@ -218,9 +219,9 @@ async fn extractor_keeps_source_artist_credits_without_guessing_comma_boundaries
         (json!(null), json!(null), None),
     ] {
         let data = json!({"title":"Song", "artists":artists, "artist":raw});
-        let source = info::metadata_from_sources(None, metadata_output(data))
+        let source = info::metadata_from_sources(None, metadata_output(data.clone()))
             .await
-            .unwrap();
+            .unwrap_or_else(|error| panic!("{data}: {error:#}"));
         assert_eq!(source.artist.as_deref(), expected);
     }
 }
@@ -417,10 +418,10 @@ fn metadata_uses_title_artist_when_uploader_is_unrelated() {
     assert_eq!(response.artist, "Artist");
 }
 
-#[test]
-fn metadata_uses_local_artist_spellings_without_changing_the_library() {
+#[tokio::test]
+async fn metadata_uses_local_artist_spellings_without_changing_the_library() {
     let tmp = TempDir::new().unwrap();
-    let state = crate::app::test_state(
+    let state = crate::test_support::test_state(
         tmp.path().to_path_buf(),
         rusqlite::Connection::open_in_memory().unwrap(),
     );
@@ -435,10 +436,13 @@ fn metadata_uses_local_artist_spellings_without_changing_the_library() {
         thumbnail_url: None,
         duration: None,
     };
-    let response = metadata_response(&data, &crate::db::artist_values(&state).unwrap());
+    let response = metadata_response(&data, &crate::db::artist_values(&state).await.unwrap());
     assert_eq!(response.artist, "Artist");
     assert_eq!(response.title, "Song");
-    assert_eq!(crate::db::list_tracks(&state).unwrap()[0].artist, "Artist");
+    assert_eq!(
+        crate::db::list_tracks(&state).await.unwrap()[0].artist,
+        "Artist"
+    );
 }
 
 #[tokio::test]
@@ -470,7 +474,7 @@ fn metadata_extraction_and_download_flags_keep_quality_and_required_features() {
     assert!(args.contains(&"--no-check-formats"));
     assert_eq!(args[args.len() - 2], "--");
     for embed_thumbnail in [true, false] {
-        let command = super::download_command(
+        let command = super::worker::download_command(
             "https://example.com",
             Path::new("/private-cache"),
             embed_thumbnail,
@@ -520,6 +524,7 @@ fn tagged_mp3(path: &Path, version: Version) -> Vec<u8> {
 
 #[tokio::test]
 async fn cached_tag_edit_and_single_publication_preserve_audio_chapters_and_artwork() {
+    #[cfg(unix)]
     use std::os::unix::fs::MetadataExt;
     let tmp = TempDir::new().unwrap();
     let cache = tmp.path().join("cache");
@@ -530,6 +535,7 @@ async fn cached_tag_edit_and_single_publication_preserve_audio_chapters_and_artw
     let final_path = music.join("Artist - Song.mp3");
     let audio = tagged_mp3(&staged, Version::Id3v24);
     let original = Tag::read_from_path(&staged).unwrap();
+    #[cfg(unix)]
     let inode = fs::metadata(&staged).unwrap().ino();
     publish::publish_download(
         &staged,
@@ -549,6 +555,7 @@ async fn cached_tag_edit_and_single_publication_preserve_audio_chapters_and_artw
     assert_eq!(tag.get("CHAP"), original.get("CHAP"));
     assert_eq!(tag.get("APIC"), original.get("APIC"));
     assert!(fs::read(&final_path).unwrap().ends_with(&audio));
+    #[cfg(unix)]
     assert_eq!(fs::metadata(&final_path).unwrap().ino(), inode);
     assert!(!staged.exists());
     assert_eq!(fs::read_dir(&cache).unwrap().count(), 0);

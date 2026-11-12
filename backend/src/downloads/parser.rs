@@ -1,6 +1,11 @@
 use std::collections::HashMap;
 
-use crate::util::{normalize_artists, normalize_text, parse_artists};
+use crate::audio_names::{normalize_artists, normalize_text, parse_artists};
+
+mod categories;
+mod packaging;
+use categories::category_tags;
+use packaging::{clean_packaging, strip_ascii_suffix};
 
 pub(super) struct Parsed {
     pub title: String,
@@ -27,7 +32,7 @@ pub(super) fn topic_artist(channel: &str) -> Option<&str> {
 pub(super) fn with_library_artists(mut parsed: Parsed, library: &[String]) -> Parsed {
     let mut names: HashMap<String, Option<String>> = HashMap::new();
     for name in library.iter().flat_map(|entry| parse_artists(entry)) {
-        let key = normalize_text(&name).to_lowercase();
+        let key = name.to_lowercase();
         names
             .entry(key)
             .and_modify(|current| {
@@ -41,7 +46,7 @@ pub(super) fn with_library_artists(mut parsed: Parsed, library: &[String]) -> Pa
         .into_iter()
         .map(|name| {
             names
-                .get(&normalize_text(&name).to_lowercase())
+                .get(&name.to_lowercase())
                 .and_then(|value| value.as_ref())
                 .cloned()
                 .unwrap_or(name)
@@ -58,32 +63,25 @@ pub(super) fn parse(raw_title: &str, raw_channel: &str, source_artist: Option<&s
         .map(str::trim)
         .filter(|value| !value.is_empty());
     let mut prefix_feature = None;
-    let (artist, title) = match split_title(&cleaned) {
-        Some((left, right))
-            if structured.is_some_and(|artist| matches_structured(left, artist)) =>
-        {
+    let (artist, title) = match (split_title(&cleaned), structured) {
+        (Some((left, right)), Some(artist)) if matches_structured(left, artist) => {
             prefix_feature = split_feature(left).1.map(str::to_string);
-            (
-                structured.unwrap_or_default().to_string(),
-                right.to_string(),
-            )
+            (artist.to_string(), right.to_string())
         }
-        Some((left, right))
-            if structured.is_some_and(|artist| matches_structured(right, artist)) =>
-        {
+        (Some((left, right)), Some(artist)) if matches_structured(right, artist) => {
             prefix_feature = split_feature(right).1.map(str::to_string);
-            (structured.unwrap_or_default().to_string(), left.to_string())
+            (artist.to_string(), left.to_string())
         }
-        Some(_) if structured.is_some() => (structured.unwrap_or_default().to_string(), cleaned),
-        Some((left, right)) if !channel.is_empty() && same_text(right, channel) => {
+        (Some(_), Some(artist)) => (artist.to_string(), cleaned),
+        (Some((left, right)), None) if !channel.is_empty() && same_text(right, channel) => {
             (channel.to_string(), left.to_string())
         }
-        Some((left, _)) if topic && !artist_mentions_channel(left, channel) => {
+        (Some((left, _)), None) if topic && !artist_mentions_channel(left, channel) => {
             (channel.to_string(), cleaned)
         }
-        Some((left, right)) => (left.to_string(), right.to_string()),
-        None => (
-            structured
+        (Some((left, right)), None) => (left.to_string(), right.to_string()),
+        (None, artist) => (
+            artist
                 .unwrap_or(if channel.is_empty() {
                     "Unknown Artist"
                 } else {
@@ -152,20 +150,12 @@ fn matches_structured(value: &str, structured: &str) -> bool {
 
 fn channel_name(channel: &str) -> (&str, bool) {
     let channel = channel.trim();
-    if let Some(name) = strip_ascii_suffix(channel, " - topic") {
-        if !name.trim().is_empty() {
-            return (name.trim(), true);
-        }
+    if let Some(name) = strip_ascii_suffix(channel, " - topic")
+        && !name.trim().is_empty()
+    {
+        return (name.trim(), true);
     }
     (channel, false)
-}
-
-fn strip_ascii_suffix<'a>(value: &'a str, suffix: &str) -> Option<&'a str> {
-    let index = value.len().checked_sub(suffix.len())?;
-    value
-        .get(index..)
-        .filter(|end| end.eq_ignore_ascii_case(suffix))
-        .and_then(|_| value.get(..index))
 }
 
 fn split_title(title: &str) -> Option<(&str, &str)> {
@@ -298,162 +288,6 @@ fn title_feature(value: &str) -> (String, Option<String>) {
         return (title, Some(feature.to_string()));
     }
     (value.to_string(), None)
-}
-
-fn is_packaging(value: &str) -> bool {
-    matches!(
-        value.trim().to_ascii_lowercase().as_str(),
-        "official video"
-            | "official music video"
-            | "official audio"
-            | "official lyric video"
-            | "lyric video"
-            | "lyrics video"
-            | "music video"
-            | "official visualizer"
-            | "visualizer"
-            | "lyrics"
-            | "audio"
-    )
-}
-
-fn clean_packaging(raw: &str) -> String {
-    let mut title = raw.trim();
-    loop {
-        let mut changed = false;
-        for (open, close) in [('(', ')'), ('[', ']')] {
-            if title.ends_with(close) {
-                if let Some(index) = title.rfind(open) {
-                    let prefix = title[..index].trim();
-                    if !prefix.is_empty()
-                        && !prefix.ends_with(['-', '–', '—', '|'])
-                        && is_packaging(&title[index + 1..title.len() - 1])
-                    {
-                        title = prefix;
-                        changed = true;
-                        break;
-                    }
-                }
-            }
-        }
-        if changed {
-            continue;
-        }
-        for suffix in ["official music video", "official video", "official audio"] {
-            if let Some(prefix) = strip_ascii_suffix(title, suffix) {
-                if prefix.ends_with(char::is_whitespace) {
-                    let prefix = prefix.trim_end().trim_end_matches(['-', '|']).trim_end();
-                    if !prefix.is_empty() {
-                        title = prefix;
-                        changed = true;
-                        break;
-                    }
-                }
-            }
-        }
-        if !changed {
-            break;
-        }
-    }
-    title.to_string()
-}
-
-fn category_marker_text(value: &str) -> String {
-    value
-        .to_lowercase()
-        .chars()
-        .map(|character| {
-            if character.is_alphanumeric() {
-                character
-            } else {
-                ' '
-            }
-        })
-        .collect::<String>()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-fn category_tags(title: &str, parsed_title: &str) -> Vec<&'static str> {
-    let mut markers = Vec::new();
-    for (open, close) in [('(', ')'), ('[', ']')] {
-        let mut remaining = title;
-        while let Some(start) = remaining.find(open) {
-            let after = &remaining[start + open.len_utf8()..];
-            let Some(end) = after.find(close) else { break };
-            markers.push(after[..end].to_string());
-            remaining = &after[end + close.len_utf8()..];
-        }
-    }
-    markers.extend(title.split('|').skip(1).map(str::to_string));
-    let trailing = [" - ", " – ", " — "]
-        .iter()
-        .filter_map(|separator| parsed_title.rsplit_once(separator))
-        .min_by_key(|(_, marker)| marker.len());
-    if let Some((before, marker)) = trailing {
-        if !before.trim().is_empty()
-            && matches!(
-                category_marker_text(marker).as_str(),
-                "right version"
-                    | "right ver"
-                    | "ai cover"
-                    | "a i cover"
-                    | "cover"
-                    | "ost"
-                    | "mashup"
-                    | "mash up"
-            )
-        {
-            markers.push(marker.to_string());
-        }
-    }
-    if title.to_ascii_lowercase().contains("♂ right version ♂") {
-        markers.push("right version".into());
-    }
-    let markers = markers
-        .iter()
-        .filter(|marker| !marker.contains('?'))
-        .map(|marker| category_marker_text(marker))
-        .filter(|marker| {
-            !marker
-                .split_whitespace()
-                .any(|word| matches!(word, "no" | "not" | "without" | "не"))
-        })
-        .collect::<Vec<_>>();
-    let contains = |needle: &str| markers.iter().any(|marker| marker == needle);
-    let starts = |needle: &str| {
-        markers
-            .iter()
-            .any(|marker| marker.starts_with(&format!("{needle} ")))
-    };
-    let ends = |needle: &str| {
-        markers
-            .iter()
-            .any(|marker| marker.ends_with(&format!(" {needle}")))
-    };
-    let mut tags = Vec::new();
-    if contains("right version") || contains("right ver") {
-        tags.push("right-version");
-    }
-    if contains("ai cover") || contains("a i cover") || starts("ai cover") || ends("ai cover") {
-        tags.push("ai-cover");
-    } else if contains("cover") || starts("cover by") {
-        tags.push("cover");
-    }
-    if contains("ost") || starts("ost") || ends("ost") {
-        tags.push("ost");
-    }
-    if contains("mashup")
-        || contains("mash up")
-        || starts("mashup")
-        || starts("mash up")
-        || ends("mashup")
-        || ends("mash up")
-    {
-        tags.push("mashup");
-    }
-    tags
 }
 
 #[cfg(test)]
