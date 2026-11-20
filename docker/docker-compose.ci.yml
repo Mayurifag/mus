@@ -1,12 +1,5 @@
 ---
 services:
-  backend:
-    image: mus-backend-ci
-    volumes:
-      - ../backend:/app
-      - ../.ci-cache/backend/cargo:/cargo
-      - ../.ci-cache/backend/target:/app/target
-
   frontend:
     image: mus-frontend-ci
     environment:

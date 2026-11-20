@@ -41,46 +41,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - name: Set Docker build user
-        id: build_user
+      - name: Set up Rust from the repository toolchain
+        working-directory: backend
+        run: rustup show active-toolchain
+      - name: Install test dependencies
         run: |
-          echo "uid=$(id -u)" >> "$GITHUB_OUTPUT"
-          echo "gid=$(id -g)" >> "$GITHUB_OUTPUT"
-      - name: Build backend image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ffmpeg
+      - name: Install prebuilt audit tool
+        uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
         with:
-          context: .
-          file: docker/backend.Dockerfile
-          load: true
-          tags: mus-backend-ci
-          build-args: |
-            USER_ID=${{ steps.build_user.outputs.uid }}
-            GROUP_ID=${{ steps.build_user.outputs.gid }}
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,mode=max,scope=backend
-      - name: Prepare Cargo cache directories
-        run: mkdir -p .ci-cache/backend/cargo .ci-cache/backend/target
+          tool: cargo-audit
+          fallback: none
       - name: Cache Cargo artifacts
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
-            .ci-cache/backend/cargo
-            .ci-cache/backend/target
-          key: ${{ runner.os }}-cargo-backend-${{ hashFiles('backend/Cargo.lock') }}-${{ hashFiles('backend/**/*.rs') }}
+            ~/.cargo/registry
+            ~/.cargo/git
+            backend/target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-native-${{ hashFiles('backend/rust-toolchain.toml', 'backend/Cargo.lock') }}-${{ hashFiles('backend/**/*.rs') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-backend-${{ hashFiles('backend/Cargo.lock') }}-
-            ${{ runner.os }}-cargo-backend-
-      - name: Fix Cargo cache ownership
-        run: sudo chown -R "$(id -u):$(id -g)" .ci-cache/backend
-      - name: Copy Docker Compose override file
-        run: cp docker/docker-compose.override.yml.example docker/docker-compose.override.yml
+            ${{ runner.os }}-${{ runner.arch }}-cargo-native-${{ hashFiles('backend/rust-toolchain.toml', 'backend/Cargo.lock') }}-
       - name: Run backend CI
-        run: |
-          USER_ID=$(id -u) GROUP_ID=$(id -g) make \
-            COMPOSE="$CI_COMPOSE" \
-            back-ci
+        run: make BACKEND_RUN="cd backend &&" back-ci
 
   frontend:
     runs-on: ubuntu-latest
