@@ -69,7 +69,7 @@ COPY docker/production/entrypoint.sh /app/entrypoint.sh
 
 RUN mkdir -p /app_data/.cache/covers \
     && chmod a+rx /app/mus-backend /app/entrypoint.sh \
-    && python3 -m pip --disable-pip-version-check uninstall --yes pip
+    && python3 -m pip --disable-pip-version-check uninstall --root-user-action=ignore --yes pip
 
 EXPOSE 8000
 
