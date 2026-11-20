@@ -37,36 +37,10 @@ RUN apk add --no-cache \
     && curl -fsSL https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp
 
-# Patch the published lockfile for RUSTSEC-2026-0486 without changing its other package versions.
 RUN --mount=type=cache,target=/cargo/registry \
     --mount=type=cache,target=/cargo/git \
-    curl -fsSL https://static.crates.io/crates/cargo-audit/cargo-audit-0.23.0.crate -o /tmp/cargo-audit.crate \
-    && echo "956f85aedfb64db887ec38466f982fc2b1ae55de726d4a12f2fddd5b812c6446  /tmp/cargo-audit.crate" | sha256sum -c - \
-    && mkdir /tmp/cargo-audit \
-    && tar -xzf /tmp/cargo-audit.crate -C /tmp/cargo-audit --strip-components=1 \
-    && cargo update --manifest-path /tmp/cargo-audit/Cargo.toml --package rustix@1.1.5 --precise 1.1.6 \
-    && echo "1210c95d880201936e1c7aab83b8e0da981cec37ae6d551dcc9668d62ee5b12b  /tmp/cargo-audit/Cargo.lock" | sha256sum -c - \
-    && cargo install --path /tmp/cargo-audit --locked --root /usr/local/cargo \
-    && rm -rf /tmp/cargo-audit /tmp/cargo-audit.crate
-
-# Patch RustSec advisories and pin the new zbus dependency graph before checking the lockfile.
-RUN --mount=type=cache,target=/cargo/registry \
-    --mount=type=cache,target=/cargo/git \
-    curl -fsSL https://static.crates.io/crates/watchexec-cli/watchexec-cli-2.8.0.crate -o /tmp/watchexec.crate \
-    && echo "a9e73398f1d43104592c8b3aed966fac990773962dc3fd11939ba4cee1d23745  /tmp/watchexec.crate" | sha256sum -c - \
-    && mkdir /tmp/watchexec \
-    && tar -xzf /tmp/watchexec.crate -C /tmp/watchexec --strip-components=1 \
-    && cargo update --manifest-path /tmp/watchexec/Cargo.toml --package notify-rust@4.18.1 --precise 4.19.0 \
-    && cargo update --manifest-path /tmp/watchexec/Cargo.toml --package tokio@1.53.2 --precise 1.54.1 \
-    && cargo update --manifest-path /tmp/watchexec/Cargo.toml --package rustix@1.1.5 --precise 1.1.6 \
-    && cargo update --manifest-path /tmp/watchexec/Cargo.toml --package zbus --precise 6.5.0 \
-    && cargo update --manifest-path /tmp/watchexec/Cargo.toml --package zbus_macros --precise 6.5.0 \
-    && cargo update --manifest-path /tmp/watchexec/Cargo.toml --package zbus_utils --precise 6.1.0 \
-    && cargo update --manifest-path /tmp/watchexec/Cargo.toml --package zcheapstr --precise 1.4.0 \
-    && cargo update --manifest-path /tmp/watchexec/Cargo.toml --package zruntime --precise 0.2.4 \
-    && echo "0cc26ef01cff90dfba2a7278951da39f26da46351aa01856d50ce373d0d74ef5  /tmp/watchexec/Cargo.lock" | sha256sum -c - \
-    && cargo install --path /tmp/watchexec --locked --root /usr/local/cargo \
-    && rm -rf /tmp/watchexec /tmp/watchexec.crate
+    cargo install --root /usr/local/cargo --version 0.23.0 cargo-audit \
+    && cargo install --root /usr/local/cargo --version 2.8.0 watchexec-cli
 
 RUN group_name="$(awk -F: -v gid="$GROUP_ID" '$3 == gid { print $1; exit }' /etc/group)" \
     && if [ -z "$group_name" ]; then addgroup -g "$GROUP_ID" appgroup && group_name=appgroup; fi \
