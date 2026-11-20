@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Track } from "$lib/types";
-import type { TrackStoreState } from "$lib/stores/trackStore";
+import type { TrackState } from "$lib/stores/trackStore";
 import {
   firstHlsMediaUrls,
   getNextTrackForPreload,
@@ -18,7 +18,7 @@ function track(id: string, artist = "Artist"): Track {
     has_cover: false,
     cover_small_url: null,
     cover_original_url: null,
-    hls_url: `https://music.example/api/v1/tracks/${id}/hls/${id}/index.m3u8`,
+    hls_url: `https://music.example/api/v1/tracks/${id}/hls/index.m3u8`,
   };
 }
 
@@ -40,9 +40,9 @@ describe("hlsPreloadService", () => {
 
     await vi.waitFor(() => expect(fetchFn).toHaveBeenCalledTimes(3));
     expect(fetchFn.mock.calls.map(([url]) => String(url))).toEqual([
-      "https://music.example/api/v1/tracks/2/hls/2/index.m3u8",
-      "https://music.example/api/v1/tracks/2/hls/2/init.mp4",
-      "https://music.example/api/v1/tracks/2/hls/2/segment-00000.m4s",
+      "https://music.example/api/v1/tracks/2/hls/index.m3u8",
+      "https://music.example/api/v1/tracks/2/hls/init.mp4",
+      "https://music.example/api/v1/tracks/2/hls/segment-00000.m4s",
     ]);
 
     service.destroy();
@@ -62,36 +62,35 @@ describe("hlsPreloadService", () => {
   it("resolves relative segment URLs from the playlist URL", () => {
     expect(
       firstHlsMediaUrls(
-        "https://music.example/api/v1/tracks/2/hls/2/index.m3u8",
+        "https://music.example/api/v1/tracks/2/hls/index.m3u8",
         '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6,\nsegment-00001.m4s\n',
       ),
     ).toEqual([
-      "https://music.example/api/v1/tracks/2/hls/2/init.mp4",
-      "https://music.example/api/v1/tracks/2/hls/2/segment-00001.m4s",
+      "https://music.example/api/v1/tracks/2/hls/init.mp4",
+      "https://music.example/api/v1/tracks/2/hls/segment-00001.m4s",
     ]);
   });
 
   it("resolves relative playlist URLs against the current page URL", () => {
     expect(
       firstHlsMediaUrls(
-        "/api/v1/tracks/2/hls/2/index.m3u8",
+        "/api/v1/tracks/2/hls/index.m3u8",
         '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:6,\nsegment-00001.m4s\n',
       ),
     ).toEqual([
-      `${window.location.origin}/api/v1/tracks/2/hls/2/init.mp4`,
-      `${window.location.origin}/api/v1/tracks/2/hls/2/segment-00001.m4s`,
+      `${window.location.origin}/api/v1/tracks/2/hls/init.mp4`,
+      `${window.location.origin}/api/v1/tracks/2/hls/segment-00001.m4s`,
     ]);
   });
 
   it("derives deterministic next track for preload", () => {
     const tracks = [track("1"), track("2", "Other"), track("3")];
-    const baseState: TrackStoreState = {
+    const baseState: TrackState = {
       tracks,
       tracksLoading: false,
-      currentTrackIndex: 0,
-      playHistory: [tracks[0]],
+      currentTrackId: tracks[0].id,
+      playHistoryIds: [tracks[0].id],
       historyPosition: 0,
-      currentTrack: tracks[0],
       is_shuffle: false,
       selectedArtist: null,
       selectedCategory: null,
@@ -106,7 +105,7 @@ describe("hlsPreloadService", () => {
       getNextTrackForPreload({
         ...baseState,
         is_shuffle: true,
-        playHistory: [tracks[0], tracks[2]],
+        playHistoryIds: [tracks[0].id, tracks[2].id],
       }),
     ).toBe(tracks[2]);
     tracks[0].tags = tracks[2].tags = [
@@ -120,7 +119,7 @@ describe("hlsPreloadService", () => {
         ...baseState,
         selectedCategory: "cover",
         is_shuffle: true,
-        playHistory: tracks,
+        playHistoryIds: tracks.map((track) => track.id),
       }),
     ).toBe(tracks[2]);
   });

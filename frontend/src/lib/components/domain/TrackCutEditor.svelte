@@ -140,16 +140,20 @@
         size="sm"
         onclick={discard}
         {disabled}
-        aria-label="Discard cut"><X class="h-4 w-4" /></Button
+        aria-label="Discard cut"
       >
+        <X class="h-4 w-4" />
+      </Button>
     {:else}
       <Button
         variant="outline"
         size="sm"
         onclick={expand}
         {disabled}
-        aria-expanded={expanded}>Select section</Button
+        aria-expanded={expanded}
       >
+        Select section
+      </Button>
     {/if}
   </div>
 
@@ -162,8 +166,10 @@
       {:else if duration > 0}
         <div class="text-muted-foreground flex justify-between text-xs">
           <span>Drag the handles to mark what to remove</span><span
-            class="text-destructive">Selected = removed</span
+            class="text-destructive"
           >
+            Selected = removed
+          </span>
         </div>
         <div class="px-2">
           <Slider.Root
@@ -204,9 +210,9 @@
         <div class="grid grid-cols-2 gap-3">
           {#each boundaries as boundary (boundary.key)}
             <div class="space-y-1.5">
-              <label for={`cut-${boundary.key}`} class="text-sm font-medium"
-                >{boundary.label}</label
-              >
+              <label for={`cut-${boundary.key}`} class="text-sm font-medium">
+                {boundary.label}
+              </label>
               <Input
                 id={`cut-${boundary.key}`}
                 bind:value={times[boundary.key]}
@@ -228,8 +234,9 @@
                       (delta < 0
                         ? endpoints[boundary.key] <= 0
                         : endpoints[boundary.key] >= duration)}
-                    >{delta > 0 ? "+1 sec" : "−1 sec"}</Button
                   >
+                    {delta > 0 ? "+1 sec" : "−1 sec"}
+                  </Button>
                 {/each}
               </div>
             </div>
@@ -237,15 +244,13 @@
         </div>
         {#if rangeValid}
           <p class="text-sm" aria-live="polite">
-            Remove <strong
-              >{(selection.end_seconds - selection.start_seconds).toFixed(
-                2,
-              )}s</strong
-            ><span class="text-muted-foreground">
+            Remove <strong>
+              {(selection.end_seconds - selection.start_seconds).toFixed(2)}s
+            </strong><span class="text-muted-foreground">
               · New length {formatCutTime(
                 duration - (selection.end_seconds - selection.start_seconds),
-              )}</span
-            >
+              )}
+            </span>
           </p>
         {:else}
           <p class="text-destructive text-sm" role="alert">
@@ -289,8 +294,9 @@
               class={disabled || !rangeValid
                 ? "cursor-not-allowed text-sm leading-none"
                 : "cursor-pointer text-sm leading-none"}
-              >Apply this cut when saving</label
             >
+              Apply this cut when saving
+            </label>
           </div>
         </div>
       {/if}

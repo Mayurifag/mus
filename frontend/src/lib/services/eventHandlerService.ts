@@ -5,11 +5,7 @@ import { trackStore } from "$lib/stores/trackStore";
 import { recentEventsStore } from "$lib/stores/recentEventsStore";
 import { downloadStore } from "$lib/stores/downloadStore";
 import { ytDlpVersionStore } from "$lib/stores/systemStore";
-import type {
-  MusEvent,
-  DownloadFailedPayload,
-  DownloadProgressPayload,
-} from "$lib/types";
+import type { MusEvent, DownloadFailedPayload } from "$lib/types";
 
 /**
  * Handles incoming SSE events from the backend
@@ -17,7 +13,6 @@ import type {
  */
 export function handleMusEvent(payload: MusEvent): void {
   if (
-    payload.action_key !== "download_progress" &&
     payload.action_key !== "yt_dlp_updated" &&
     (payload.action_key !== "track_updated" || payload.message_to_show)
   ) {
@@ -48,7 +43,6 @@ export function handleMusEvent(payload: MusEvent): void {
           trackStore.updateTrack(track);
         }
       }
-      void syncTracks();
       break;
     case "track_deleted":
       if (
@@ -70,16 +64,6 @@ export function handleMusEvent(payload: MusEvent): void {
         const failedPayload =
           payload.action_payload as unknown as DownloadFailedPayload;
         downloadStore.setFailed(failedPayload.error);
-      }
-      break;
-    case "download_progress":
-      if (payload.action_payload) {
-        const p = payload.action_payload as unknown as DownloadProgressPayload;
-        downloadStore.setProgress({
-          percent: p.percent,
-          speed: p.speed,
-          eta: p.eta,
-        });
       }
       break;
     case "yt_dlp_updated":

@@ -52,20 +52,15 @@ pub async fn set_track_tags(
     track_id: &str,
     tag_names: &[String],
     finalize: bool,
-) -> Result<()> {
+) -> Result<Vec<Tag>> {
     let track_id = track_id.to_owned();
     let tag_names = tag_names.to_vec();
     run(state, move |conn| {
         let tx = conn.transaction()?;
-        if finalize {
-            tx.execute(
-                "UPDATE track SET tags_finalized = 1 WHERE id = ?1",
-                params![track_id],
-            )?;
-        }
-        set_track_tags_conn(&tx, &track_id, &tag_names)?;
+        set_track_tags_conn(&tx, &track_id, &tag_names, finalize)?;
+        let tags = track_tags(&tx, &track_id)?;
         tx.commit()?;
-        Ok(())
+        Ok(tags)
     })
     .await
 }
@@ -129,7 +124,7 @@ pub async fn set_download_tags(
         if changed == 0 {
             return Ok(false);
         }
-        set_track_tags_conn(&tx, &track_id, &tag_names)?;
+        set_track_tags_conn(&tx, &track_id, &tag_names, false)?;
         tx.commit()?;
         Ok(true)
     })
@@ -156,7 +151,18 @@ pub async fn track_tags_finalized(state: &AppState, track_id: &str) -> Result<bo
     .await
 }
 
-fn set_track_tags_conn(conn: &Connection, track_id: &str, tag_names: &[String]) -> Result<()> {
+pub(super) fn set_track_tags_conn(
+    conn: &Connection,
+    track_id: &str,
+    tag_names: &[String],
+    finalize: bool,
+) -> Result<()> {
+    if finalize {
+        conn.execute(
+            "UPDATE track SET tags_finalized = 1 WHERE id = ?1",
+            params![track_id],
+        )?;
+    }
     conn.execute(
         "DELETE FROM track_tag WHERE track_id = ?1",
         params![track_id],

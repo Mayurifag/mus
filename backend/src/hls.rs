@@ -2,9 +2,8 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use axum::{
-    body::Body,
-    extract::{Path as AxumPath, State},
-    http::{header, HeaderValue, Request},
+    extract::{Path as AxumPath, Request, State},
+    http::{header, HeaderValue},
     response::{IntoResponse, Response},
 };
 use tokio::fs;
@@ -18,19 +17,14 @@ pub(crate) use cache::prewarm_track_hls;
 use cache::{ensure_hls_cache, hls_cache_dir};
 
 pub fn track_hls_url(track: &Track) -> String {
-    format!(
-        "/api/v1/tracks/{}/hls/{}/index.m3u8",
-        track.id, track.content_hash
-    )
+    format!("/api/v1/tracks/{}/hls/index.m3u8", track.id)
 }
 
 pub async fn get_hls_playlist(
     State(state): State<AppState>,
-    AxumPath((id, cache_key)): AxumPath<(String, String)>,
+    AxumPath(id): AxumPath<String>,
+    request: Request,
 ) -> Result<Response, AppError> {
-    if !is_safe_hls_token(&cache_key) {
-        return Err(AppError::not_found("HLS playlist not found"));
-    }
     let track = get_track(&state, &id)
         .await?
         .ok_or_else(|| AppError::not_found("Track not found"))?;
@@ -40,13 +34,10 @@ pub async fn get_hls_playlist(
     {
         return Err(AppError::not_found("Audio file not found"));
     }
-    if cache_key != track.content_hash {
-        return Err(AppError::not_found("HLS playlist not found"));
-    }
-
-    let dir = ensure_hls_cache(&state, &track, &cache_key).await?;
+    let dir = ensure_hls_cache(&state, &track).await?;
     serve_hls_file(
         dir.join("index.m3u8"),
+        request,
         "application/vnd.apple.mpegurl",
         "no-cache",
         "HLS playlist not found",
@@ -56,9 +47,10 @@ pub async fn get_hls_playlist(
 
 pub async fn get_hls_segment(
     State(state): State<AppState>,
-    AxumPath((id, cache_key, segment)): AxumPath<(String, String, String)>,
+    AxumPath((id, segment)): AxumPath<(String, String)>,
+    request: Request,
 ) -> Result<Response, AppError> {
-    if !is_safe_hls_token(&cache_key) || !is_safe_hls_media_file(&segment) {
+    if !is_safe_hls_media_file(&segment) {
         return Err(AppError::not_found("HLS segment not found"));
     }
     let track = get_track(&state, &id)
@@ -70,12 +62,9 @@ pub async fn get_hls_segment(
     {
         return Err(AppError::not_found("Audio file not found"));
     }
-    if cache_key != track.content_hash {
-        return Err(AppError::not_found("HLS segment not found"));
-    }
-
     serve_hls_file(
-        hls_cache_dir(&state, &id, &cache_key).join(segment),
+        hls_cache_dir(&state, &id).join(segment),
+        request,
         "audio/mp4",
         "public, max-age=31536000, immutable",
         "HLS segment not found",
@@ -85,6 +74,7 @@ pub async fn get_hls_segment(
 
 async fn serve_hls_file(
     file_path: PathBuf,
+    request: Request,
     content_type: &'static str,
     cache_control: &'static str,
     not_found: &'static str,
@@ -96,13 +86,8 @@ async fn serve_hls_file(
         return Err(AppError::not_found(not_found));
     }
 
-    let mut response = match ServeFile::new(file_path)
-        .oneshot(Request::new(Body::empty()))
-        .await
-    {
-        Ok(response) => response.into_response(),
-        Err(error) => match error {},
-    };
+    let Ok(response) = ServeFile::new(file_path).oneshot(request).await;
+    let mut response = response.into_response();
     response
         .headers_mut()
         .insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
@@ -111,14 +96,6 @@ async fn serve_hls_file(
         HeaderValue::from_static(cache_control),
     );
     Ok(response)
-}
-
-fn is_safe_hls_token(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 128
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
 }
 
 fn is_safe_hls_media_file(value: &str) -> bool {

@@ -395,8 +395,10 @@
               />
               <label
                 for="{isDownload ? 'download' : 'track'}-category-{tag}"
-                class="text-sm">{categoryLabels[tag]}</label
+                class="text-sm"
               >
+                {categoryLabels[tag]}
+              </label>
             </div>
           {/each}
         </div>

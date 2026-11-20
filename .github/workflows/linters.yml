@@ -137,7 +137,7 @@ jobs:
         with:
           node-version: 26.13.1
       - name: Set up npm
-        run: npm install -g npm@12.2.2 --no-fund
+        run: npm install -g npm@12.2.3 --no-fund
       - name: Cache E2E npm cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:

@@ -90,7 +90,6 @@
   const hasError = $derived($downloadStore.state === "failed");
   const isAwaitingReview = $derived($downloadStore.state === "awaiting_review");
   const canWriteFiles = $derived($permissionsStore.can_write_music_files);
-  const progress = $derived($downloadStore.progress);
   let resetCompletedTimeout: ReturnType<typeof setTimeout> | null = null;
   let lastConfirmation: { url: string } | null = null;
 
@@ -168,20 +167,6 @@
           Download
         {/if}
       </Button>
-
-      {#if isDownloading && !isFetchingMetadata && progress !== null}
-        <div class="space-y-1">
-          <div class="bg-muted/30 h-2 overflow-hidden rounded-full">
-            <div
-              class="bg-accent h-full rounded-full transition-all duration-300"
-              style="width: {progress.percent}%"
-            ></div>
-          </div>
-          <span class="text-muted-foreground text-xs"
-            >{progress.percent.toFixed(1)}% · {progress.speed} · ETA {progress.eta}</span
-          >
-        </div>
-      {/if}
 
       {#if hasError && $downloadStore.error}
         <div

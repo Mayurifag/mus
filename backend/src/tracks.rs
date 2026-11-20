@@ -1,9 +1,8 @@
 use std::{io, path::Path};
 
 use axum::{
-    body::Body,
-    extract::{Path as AxumPath, Query, State},
-    http::{header, HeaderMap, HeaderValue, Request, StatusCode},
+    extract::{Path as AxumPath, Query, Request, State},
+    http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
@@ -31,7 +30,7 @@ mod update_plan;
 mod upload;
 pub use failed::{get_errored_tracks, requeue_track};
 pub use update::update_track;
-pub use upload::upload_track;
+pub use upload::{upload_body_limit, upload_track};
 
 #[derive(Deserialize)]
 pub struct TracksQuery {
@@ -57,18 +56,25 @@ pub async fn get_tracks(
 pub async fn get_cover_small(
     State(state): State<AppState>,
     AxumPath(id): AxumPath<String>,
+    request: Request,
 ) -> Result<Response, AppError> {
-    cover_response(state, &id, "small").await
+    cover_response(state, &id, "small", request).await
 }
 
 pub async fn get_cover_original(
     State(state): State<AppState>,
     AxumPath(id): AxumPath<String>,
+    request: Request,
 ) -> Result<Response, AppError> {
-    cover_response(state, &id, "original").await
+    cover_response(state, &id, "original", request).await
 }
 
-async fn cover_response(state: AppState, id: &str, size: &str) -> Result<Response, AppError> {
+async fn cover_response(
+    state: AppState,
+    id: &str,
+    size: &str,
+    request: Request,
+) -> Result<Response, AppError> {
     if !is_hash_id(id) {
         return Err(AppError::not_found("Cover not found"));
     }
@@ -85,17 +91,8 @@ async fn cover_response(state: AppState, id: &str, size: &str) -> Result<Respons
         HeaderValue::from_static("public, max-age=31536000, immutable"),
     );
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("image/webp"));
-    Ok((
-        headers,
-        match ServeFile::new(cover_path)
-            .oneshot(Request::new(Body::empty()))
-            .await
-        {
-            Ok(response) => response,
-            Err(error) => match error {},
-        },
-    )
-        .into_response())
+    let Ok(response) = ServeFile::new(cover_path).oneshot(request).await;
+    Ok((headers, response).into_response())
 }
 
 pub async fn get_cut_info(

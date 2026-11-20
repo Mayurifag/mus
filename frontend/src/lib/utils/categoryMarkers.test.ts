@@ -13,7 +13,7 @@ function track(title: string, tags: string[]): Track {
     has_cover: false,
     cover_small_url: null,
     cover_original_url: null,
-    hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
+    hls_url: "/api/v1/tracks/1/hls/index.m3u8",
     tags: tags.map((name) => ({ name, display_name: name })),
   };
 }

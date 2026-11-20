@@ -14,7 +14,7 @@ describe("trackStore", () => {
       has_cover: true,
       cover_small_url: "/api/v1/tracks/1/covers/small.webp",
       cover_original_url: "/api/v1/tracks/1/covers/original.webp",
-      hls_url: "/api/v1/tracks/1/hls/1640995200/index.m3u8",
+      hls_url: "/api/v1/tracks/1/hls/index.m3u8",
       updated_at: 1640995200,
     },
     {
@@ -26,7 +26,7 @@ describe("trackStore", () => {
       has_cover: true,
       cover_small_url: "/api/v1/tracks/2/covers/small.webp",
       cover_original_url: "/api/v1/tracks/2/covers/original.webp",
-      hls_url: "/api/v1/tracks/2/hls/1640995300/index.m3u8",
+      hls_url: "/api/v1/tracks/2/hls/index.m3u8",
       updated_at: 1640995300,
     },
     {
@@ -38,7 +38,7 @@ describe("trackStore", () => {
       has_cover: false,
       cover_small_url: null,
       cover_original_url: null,
-      hls_url: "/api/v1/tracks/3/hls/1640995400/index.m3u8",
+      hls_url: "/api/v1/tracks/3/hls/index.m3u8",
       updated_at: 1640995400,
     },
   ];
@@ -56,6 +56,8 @@ describe("trackStore", () => {
     expect(state.playHistory).toEqual([]);
     expect(state.historyPosition).toBe(-1);
     expect(state.currentTrack).toBeNull();
+    expect(state.currentTrackId).toBeNull();
+    expect(state.playHistoryIds).toEqual([]);
     expect(state.is_shuffle).toBe(false);
     expect(state.selectedArtist).toBeNull();
   });
@@ -144,6 +146,10 @@ describe("trackStore", () => {
     expect(state.currentTrackIndex).toBe(1);
     expect(state.currentTrack).toEqual(edited);
     expect(state.playHistory).toEqual([edited]);
+    expect(state.currentTrackId).toBe(edited.id);
+    expect(state.playHistoryIds).toEqual([edited.id]);
+    expect(state.currentTrack).toBe(state.tracks[1]);
+    expect(state.playHistory[0]).toBe(state.tracks[1]);
   });
 
   it("should set currentTrackIndex to null when tracks array is empty", () => {
@@ -247,7 +253,7 @@ describe("trackStore", () => {
       has_cover: false,
       cover_small_url: null,
       cover_original_url: null,
-      hls_url: "/api/v1/tracks/4/hls/1640995500/index.m3u8",
+      hls_url: "/api/v1/tracks/4/hls/index.m3u8",
       updated_at: 1640995500,
     };
 

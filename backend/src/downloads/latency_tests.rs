@@ -427,7 +427,7 @@ async fn metadata_uses_local_artist_spellings_without_changing_the_library() {
     );
     {
         let conn = state.db.lock().unwrap();
-        conn.execute("INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,content_hash) VALUES (?1,'Old','Artist',1,'/old/song.mp3',1,1,?1)", rusqlite::params!["1".repeat(64)]).unwrap();
+        conn.execute("INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at) VALUES (?1,'Old','Artist',1,'/old/song.mp3',1,1)", rusqlite::params!["1".repeat(64)]).unwrap();
     }
     let data = SourceMetadata {
         title: "Song".into(),

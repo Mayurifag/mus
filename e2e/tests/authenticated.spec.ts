@@ -30,7 +30,7 @@ async function getMetadataInfo(filePath: string): Promise<MetadataInfo> {
 async function checkCoverFiles(
   trackId: string,
 ): Promise<{ hasSmall: boolean; hasOriginal: boolean }> {
-  const containerName = "mus-e2e-test";
+  const containerName = process.env.E2E_CONTAINER_NAME ?? "mus-e2e-test";
   const smallPath = `/app_data/.cache/covers/${trackId}_small.webp`;
   const originalPath = `/app_data/.cache/covers/${trackId}_original.webp`;
 
@@ -140,7 +140,7 @@ test.describe("Authenticated User Flows", () => {
     await expect(lunaTrack).toHaveClass(/bg-secondary/);
     await expect(midnightEchoesTrack).not.toHaveClass(/bg-secondary/);
 
-    const musicDir = join(process.cwd(), "music");
+    const musicDir = process.env.E2E_MUSIC_DIR ?? join(process.cwd(), "music");
     const sourceFile = join(
       musicDir,
       "The Midnight Echoes - Digital Dreams.wav",

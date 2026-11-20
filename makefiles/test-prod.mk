@@ -33,7 +33,7 @@ prod-entrypoint-smoke:
 prod-smoke: prod-downloader-smoke prod-entrypoint-smoke
 	@docker image inspect mus:latest >/dev/null
 	@docker rm -f mus-smoke-test 2>/dev/null || true
-	@MUSIC_TMP=$$(mktemp -d); \
+	@set -eu; MUSIC_TMP=$$(mktemp -d); \
 	trap 'docker rm -f mus-smoke-test >/dev/null 2>&1 || true; rm -rf "$$MUSIC_TMP"' EXIT; \
 	cp -R e2e/music/. "$$MUSIC_TMP"; \
 	docker run -d --name mus-smoke-test -p 127.0.0.1:4125:8000 \

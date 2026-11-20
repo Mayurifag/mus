@@ -21,7 +21,7 @@ use serde_json::Value;
 /// Database record returned by [`crate::db::list_tracks`] and [`crate::db::get_track`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Track {
-    /// Library identifier, initially derived from the content hash.
+    /// BLAKE3 content hash used as the library identifier and cache key.
     pub id: String,
     /// Stored title in Unicode NFC.
     pub title: String,
@@ -41,8 +41,6 @@ pub struct Track {
     pub inode: Option<i64>,
     /// Optional metadata-based change hint, distinct from the content hash.
     pub file_signature: Option<String>,
-    /// Recorded BLAKE3 content fingerprint and HLS cache key.
-    pub content_hash: String,
     /// Processing state stored by the library workflow.
     pub processing_status: String,
     /// Optional structured processing failure.
@@ -77,18 +75,12 @@ pub(crate) struct TrackDto {
 
 impl From<Track> for TrackDto {
     fn from(track: Track) -> Self {
-        let cover_small_url = track.has_cover.then(|| {
-            format!(
-                "/api/v1/tracks/{}/covers/small.webp?v={}",
-                track.id, track.content_hash
-            )
-        });
-        let cover_original_url = track.has_cover.then(|| {
-            format!(
-                "/api/v1/tracks/{}/covers/original.webp?v={}",
-                track.id, track.content_hash
-            )
-        });
+        let cover_small_url = track
+            .has_cover
+            .then(|| format!("/api/v1/tracks/{}/covers/small.webp", track.id));
+        let cover_original_url = track
+            .has_cover
+            .then(|| format!("/api/v1/tracks/{}/covers/original.webp", track.id));
         Self {
             hls_url: crate::hls::track_hls_url(&track),
             id: track.id,

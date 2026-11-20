@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, time::Duration};
 
 use anyhow::Result;
 use futures_util::{stream, StreamExt};
@@ -62,7 +62,9 @@ pub(super) async fn search_cover_art_archive(
             ("limit", "8"),
         ],
     )?;
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()?;
     let response: RecordingResponse = client
         .get(url)
         .header(reqwest::header::USER_AGENT, USER_AGENT)
@@ -135,11 +137,19 @@ fn release_artwork(
             release.title
         },
         artist: None,
-        image_url: image.image,
-        thumbnail_url,
+        image_url: https_cover_url(image.image),
+        thumbnail_url: https_cover_url(thumbnail_url),
         width: None,
         height: None,
     })
+}
+
+fn https_cover_url(url: String) -> String {
+    // The archive still publishes HTTP URLs; use its HTTPS endpoint before display or download.
+    match url.strip_prefix("http://coverartarchive.org/") {
+        Some(path) => format!("https://coverartarchive.org/{path}"),
+        None => url,
+    }
 }
 
 #[cfg(test)]
@@ -150,7 +160,10 @@ mod tests {
     fn selects_front_cover_and_prefers_the_large_thumbnail() {
         let response: ArtworkResponse = serde_json::from_value(serde_json::json!({"images": [
             {"front": false, "image": "back.jpg"},
-            {"front": true, "image": "front.jpg", "thumbnails": {"small": "small.jpg", "large": "large.jpg"}}
+            {"front": true, "image": "http://coverartarchive.org/release/id/front.jpg", "thumbnails": {
+                "small": "http://coverartarchive.org/release/id/small.jpg",
+                "large": "http://coverartarchive.org/release/id/large.jpg"
+            }}
         ]})).unwrap();
         let artwork = release_artwork(
             "Recording".into(),
@@ -162,8 +175,14 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artwork.title, "Album");
-        assert_eq!(artwork.image_url, "front.jpg");
-        assert_eq!(artwork.thumbnail_url, "large.jpg");
+        assert_eq!(
+            artwork.image_url,
+            "https://coverartarchive.org/release/id/front.jpg"
+        );
+        assert_eq!(
+            artwork.thumbnail_url,
+            "https://coverartarchive.org/release/id/large.jpg"
+        );
     }
 
     #[test]

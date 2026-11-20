@@ -24,6 +24,7 @@
 //! ```
 
 use std::{
+    collections::HashSet,
     fs,
     io::Read,
     path::{Path, PathBuf},
@@ -36,25 +37,32 @@ const AUDIO_EXTENSIONS: &[&str] = &["mp3", "flac", "m4a", "ogg", "wav"];
 
 /// Recursively lists supported audio paths in filesystem enumeration order.
 ///
-/// Follows directory symlinks. A missing or non-directory root yields an empty list.
+/// Follows directory symlinks, visiting each directory once to avoid cycles.
+/// A missing or non-directory root yields an empty list.
 ///
 /// # Errors
 /// Returns directory-reading errors. This function performs blocking I/O.
 pub fn audio_paths(dir: &Path) -> Result<Vec<PathBuf>> {
     let mut paths = Vec::new();
-    visit_audio_paths(dir, &mut |path| paths.push(path.to_path_buf()))?;
+    visit_audio_paths(dir, &mut HashSet::new(), &mut |path| {
+        paths.push(path.to_path_buf())
+    })?;
     Ok(paths)
 }
 
-fn visit_audio_paths(dir: &Path, visit: &mut impl FnMut(&Path)) -> Result<()> {
-    if !dir.is_dir() {
+fn visit_audio_paths(
+    dir: &Path,
+    seen: &mut HashSet<PathBuf>,
+    visit: &mut impl FnMut(&Path),
+) -> Result<()> {
+    if !dir.is_dir() || !seen.insert(fs::canonicalize(dir)?) {
         return Ok(());
     }
     for entry in fs::read_dir(dir)? {
         let path = entry?.path();
         if path.is_dir() {
-            visit_audio_paths(&path, visit)?;
-        } else if is_audio_path(&path) {
+            visit_audio_paths(&path, seen, visit)?;
+        } else if is_audio_path(&path) && path.is_file() {
             visit(&path);
         }
     }
@@ -76,8 +84,8 @@ pub fn is_audio_path(path: &Path) -> bool {
 
 /// Checks directory write access without creating a probe file.
 ///
-/// Unix also requires search access and an available `test` executable. Other
-/// platforms check the read-only flag, not the complete ACL. Lookup/check failures
+/// Unix also requires search access; non-Linux Unix requires a `test` executable.
+/// Other platforms check the read-only flag, not the complete ACL. Lookup/check failures
 /// return `false`; a successful check does not reserve access for a later write.
 ///
 /// # Panics
@@ -98,12 +106,23 @@ pub async fn can_write(path: &Path) -> bool {
         && can_write_dir(path).await
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
+async fn can_write_dir(path: &Path) -> bool {
+    use rustix::fs::{access, Access};
+
+    let path = path.to_path_buf();
+    // BusyBox's `test -w` can report writable permission bits on read-only mounts.
+    tokio::task::spawn_blocking(move || access(path, Access::WRITE_OK | Access::EXEC_OK).is_ok())
+        .await
+        .unwrap_or(false)
+}
+
+#[cfg(all(unix, not(target_os = "linux")))]
 async fn can_write_dir(path: &Path) -> bool {
     can_access(path, "-w").await && can_access(path, "-x").await
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "linux")))]
 async fn can_access(path: &Path, flag: &str) -> bool {
     tokio::process::Command::new("test")
         .arg(flag)
@@ -228,6 +247,27 @@ pub fn inode(_: &fs::Metadata) -> Option<i64> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+    #[cfg(unix)]
+    #[test]
+    fn discovery_follows_directory_links_without_revisiting_cycles() {
+        use std::{fs, os::unix::fs::symlink};
+
+        let directory = tempfile::TempDir::new().unwrap();
+        let music = directory.path().join("music");
+        let album = directory.path().join("album");
+        fs::create_dir(&music).unwrap();
+        fs::create_dir(&album).unwrap();
+        fs::write(album.join("song.mp3"), b"audio").unwrap();
+        symlink(&album, music.join("linked-album")).unwrap();
+        symlink(&music, album.join("back-to-music")).unwrap();
+        symlink("/dev/null", music.join("not-a-file.mp3")).unwrap();
+        assert_eq!(
+            super::audio_paths(&music).unwrap(),
+            [music.join("linked-album/song.mp3")]
+        );
+    }
+
     #[test]
     fn distinct_files_with_matching_metadata_are_conflicts() {
         let directory = tempfile::TempDir::new().unwrap();
@@ -235,9 +275,9 @@ mod tests {
         let destination = directory.path().join("destination.mp3");
         std::fs::write(&source, b"original").unwrap();
         std::fs::write(&destination, b"existing").unwrap();
-        let modified = filetime::FileTime::from_unix_time(1_700_000_000, 0);
-        filetime::set_file_mtime(&source, modified).unwrap();
-        filetime::set_file_mtime(&destination, modified).unwrap();
+        let modified = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        fs::set_times(&source, fs::FileTimes::new().set_modified(modified)).unwrap();
+        fs::set_times(&destination, fs::FileTimes::new().set_modified(modified)).unwrap();
         let source_meta = std::fs::metadata(&source).unwrap();
         let destination_meta = std::fs::metadata(&destination).unwrap();
         assert_eq!(source_meta.len(), destination_meta.len());

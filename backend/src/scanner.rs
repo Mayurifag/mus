@@ -61,7 +61,37 @@ struct FileSnapshot {
 /// # }
 /// ```
 pub async fn scan_music_dir(state: AppState) -> Result<()> {
-    sync_tracks(state, true).await
+    let _guard = state.mutation_lock("scanner".into()).await;
+    let mut current = HashSet::new();
+    let mut existing = HashMap::new();
+    for track in db::list_tracks(&state).await? {
+        existing.insert(track.file_path.clone(), track);
+    }
+
+    let paths = audio_paths_in_dir(&state.music_dir);
+    pin_mut!(paths);
+    let mut found = 0usize;
+    while let Some(path) = paths.try_next().await? {
+        found += 1;
+        match sync_path(&state, &existing, &mut current, &path).await {
+            Ok(()) => {}
+            Err(error) if source_disappeared(&path, &error).await? => {
+                tracing::debug!(path = %path.display(), "skipped vanished scanned path");
+            }
+            Err(error) => {
+                return Err(error)
+                    .with_context(|| format!("failed to sync scanned path {}", path.display()));
+            }
+        }
+    }
+    tracing::info!("found {found} audio files");
+
+    for track in existing.values() {
+        if !current.contains(&track.file_path) && !async_fs::try_exists(&track.file_path).await? {
+            delete_missing_track(&state, track).await?;
+        }
+    }
+    Ok(())
 }
 
 async fn sync_changed_paths(state: AppState, paths: Vec<PathBuf>) -> Result<()> {
@@ -88,7 +118,7 @@ async fn sync_changed_paths(state: AppState, paths: Vec<PathBuf>) -> Result<()> 
             let paths = audio_paths_in_dir(path);
             pin_mut!(paths);
             while let Some(path) = paths.try_next().await? {
-                match sync_path(&state, &existing, &mut current, &path, true).await {
+                match sync_path(&state, &existing, &mut current, &path).await {
                     Ok(()) => {}
                     Err(error) if source_disappeared(&path, &error).await? => {
                         tracing::debug!(path = %path.display(), "skipped vanished changed path");
@@ -101,7 +131,7 @@ async fn sync_changed_paths(state: AppState, paths: Vec<PathBuf>) -> Result<()> 
                 }
             }
         } else if is_audio_path(path) {
-            match sync_path(&state, &existing, &mut current, path, true).await {
+            match sync_path(&state, &existing, &mut current, path).await {
                 Ok(()) => {}
                 Err(error) if source_disappeared(path, &error).await? => {
                     tracing::debug!(path = %path.display(), "skipped vanished changed path");
@@ -121,41 +151,7 @@ async fn sync_changed_paths(state: AppState, paths: Vec<PathBuf>) -> Result<()> 
             && !current.contains(&track.file_path)
             && !async_fs::try_exists(&track.file_path).await?
         {
-            delete_missing_track(&state, track, true).await?;
-        }
-    }
-    Ok(())
-}
-
-async fn sync_tracks(state: AppState, broadcast_changes: bool) -> Result<()> {
-    let _guard = state.mutation_lock("scanner".into()).await;
-    let mut current = HashSet::new();
-    let mut existing = HashMap::new();
-    for track in db::list_tracks(&state).await? {
-        existing.insert(track.file_path.clone(), track);
-    }
-
-    let paths = audio_paths_in_dir(&state.music_dir);
-    pin_mut!(paths);
-    let mut found = 0usize;
-    while let Some(path) = paths.try_next().await? {
-        found += 1;
-        match sync_path(&state, &existing, &mut current, &path, broadcast_changes).await {
-            Ok(()) => {}
-            Err(error) if source_disappeared(&path, &error).await? => {
-                tracing::debug!(path = %path.display(), "skipped vanished scanned path");
-            }
-            Err(error) => {
-                return Err(error)
-                    .with_context(|| format!("failed to sync scanned path {}", path.display()));
-            }
-        }
-    }
-    tracing::info!("found {found} audio files");
-
-    for track in existing.values() {
-        if !current.contains(&track.file_path) && !async_fs::try_exists(&track.file_path).await? {
-            delete_missing_track(&state, track, broadcast_changes).await?;
+            delete_missing_track(&state, track).await?;
         }
     }
     Ok(())
@@ -170,11 +166,7 @@ async fn source_disappeared(path: &Path, error: &anyhow::Error) -> Result<bool> 
     Ok(not_found && !async_fs::try_exists(path).await?)
 }
 
-async fn delete_missing_track(
-    state: &AppState,
-    track: &crate::models::Track,
-    broadcast_changes: bool,
-) -> Result<()> {
+async fn delete_missing_track(state: &AppState, track: &crate::models::Track) -> Result<()> {
     if db::get_track(state, &track.id)
         .await?
         .is_some_and(|registered| registered.file_path != track.file_path)
@@ -183,15 +175,13 @@ async fn delete_missing_track(
     }
     delete_track_row(state, &track.id).await?;
     delete_track_derived_files(state, &track.id).await;
-    if broadcast_changes {
-        broadcast(
-            state,
-            "track_deleted",
-            Some(&format!("Deleted track '{}'", track.title)),
-            Some("info"),
-            Some(json!({"id": track.id})),
-        );
-    }
+    broadcast(
+        state,
+        "track_deleted",
+        Some(&format!("Deleted track '{}'", track.title)),
+        Some("info"),
+        Some(json!({"id": track.id})),
+    );
     Ok(())
 }
 
@@ -200,31 +190,29 @@ async fn sync_path(
     existing: &HashMap<String, crate::models::Track>,
     current: &mut HashSet<String>,
     path: &Path,
-    broadcast_changes: bool,
 ) -> Result<()> {
     let path_string = path.to_string_lossy().to_string();
     let (meta, mtime, signature) = file_metadata(path).await?;
-    let Some(metadata) =
-        read_scan_metadata(state, existing, &path_string, path, broadcast_changes).await?
-    else {
+    if let Some(track) = existing.get(&path_string)
+        && track.file_signature.as_deref() == Some(signature.as_str())
+    {
+        current.insert(path_string);
+        if let Some((updated, file_path)) = normalize_existing_track(state, track, path).await? {
+            current.insert(file_path);
+            broadcast_track_update(state, updated, &track.id);
+        } else {
+            prewarm_track_hls(state, track).await;
+        }
+        return Ok(());
+    }
+    let Some(metadata) = read_scan_metadata(state, existing, &path_string, path).await? else {
         return Ok(());
     };
     current.insert(path_string.clone());
     match existing.get(&path_string) {
-        Some(track) if track.file_signature.as_deref() == Some(signature.as_str()) => {
-            if let Some((updated, file_path)) = normalize_existing_track(state, track, path).await?
-            {
-                current.insert(file_path);
-                if broadcast_changes {
-                    broadcast_track_update(state, updated, &track.id);
-                }
-            } else {
-                prewarm_track_hls(state, track).await;
-            }
-        }
         Some(track) => {
             let snapshot = file_snapshot_from_metadata(path, meta, mtime, signature).await?;
-            if track.content_hash == snapshot.content_hash {
+            if track.id == snapshot.content_hash {
                 db::save_track_fingerprint(
                     state,
                     &track.id,
@@ -245,9 +233,7 @@ async fn sync_path(
                 Some(track.id.clone()),
             )
             .await?;
-            if broadcast_changes {
-                broadcast_track_update(state, updated, &track.id);
-            }
+            broadcast_track_update(state, updated, &track.id);
         }
         None => {
             let snapshot = file_snapshot_from_metadata(path, meta, mtime, signature).await?;
@@ -276,19 +262,17 @@ async fn sync_path(
                 moved_track.map(|track| track.id.clone()),
             )
             .await?;
-            if broadcast_changes {
-                if let Some(previous) = moved_track {
-                    broadcast_track_update(state, track, &previous.id);
-                } else if is_new {
-                    let filename = track.filename.clone();
-                    broadcast(
-                        state,
-                        "track_added",
-                        Some(&filename),
-                        Some("info"),
-                        Some(json!(track)),
-                    );
-                }
+            if let Some(previous) = moved_track {
+                broadcast_track_update(state, track, &previous.id);
+            } else if is_new {
+                let filename = track.filename.clone();
+                broadcast(
+                    state,
+                    "track_added",
+                    Some(&filename),
+                    Some("info"),
+                    Some(json!(track)),
+                );
             }
         }
     }
@@ -306,7 +290,6 @@ async fn read_scan_metadata(
     existing: &HashMap<String, crate::models::Track>,
     path_string: &str,
     path: &Path,
-    broadcast_changes: bool,
 ) -> Result<Option<MediaMetadata>> {
     match read_metadata(path).await {
         Ok(metadata) => Ok(Some(metadata)),
@@ -321,7 +304,7 @@ async fn read_scan_metadata(
                 "skipping unparseable audio file"
             );
             if let Some(track) = existing.get(path_string) {
-                delete_missing_track(state, track, broadcast_changes).await?;
+                delete_missing_track(state, track).await?;
             }
             Ok(None)
         }

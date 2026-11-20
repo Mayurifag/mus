@@ -6,12 +6,12 @@ COPY frontend/package*.json ./
 ENV VITE_INTERNAL_API_HOST=""
 ENV VITE_PUBLIC_API_HOST=""
 RUN --mount=type=cache,target=/root/.npm \
-    npm install -g npm@12.2.2 \
+    npm install -g npm@12.2.3 \
     && npm ci --no-fund --prefer-offline
 COPY frontend/ ./
 RUN npm run build
 
-FROM rust:1.99.1-alpine3.24 AS backend-builder
+FROM rust:1.100.0-alpine3.24 AS backend-builder
 WORKDIR /app/backend
 RUN apk add --no-cache build-base
 COPY backend/Cargo.toml backend/Cargo.lock ./
@@ -47,7 +47,7 @@ LABEL org.opencontainers.image.title=$COMMIT_TITLE
 ENV COMMIT_SHA=$COMMIT_SHA
 ENV BUILD_DATE=$BUILD_DATE
 
-COPY docker/yt-dlp.conf /etc/yt-dlp.conf
+COPY --chmod=644 docker/yt-dlp.conf /etc/yt-dlp.conf
 # Alpine's Node package can lag behind upstream security releases.
 COPY --from=frontend-builder /usr/local/bin/node /usr/bin/node
 

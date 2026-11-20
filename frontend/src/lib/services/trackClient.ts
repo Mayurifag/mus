@@ -6,15 +6,8 @@ import {
   createFormData,
 } from "$lib/utils/apiUtils";
 
-function createCoverUrl(url: string | null, updatedAt: number): string | null {
-  if (!url) return null;
-
-  if (url.includes("?")) {
-    return `${PUBLIC_API_HOST}${url}`;
-  }
-
-  const cacheKey = Number.isFinite(updatedAt) ? updatedAt : Date.now();
-  return `${PUBLIC_API_HOST}${url}?v=${cacheKey}`;
+function createCoverUrl(url: string | null): string | null {
+  return url ? `${PUBLIC_API_HOST}${url}` : null;
 }
 
 export function createTrackWithUrls(
@@ -24,11 +17,8 @@ export function createTrackWithUrls(
   return {
     ...track,
     tags: track.tags ?? [],
-    cover_small_url: createCoverUrl(track.cover_small_url, track.updated_at),
-    cover_original_url: createCoverUrl(
-      track.cover_original_url,
-      track.updated_at,
-    ),
+    cover_small_url: createCoverUrl(track.cover_small_url),
+    cover_original_url: createCoverUrl(track.cover_original_url),
     hls_url: `${PUBLIC_API_HOST}${track.hls_url}`,
   };
 }

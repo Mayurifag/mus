@@ -9,7 +9,7 @@ use crate::{
     categories::inferred_tag_names,
     db,
     derived::delete_track_derived_files,
-    files::inode,
+    files::{can_write, inode},
     hls::prewarm_track_hls,
     media::{apply_audio_update, extract_cover, read_metadata, AudioUpdate, MediaMetadata},
     models::{Track, TrackDto},
@@ -60,7 +60,10 @@ pub(super) async fn upsert_path_with_snapshot(
         title_override.is_some() || artist_override.is_some() || metadata.has_artist;
     let title = normalize_text(&title_override.unwrap_or(metadata.title));
     let artist = normalize_artists(&artist_override.unwrap_or(metadata.artist));
-    let target_path = if can_broadly_rename {
+    let writable = can_write(&state.music_dir).await;
+    let target_path = if !writable {
+        None
+    } else if can_broadly_rename {
         generated_filename_path(path, &artist, &title)?
     } else {
         normalized_artist_filename(path, &artist, &title)?
@@ -78,7 +81,7 @@ pub(super) async fn upsert_path_with_snapshot(
             cover_jpeg_path: None,
             remove_section: None,
             target_path: target_path.as_deref(),
-            standardize_tags: true,
+            standardize_tags: writable,
             update_mtime: true,
         },
     )
@@ -114,7 +117,6 @@ pub(super) async fn upsert_path_with_snapshot(
         has_cover: false,
         inode: inode(&snapshot.meta),
         file_signature: Some(snapshot.file_signature),
-        content_hash: snapshot.content_hash,
         processing_status: "COMPLETE".into(),
         last_error: None,
         tags: Vec::new(),
@@ -141,24 +143,16 @@ pub(super) async fn normalize_existing_track(
     let _guard = state.mutation_lock(format!("track:{}", track.id)).await;
     let title = normalize_text(&track.title);
     let artist = normalize_artists(&track.artist);
-    let target_path = match normalized_artist_filename(path, &artist, &title)? {
-        Some(path) => Some(path),
-        None => {
-            let target = generated_filename_path(path, &artist, &title)?;
-            if target.is_some()
-                && matches!(read_metadata(path).await, Ok(metadata) if metadata.has_artist)
-            {
-                target
-            } else {
-                None
-            }
-        }
-    };
+    // Preserve saved filename choices; only normalize equivalent filename formatting.
+    let target_path = normalized_artist_filename(path, &artist, &title)?;
     let target_path = match target_path {
         Some(path) if !fs::try_exists(&path).await? => Some(path),
         _ => None,
     };
     if title == track.title && artist == track.artist && target_path.is_none() {
+        return Ok(None);
+    }
+    if !can_write(&state.music_dir).await {
         return Ok(None);
     }
     let update = apply_audio_update(
@@ -179,20 +173,24 @@ pub(super) async fn normalize_existing_track(
     let snapshot = file_snapshot(&path).await?;
     let old_id = track.id.clone();
     let mut track = track.clone();
-    track.id = snapshot.content_hash.clone();
+    track.id = snapshot.content_hash;
     track.title = title;
     track.artist = artist;
     track.file_path = path.to_string_lossy().to_string();
     track.updated_at = snapshot.mtime;
     track.inode = inode(&snapshot.meta);
     track.file_signature = Some(snapshot.file_signature);
-    track.content_hash = snapshot.content_hash;
     if track.has_cover {
         track.has_cover = extract_cover(&path, &state.covers_dir, &track.id)
             .await
             .unwrap_or(false);
     }
-    db::save_track(state, &old_id, &track).await?;
+    let tag_names = track
+        .tags
+        .iter()
+        .map(|tag| tag.name.clone())
+        .collect::<Vec<_>>();
+    track.tags = db::save_track(state, &old_id, &track, &tag_names, false).await?;
     if old_id != track.id {
         delete_track_derived_files(state, &old_id).await;
     }

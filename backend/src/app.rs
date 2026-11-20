@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use axum::{
-    extract::Request,
+    extract::{DefaultBodyLimit, Request},
     http::{header, HeaderValue, Method},
     middleware::{self, Next},
     response::Response,
@@ -31,7 +31,8 @@ use crate::{
     time::now,
     tracks::{
         delete_track, get_cover_original, get_cover_small, get_cut_info, get_cut_preview,
-        get_errored_tracks, get_tracks, requeue_track, update_track, upload_track,
+        get_errored_tracks, get_tracks, requeue_track, update_track, upload_body_limit,
+        upload_track,
     },
 };
 
@@ -54,21 +55,18 @@ pub fn app(state: AppState) -> Router {
         .route("/api/v1/tracks", get(get_tracks))
         .route("/api/v1/artwork/search", get(search_artwork))
         .route("/api/v1/artwork/search/stream", get(stream_artwork))
-        .route("/api/v1/tracks/upload", post(upload_track))
+        .route(
+            "/api/v1/tracks/upload",
+            post(upload_track).layer(DefaultBodyLimit::max(upload_body_limit())),
+        )
         .route("/api/v1/tracks/{id}/cut-info", get(get_cut_info))
         .route("/api/v1/tracks/{id}/cut-preview", post(get_cut_preview))
         .route(
             "/api/v1/tracks/{id}",
             patch(update_track).delete(delete_track),
         )
-        .route(
-            "/api/v1/tracks/{id}/hls/{cache_key}/index.m3u8",
-            get(get_hls_playlist),
-        )
-        .route(
-            "/api/v1/tracks/{id}/hls/{cache_key}/{segment}",
-            get(get_hls_segment),
-        )
+        .route("/api/v1/tracks/{id}/hls/index.m3u8", get(get_hls_playlist))
+        .route("/api/v1/tracks/{id}/hls/{segment}", get(get_hls_segment))
         .route(
             "/api/v1/tracks/{id}/covers/small.webp",
             get(get_cover_small),

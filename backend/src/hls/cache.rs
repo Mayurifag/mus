@@ -22,7 +22,7 @@ pub(crate) async fn prewarm_track_hls(state: &AppState, track: &Track) {
     {
         return;
     }
-    if let Err(error) = ensure_hls_cache(state, track, &track.content_hash).await {
+    if let Err(error) = ensure_hls_cache(state, track).await {
         let filename = Path::new(&track.file_path)
             .file_name()
             .and_then(|value| value.to_str())
@@ -31,28 +31,18 @@ pub(crate) async fn prewarm_track_hls(state: &AppState, track: &Track) {
     }
 }
 
-pub(super) async fn ensure_hls_cache(
-    state: &AppState,
-    track: &Track,
-    cache_key: &str,
-) -> Result<PathBuf> {
-    let dir = hls_cache_dir(state, &track.id, cache_key);
+pub(super) async fn ensure_hls_cache(state: &AppState, track: &Track) -> Result<PathBuf> {
+    let dir = hls_cache_dir(state, &track.id);
     if hls_complete(&dir).await {
-        prune_stale_hls_cache(state, &track.id, cache_key).await;
         return Ok(dir);
     }
 
-    let _guard = state
-        .mutation_lock(format!("hls:{}:{cache_key}", track.id))
-        .await;
+    let _guard = state.mutation_lock(format!("hls:{}", track.id)).await;
     if hls_complete(&dir).await {
-        prune_stale_hls_cache(state, &track.id, cache_key).await;
         return Ok(dir);
     }
 
-    prune_stale_hls_cache(state, &track.id, cache_key).await;
     generate_hls(track, &dir).await?;
-    prune_stale_hls_cache(state, &track.id, cache_key).await;
     Ok(dir)
 }
 
@@ -163,28 +153,6 @@ async fn nonempty_file(path: &Path) -> bool {
         .is_ok_and(|meta| meta.is_file() && meta.len() > 0)
 }
 
-pub(super) fn hls_cache_dir(state: &AppState, id: &str, cache_key: &str) -> PathBuf {
-    state
-        .data_dir
-        .join(".cache")
-        .join("hls")
-        .join(id)
-        .join(cache_key)
-}
-
-async fn prune_stale_hls_cache(state: &AppState, id: &str, current_cache_key: &str) {
-    let root = state.data_dir.join(".cache").join("hls").join(id);
-    let Ok(mut entries) = fs::read_dir(root).await else {
-        return;
-    };
-    while let Ok(Some(entry)) = entries.next_entry().await {
-        let path = entry.path();
-        if path
-            .file_name()
-            .and_then(|value| value.to_str())
-            .is_some_and(|value| value != current_cache_key)
-        {
-            let _ = fs::remove_dir_all(path).await;
-        }
-    }
+pub(super) fn hls_cache_dir(state: &AppState, id: &str) -> PathBuf {
+    state.data_dir.join(".cache/hls").join(id)
 }

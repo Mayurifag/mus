@@ -23,7 +23,7 @@ it("keeps the loaded library when an event-triggered refresh fails", async () =>
     updated_at: 1,
     cover_small_url: null,
     cover_original_url: null,
-    hls_url: "/api/v1/tracks/existing/hls/1/index.m3u8",
+    hls_url: "/api/v1/tracks/existing/hls/index.m3u8",
   };
   trackStore.setTracks([track]);
   const log = vi.spyOn(console, "error").mockImplementation(() => {});

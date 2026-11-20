@@ -24,7 +24,7 @@ function track(id: string): Track {
     has_cover: false,
     cover_small_url: null,
     cover_original_url: null,
-    hls_url: `/api/v1/tracks/${id}/hls/${id}/index.m3u8`,
+    hls_url: `/api/v1/tracks/${id}/hls/index.m3u8`,
   };
 }
 

@@ -80,7 +80,7 @@ describe("RightSidebar", () => {
       has_cover: false,
       cover_small_url: null,
       cover_original_url: null,
-      hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
+      hls_url: "/api/v1/tracks/1/hls/index.m3u8",
     };
 
     const mockTrack2: Track = {
@@ -93,7 +93,7 @@ describe("RightSidebar", () => {
       has_cover: false,
       cover_small_url: null,
       cover_original_url: null,
-      hls_url: "/api/v1/tracks/2/hls/2/index.m3u8",
+      hls_url: "/api/v1/tracks/2/hls/index.m3u8",
     };
 
     // Enable shuffle and set up play history with enough tracks
@@ -122,7 +122,7 @@ describe("RightSidebar", () => {
         has_cover: false,
         cover_small_url: null,
         cover_original_url: null,
-        hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
+        hls_url: "/api/v1/tracks/1/hls/index.m3u8",
       },
       {
         id: "2",
@@ -134,7 +134,7 @@ describe("RightSidebar", () => {
         has_cover: false,
         cover_small_url: null,
         cover_original_url: null,
-        hls_url: "/api/v1/tracks/2/hls/2/index.m3u8",
+        hls_url: "/api/v1/tracks/2/hls/index.m3u8",
       },
     ];
 
@@ -162,7 +162,7 @@ describe("RightSidebar", () => {
         has_cover: false,
         cover_small_url: null,
         cover_original_url: null,
-        hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
+        hls_url: "/api/v1/tracks/1/hls/index.m3u8",
         tags: [{ name: "right-version", display_name: "Right version" }],
       },
     ];
@@ -193,7 +193,7 @@ describe("RightSidebar", () => {
         has_cover: false,
         cover_small_url: null,
         cover_original_url: null,
-        hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
+        hls_url: "/api/v1/tracks/1/hls/index.m3u8",
         tags: [],
       },
     ]);
@@ -215,7 +215,7 @@ describe("RightSidebar", () => {
         has_cover: false,
         cover_small_url: null,
         cover_original_url: null,
-        hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
+        hls_url: "/api/v1/tracks/1/hls/index.m3u8",
       },
     ];
 
@@ -241,7 +241,7 @@ describe("RightSidebar", () => {
         has_cover: false,
         cover_small_url: null,
         cover_original_url: null,
-        hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
+        hls_url: "/api/v1/tracks/1/hls/index.m3u8",
       },
     ];
 

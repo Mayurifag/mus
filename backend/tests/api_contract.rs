@@ -95,7 +95,7 @@ impl TestApp {
     ) {
         let conn = self.state.db.lock().unwrap();
         conn.execute(
-            "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,has_cover,content_hash,processing_status,last_error) VALUES (?1,?2,?3,?4,?5,1000,2000,?6,?1,?7,?8)",
+            "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,has_cover,processing_status,last_error) VALUES (?1,?2,?3,?4,?5,1000,2000,?6,?7,?8)",
             params![id, title, artist, 180, file_path, has_cover, status, status.eq("ERROR").then_some("{\"message\":\"boom\"}")],
         )
         .unwrap();
@@ -214,6 +214,221 @@ async fn gzip_skips_artwork_search_stream() {
 }
 
 #[tokio::test]
+async fn missing_static_assets_are_not_cached_as_spa_pages() {
+    let test_app = TestApp::new();
+    let static_dir = test_app._tmp.path().join("static");
+    fs::create_dir(&static_dir).unwrap();
+    fs::write(static_dir.join("index.html"), "<html>mus</html>").unwrap();
+    let mut state = test_app.state.clone();
+    state.static_dir = Some(static_dir);
+    let router = app(state);
+    for path in ["/_app/immutable/missing.js", "/_app/version.json"] {
+        let response = router
+            .clone()
+            .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
+        assert!(!response.headers().contains_key(header::CACHE_CONTROL));
+    }
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/some/spa/route")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers()[header::CACHE_CONTROL], "no-cache");
+}
+
+#[tokio::test]
+async fn file_responses_honor_range_and_conditional_requests() {
+    let test_app = TestApp::new();
+    let source = test_app.state.music_dir.join("song.mp3");
+    fs::write(&source, b"audio").unwrap();
+    test_app.insert_track(
+        TRACK_ID,
+        "Song",
+        "Artist",
+        source.to_str().unwrap(),
+        true,
+        "COMPLETE",
+    );
+    let hls = test_app
+        .state
+        .data_dir
+        .join(format!(".cache/hls/{TRACK_ID}"));
+    fs::create_dir_all(&hls).unwrap();
+    fs::write(hls.join("init.mp4"), b"0123456789").unwrap();
+    fs::write(
+        test_app
+            .state
+            .covers_dir
+            .join(format!("{TRACK_ID}_small.webp")),
+        b"0123456789",
+    )
+    .unwrap();
+    for path in [
+        format!("/api/v1/tracks/{TRACK_ID}/hls/init.mp4"),
+        format!("/api/v1/tracks/{TRACK_ID}/covers/small.webp"),
+    ] {
+        let response = test_app
+            .router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(&path)
+                    .header(header::RANGE, "bytes=2-5")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT, "{path}");
+        assert_eq!(response.headers()[header::CONTENT_RANGE], "bytes 2-5/10");
+        let modified = response.headers()[header::LAST_MODIFIED].clone();
+        assert_eq!(
+            to_bytes(response.into_body(), usize::MAX).await.unwrap(),
+            &b"2345"[..]
+        );
+        let response = test_app
+            .router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(&path)
+                    .header(header::IF_MODIFIED_SINCE, modified)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_MODIFIED, "{path}");
+    }
+}
+
+#[tokio::test]
+async fn uploads_larger_than_axums_default_limit_reach_field_validation() {
+    let app = TestApp::new();
+    let boundary = "mus-large-upload";
+    let mut body = format!("--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"song.mp3\"\r\n\r\n").into_bytes();
+    body.resize(body.len() + 3 * 1024 * 1024, b'a');
+    body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+    let response = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/v1/tracks/upload")
+                .header(
+                    header::CONTENT_TYPE,
+                    format!("multipart/form-data; boundary={boundary}"),
+                )
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        body_json(response).await,
+        json!({"detail": "Missing title"})
+    );
+    assert!(fs::read_dir(app.state.data_dir.join(".cache"))
+        .unwrap()
+        .all(|entry| !entry.unwrap().path().is_file()));
+}
+
+#[tokio::test]
+async fn malformed_multipart_is_a_client_error() {
+    let app = TestApp::new();
+    let response = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/v1/tracks/upload")
+                .header(header::CONTENT_TYPE, "multipart/form-data; boundary=mus")
+                .body(Body::from(
+                    "--mus\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nunfinished",
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn successful_upload_announces_the_registered_track() {
+    let app = TestApp::new();
+    let source = app._tmp.path().join("upload.wav");
+    write_silent_wav(&source);
+    let boundary = "mus-upload-event";
+    let mut body = format!("--{boundary}\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nSong\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"artist\"\r\n\r\nArtist\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"song.wav\"\r\n\r\n").into_bytes();
+    body.extend_from_slice(&fs::read(source).unwrap());
+    body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+    let mut events = app.state.events.subscribe();
+    let response = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/v1/tracks/upload")
+                .header(
+                    header::CONTENT_TYPE,
+                    format!("multipart/form-data; boundary={boundary}"),
+                )
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let event = events.try_recv().unwrap();
+    assert_eq!(event.action_key.as_deref(), Some("track_added"));
+    let track = mus_backend::db::list_tracks(&app.state)
+        .await
+        .unwrap()
+        .pop()
+        .unwrap();
+    assert_eq!(event.action_payload.unwrap()["id"], track.id);
+}
+
+#[tokio::test]
+async fn lagged_event_streams_close_so_reconnection_can_refresh_the_library() {
+    let app = TestApp::new();
+    let response = app
+        .request(Method::GET, "/api/v1/events/track-updates", Body::empty())
+        .await;
+    for _ in 0..200 {
+        app.state
+            .events
+            .send(mus_backend::models::MusEvent {
+                message_to_show: None,
+                message_level: None,
+                action_key: Some("track_added".into()),
+                action_payload: None,
+            })
+            .unwrap();
+    }
+    let mut stream = response.into_body().into_data_stream();
+    assert!(tokio::time::timeout(
+        std::time::Duration::from_secs(1),
+        futures_util::StreamExt::next(&mut stream),
+    )
+    .await
+    .unwrap()
+    .is_none());
+}
+
+#[tokio::test]
 async fn gzip_skips_event_streams_and_hls_audio() {
     let app = TestApp::new();
     let events = app.get_with_gzip("/api/v1/events/track-updates").await;
@@ -233,19 +448,12 @@ async fn gzip_skips_event_streams_and_hls_audio() {
         false,
         "COMPLETE",
     );
-    let hls_dir = app
-        .state
-        .data_dir
-        .join(".cache/hls")
-        .join(TRACK_ID)
-        .join(TRACK_ID);
+    let hls_dir = app.state.data_dir.join(".cache/hls").join(TRACK_ID);
     fs::create_dir_all(&hls_dir).unwrap();
     let audio = b"audio data".repeat(10);
     fs::write(hls_dir.join("init.mp4"), &audio).unwrap();
     let response = app
-        .get_with_gzip(&format!(
-            "/api/v1/tracks/{TRACK_ID}/hls/{TRACK_ID}/init.mp4"
-        ))
+        .get_with_gzip(&format!("/api/v1/tracks/{TRACK_ID}/hls/init.mp4"))
         .await;
     assert_eq!(response.status(), StatusCode::OK);
     assert!(!response.headers().contains_key(header::CONTENT_ENCODING));
@@ -421,15 +629,15 @@ async fn tracks_list_contract() {
     assert!(body[0].get("file_path").is_none());
     assert_eq!(
         body[0]["cover_small_url"],
-        format!("/api/v1/tracks/{TRACK_ID}/covers/small.webp?v={TRACK_ID}")
+        format!("/api/v1/tracks/{TRACK_ID}/covers/small.webp")
     );
     assert_eq!(
         body[0]["cover_original_url"],
-        format!("/api/v1/tracks/{TRACK_ID}/covers/original.webp?v={TRACK_ID}")
+        format!("/api/v1/tracks/{TRACK_ID}/covers/original.webp")
     );
     assert_eq!(
         body[0]["hls_url"],
-        format!("/api/v1/tracks/{TRACK_ID}/hls/{TRACK_ID}/index.m3u8")
+        format!("/api/v1/tracks/{TRACK_ID}/hls/index.m3u8")
     );
     assert_eq!(body[0]["tags"], json!([]));
 }
@@ -685,6 +893,153 @@ async fn editing_a_download_keeps_its_selected_categories() {
 }
 
 #[tokio::test]
+async fn metadata_edits_publish_the_final_content_hash_and_preserve_references() {
+    for rename_file in [false, true] {
+        let app = TestApp::new();
+        let path = app.state.music_dir.join("song.wav");
+        write_silent_wav(&path);
+        app.insert_track(
+            TRACK_ID,
+            "Song",
+            "Artist",
+            path.to_str().unwrap(),
+            false,
+            "COMPLETE",
+        );
+        app.set_tags(TRACK_ID, &["ost"]);
+        app.json(
+            Method::POST,
+            "/api/v1/player/state",
+            json!({
+                "current_track_id": TRACK_ID, "progress_seconds": 0, "volume_level": 1,
+                "is_muted": false, "is_playing": false, "is_shuffle": false, "is_repeat": false
+            }),
+        )
+        .await;
+        let mut events = app.state.events.subscribe();
+        let response = app
+            .json(
+                Method::PATCH,
+                &format!("/api/v1/tracks/{TRACK_ID}"),
+                json!({"title": "Edited", "rename_file": rename_file, "tags": ["ost"]}),
+            )
+            .await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let event = tokio::time::timeout(std::time::Duration::from_secs(10), events.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            event.action_key.as_deref(),
+            Some("track_updated"),
+            "{event:?}"
+        );
+        let payload = event.action_payload.unwrap();
+        let final_path = if rename_file {
+            app.state.music_dir.join("Artist - Edited.wav")
+        } else {
+            path
+        };
+        let hash = mus_backend::files::file_content_hash(&final_path).unwrap();
+        assert_eq!(payload["previous_id"], TRACK_ID);
+        assert_eq!(payload["id"], hash);
+        assert_eq!(
+            payload["filename"],
+            final_path.file_name().unwrap().to_str().unwrap()
+        );
+        let track = mus_backend::db::get_track(&app.state, &hash)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(track.id, hash);
+        assert_eq!(track.added_at, 1000);
+        assert_eq!(track.tags[0].name, "ost");
+        let player = app
+            .request(Method::GET, "/api/v1/player/state", Body::empty())
+            .await;
+        assert_eq!(body_json(player).await["current_track_id"], hash);
+        fs::copy(&final_path, app.state.music_dir.join("copy.wav")).unwrap();
+        for _ in 0..2 {
+            mus_backend::scanner::scan_music_dir(app.state.clone())
+                .await
+                .unwrap();
+            assert_eq!(
+                mus_backend::db::list_tracks(&app.state)
+                    .await
+                    .unwrap()
+                    .len(),
+                1
+            );
+            assert_eq!(
+                mus_backend::db::get_track(&app.state, &hash)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .file_path,
+                final_path.to_string_lossy()
+            );
+            assert!(final_path.is_file());
+        }
+    }
+}
+
+#[tokio::test]
+async fn duplicate_producing_metadata_edits_preserve_the_original_file_and_library() {
+    let app = TestApp::new();
+    let first_path = app.state.music_dir.join("Artist - Song A.wav");
+    let second_path = app.state.music_dir.join("Artist - Song B.wav");
+    for (path, title) in [(&first_path, "Song A"), (&second_path, "Song B")] {
+        write_silent_wav(path);
+        mus_backend::media::write_audio_tags(
+            path,
+            &app.state.data_dir.join(".cache"),
+            title,
+            "Artist",
+        )
+        .await
+        .unwrap();
+    }
+    mus_backend::scanner::scan_music_dir(app.state.clone())
+        .await
+        .unwrap();
+    let id = mus_backend::files::file_content_hash(&first_path).unwrap();
+    let original_bytes = fs::read(&first_path).unwrap();
+    let original_mtime = fs::metadata(&first_path).unwrap().modified().unwrap();
+    app.set_tags(&id, &["ost"]);
+    let mut events = app.state.events.subscribe();
+    let response = app
+        .json(
+            Method::PATCH,
+            &format!("/api/v1/tracks/{id}"),
+            json!({"title": "Song B", "rename_file": false}),
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let event = tokio::time::timeout(std::time::Duration::from_secs(10), events.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(event.action_key.as_deref(), Some("track_update_failed"));
+    assert_eq!(fs::read(&first_path).unwrap(), original_bytes);
+    assert_eq!(
+        fs::metadata(&first_path).unwrap().modified().unwrap(),
+        original_mtime
+    );
+    assert!(event.action_payload.unwrap()["error"]
+        .as_str()
+        .unwrap()
+        .contains("duplicate"));
+    mus_backend::scanner::scan_music_dir(app.state.clone())
+        .await
+        .unwrap();
+    let tracks = mus_backend::db::list_tracks(&app.state).await.unwrap();
+    assert_eq!(tracks.len(), 2);
+    let original = tracks.iter().find(|track| track.id == id).unwrap();
+    assert_eq!(original.title, "Song A");
+    assert_eq!(original.tags[0].name, "ost");
+}
+
+#[tokio::test]
 async fn system_info_reports_missing_music_directory() {
     let app = TestApp::new();
     fs::remove_dir(app.state.music_dir.clone()).unwrap();
@@ -829,12 +1184,9 @@ async fn hls_playlist_rebuilds_missing_or_empty_media() {
         false,
         "COMPLETE",
     );
-    let cache = app
-        .state
-        .data_dir
-        .join(format!(".cache/hls/{TRACK_ID}/{TRACK_ID}"));
+    let cache = app.state.data_dir.join(format!(".cache/hls/{TRACK_ID}"));
     fs::create_dir_all(&cache).unwrap();
-    let url = format!("/api/v1/tracks/{TRACK_ID}/hls/{TRACK_ID}/index.m3u8");
+    let url = format!("/api/v1/tracks/{TRACK_ID}/hls/index.m3u8");
 
     for incomplete_file in ["segment-00001.m4s", "segment-00000.m4s", "init.mp4"] {
         // A cache can lose a segment while another remains, or retain a truncated file.
@@ -858,7 +1210,7 @@ async fn hls_playlist_rebuilds_missing_or_empty_media() {
             let media = app
                 .request(
                     Method::GET,
-                    &format!("/api/v1/tracks/{TRACK_ID}/hls/{TRACK_ID}/{name}"),
+                    &format!("/api/v1/tracks/{TRACK_ID}/hls/{name}"),
                     Body::empty(),
                 )
                 .await;
@@ -875,7 +1227,7 @@ async fn tracks_hls_contract() {
     let missing = app
         .request(
             Method::GET,
-            &format!("/api/v1/tracks/{MISSING_TRACK_ID}/hls/2001/index.m3u8"),
+            &format!("/api/v1/tracks/{MISSING_TRACK_ID}/hls/index.m3u8"),
             Body::empty(),
         )
         .await;
@@ -924,7 +1276,7 @@ async fn tracks_hls_contract() {
     let playlist = app
         .request(
             Method::GET,
-            &format!("/api/v1/tracks/{TRACK_ID}/hls/{TRACK_ID}/index.m3u8"),
+            &format!("/api/v1/tracks/{TRACK_ID}/hls/index.m3u8"),
             Body::empty(),
         )
         .await;
@@ -943,7 +1295,7 @@ async fn tracks_hls_contract() {
     let init = app
         .request(
             Method::GET,
-            &format!("/api/v1/tracks/{TRACK_ID}/hls/{TRACK_ID}/init.mp4"),
+            &format!("/api/v1/tracks/{TRACK_ID}/hls/init.mp4"),
             Body::empty(),
         )
         .await;
@@ -953,7 +1305,7 @@ async fn tracks_hls_contract() {
     let segment = app
         .request(
             Method::GET,
-            &format!("/api/v1/tracks/{TRACK_ID}/hls/{TRACK_ID}/segment-00000.m4s"),
+            &format!("/api/v1/tracks/{TRACK_ID}/hls/segment-00000.m4s"),
             Body::empty(),
         )
         .await;
@@ -967,7 +1319,7 @@ async fn tracks_hls_contract() {
     let invalid_segment = app
         .request(
             Method::GET,
-            &format!("/api/v1/tracks/{TRACK_ID}/hls/{TRACK_ID}/not-a-segment.ts"),
+            &format!("/api/v1/tracks/{TRACK_ID}/hls/not-a-segment.ts"),
             Body::empty(),
         )
         .await;

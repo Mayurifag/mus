@@ -1,11 +1,10 @@
 use std::{
     path::{Path, PathBuf},
     process::Stdio,
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 
 use anyhow::{anyhow, Result};
-use filetime::{set_file_mtime, FileTime};
 use tempfile::TempPath;
 use tokio::process::Command;
 
@@ -49,6 +48,52 @@ pub struct AudioUpdateResult {
     pub content_changed: bool,
 }
 
+pub(crate) struct PreparedAudioUpdate<'a> {
+    original: &'a Path,
+    destination: &'a Path,
+    cache_dir: &'a Path,
+    modified: Option<SystemTime>,
+    staged: Option<TempPath>,
+}
+
+impl PreparedAudioUpdate<'_> {
+    pub(crate) fn staged_path(&self) -> Option<&Path> {
+        self.staged.as_deref()
+    }
+
+    pub(crate) async fn publish(self) -> Result<AudioUpdateResult> {
+        let path = self.destination.to_path_buf();
+        let content_changed = self.staged.is_some();
+        let changed = content_changed || self.original != self.destination;
+        if changed {
+            let original = self.original.to_path_buf();
+            let destination = path.clone();
+            let cache_dir = self.cache_dir.to_path_buf();
+            let modified = self.modified;
+            let staged = self.staged;
+            tokio::task::spawn_blocking(move || {
+                if let Some(staged) = staged {
+                    if let Some(modified) = modified {
+                        std::fs::set_times(
+                            &staged,
+                            std::fs::FileTimes::new().set_modified(modified),
+                        )?;
+                    }
+                    publish_updated_file(&staged, &original, &destination, modified, &cache_dir)
+                } else {
+                    move_path_and_touch(&original, &destination, modified)
+                }
+            })
+            .await??;
+        }
+        Ok(AudioUpdateResult {
+            path,
+            changed,
+            content_changed,
+        })
+    }
+}
+
 /// Stages edits outside the music directory and publishes them with recovery backup.
 ///
 /// In-place rewrites preserve the original inode/xattrs. Cross-device moves copy
@@ -86,6 +131,18 @@ pub async fn apply_audio_update(
     cache_dir: &Path,
     update: AudioUpdate<'_>,
 ) -> Result<AudioUpdateResult> {
+    prepare_audio_update(path, cache_dir, update)
+        .await?
+        .publish()
+        .await
+}
+
+pub(crate) async fn prepare_audio_update<'a>(
+    path: &'a Path,
+    cache_dir: &'a Path,
+    update: AudioUpdate<'a>,
+) -> Result<PreparedAudioUpdate<'a>> {
+    let destination = update.target_path.unwrap_or(path);
     let title = update.title.map(normalize_text);
     let artist = update.artist.map(normalize_artists);
     let update = AudioUpdate {
@@ -97,8 +154,6 @@ pub async fn apply_audio_update(
         update_mtime: update.update_mtime,
         remove_section: update.remove_section,
     };
-    let destination = update.target_path.unwrap_or(path);
-    let path_changed = destination != path;
     let standardize_id3 = if update.standardize_tags {
         let path = path.to_path_buf();
         tokio::task::spawn_blocking(move || needs_standardization(&path)).await??
@@ -111,44 +166,24 @@ pub async fn apply_audio_update(
         || update.remove_section.is_some()
         || standardize_id3;
 
-    if !path_changed && !media_changed {
-        return Ok(AudioUpdateResult {
-            path: path.to_path_buf(),
-            changed: false,
-            content_changed: false,
-        });
-    }
-
-    let modified = update.update_mtime.then(FileTime::now);
-    if media_changed {
-        let tmp = if let Some(cut) = update.remove_section {
+    let modified = update.update_mtime.then(SystemTime::now);
+    let staged = if media_changed {
+        Some(if let Some(cut) = update.remove_section {
             cut_audio_to_temp(path, cache_dir, &update, cut).await?
         } else if supports_id3(path) {
             rewrite_to_temp(path, cache_dir, &update).await?
         } else {
             rewrite_audio_to_temp(path, cache_dir, &update).await?
-        };
-        let original = path.to_path_buf();
-        let destination = destination.to_path_buf();
-        let cache_dir = cache_dir.to_path_buf();
-        tokio::task::spawn_blocking(move || {
-            if let Some(modified) = modified {
-                set_file_mtime(&tmp, modified)?;
-            }
-            publish_updated_file(&tmp, &original, &destination, modified, &cache_dir)
         })
-        .await??;
     } else {
-        let source = path.to_path_buf();
-        let destination = destination.to_path_buf();
-        tokio::task::spawn_blocking(move || move_path_and_touch(&source, &destination, modified))
-            .await??;
-    }
-
-    Ok(AudioUpdateResult {
-        path: destination.to_path_buf(),
-        changed: true,
-        content_changed: media_changed,
+        None
+    };
+    Ok(PreparedAudioUpdate {
+        original: path,
+        destination,
+        cache_dir,
+        modified,
+        staged,
     })
 }
 

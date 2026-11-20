@@ -58,15 +58,3 @@ export interface MusEvent {
 export interface DownloadFailedPayload {
   error: string;
 }
-
-export interface DownloadProgress {
-  percent: number;
-  speed: string;
-  eta: string;
-}
-
-export interface DownloadProgressPayload {
-  percent: number;
-  speed: string;
-  eta: string;
-}

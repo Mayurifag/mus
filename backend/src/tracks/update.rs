@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use axum::{
     extract::{Path as AxumPath, State},
@@ -16,7 +16,7 @@ use crate::{
     files::{can_write, file_content_hash, file_signature, inode},
     hls::prewarm_track_hls,
     media::{
-        apply_audio_update, extract_cover, read_cut_source, read_metadata, validate_cut,
+        extract_cover, prepare_audio_update, read_cut_source, read_metadata, validate_cut,
         AudioUpdate,
     },
     models::{TrackDto, TrackUpdate},
@@ -110,54 +110,7 @@ async fn apply_track_update(
     let artwork_url = update.artwork_url.filter(|url| !url.trim().is_empty());
     let cache_dir = state.data_dir.join(".cache");
     if only_tags_changed {
-        db::set_track_tags(state, &track.id, &new_tags, finalize_tags).await?;
-        return get_track(state, &track.id)
-            .await?
-            .map(TrackDto::from)
-            .ok_or_else(|| AppError::not_found("Track not found"));
-    }
-
-    if artwork_url.is_none() && update.remove_section.is_none() {
-        if rename_file && new_path != Path::new(&track.file_path) {
-            let update_result = apply_audio_update(
-                Path::new(&track.file_path),
-                &cache_dir,
-                AudioUpdate {
-                    title: None,
-                    artist: None,
-                    cover_jpeg_path: None,
-                    target_path: Some(new_path.as_path()),
-                    standardize_tags: false,
-                    update_mtime: true,
-                    remove_section: None,
-                },
-            )
-            .await?;
-            new_path = update_result.path;
-        }
-
-        track.file_path = new_path.to_string_lossy().to_string();
-        track.title = new_title;
-        track.artist = new_artist;
-        let file_meta = fs::metadata(&new_path).await?;
-        track.updated_at = file_meta
-            .modified()
-            .ok()
-            .and_then(system_time_secs)
-            .unwrap_or_else(now);
-        track.inode = inode(&file_meta);
-        track.file_signature = Some(file_signature(&file_meta));
-
-        save_track(state, &old_id, &track).await?;
-        db::set_track_tags(state, &track.id, &new_tags, finalize_tags).await?;
-        track.tags = get_track(state, &track.id)
-            .await?
-            .map(|track| track.tags)
-            .unwrap_or_default();
-
-        if metadata_changed {
-            spawn_audio_tag_sync(state.clone(), track.id.clone());
-        }
+        track.tags = db::set_track_tags(state, &track.id, &new_tags, finalize_tags).await?;
         return Ok(track.into());
     }
 
@@ -169,7 +122,7 @@ async fn apply_track_update(
 
     let target_path =
         (rename_file && new_path != Path::new(&track.file_path)).then_some(new_path.as_path());
-    let update_result = apply_audio_update(
+    let prepared = prepare_audio_update(
         Path::new(&track.file_path),
         &cache_dir,
         AudioUpdate {
@@ -183,6 +136,21 @@ async fn apply_track_update(
         },
     )
     .await?;
+    let content_hash = if let Some(path) = prepared.staged_path() {
+        let path = path.to_path_buf();
+        let hash = tokio::task::spawn_blocking(move || file_content_hash(&path))
+            .await
+            .map_err(anyhow::Error::from)??;
+        if hash != old_id && get_track(state, &hash).await?.is_some() {
+            return Err(AppError::conflict(
+                "This edit would duplicate another track",
+            ));
+        }
+        Some(hash)
+    } else {
+        None
+    };
+    let update_result = prepared.publish().await?;
     drop(jpeg_path);
     new_path = update_result.path;
 
@@ -202,13 +170,8 @@ async fn apply_track_update(
     }
     track.inode = inode(&file_meta);
     track.file_signature = Some(file_signature(&file_meta));
-    if update_result.content_changed {
-        let hash_path = new_path.clone();
-        let content_hash = tokio::task::spawn_blocking(move || file_content_hash(&hash_path))
-            .await
-            .map_err(anyhow::Error::from)??;
-        track.id = content_hash.clone();
-        track.content_hash = content_hash;
+    if let Some(content_hash) = content_hash {
+        track.id = content_hash;
     }
     if old_id != track.id {
         delete_track_derived_files(state, &old_id).await;
@@ -218,12 +181,7 @@ async fn apply_track_update(
             .await
             .unwrap_or(false);
     }
-    save_track(state, &old_id, &track).await?;
-    db::set_track_tags(state, &track.id, &new_tags, finalize_tags).await?;
-    track.tags = get_track(state, &track.id)
-        .await?
-        .map(|track| track.tags)
-        .unwrap_or_default();
+    track.tags = save_track(state, &old_id, &track, &new_tags, finalize_tags).await?;
     if update_result.content_changed {
         spawn_hls_prewarm(state.clone(), track.clone());
     }
@@ -233,55 +191,5 @@ async fn apply_track_update(
 fn spawn_hls_prewarm(state: AppState, track: crate::models::Track) {
     tokio::spawn(async move {
         prewarm_track_hls(&state, &track).await;
-    });
-}
-
-fn spawn_audio_tag_sync(state: AppState, track_id: String) {
-    tokio::spawn(async move {
-        let _guard = state.mutation_lock(format!("track:{track_id}")).await;
-        let Ok(Some(track)) = get_track(&state, &track_id).await else {
-            return;
-        };
-        let path = PathBuf::from(&track.file_path);
-        let result = apply_audio_update(
-            &path,
-            &state.data_dir.join(".cache"),
-            AudioUpdate {
-                title: Some(track.title.as_str()),
-                artist: Some(track.artist.as_str()),
-                cover_jpeg_path: None,
-                target_path: None,
-                standardize_tags: false,
-                update_mtime: true,
-                remove_section: None,
-            },
-        )
-        .await;
-        match result {
-            Ok(_) => match fs::metadata(&path).await {
-                Ok(meta) => {
-                    if let Err(error) = db::save_track_file_signature(
-                        &state,
-                        &track_id,
-                        inode(&meta),
-                        &file_signature(&meta),
-                        meta.modified()
-                            .ok()
-                            .and_then(system_time_secs)
-                            .unwrap_or_else(now),
-                    )
-                    .await
-                    {
-                        tracing::warn!(track_id, error = %error, "failed to save audio tag sync signature");
-                    }
-                }
-                Err(error) => {
-                    tracing::warn!(track_id, error = %error, "failed to stat audio tag sync output");
-                }
-            },
-            Err(error) => {
-                tracing::warn!(track_id, error = %error, "failed to sync embedded audio tags");
-            }
-        }
     });
 }

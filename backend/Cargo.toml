@@ -2,7 +2,7 @@
 name = "mus-backend"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.99.1"
+rust-version = "1.100"
 
 [dependencies]
 anyhow = "1.0.104"
@@ -10,9 +10,7 @@ async-stream = "0.3.6"
 axum = { version = "0.8.9", features = ["multipart"] }
 blake3 = "1.8.7"
 futures-util = "0.3.34"
-filetime = "0.2.29"
-id3 = "1.17.3"
-mime_guess = "2.0.5"
+id3 = "1.17.4"
 notify = "8.2.2"
 rusqlite = { version = "0.41.1", features = ["bundled"] }
 rusqlite_migration = "2.7.0"

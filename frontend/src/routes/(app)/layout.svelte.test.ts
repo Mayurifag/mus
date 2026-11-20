@@ -44,7 +44,7 @@ describe("initial app loading", () => {
       has_cover: false,
       cover_small_url: null,
       cover_original_url: null,
-      hls_url: `/api/v1/tracks/${id}/hls/1/index.m3u8`,
+      hls_url: `/api/v1/tracks/${id}/hls/index.m3u8`,
       updated_at: 1,
     });
     vi.stubGlobal(

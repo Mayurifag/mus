@@ -23,7 +23,8 @@ pub async fn track_updates(
                 }
                 Err(broadcast::error::RecvError::Lagged(skipped)) => {
                     tracing::warn!(skipped, "sse track updates lagged");
-                    continue;
+                    // Reconnection refreshes the library after missed updates.
+                    break;
                 }
                 Err(broadcast::error::RecvError::Closed) => {
                     tracing::info!("sse track updates closed");

@@ -1,5 +1,4 @@
-import type { Track } from "$lib/types";
-import type { TrackStoreState } from "$lib/stores/trackStore";
+import type { TrackState } from "$lib/stores/trackStore";
 
 export const calculatePreviousIndex = (
   currentIndex: number,
@@ -11,105 +10,87 @@ export const calculateNextIndex = (
   tracksLength: number,
 ): number => (currentIndex + 1) % tracksLength;
 
-const findTrackIndex = (tracks: Track[], targetTrack: Track): number =>
-  tracks.findIndex((track) => track.id === targetTrack.id);
-
 const moveInHistory = (
-  state: TrackStoreState,
+  state: TrackState,
   newPosition: number,
-): Partial<TrackStoreState> => {
-  const targetTrack = state.playHistory[newPosition];
-  const targetIndex = findTrackIndex(state.tracks, targetTrack);
-
-  if (targetIndex === -1) return {};
-
+): Partial<TrackState> => {
   return {
-    currentTrackIndex: targetIndex,
-    currentTrack: targetTrack,
+    currentTrackId: state.playHistoryIds[newPosition],
     historyPosition: newPosition,
   };
 };
 
 const handleSequentialPreviousWithHistory = (
-  state: TrackStoreState,
-): Partial<TrackStoreState> => {
-  if (state.currentTrackIndex === null) return {};
+  state: TrackState,
+): Partial<TrackState> => {
+  if (state.currentTrackId === null) return {};
 
   const previousIndex = calculatePreviousIndex(
-    state.currentTrackIndex,
+    state.tracks.findIndex((track) => track.id === state.currentTrackId),
     state.tracks.length,
   );
   const previousTrack = state.tracks[previousIndex];
 
   return {
-    currentTrackIndex: previousIndex,
-    currentTrack: previousTrack,
-    playHistory: [previousTrack, state.currentTrack!],
+    currentTrackId: previousTrack.id,
+    playHistoryIds: [previousTrack.id, state.currentTrackId],
     historyPosition: 0,
   };
 };
 
-const extendHistoryBackward = (
-  state: TrackStoreState,
-): Partial<TrackStoreState> => {
-  if (state.currentTrackIndex === null) return {};
+const extendHistoryBackward = (state: TrackState): Partial<TrackState> => {
+  if (state.currentTrackId === null) return {};
 
   const previousIndex = calculatePreviousIndex(
-    state.currentTrackIndex,
+    state.tracks.findIndex((track) => track.id === state.currentTrackId),
     state.tracks.length,
   );
   const previousTrack = state.tracks[previousIndex];
 
   return {
-    currentTrackIndex: previousIndex,
-    currentTrack: previousTrack,
-    playHistory: [previousTrack, ...state.playHistory],
+    currentTrackId: previousTrack.id,
+    playHistoryIds: [previousTrack.id, ...state.playHistoryIds],
     historyPosition: 0,
   };
 };
 
-export const handleShuffleNext = (
-  state: TrackStoreState,
-): Partial<TrackStoreState> => {
-  if (state.historyPosition < state.playHistory.length - 1) {
+export const handleShuffleNext = (state: TrackState): Partial<TrackState> => {
+  if (state.historyPosition < state.playHistoryIds.length - 1) {
     return moveInHistory(state, state.historyPosition + 1);
   }
 
   const availableTracks = state.tracks.filter(
-    (_, i) => i !== state.currentTrackIndex,
+    (track) => track.id !== state.currentTrackId,
   );
   if (availableTracks.length === 0) return {};
 
   const randomIndex = Math.floor(Math.random() * availableTracks.length);
   const selectedTrack = availableTracks[randomIndex];
-  const newIndex = findTrackIndex(state.tracks, selectedTrack);
+  const newHistory = [...state.playHistoryIds];
 
-  const newHistory = [...state.playHistory];
-
-  if (state.currentTrackIndex !== null && state.historyPosition === -1) {
-    newHistory.push(state.tracks[state.currentTrackIndex]);
+  if (state.currentTrackId !== null && state.historyPosition === -1) {
+    newHistory.push(state.currentTrackId);
   }
 
-  newHistory.push(selectedTrack);
+  newHistory.push(selectedTrack.id);
 
   return {
-    currentTrackIndex: newIndex,
-    currentTrack: selectedTrack,
-    playHistory: newHistory,
+    currentTrackId: selectedTrack.id,
+    playHistoryIds: newHistory,
     historyPosition: newHistory.length - 1,
   };
 };
 
 export const handleShufflePrevious = (
-  state: TrackStoreState,
-): Partial<TrackStoreState> => {
+  state: TrackState,
+): Partial<TrackState> => {
   if (state.historyPosition > 0) {
     return moveInHistory(state, state.historyPosition - 1);
   }
 
   const isMinimalHistory =
-    state.playHistory.length === 0 ||
-    (state.playHistory.length === 1 && state.historyPosition === 0);
+    state.playHistoryIds.length === 0 ||
+    (state.playHistoryIds.length === 1 && state.historyPosition === 0);
 
   if (isMinimalHistory) {
     return handleSequentialPreviousWithHistory(state);
@@ -119,15 +100,15 @@ export const handleShufflePrevious = (
 };
 
 export const clearShuffleHistory = (
-  state: TrackStoreState,
+  state: TrackState,
   newShuffleState: boolean,
-): Partial<TrackStoreState> => {
+): Partial<TrackState> => {
   const isDisablingShuffle = state.is_shuffle && !newShuffleState;
 
-  if (isDisablingShuffle && state.currentTrack) {
+  if (isDisablingShuffle && state.currentTrackId) {
     return {
       is_shuffle: newShuffleState,
-      playHistory: [state.currentTrack],
+      playHistoryIds: [state.currentTrackId],
       historyPosition: 0,
     };
   }

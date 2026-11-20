@@ -61,6 +61,7 @@ describe("audioFileAnalyzer", () => {
       tagTypes: [],
     },
     native: {},
+    nativeTyped: {},
     quality: {
       warnings: [],
     },

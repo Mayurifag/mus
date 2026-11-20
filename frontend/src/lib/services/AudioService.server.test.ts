@@ -22,7 +22,7 @@ it("can update the source without a browser document", () => {
     has_cover: false,
     cover_small_url: null,
     cover_original_url: null,
-    hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
+    hls_url: "/api/v1/tracks/1/hls/index.m3u8",
   };
   try {
     expect(typeof document).toBe("undefined");

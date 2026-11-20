@@ -1,12 +1,16 @@
 use super::{
     run,
-    tags::{load_track_tags, track_tags},
+    tags::{load_track_tags, set_track_tags_conn, track_tags},
 };
 use anyhow::Result;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
 
-use crate::{files::is_hash_id, models::Track, state::AppState};
+use crate::{
+    files::is_hash_id,
+    models::{Tag, Track},
+    state::AppState,
+};
 
 /// Loads tracks in reverse discovery order, including tags in database tag order.
 ///
@@ -41,7 +45,7 @@ fn list_tracks_inner(conn: &Connection, category: Option<&str>) -> Result<Vec<Tr
     let (sql, category) = if let Some(category) = category {
         (
             "SELECT track.id, title, artist, duration, file_path, added_at, updated_at,
-                    has_cover, inode, file_signature, content_hash, processing_status, last_error
+                    has_cover, inode, file_signature, processing_status, last_error
              FROM track
              JOIN track_tag ON track_tag.track_id = track.id
              JOIN tag ON tag.id = track_tag.tag_id
@@ -51,7 +55,7 @@ fn list_tracks_inner(conn: &Connection, category: Option<&str>) -> Result<Vec<Tr
     } else {
         (
             "SELECT id, title, artist, duration, file_path, added_at, updated_at,
-                    has_cover, inode, file_signature, content_hash, processing_status, last_error
+                    has_cover, inode, file_signature, processing_status, last_error
              FROM track ORDER BY rowid DESC",
             None,
         )
@@ -80,7 +84,7 @@ pub async fn get_track(state: &AppState, id: &str) -> Result<Option<Track>> {
         let mut track = conn
             .query_row(
                 "SELECT id, title, artist, duration, file_path, added_at, updated_at,
-                    has_cover, inode, file_signature, content_hash, processing_status, last_error
+                    has_cover, inode, file_signature, processing_status, last_error
              FROM track WHERE id = ?1",
                 params![id],
                 row_to_track,
@@ -94,16 +98,23 @@ pub async fn get_track(state: &AppState, id: &str) -> Result<Option<Track>> {
     .await
 }
 
-pub async fn save_track(state: &AppState, old_id: &str, track: &Track) -> Result<()> {
+pub async fn save_track(
+    state: &AppState,
+    old_id: &str,
+    track: &Track,
+    tag_names: &[String],
+    finalize_tags: bool,
+) -> Result<Vec<Tag>> {
     let old_id = old_id.to_owned();
     let track = track.clone();
+    let tag_names = tag_names.to_vec();
     run(state, move |conn| {
         let tx = conn.transaction()?;
         tx.execute_batch("PRAGMA defer_foreign_keys = ON")?;
         tx.execute(
             "UPDATE track SET id=?1, title=?2, artist=?3, duration=?4, file_path=?5,
-                updated_at=?6, has_cover=?7, inode=?8, file_signature=?9, content_hash=?10,
-                processing_status=?11, last_error=?12 WHERE id=?13",
+                updated_at=?6, has_cover=?7, inode=?8, file_signature=?9,
+                processing_status=?10, last_error=?11 WHERE id=?12",
             params![
                 track.id,
                 track.title,
@@ -114,15 +125,16 @@ pub async fn save_track(state: &AppState, old_id: &str, track: &Track) -> Result
                 track.has_cover,
                 track.inode,
                 track.file_signature,
-                track.content_hash,
                 track.processing_status,
                 track.last_error.as_ref().map(Value::to_string),
                 old_id,
             ],
         )?;
         update_track_references(&tx, &old_id, &track.id)?;
+        set_track_tags_conn(&tx, &track.id, &tag_names, finalize_tags)?;
+        let tags = track_tags(&tx, &track.id)?;
         tx.commit()?;
-        Ok(())
+        Ok(tags)
     })
     .await
 }
@@ -140,12 +152,18 @@ pub(crate) async fn upsert_scanned_track(
             tx.execute_batch("PRAGMA defer_foreign_keys = ON")?;
             let added_at = tx.query_row(
                 "UPDATE track SET id=?1, title=?2, artist=?3, duration=?4, file_path=?5,
-                    updated_at=?6, inode=?7, file_signature=?8, content_hash=?9,
+                    updated_at=?6, inode=?7, file_signature=?8,
                     processing_status='COMPLETE', last_error=NULL
-                 WHERE id=?10 RETURNING added_at",
+                 WHERE id=?9 RETURNING added_at",
                 params![
-                    track.id, track.title, track.artist, track.duration, track.file_path,
-                    track.updated_at, track.inode, track.file_signature, track.content_hash,
+                    track.id,
+                    track.title,
+                    track.artist,
+                    track.duration,
+                    track.file_path,
+                    track.updated_at,
+                    track.inode,
+                    track.file_signature,
                     existing_id,
                 ],
                 |row| row.get(0),
@@ -156,17 +174,23 @@ pub(crate) async fn upsert_scanned_track(
         } else {
             Ok(conn.query_row(
                 "INSERT INTO track (id, title, artist, duration, file_path, added_at, updated_at,
-                                    has_cover, inode, file_signature, content_hash, processing_status)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, 0, ?7, ?8, ?9, 'COMPLETE')
+                                    has_cover, inode, file_signature, processing_status)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, 0, ?7, ?8, 'COMPLETE')
                  ON CONFLICT(id) DO UPDATE SET title=excluded.title, artist=excluded.artist,
                     duration=excluded.duration, file_path=excluded.file_path,
                     updated_at=excluded.updated_at, inode=excluded.inode,
-                    file_signature=excluded.file_signature, content_hash=excluded.content_hash,
+                    file_signature=excluded.file_signature,
                     processing_status='COMPLETE', last_error=NULL
                  RETURNING added_at",
                 params![
-                    track.id, track.title, track.artist, track.duration, track.file_path,
-                    track.updated_at, track.inode, track.file_signature, track.content_hash,
+                    track.id,
+                    track.title,
+                    track.artist,
+                    track.duration,
+                    track.file_path,
+                    track.updated_at,
+                    track.inode,
+                    track.file_signature,
                 ],
                 |row| row.get(0),
             )?)
@@ -207,25 +231,6 @@ pub(crate) async fn save_track_fingerprint(
     .await
 }
 
-pub async fn save_track_file_signature(
-    state: &AppState,
-    id: &str,
-    inode: Option<i64>,
-    file_signature: &str,
-    updated_at: i64,
-) -> Result<()> {
-    let id = id.to_owned();
-    let file_signature = file_signature.to_owned();
-    run(state, move |conn| {
-        conn.execute(
-            "UPDATE track SET inode = ?1, file_signature = ?2, updated_at = ?3 WHERE id = ?4",
-            params![inode, file_signature, updated_at, id],
-        )?;
-        Ok(())
-    })
-    .await
-}
-
 pub async fn delete_track_row(state: &AppState, id: &str) -> Result<()> {
     let id = id.to_owned();
     run(state, move |conn| {
@@ -251,7 +256,7 @@ pub async fn errored_tracks(state: &AppState) -> Result<Vec<Track>> {
     run(state, |conn| {
         let mut stmt = conn.prepare(
             "SELECT id, title, artist, duration, file_path, added_at, updated_at,
-                    has_cover, inode, file_signature, content_hash, processing_status, last_error
+                    has_cover, inode, file_signature, processing_status, last_error
              FROM track WHERE processing_status = 'ERROR'",
         )?;
         let mut tracks = stmt
@@ -264,7 +269,7 @@ pub async fn errored_tracks(state: &AppState) -> Result<Vec<Track>> {
 }
 
 fn row_to_track(row: &rusqlite::Row<'_>) -> rusqlite::Result<Track> {
-    let last_error: Option<String> = row.get(12)?;
+    let last_error: Option<String> = row.get(11)?;
     Ok(Track {
         id: row.get(0)?,
         title: row.get(1)?,
@@ -276,8 +281,7 @@ fn row_to_track(row: &rusqlite::Row<'_>) -> rusqlite::Result<Track> {
         has_cover: row.get(7)?,
         inode: row.get(8)?,
         file_signature: row.get(9)?,
-        content_hash: row.get(10)?,
-        processing_status: row.get(11)?,
+        processing_status: row.get(10)?,
         last_error: last_error.and_then(|v| serde_json::from_str(&v).ok()),
         tags: Vec::new(),
     })
@@ -288,15 +292,112 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    async fn track_and_category_edits_commit_together_and_return_canonical_tags() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        crate::db::init_db(&mut conn).unwrap();
+        let old_id = "a".repeat(64);
+        let new_id = "b".repeat(64);
+        conn.execute(
+            "INSERT INTO track (id,title,artist,duration,file_path,added_at) VALUES (?1,'Before','Artist',1,'/music/song.mp3',1)",
+            [&old_id],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO track_tag (track_id,tag_id) SELECT ?1,id FROM tag WHERE name='ost'",
+            [&old_id],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO playerstate (id,current_track_id) VALUES (1,?1)",
+            [&old_id],
+        )
+        .unwrap();
+        conn.execute_batch(
+            "CREATE TRIGGER reject_cover BEFORE INSERT ON track_tag
+             WHEN NEW.tag_id=(SELECT id FROM tag WHERE name='cover')
+             BEGIN SELECT RAISE(ABORT,'blocked category'); END;",
+        )
+        .unwrap();
+        let directory = tempfile::TempDir::new().unwrap();
+        let state = crate::test_support::test_state(directory.path().to_path_buf(), conn);
+        let mut edited = get_track(&state, &old_id).await.unwrap().unwrap();
+        edited.id = new_id.clone();
+        edited.title = "After".into();
+
+        let error = save_track(&state, &old_id, &edited, &["cover".into()], true)
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("blocked category"));
+        assert!(get_track(&state, &new_id).await.unwrap().is_none());
+        let original = get_track(&state, &old_id).await.unwrap().unwrap();
+        assert_eq!(original.title, "Before");
+        assert_eq!(original.tags[0].name, "ost");
+        assert!(!crate::db::track_tags_finalized(&state, &old_id)
+            .await
+            .unwrap());
+        assert_eq!(
+            state
+                .db
+                .lock()
+                .unwrap()
+                .query_row("SELECT current_track_id FROM playerstate", [], |row| row
+                    .get::<_, String>(
+                    0
+                ))
+                .unwrap(),
+            old_id
+        );
+
+        state
+            .db
+            .lock()
+            .unwrap()
+            .execute_batch("DROP TRIGGER reject_cover")
+            .unwrap();
+        let tags = save_track(
+            &state,
+            &old_id,
+            &edited,
+            &[
+                "ost".into(),
+                "cover".into(),
+                "cover".into(),
+                "unknown".into(),
+            ],
+            true,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            tags.iter().map(|tag| tag.name.as_str()).collect::<Vec<_>>(),
+            ["cover", "ost"]
+        );
+        assert!(crate::db::track_tags_finalized(&state, &new_id)
+            .await
+            .unwrap());
+        assert_eq!(
+            state
+                .db
+                .lock()
+                .unwrap()
+                .query_row("SELECT current_track_id FROM playerstate", [], |row| row
+                    .get::<_, String>(
+                    0
+                ))
+                .unwrap(),
+            new_id
+        );
+    }
+
+    #[tokio::test]
     async fn large_library_lists_tracks_and_tags_without_exhausting_sql_parameters() {
         let mut conn = Connection::open_in_memory().unwrap();
         crate::db::init_db(&mut conn).unwrap();
         // Bundled SQLite permits 32766 SQL parameters, not one per library entry.
         conn.execute_batch(
             "WITH RECURSIVE numbers(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM numbers WHERE n<32767)
-             INSERT INTO track (id,title,artist,duration,file_path,added_at,content_hash,processing_status)
+             INSERT INTO track (id,title,artist,duration,file_path,added_at,processing_status)
              SELECT printf('%064x', n), 'Song', 'Artist', 1, printf('/music/%d.mp3', n), n,
-                    printf('%064x', n), 'ERROR' FROM numbers;
+                    'ERROR' FROM numbers;
              INSERT INTO track_tag (track_id,tag_id) SELECT track.id,tag.id FROM track CROSS JOIN tag WHERE tag.name IN ('ost','cover');"
         ).unwrap();
 

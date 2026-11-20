@@ -2,7 +2,7 @@
 
 FROM node:26.13.1-alpine3.24 AS node-runtime
 
-FROM rust:1.99.1-alpine3.24 AS rust-runtime
+FROM rust:1.100.0-alpine3.24 AS rust-runtime
 
 FROM python:3.15.2-alpine3.24@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
 
@@ -22,7 +22,7 @@ ARG USER_ID=1000
 ARG GROUP_ID=1000
 ARG TARGETARCH
 
-COPY docker/yt-dlp.conf /etc/yt-dlp.conf
+COPY --chmod=644 docker/yt-dlp.conf /etc/yt-dlp.conf
 # Alpine's Node package can lag behind upstream security releases.
 COPY --from=node-runtime /usr/local/bin/node /usr/bin/node
 

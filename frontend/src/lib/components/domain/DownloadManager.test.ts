@@ -381,31 +381,6 @@ describe("DownloadManager", () => {
     });
   });
 
-  it("should show progress bar when downloading with progress data", async () => {
-    downloadStore.startDownload();
-    downloadStore.setProgress({
-      percent: 45.5,
-      speed: "2.5MiB/s",
-      eta: "00:30",
-    });
-
-    render(DownloadManager);
-
-    await waitFor(() => {
-      expect(screen.getByText(/45\.5%/)).toBeInTheDocument();
-    });
-    expect(screen.getByText(/2\.5MiB\/s/)).toBeInTheDocument();
-    expect(screen.getByText(/00:30/)).toBeInTheDocument();
-  });
-
-  it("should not show progress bar when downloading without progress data", async () => {
-    downloadStore.startDownload();
-
-    render(DownloadManager);
-
-    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
-  });
-
   describe("Permission-based rendering", () => {
     it("should render download UI when write permissions are available", () => {
       permissionsStore.set({ can_write_music_files: true });

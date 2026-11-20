@@ -2,7 +2,6 @@
 
 use std::{fs, path::Path, process::Command, time::Duration};
 
-use filetime::FileTime;
 use id3::{Tag, TagLike, Version};
 use mus_backend::{
     db,
@@ -25,9 +24,9 @@ fn make_state() -> (TempDir, mus_backend::state::AppState) {
 }
 
 fn set_mtime(path: &std::path::Path, seconds: u64) {
-    filetime::set_file_mtime(
+    fs::set_times(
         path,
-        FileTime::from_system_time(std::time::UNIX_EPOCH + Duration::from_secs(seconds)),
+        fs::FileTimes::new().set_modified(std::time::UNIX_EPOCH + Duration::from_secs(seconds)),
     )
     .unwrap();
 }
@@ -133,7 +132,7 @@ fn category_choice_migration_keeps_existing_track_and_tags() {
     let (_tmp, state) = make_state();
     let id = "1111111111111111111111111111111111111111111111111111111111111111";
     let mut conn = state.db.lock().unwrap();
-    conn.execute_batch("ALTER TABLE track DROP COLUMN tags_finalized; PRAGMA user_version = 5;")
+    conn.execute_batch("ALTER TABLE track DROP COLUMN tags_finalized; ALTER TABLE track ADD COLUMN content_hash TEXT NOT NULL DEFAULT ''; PRAGMA user_version = 5;")
         .unwrap();
     conn.execute(
         "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,content_hash) VALUES (?1,'Song','Artist',1,'/old/song.mp3',1,1,?1)",
@@ -150,6 +149,80 @@ fn category_choice_migration_keeps_existing_track_and_tags() {
         params![id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     ).unwrap();
     assert_eq!(row, ("Song".into(), false, "ost".into()));
+}
+
+#[tokio::test]
+async fn identity_migration_preserves_tracks_categories_order_and_player_state() {
+    let (_tmp, state) = make_state();
+    let first_id = "b".repeat(64);
+    let second_id = "a".repeat(64);
+    {
+        let mut conn = state.db.lock().unwrap();
+        conn.execute_batch(
+            "ALTER TABLE track ADD COLUMN content_hash TEXT NOT NULL DEFAULT '';
+             PRAGMA user_version = 6;",
+        )
+        .unwrap();
+        for (id, title, added_at) in [(&first_id, "First", 10), (&second_id, "Second", 20)] {
+            conn.execute(
+                "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,content_hash,tags_finalized)
+                 VALUES (?1,?2,'Artist',3,?2,?3,?3,?1,1)",
+                params![id,title,added_at],
+            ).unwrap();
+        }
+        conn.execute(
+            "INSERT INTO track_tag (track_id,tag_id) SELECT ?1,id FROM tag WHERE name='ost'",
+            [&first_id],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO playerstate (id,current_track_id,progress_seconds,is_shuffle) VALUES (1,?1,7.5,1)",
+            [&second_id],
+        ).unwrap();
+        for _ in 0..2 {
+            db::init_db(&mut conn).unwrap();
+        }
+        let column_count: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM pragma_table_info('track') WHERE name='content_hash'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(column_count, 0);
+        let rows: Vec<(String, String, i64)> = conn
+            .prepare("SELECT id,title,added_at FROM track ORDER BY rowid")
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        assert_eq!(
+            rows,
+            [
+                (first_id.clone(), "First".into(), 10),
+                (second_id.clone(), "Second".into(), 20)
+            ]
+        );
+        let player: (String, f64, bool) = conn
+            .query_row(
+                "SELECT current_track_id,progress_seconds,is_shuffle FROM playerstate",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(player, (second_id, 7.5, true));
+        assert_eq!(
+            conn.query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .unwrap(),
+            0
+        );
+    }
+    let first = db::get_track(&state, &first_id).await.unwrap().unwrap();
+    assert_eq!(first.tags[0].name, "ost");
+    assert!(db::track_tags_finalized(&state, &first_id).await.unwrap());
 }
 
 #[tokio::test]
@@ -322,7 +395,7 @@ async fn scan_music_dir_removes_existing_unparseable_audio_files() {
     {
         let conn = state.db.lock().unwrap();
         conn.execute(
-            "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,has_cover,content_hash,processing_status) VALUES (?1,?2,?3,?4,?5,?6,?7,0,?1,'COMPLETE')",
+            "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,has_cover,processing_status) VALUES (?1,?2,?3,?4,?5,?6,?7,0,'COMPLETE')",
             params![id, "broken", "Artist", 0, path.to_string_lossy(), 100, 100],
         )
         .unwrap();
@@ -345,12 +418,12 @@ async fn list_tracks_keeps_discovery_order_when_updated_at_changes() {
     {
         let conn = state.db.lock().unwrap();
         conn.execute(
-            "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,has_cover,content_hash,processing_status) VALUES (?1,?2,?3,?4,?5,?6,?7,0,?1,'COMPLETE')",
+            "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,has_cover,processing_status) VALUES (?1,?2,?3,?4,?5,?6,?7,0,'COMPLETE')",
             params![first_id, "First", "Artist", 1, first.to_string_lossy(), 100, 100],
         )
         .unwrap();
         conn.execute(
-            "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,has_cover,content_hash,processing_status) VALUES (?1,?2,?3,?4,?5,?6,?7,0,?1,'COMPLETE')",
+            "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,has_cover,processing_status) VALUES (?1,?2,?3,?4,?5,?6,?7,0,'COMPLETE')",
             params![second_id, "Second", "Artist", 1, second.to_string_lossy(), 200, 200],
         )
         .unwrap();
@@ -397,19 +470,15 @@ async fn scan_music_dir_prewarms_existing_unchanged_tracks() {
     {
         let conn = state.db.lock().unwrap();
         conn.execute(
-            "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,file_signature,content_hash,processing_status) VALUES (?1,?2,?3,?4,?5,?6,?7,0,?8,?9,?10,'COMPLETE')",
-            params![&content_hash, "song", "Artist", 1, path.to_string_lossy(), 100, 100, inode(&meta), signature, &content_hash],
+            "INSERT INTO track (id,title,artist,duration,file_path,added_at,updated_at,has_cover,inode,file_signature,processing_status) VALUES (?1,?2,?3,?4,?5,?6,?7,0,?8,?9,'COMPLETE')",
+            params![&content_hash, "song", "Artist", 1, path.to_string_lossy(), 100, 100, inode(&meta), signature],
         )
         .unwrap();
     }
 
     scan_music_dir(state.clone()).await.unwrap();
 
-    let hls_dir = state
-        .data_dir
-        .join(".cache/hls")
-        .join(&content_hash)
-        .join(&content_hash);
+    let hls_dir = state.data_dir.join(".cache/hls").join(&content_hash);
     assert!(hls_dir.join("index.m3u8").is_file());
     assert!(fs::read_to_string(hls_dir.join("index.m3u8"))
         .unwrap()
@@ -466,11 +535,7 @@ async fn scan_music_dir_renames_unstructured_filename_from_metadata() {
     assert_eq!(tracks[0].title, "song");
     assert_eq!(tracks[0].artist, "Artist");
     assert_eq!(tracks[0].file_path, renamed_path.to_string_lossy());
-    let hls_dir = state
-        .data_dir
-        .join(".cache/hls")
-        .join(&tracks[0].id)
-        .join(&tracks[0].content_hash);
+    let hls_dir = state.data_dir.join(".cache/hls").join(&tracks[0].id);
     assert!(hls_dir.join("index.m3u8").is_file());
     assert!(fs::read_to_string(hls_dir.join("index.m3u8"))
         .unwrap()
@@ -733,7 +798,7 @@ async fn scan_music_dir_detects_preserved_mtime_content_changes() {
     let tracks = db::list_tracks(&state).await.unwrap();
     assert_eq!(tracks[0].title, "song");
     assert_eq!(tracks[0].updated_at, 2_000);
-    assert_eq!(tracks[0].id, tracks[0].content_hash);
+    assert_eq!(tracks[0].id, file_content_hash(&path).unwrap());
 }
 
 #[tokio::test]

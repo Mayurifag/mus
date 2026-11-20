@@ -32,6 +32,7 @@ mod files;
 pub(crate) mod id3_tags;
 mod metadata;
 
+pub(crate) use audio_update::prepare_audio_update;
 pub use audio_update::{
     apply_audio_update, standardize_audio_tags, write_audio_cover, write_audio_tags, AudioUpdate,
     AudioUpdateResult,

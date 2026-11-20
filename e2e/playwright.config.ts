@@ -1,12 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const useForChromium = {
-  ...devices["Desktop Chrome"],
-  launchOptions: {
-    args: ["--disable-web-security", "--disable-features=VizDisplayCompositor"],
-  },
-};
-
 export default defineConfig({
   testDir: "./tests",
   outputDir: "test-results",
@@ -36,7 +29,7 @@ export default defineConfig({
     {
       name: "tests",
       testMatch: /.*\.spec\.ts/,
-      use: useForChromium,
+      use: devices["Desktop Chrome"],
     },
   ],
 });

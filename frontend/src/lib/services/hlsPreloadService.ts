@@ -1,24 +1,24 @@
 import type { Track } from "$lib/types";
-import type { TrackStoreState } from "$lib/stores/trackStore";
+import type { TrackState } from "$lib/stores/trackStore";
 import { selectedTrackIndexes } from "$lib/stores/filteredTrackNavigation";
 
-export function getNextTrackForPreload(state: TrackStoreState): Track | null {
-  if (state.tracks.length === 0 || state.currentTrackIndex === null) {
+export function getNextTrackForPreload(state: TrackState): Track | null {
+  if (state.tracks.length === 0 || state.currentTrackId === null) {
     return null;
   }
 
   const indexes = selectedTrackIndexes(state);
   if (state.is_shuffle) {
-    for (const track of state.playHistory.slice(state.historyPosition + 1)) {
-      const index = indexes.find(
-        (index) => state.tracks[index].id === track.id,
-      );
+    for (const id of state.playHistoryIds.slice(state.historyPosition + 1)) {
+      const index = indexes.find((index) => state.tracks[index].id === id);
       if (index !== undefined) return state.tracks[index];
     }
     return null;
   }
   if (indexes.length === 0) return null;
-  const position = indexes.indexOf(state.currentTrackIndex);
+  const position = indexes.findIndex(
+    (index) => state.tracks[index].id === state.currentTrackId,
+  );
   return state.tracks[indexes[(position + 1) % indexes.length]];
 }
 

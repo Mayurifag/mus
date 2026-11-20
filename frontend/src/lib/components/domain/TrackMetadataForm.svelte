@@ -126,8 +126,10 @@
               <button
                 type="button"
                 class="hover:text-foreground rounded border px-2 py-1"
-                onclick={() => (title = suggestion)}>{suggestion}</button
+                onclick={() => (title = suggestion)}
               >
+                {suggestion}
+              </button>
             {/each}
           </div>
         {/if}
@@ -190,8 +192,9 @@
                       type="button"
                       class="hover:text-foreground rounded border px-2 py-1"
                       onclick={() => (artist.value = suggestion)}
-                      >{suggestion} ({artistCounts[suggestion]})</button
                     >
+                      {suggestion} ({artistCounts[suggestion]})
+                    </button>
                   {/each}
                 </div>
               {/if}

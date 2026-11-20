@@ -102,7 +102,16 @@ macro_rules! internal_error_from {
 internal_error_from!(std::io::Error);
 internal_error_from!(rusqlite::Error);
 internal_error_from!(serde_json::Error);
-internal_error_from!(axum::extract::multipart::MultipartError);
+
+impl From<axum::extract::multipart::MultipartError> for AppError {
+    fn from(error: axum::extract::multipart::MultipartError) -> Self {
+        Self {
+            status: error.status(),
+            message: error.body_text(),
+            cause: Some(error.into()),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {

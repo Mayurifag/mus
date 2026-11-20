@@ -3,7 +3,7 @@ import { AudioService } from "./AudioService";
 import type { Track } from "$lib/types";
 import { trackStore } from "$lib/stores/trackStore";
 
-const HLS_URL = "https://music.example/api/v1/tracks/1/hls/2001/index.m3u8";
+const HLS_URL = "https://music.example/api/v1/tracks/1/hls/index.m3u8";
 const mockHls = vi.hoisted(() => ({
   isSupported: vi.fn(),
   instances: [] as Array<{

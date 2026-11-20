@@ -2,6 +2,50 @@ use super::*;
 use crate::media::ProbeProgram;
 use rusqlite::{params, Connection};
 
+#[cfg(unix)]
+#[tokio::test]
+async fn discovery_follows_directory_links_without_revisiting_cycles() {
+    use std::os::unix::fs::symlink;
+
+    let directory = tempfile::TempDir::new().unwrap();
+    let music = directory.path().join("music");
+    let album = directory.path().join("album");
+    fs::create_dir(&music).unwrap();
+    fs::create_dir(&album).unwrap();
+    fs::write(album.join("song.mp3"), b"audio").unwrap();
+    symlink(&album, music.join("linked-album")).unwrap();
+    symlink(&music, album.join("back-to-music")).unwrap();
+    symlink("/dev/null", music.join("not-a-file.mp3")).unwrap();
+    let paths: Vec<_> = audio_paths_in_dir(&music).try_collect().await.unwrap();
+    assert_eq!(paths, [music.join("linked-album/song.mp3")]);
+}
+
+#[tokio::test]
+async fn unchanged_tracks_do_not_start_ffprobe_on_each_scan() {
+    let (directory, state, id) = state_with_track(Path::new("Artist - Song.mp3"));
+    let path = state.music_dir.join("Artist - Song.mp3");
+    fs::write(&path, b"audio fixture").unwrap();
+    let signature = file_signature(&fs::metadata(&path).unwrap());
+    db::save_track_fingerprint(&state, &id, None, &signature)
+        .await
+        .unwrap();
+    let _probe = ProbeProgram::use_program(directory.path().join("must-not-start-ffprobe"));
+    for paths in [None, Some(vec![path.clone()])] {
+        match paths {
+            Some(paths) => sync_changed_paths(state.clone(), paths).await.unwrap(),
+            None => scan_music_dir(state.clone()).await.unwrap(),
+        }
+        assert_eq!(
+            db::get_track(&state, &id)
+                .await
+                .unwrap()
+                .unwrap()
+                .file_signature,
+            Some(signature.clone())
+        );
+    }
+}
+
 async fn assert_probe_failure_preserves_track(state: &AppState, id: &str) -> Vec<anyhow::Error> {
     let track = db::get_track(state, id).await.unwrap().unwrap();
     let path = PathBuf::from(&track.file_path);
@@ -98,11 +142,16 @@ fn state_with_track(path: &Path) -> (tempfile::TempDir, AppState, String) {
     );
     let id = "a".repeat(64);
     let file_path = state.music_dir.join(path);
-    state.db.lock().unwrap().execute(
-        "INSERT INTO track (id, title, artist, duration, file_path, added_at, updated_at, content_hash)
-         VALUES (?1, 'Song', 'Artist', 1, ?2, 1, 1, ?1)",
-        params![id, file_path.to_string_lossy()],
-    ).unwrap();
+    state
+        .db
+        .lock()
+        .unwrap()
+        .execute(
+            "INSERT INTO track (id, title, artist, duration, file_path, added_at, updated_at)
+         VALUES (?1, 'Song', 'Artist', 1, ?2, 1, 1)",
+            params![id, file_path.to_string_lossy()],
+        )
+        .unwrap();
     (directory, state, id)
 }
 
@@ -111,11 +160,16 @@ async fn removed_directory_removes_only_its_registered_tracks() {
     let (_directory, state, id) = state_with_track(Path::new("removed/Artist - Song.mp3"));
     let unrelated_id = "b".repeat(64);
     let unrelated_path = state.music_dir.join("removed-elsewhere/Song.mp3");
-    state.db.lock().unwrap().execute(
-        "INSERT INTO track (id, title, artist, duration, file_path, added_at, updated_at, content_hash)
-         VALUES (?1, 'Other', 'Artist', 1, ?2, 1, 1, ?1)",
-        params![unrelated_id, unrelated_path.to_string_lossy()],
-    ).unwrap();
+    state
+        .db
+        .lock()
+        .unwrap()
+        .execute(
+            "INSERT INTO track (id, title, artist, duration, file_path, added_at, updated_at)
+         VALUES (?1, 'Other', 'Artist', 1, ?2, 1, 1)",
+            params![unrelated_id, unrelated_path.to_string_lossy()],
+        )
+        .unwrap();
     let mut events = state.events.subscribe();
     let removed = state.music_dir.join("removed");
 

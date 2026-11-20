@@ -12,11 +12,26 @@ use crate::{
     artwork::download_artwork_as_jpeg,
     audio_names::{generate_filename, normalize_artists, normalize_text},
     error::AppError,
+    events::broadcast,
     files::can_write,
     media::{apply_audio_update, AudioUpdate},
     scanner::upsert_path,
     state::AppState,
 };
+
+fn max_upload_size_mb() -> usize {
+    env::var("MAX_UPLOAD_SIZE_MB")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(30)
+}
+
+pub fn upload_body_limit() -> usize {
+    // Allow multipart headers and text fields in addition to the bounded audio file.
+    max_upload_size_mb()
+        .saturating_mul(1024 * 1024)
+        .saturating_add(1024 * 1024)
+}
 
 #[derive(Default)]
 struct Upload {
@@ -45,10 +60,7 @@ impl Upload {
                             "Unsupported file format. Only MP3, FLAC, and WAV are supported.",
                         ));
                     }
-                    let max_size_mb = env::var("MAX_UPLOAD_SIZE_MB")
-                        .ok()
-                        .and_then(|value| value.parse::<usize>().ok())
-                        .unwrap_or(30);
+                    let max_size_mb = max_upload_size_mb();
                     let max_bytes = max_size_mb
                         .checked_mul(1024 * 1024)
                         .ok_or_else(|| AppError::bad_request("MAX_UPLOAD_SIZE_MB is too large"))?;
@@ -133,8 +145,11 @@ pub async fn upload_track(
     )
     .await?;
     drop(jpeg_path);
-    let (track, _) = upsert_path(&state, &path, Some(title), Some(artist)).await?;
+    let (track, accepted_path) = upsert_path(&state, &path, Some(title), Some(artist)).await?;
     tracing::info!(track_id = track.id, "track uploaded");
+    if accepted_path.is_some() {
+        broadcast(&state, "track_added", None, None, Some(json!(track)));
+    }
     Ok(Json(
         json!({"success": true, "message": "File uploaded and queued for processing."}),
     ))

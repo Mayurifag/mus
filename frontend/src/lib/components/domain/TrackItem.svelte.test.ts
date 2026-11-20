@@ -56,7 +56,7 @@ describe("TrackItem component", () => {
       has_cover: true,
       cover_small_url: "/api/v1/tracks/1/covers/small.webp",
       cover_original_url: "/api/v1/tracks/1/covers/original.webp",
-      hls_url: "/api/v1/tracks/1/hls/1640995200/index.m3u8",
+      hls_url: "/api/v1/tracks/1/hls/index.m3u8",
       updated_at: 1640995200,
     };
 
@@ -189,6 +189,22 @@ describe("TrackItem component", () => {
 
     expect(vi.mocked(trackStore.playTrack)).toHaveBeenCalledWith(3);
   });
+
+  it.each(["Enter", " "])(
+    "does not play the track when %s is pressed on a category button",
+    async (key) => {
+      render(TrackItem, {
+        track: {
+          ...mockTrack,
+          tags: [{ name: "cover", display_name: "Cover" }],
+        },
+        index: 0,
+      });
+      const button = screen.getByRole("button", { name: "Show Cover songs" });
+      expect(await fireEvent.keyDown(button, { key })).toBe(true);
+      expect(trackStore.playTrack).not.toHaveBeenCalled();
+    },
+  );
 
   it("calls playTrack when Space key is pressed", async () => {
     render(TrackItem, { track: mockTrack, index: 4, isSelected: false });

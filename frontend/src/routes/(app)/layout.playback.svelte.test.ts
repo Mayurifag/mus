@@ -37,7 +37,7 @@ const track: Track = {
   has_cover: false,
   cover_original_url: null,
   cover_small_url: null,
-  hls_url: "/api/v1/tracks/last/hls/1/index.m3u8",
+  hls_url: "/api/v1/tracks/last/hls/index.m3u8",
 };
 const session = {
   metadata: null as MediaMetadata | null,
@@ -185,7 +185,7 @@ describe("selection cleanup through the layout", () => {
       const updated = {
         ...track,
         id: "updated",
-        hls_url: "/api/v1/tracks/updated/hls/2/index.m3u8",
+        hls_url: "/api/v1/tracks/updated/hls/index.m3u8",
       };
       vi.stubGlobal(
         "fetch",

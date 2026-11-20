@@ -4,8 +4,8 @@ import { isStaticAsset, shouldSkipCache } from "./serviceWorkerCache";
 describe("serviceWorkerCache", () => {
   it("does not cache API or HLS media routes", () => {
     expect(shouldSkipCache("/api/v1/tracks")).toBe(true);
-    expect(shouldSkipCache("/api/v1/tracks/1/hls/2001/index.m3u8")).toBe(true);
-    expect(shouldSkipCache("/api/v1/tracks/1/hls/2001/segment-00000.m4s")).toBe(
+    expect(shouldSkipCache("/api/v1/tracks/1/hls/index.m3u8")).toBe(true);
+    expect(shouldSkipCache("/api/v1/tracks/1/hls/segment-00000.m4s")).toBe(
       true,
     );
   });

@@ -2,13 +2,15 @@
 
 set -e
 
-E2E_IMAGE_NAME="mus:e2e-test"
-E2E_CONTAINER_NAME="mus-e2e-test"
+E2E_IMAGE_NAME="${E2E_IMAGE_NAME:-mus:e2e-test}"
+export E2E_CONTAINER_NAME="${E2E_CONTAINER_NAME:-mus-e2e-test}"
 E2E_HOST_PORT="4124"
 E2E_TIMEOUT=12
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODE="${1:-headless}"
+E2E_MUSIC_DIR=""
+container_created=false
 
 case "$MODE" in
 headless | headed | debug) ;;
@@ -19,28 +21,28 @@ headless | headed | debug) ;;
 esac
 
 cleanup() {
-  if docker ps -q -f name="$E2E_CONTAINER_NAME" | grep -q .; then
-    docker stop "$E2E_CONTAINER_NAME" 2>/dev/null || true
+  status=$?
+  if [ "$container_created" = true ]; then
+    docker rm -f "$E2E_CONTAINER_NAME" >/dev/null || status=1
   fi
-
-  if [ -d "$SCRIPT_DIR/original" ]; then
-    for file in "$SCRIPT_DIR/original"/*; do
-      if [ -f "$file" ]; then
-        filename=$(basename "$file")
-        cp "$file" "$SCRIPT_DIR/music/$filename" 2>/dev/null || true
-      fi
-    done
-    echo "Restored all original test files"
+  if [ -n "$E2E_MUSIC_DIR" ]; then
+    rm -rf -- "$E2E_MUSIC_DIR" || status=1
   fi
+  exit "$status"
 }
 
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
-if docker ps -aq -f name="$E2E_CONTAINER_NAME" | grep -q .; then
-  echo "Removing existing container..."
-  docker stop "$E2E_CONTAINER_NAME" 2>/dev/null || true
-  docker rm "$E2E_CONTAINER_NAME" 2>/dev/null || true
+if docker container inspect "$E2E_CONTAINER_NAME" >/dev/null 2>&1; then
+  echo "Container $E2E_CONTAINER_NAME already exists; run make e2e-clean before retrying."
+  exit 1
 fi
+
+E2E_MUSIC_DIR="$(mktemp -d)"
+export E2E_MUSIC_DIR
+cp -R "$SCRIPT_DIR/original/." "$E2E_MUSIC_DIR/"
 
 echo "Installing Playwright dependencies..."
 cd "$SCRIPT_DIR"
@@ -48,11 +50,13 @@ npm ci --no-audit --no-fund --prefer-offline
 npx playwright install chromium
 
 echo "Starting container..."
-docker run -d --name "$E2E_CONTAINER_NAME" \
+docker create --name "$E2E_CONTAINER_NAME" \
   -p "127.0.0.1:$E2E_HOST_PORT:8000" \
   -e WATCHFILES_FORCE_POLLING=true \
-  -v "$SCRIPT_DIR/music:/app_data/music:rw" \
+  -v "$E2E_MUSIC_DIR:/app_data/music:rw" \
   "$E2E_IMAGE_NAME"
+container_created=true
+docker start "$E2E_CONTAINER_NAME"
 
 echo "Waiting for application to be ready..."
 timeout=$E2E_TIMEOUT

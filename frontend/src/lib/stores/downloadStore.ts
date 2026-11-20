@@ -1,5 +1,4 @@
 import { writable } from "svelte/store";
-import type { DownloadProgress } from "$lib/types";
 
 export type DownloadState =
   | "idle"
@@ -18,7 +17,6 @@ export interface DownloadStoreState {
   thumbnailUrl: string | null;
   duration: number | null;
   tags: string[];
-  progress: DownloadProgress | null;
   confirmation: { url: string } | null;
 }
 
@@ -31,7 +29,6 @@ const initialState: DownloadStoreState = {
   thumbnailUrl: null,
   duration: null,
   tags: [],
-  progress: null,
   confirmation: null,
 };
 
@@ -75,7 +72,6 @@ function createDownloadStore() {
         ...state,
         state: "downloading",
         error: null,
-        progress: null,
       })),
     confirm: (url: string) =>
       update((state) => ({ ...state, confirmation: { url } })),
@@ -91,8 +87,6 @@ function createDownloadStore() {
         state: "failed",
         error,
       })),
-    setProgress: (progress: DownloadProgress) =>
-      update((s) => ({ ...s, progress })),
     reset: () => set(initialState),
   };
 }

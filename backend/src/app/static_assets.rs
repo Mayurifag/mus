@@ -1,9 +1,8 @@
 use std::path::{Component, Path, PathBuf};
 
 use axum::{
-    body::Body,
     extract::{Request, State},
-    http::{header, HeaderMap, HeaderValue, StatusCode, Uri},
+    http::{header, HeaderValue, Method, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
@@ -16,19 +15,23 @@ use crate::state::AppState;
 
 pub(super) async fn static_asset(
     State(state): State<AppState>,
-    uri: Uri,
-    headers: HeaderMap,
+    request: Request,
 ) -> Result<Response, StatusCode> {
-    let path = uri.path();
+    let path = request.uri().path().to_owned();
     if path.starts_with("/api/") {
         return Ok((StatusCode::NOT_FOUND, Json(json!({"detail": "Not Found"}))).into_response());
+    }
+    if !matches!(*request.method(), Method::GET | Method::HEAD) {
+        return Err(StatusCode::METHOD_NOT_ALLOWED);
     }
     let Some(static_dir) = state.static_dir else {
         return Err(StatusCode::NOT_FOUND);
     };
-    let requested = static_path(&static_dir, path).ok_or(StatusCode::NOT_FOUND)?;
+    let requested = static_path(&static_dir, &path).ok_or(StatusCode::NOT_FOUND)?;
     let file_path = if is_file(&requested).await {
         requested
+    } else if path.starts_with("/_app/") {
+        return Err(StatusCode::NOT_FOUND);
     } else {
         static_dir.join("index.html")
     };
@@ -36,12 +39,8 @@ pub(super) async fn static_asset(
         return Err(StatusCode::NOT_FOUND);
     }
 
-    let mut request = Request::new(Body::empty());
-    *request.headers_mut() = headers;
-    let mut response = match ServeFile::new(file_path).oneshot(request).await {
-        Ok(response) => response.into_response(),
-        Err(error) => match error {},
-    };
+    let Ok(response) = ServeFile::new(file_path).oneshot(request).await;
+    let mut response = response.into_response();
     response.headers_mut().insert(
         header::CACHE_CONTROL,
         if path.starts_with("/_app/immutable/") {

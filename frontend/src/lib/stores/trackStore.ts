@@ -14,26 +14,30 @@ import {
   selectedTrackIndexes,
 } from "$lib/stores/filteredTrackNavigation";
 
-export interface TrackStoreState {
+export interface TrackState {
   tracks: Track[];
   tracksLoading: boolean;
-  currentTrackIndex: number | null;
-  playHistory: Track[];
+  currentTrackId: string | null;
+  playHistoryIds: string[];
   historyPosition: number;
-  currentTrack: Track | null;
   is_shuffle: boolean;
   selectedArtist: string | null;
   selectedCategory: string | null;
   playRequestId: number;
 }
 
-const initialState: TrackStoreState = {
+export interface TrackStoreState extends TrackState {
+  readonly currentTrackIndex: number | null;
+  readonly currentTrack: Track | null;
+  readonly playHistory: Track[];
+}
+
+const initialState: TrackState = {
   tracks: [],
   tracksLoading: true,
-  currentTrackIndex: null,
-  playHistory: [],
+  currentTrackId: null,
+  playHistoryIds: [],
   historyPosition: -1,
-  currentTrack: null,
   is_shuffle: false,
   selectedArtist: null,
   selectedCategory: null,
@@ -41,284 +45,176 @@ const initialState: TrackStoreState = {
 };
 
 function replaceTrack(
-  state: TrackStoreState,
+  state: TrackState,
   track: Track,
   previousId: string,
-): TrackStoreState {
+): TrackState {
   return {
     ...state,
     tracks: state.tracks.map((entry) =>
       entry.id === previousId ? track : entry,
     ),
-    currentTrack:
-      state.currentTrack?.id === previousId ? track : state.currentTrack,
-    playHistory: state.playHistory.map((entry) =>
-      entry.id === previousId ? track : entry,
+    currentTrackId:
+      state.currentTrackId === previousId ? track.id : state.currentTrackId,
+    playHistoryIds: state.playHistoryIds.map((id) =>
+      id === previousId ? track.id : id,
     ),
   };
 }
 
 function createTrackStore() {
-  const { subscribe, set, update } = writable<TrackStoreState>(initialState);
-
-  // Helper functions for cleaner state management
-  const createEmptyState = (tracks: Track[]): Partial<TrackStoreState> => ({
-    tracks,
-    currentTrackIndex: null,
-    currentTrack: null,
-    playHistory: [],
-    historyPosition: -1,
-  });
-
-  const createInitialTrackState = (
-    tracks: Track[],
-    index: number,
-  ): Partial<TrackStoreState> => ({
-    tracks,
-    currentTrackIndex: index,
-    currentTrack: tracks[index],
-    playHistory: [tracks[index]],
-    historyPosition: 0,
-  });
-
-  const preserveCurrentTrack = (
-    state: TrackStoreState,
-    tracks: Track[],
-    newIndex: number,
-  ): Partial<TrackStoreState> => {
-    const tracksById = new Map(tracks.map((track) => [track.id, track]));
-    let newPosition = state.historyPosition;
-    const newHistory: Track[] = [];
-    for (const [position, entry] of state.playHistory.entries()) {
-      const track = tracksById.get(entry.id);
-      if (track) newHistory.push(track);
-      else if (position < state.historyPosition) newPosition--;
-    }
-
+  const store = writable<TrackState>(initialState);
+  const { set, update } = store;
+  const view = derived(store, (state): TrackStoreState => {
+    const index = state.tracks.findIndex(
+      (track) => track.id === state.currentTrackId,
+    );
+    const byId = new Map(state.tracks.map((track) => [track.id, track]));
     return {
-      tracks,
-      currentTrackIndex: newIndex,
-      currentTrack: tracks[newIndex],
-      playHistory: newHistory.length > 0 ? newHistory : [tracks[newIndex]],
-      historyPosition: newHistory.length > 0 ? newPosition : 0,
+      ...state,
+      currentTrackIndex: index === -1 ? null : index,
+      currentTrack: state.tracks[index] ?? null,
+      playHistory: state.playHistoryIds
+        .map((id) => byId.get(id))
+        .filter((track): track is Track => !!track),
     };
+  });
+  const emptySelection = {
+    currentTrackId: null,
+    playHistoryIds: [],
+    historyPosition: -1,
   };
 
   return {
-    subscribe,
+    subscribe: view.subscribe,
     setTracks: (tracks: Track[]) =>
       update((state) => {
-        state = { ...state, tracksLoading: false };
-        if (tracks.length === 0) {
-          return { ...state, ...createEmptyState(tracks) };
+        const next = { ...state, tracks, tracksLoading: false };
+        if (tracks.length === 0) return { ...next, ...emptySelection };
+        if (state.currentTrackId === null) {
+          return {
+            ...next,
+            currentTrackId: tracks[0].id,
+            playHistoryIds: [tracks[0].id],
+            historyPosition: 0,
+          };
         }
-
-        // Try to preserve current track if it exists in new tracks
-        if (state.currentTrackIndex !== null && state.tracks.length > 0) {
-          const currentTrack = state.tracks[state.currentTrackIndex];
-          const newIndex = tracks.findIndex(
-            (track) => track.id === currentTrack.id,
-          );
-          if (newIndex !== -1) {
-            return {
-              ...state,
-              ...preserveCurrentTrack(state, tracks, newIndex),
-            };
-          }
-        }
-
-        // Only auto-select first track if no current track exists
-        // This eliminates the need for skipAutoSelect parameter
-        if (state.currentTrackIndex === null) {
-          return { ...state, ...createInitialTrackState(tracks, 0) };
-        }
-
-        // If we had a current track but it's not in new tracks, clear selection
-        return { ...state, ...createEmptyState(tracks) };
+        const ids = new Set(tracks.map((track) => track.id));
+        if (!ids.has(state.currentTrackId))
+          return { ...next, ...emptySelection };
+        let position = state.historyPosition;
+        const history = state.playHistoryIds.filter((id, index) => {
+          if (ids.has(id)) return true;
+          if (index < state.historyPosition) position--;
+          return false;
+        });
+        return {
+          ...next,
+          playHistoryIds: history.length ? history : [state.currentTrackId],
+          historyPosition: history.length ? position : 0,
+        };
       }),
-    setCurrentTrackIndex: (index: number | null) => {
+    setCurrentTrackIndex: (index: number | null) =>
       update((state) => {
+        const track = index === null ? undefined : state.tracks[index];
+        if (!track) return { ...state, currentTrackId: null };
         if (
-          index === null ||
-          state.tracks.length === 0 ||
-          index < 0 ||
-          index >= state.tracks.length
+          state.playHistoryIds.length === 0 ||
+          (state.playHistoryIds.length === 1 &&
+            state.historyPosition === 0 &&
+            state.currentTrackId === state.tracks[0].id &&
+            index !== 0)
         ) {
           return {
             ...state,
-            currentTrackIndex: null,
-            currentTrack: null,
-          };
-        }
-        const track = state.tracks[index];
-
-        // If history is empty (page initialization), initialize with current track
-        if (state.playHistory.length === 0) {
-          return {
-            ...state,
-            currentTrackIndex: index,
-            currentTrack: track,
-            playHistory: [track],
+            currentTrackId: track.id,
+            playHistoryIds: [track.id],
             historyPosition: 0,
           };
         }
-
-        // If history has only one track and it's the auto-selected first track,
-        // and we're setting a different track (backend restoration), replace it
-        if (
-          state.playHistory.length === 1 &&
-          state.historyPosition === 0 &&
-          state.currentTrackIndex === 0 &&
-          index !== 0
-        ) {
+        const position = state.playHistoryIds.indexOf(track.id);
+        if (position !== -1)
           return {
             ...state,
-            currentTrackIndex: index,
-            currentTrack: track,
-            playHistory: [track],
-            historyPosition: 0,
+            currentTrackId: track.id,
+            historyPosition: position,
           };
-        }
-
-        // Check if the track is already in history
-        const existingIndex = state.playHistory.findIndex(
-          (t) => t && t.id === track.id,
-        );
-        if (existingIndex !== -1) {
-          // Track exists in history, just update position to point to it
-          return {
-            ...state,
-            currentTrackIndex: index,
-            currentTrack: track,
-            historyPosition: existingIndex,
-          };
-        }
-
-        // Track not in history, add it and point to it
-        const newHistory = [...state.playHistory, track];
         return {
           ...state,
-          currentTrackIndex: index,
-          currentTrack: track,
-          playHistory: newHistory,
-          historyPosition: newHistory.length - 1,
+          currentTrackId: track.id,
+          playHistoryIds: [...state.playHistoryIds, track.id],
+          historyPosition: state.playHistoryIds.length,
           playRequestId: state.playRequestId + 1,
         };
-      });
-    },
-    playTrack: (index: number) => {
+      }),
+    playTrack: (index: number) =>
       update((state) => {
-        if (
-          index < 0 ||
-          index >= state.tracks.length ||
-          state.currentTrackIndex === index
-        ) {
-          return state;
-        }
-
         const track = state.tracks[index];
-
+        if (!track || state.currentTrackId === track.id) return state;
         return {
           ...state,
-          currentTrackIndex: index,
-          currentTrack: track,
-          playHistory: [track],
+          currentTrackId: track.id,
+          playHistoryIds: [track.id],
           historyPosition: 0,
           playRequestId: state.playRequestId + 1,
         };
-      });
-    },
-    nextTrack: (play = false) => {
+      }),
+    nextTrack: (play = false) =>
       update((state) => {
-        if (state.tracks.length === 0) {
-          return state;
-        }
-
-        const nextState = (partial: Partial<TrackStoreState>) => {
-          if (
-            play &&
-            partial.currentTrackIndex !== undefined &&
-            partial.currentTrackIndex !== state.currentTrackIndex
-          ) {
-            return {
-              ...state,
-              ...partial,
-              playRequestId: state.playRequestId + 1,
-            };
-          }
-          return { ...state, ...partial };
-        };
-
+        if (state.tracks.length === 0) return state;
+        const nextState = (partial: Partial<TrackState>) => ({
+          ...state,
+          ...partial,
+          playRequestId:
+            state.playRequestId +
+            Number(
+              play &&
+                partial.currentTrackId !== undefined &&
+                partial.currentTrackId !== state.currentTrackId,
+            ),
+        });
         if (state.selectedArtist || state.selectedCategory) {
-          const scopedIndexes = selectedTrackIndexes(state);
-          if (scopedIndexes.length === 0) return state;
-
-          return nextState(navigateFilteredTracks(state, scopedIndexes, 1));
+          const indexes = selectedTrackIndexes(state);
+          return indexes.length
+            ? nextState(navigateFilteredTracks(state, indexes, 1))
+            : state;
         }
-
-        if (state.currentTrackIndex === null) {
-          return state;
-        }
-
-        if (state.is_shuffle) {
-          const shuffleResult = handleShuffleNext(state);
-          return shuffleResult ? nextState(shuffleResult) : state;
-        }
-
-        const nextIndex = calculateNextIndex(
-          state.currentTrackIndex,
-          state.tracks.length,
+        if (state.currentTrackId === null) return state;
+        if (state.is_shuffle) return nextState(handleShuffleNext(state));
+        const index = state.tracks.findIndex(
+          (track) => track.id === state.currentTrackId,
         );
         return nextState({
-          currentTrackIndex: nextIndex,
-          currentTrack: state.tracks[nextIndex],
+          currentTrackId:
+            state.tracks[calculateNextIndex(index, state.tracks.length)].id,
         });
-      });
-    },
-    previousTrack: () => {
+      }),
+    previousTrack: () =>
       update((state) => {
-        if (state.tracks.length === 0) {
-          return state;
-        }
-
+        if (state.tracks.length === 0) return state;
         if (state.selectedArtist || state.selectedCategory) {
-          const scopedIndexes = selectedTrackIndexes(state);
-          if (scopedIndexes.length === 0) return state;
-
-          return {
-            ...state,
-            ...navigateFilteredTracks(state, scopedIndexes, -1),
-          };
+          const indexes = selectedTrackIndexes(state);
+          return indexes.length
+            ? { ...state, ...navigateFilteredTracks(state, indexes, -1) }
+            : state;
         }
-
-        if (state.currentTrackIndex === null) {
-          return state;
-        }
-
-        if (state.is_shuffle) {
-          const shuffleResult = handleShufflePrevious(state);
-          return shuffleResult ? { ...state, ...shuffleResult } : state;
-        }
-
-        const previousIndex = calculatePreviousIndex(
-          state.currentTrackIndex,
-          state.tracks.length,
+        if (state.currentTrackId === null) return state;
+        if (state.is_shuffle)
+          return { ...state, ...handleShufflePrevious(state) };
+        const index = state.tracks.findIndex(
+          (track) => track.id === state.currentTrackId,
         );
         return {
           ...state,
-          currentTrackIndex: previousIndex,
-          currentTrack: state.tracks[previousIndex],
-        };
-      });
-    },
-    toggleShuffle: () =>
-      update((state) => {
-        const newShuffleState = !state.is_shuffle;
-        return {
-          ...state,
-          ...clearShuffleHistory(state, newShuffleState),
+          currentTrackId:
+            state.tracks[calculatePreviousIndex(index, state.tracks.length)].id,
         };
       }),
+    toggleShuffle: () =>
+      update((state) => ({
+        ...state,
+        ...clearShuffleHistory(state, !state.is_shuffle),
+      })),
     setShuffle: (is_shuffle: boolean) =>
       update((state) => ({
         ...state,
@@ -335,10 +231,7 @@ function createTrackStore() {
             },
       ),
     clearArtistFilter: () =>
-      update((state) => ({
-        ...state,
-        selectedArtist: null,
-      })),
+      update((state) => ({ ...state, selectedArtist: null })),
     setCategoryFilter: (category: string) =>
       update((state) =>
         state.selectedCategory === category
@@ -350,90 +243,50 @@ function createTrackStore() {
             },
       ),
     clearCategoryFilter: () =>
-      update((state) => ({
-        ...state,
-        selectedCategory: null,
-      })),
+      update((state) => ({ ...state, selectedCategory: null })),
     addTrack: (track: Track) =>
+      update((state) =>
+        state.tracks.some((entry) => entry.id === track.id)
+          ? replaceTrack(state, track, track.id)
+          : { ...state, tracks: [track, ...state.tracks] },
+      ),
+    updateTrack: (track: Track, previousId = track.id) =>
+      update((state) =>
+        state.tracks.some((entry) => entry.id === previousId)
+          ? replaceTrack(state, track, previousId)
+          : state,
+      ),
+    deleteTrack: (trackId: string) =>
       update((state) => {
-        const existingIndex = state.tracks.findIndex((t) => t.id === track.id);
-        if (existingIndex !== -1) {
-          return replaceTrack(state, track, track.id);
-        }
-
-        const newTracks = [track, ...state.tracks];
-        const newCurrentTrackIndex =
-          state.currentTrackIndex !== null ? state.currentTrackIndex + 1 : null;
-        return {
-          ...state,
-          tracks: newTracks,
-          currentTrackIndex: newCurrentTrackIndex,
-        };
-      }),
-    updateTrack: (updatedTrack: Track, previousId = updatedTrack.id) =>
-      update((state) => {
-        const trackIndex = state.tracks.findIndex((t) => t.id === previousId);
-        if (trackIndex === -1) return state;
-
-        return replaceTrack(state, updatedTrack, previousId);
-      }),
-    deleteTrack: (trackId: string) => {
-      return update((state) => {
-        const trackIndex = state.tracks.findIndex((t) => t.id === trackId);
-        if (trackIndex === -1) return state;
-
-        const newTracks = state.tracks.filter((t) => t.id !== trackId);
-        let newCurrentTrackIndex = state.currentTrackIndex;
-        let newCurrentTrack = state.currentTrack;
-
-        if (state.currentTrackIndex !== null) {
-          if (trackIndex < state.currentTrackIndex) {
-            newCurrentTrackIndex = state.currentTrackIndex - 1;
-          } else if (trackIndex === state.currentTrackIndex) {
-            if (newTracks.length === 0) {
-              newCurrentTrackIndex = null;
-              newCurrentTrack = null;
-            } else if (trackIndex < newTracks.length) {
-              newCurrentTrack = newTracks[trackIndex];
-            } else {
-              newCurrentTrackIndex = newTracks.length - 1;
-              newCurrentTrack = newTracks[newCurrentTrackIndex];
-            }
-          }
-        }
-
-        let newHistoryPosition = state.historyPosition;
-        const newPlayHistory = state.playHistory.filter((track, position) => {
-          if (track.id !== trackId) return true;
-          if (position < state.historyPosition) newHistoryPosition--;
+        const index = state.tracks.findIndex((track) => track.id === trackId);
+        if (index === -1) return state;
+        const tracks = state.tracks.filter((track) => track.id !== trackId);
+        const currentTrackId =
+          state.currentTrackId === trackId
+            ? (tracks[Math.min(index, tracks.length - 1)]?.id ?? null)
+            : state.currentTrackId;
+        let position = state.historyPosition;
+        const history = state.playHistoryIds.filter((id, index) => {
+          if (id !== trackId) return true;
+          if (index < state.historyPosition) position--;
           return false;
         });
-        newHistoryPosition = Math.min(
-          newHistoryPosition,
-          newPlayHistory.length - 1,
-        );
-
-        if (state.currentTrack?.id === trackId && newCurrentTrack) {
-          const replacementId = newCurrentTrack.id;
-          newHistoryPosition = newPlayHistory.findIndex(
-            (track) => track.id === replacementId,
-          );
-          if (newHistoryPosition === -1) {
-            newHistoryPosition = newPlayHistory.length;
-            newPlayHistory.push(newCurrentTrack);
+        position = Math.min(position, history.length - 1);
+        if (state.currentTrackId === trackId && currentTrackId) {
+          position = history.indexOf(currentTrackId);
+          if (position === -1) {
+            position = history.length;
+            history.push(currentTrackId);
           }
         }
-
         return {
           ...state,
-          tracks: newTracks,
-          currentTrackIndex: newCurrentTrackIndex,
-          currentTrack: newCurrentTrack,
-          playHistory: newPlayHistory,
-          historyPosition: newHistoryPosition,
+          tracks,
+          currentTrackId,
+          playHistoryIds: history,
+          historyPosition: position,
         };
-      });
-    },
+      }),
     reset: () => set(initialState),
   };
 }
@@ -442,24 +295,20 @@ export const trackStore = createTrackStore();
 
 export const artistCountsStore = derived(trackStore, ($trackStore) => {
   const counts = new Map<string, number>();
-
   for (const track of $trackStore.tracks) {
     for (const artist of new Set(parseArtists(track.artist))) {
       counts.set(artist, (counts.get(artist) ?? 0) + 1);
     }
   }
-
   return Object.fromEntries(counts);
 });
 
 export const categoryCountsStore = derived(trackStore, ($trackStore) => {
   const counts = new Map<string, number>();
-
   for (const track of $trackStore.tracks) {
     for (const category of trackCategoryNames(track)) {
       counts.set(category, (counts.get(category) ?? 0) + 1);
     }
   }
-
   return Object.fromEntries(counts);
 });

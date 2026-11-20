@@ -330,7 +330,7 @@ async fn combined_audio_update_publishes_tags_cover_rename_and_mtime() {
     #[cfg(unix)]
     let original_file_id = file_id(&path);
     let original = SystemTime::UNIX_EPOCH;
-    filetime::set_file_mtime(&path, filetime::FileTime::from_system_time(original)).unwrap();
+    std::fs::set_times(&path, std::fs::FileTimes::new().set_modified(original)).unwrap();
 
     let result = apply_audio_update(
         &path,
@@ -482,7 +482,7 @@ async fn standardize_audio_tags_skips_non_id3_formats() {
         ])
         .arg(&path));
     let original = SystemTime::UNIX_EPOCH;
-    filetime::set_file_mtime(&path, filetime::FileTime::from_system_time(original)).unwrap();
+    std::fs::set_times(&path, std::fs::FileTimes::new().set_modified(original)).unwrap();
 
     standardize_audio_tags(&path, &tmp.path().join("cache"))
         .await

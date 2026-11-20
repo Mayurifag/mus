@@ -1,9 +1,8 @@
 //! Blocking file publication, including in-place writes and recovery backups.
 
-use std::{fs, io, path::Path};
+use std::{fs, io, path::Path, time::SystemTime};
 
 use anyhow::{anyhow, Result};
-use filetime::{set_file_mtime, FileTime};
 use tempfile::TempPath;
 
 use crate::files::{path_exists_as_different_file, paths_are_same_entry};
@@ -12,13 +11,13 @@ pub(super) fn publish_updated_file(
     source: &Path,
     original: &Path,
     destination: &Path,
-    modified: Option<FileTime>,
+    modified: Option<SystemTime>,
     cache_dir: &Path,
 ) -> Result<()> {
     if destination != original && path_exists_as_different_file(original, destination)? {
         return Err(anyhow!("A file with this name already exists"));
     }
-    let original_mtime = FileTime::from_system_time(fs::metadata(original)?.modified()?);
+    let original_mtime = fs::metadata(original)?.modified()?;
     let mut output = fs::OpenOptions::new().write(true).open(original)?;
     let mut backup = allocate_path(cache_dir, "backup", original)?;
     copy_over(original, &backup)?;
@@ -26,7 +25,7 @@ pub(super) fn publish_updated_file(
         // Keep the original inode and OpenCloud xattrs when replacing its bytes.
         write_contents(source, &mut output)?;
         if let Some(modified) = modified {
-            set_file_mtime(original, modified)?;
+            output.set_modified(modified)?;
         }
         if destination != original {
             move_path_and_touch(original, destination, None)?;
@@ -35,7 +34,7 @@ pub(super) fn publish_updated_file(
     })();
     if let Err(error) = result {
         if let Err(restore_error) = write_contents(&backup, &mut output)
-            .and_then(|_| set_file_mtime(original, original_mtime).map_err(Into::into))
+            .and_then(|_| output.set_modified(original_mtime).map_err(Into::into))
         {
             backup.disable_cleanup(true);
             let message = format!(
@@ -53,11 +52,16 @@ pub(super) fn publish_updated_file(
 pub(super) fn move_path_and_touch(
     source: &Path,
     destination: &Path,
-    modified: Option<FileTime>,
+    modified: Option<SystemTime>,
 ) -> Result<()> {
+    // OpenCloud watches CLOSE_WRITE, not timestamp-only ATTRIB events. Keep a writable
+    // handle until the final path and mtime are visible, including a rename without byte edits.
+    let _write_notification = modified
+        .map(|_| fs::OpenOptions::new().write(true).open(source))
+        .transpose()?;
     if source == destination {
         if let Some(modified) = modified {
-            set_file_mtime(destination, modified)?;
+            fs::set_times(destination, fs::FileTimes::new().set_modified(modified))?;
         }
         return Ok(());
     }
@@ -68,7 +72,8 @@ pub(super) fn move_path_and_touch(
     tests::create_competing_destination();
     let result = match rename_without_replace(source, destination) {
         Err(error) if error.kind() == io::ErrorKind::CrossesDevices => {
-            copy_without_replace(source, destination).and_then(|()| fs::remove_file(source))
+            copy_without_replace(source, destination, modified)
+                .and_then(|()| fs::remove_file(source))
         }
         result => result,
     };
@@ -78,7 +83,7 @@ pub(super) fn move_path_and_touch(
             // Never retry an overwriting rename, even after proving identity.
             if paths_are_same_entry(source, destination)? {
                 if let Some(modified) = modified {
-                    set_file_mtime(source, modified)?;
+                    fs::set_times(source, fs::FileTimes::new().set_modified(modified))?;
                 }
                 return Ok(());
             }
@@ -87,7 +92,7 @@ pub(super) fn move_path_and_touch(
         return Err(error.into());
     }
     if let Some(modified) = modified {
-        set_file_mtime(destination, modified)?;
+        fs::set_times(destination, fs::FileTimes::new().set_modified(modified))?;
     }
     Ok(())
 }
@@ -121,13 +126,22 @@ fn write_contents(source: &Path, output: &mut fs::File) -> Result<()> {
     Ok(())
 }
 
-fn copy_without_replace(source: &Path, destination: &Path) -> io::Result<()> {
+fn copy_without_replace(
+    source: &Path,
+    destination: &Path,
+    modified: Option<SystemTime>,
+) -> io::Result<()> {
     let mut input = fs::File::open(source)?;
     let mut output = fs::OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(destination)?;
-    if let Err(error) = io::copy(&mut input, &mut output).and_then(|_| output.sync_all()) {
+    if let Err(error) = io::copy(&mut input, &mut output).and_then(|_| {
+        if let Some(modified) = modified {
+            output.set_modified(modified)?;
+        }
+        output.sync_all()
+    }) {
         let _ = fs::remove_file(destination);
         return Err(error);
     }
@@ -155,29 +169,61 @@ mod tests {
     use std::{cell::RefCell, io::Write, path::PathBuf};
 
     const COMPETING_BYTES: &[u8] = b"competing file";
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn rename_emits_close_write_with_the_final_path_and_timestamp() {
+        use notify::{
+            event::{AccessKind, AccessMode},
+            EventKind, RecursiveMode, Watcher,
+        };
+        use std::{
+            sync::mpsc,
+            time::{Duration, Instant},
+        };
+        let directory = tempfile::TempDir::new().unwrap();
+        let source = directory.path().join("source.mp3");
+        let destination = directory.path().join("destination.mp3");
+        fs::write(&source, b"audio").unwrap();
+        let (send, receive) = mpsc::channel();
+        let mut watcher = notify::recommended_watcher(send).unwrap();
+        watcher
+            .watch(directory.path(), RecursiveMode::NonRecursive)
+            .unwrap();
+        let modified = SystemTime::now();
+        move_path_and_touch(&source, &destination, Some(modified)).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(3);
+        loop {
+            let event = receive
+                .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+                .expect("no final CLOSE_WRITE notification")
+                .unwrap();
+            if event.kind == EventKind::Access(AccessKind::Close(AccessMode::Write))
+                && event.paths.contains(&destination)
+            {
+                assert_eq!(
+                    fs::metadata(&destination).unwrap().modified().unwrap(),
+                    modified
+                );
+                break;
+            }
+        }
+    }
     std::thread_local! {
         static CREATE_BEFORE_RENAME: RefCell<Option<PathBuf>> = const { RefCell::new(None) };
     }
 
-    struct DestinationCreation;
-
-    impl DestinationCreation {
-        fn before_rename(destination: &Path) -> Self {
-            CREATE_BEFORE_RENAME.with(|slot| {
-                assert!(slot.replace(Some(destination.to_path_buf())).is_none());
-            });
-            Self
-        }
-    }
-
-    impl Drop for DestinationCreation {
-        fn drop(&mut self) {
+    fn create_before_rename(destination: &Path) -> impl Drop {
+        CREATE_BEFORE_RENAME.with(|slot| {
+            assert!(slot.replace(Some(destination.to_path_buf())).is_none());
+        });
+        std::mem::DropGuard::new((), |()| {
             let _ = CREATE_BEFORE_RENAME.try_with(|slot| {
                 if let Ok(mut slot) = slot.try_borrow_mut() {
                     slot.take();
                 }
             });
-        }
+        })
     }
 
     pub(super) fn create_competing_destination() {
@@ -196,7 +242,7 @@ mod tests {
         let source = directory.path().join("source.mp3");
         let destination = directory.path().join("destination.mp3");
         fs::write(&source, b"original").unwrap();
-        let _race = DestinationCreation::before_rename(&destination);
+        let _race = create_before_rename(&destination);
 
         let error = move_path_and_touch(&source, &destination, None).unwrap_err();
         assert_eq!(error.to_string(), "A file with this name already exists");
@@ -214,10 +260,10 @@ mod tests {
         let destination = directory.path().join("destination.mp3");
         fs::write(&staged, b"edited audio").unwrap();
         fs::write(&original, b"original").unwrap();
-        let modified = FileTime::from_unix_time(1_700_000_000, 0);
-        set_file_mtime(&original, modified).unwrap();
+        let modified = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        fs::set_times(&original, fs::FileTimes::new().set_modified(modified)).unwrap();
         let original_metadata = fs::metadata(&original).unwrap();
-        let _race = DestinationCreation::before_rename(&destination);
+        let _race = create_before_rename(&destination);
 
         let error =
             publish_updated_file(&staged, &original, &destination, None, &cache).unwrap_err();
@@ -272,17 +318,14 @@ mod tests {
         fs::write(&source, b"original").unwrap();
         fs::hard_link(&source, &destination).unwrap();
         let original_inode = fs::metadata(&source).unwrap().ino();
-        let modified = FileTime::from_unix_time(1_700_000_000, 0);
+        let modified = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
 
         move_path_and_touch(&source, &destination, Some(modified)).unwrap();
         assert_eq!(fs::read(&source).unwrap(), b"original");
         assert_eq!(fs::read(&destination).unwrap(), b"original");
         assert_eq!(fs::metadata(&source).unwrap().ino(), original_inode);
         assert_eq!(fs::metadata(&destination).unwrap().ino(), original_inode);
-        assert_eq!(
-            FileTime::from_last_modification_time(&fs::metadata(&source).unwrap()),
-            modified
-        );
+        assert_eq!(fs::metadata(&source).unwrap().modified().unwrap(), modified);
     }
 
     #[cfg(target_os = "linux")]
@@ -373,7 +416,7 @@ mod tests {
         let source = source_directory.path().join("source.mp3");
         let destination = destination_directory.path().join("destination.mp3");
         fs::write(&source, b"original").unwrap();
-        let _race = DestinationCreation::before_rename(&destination);
+        let _race = create_before_rename(&destination);
 
         let error = move_path_and_touch(&source, &destination, None).unwrap_err();
         assert_eq!(error.to_string(), "A file with this name already exists");
@@ -436,9 +479,9 @@ mod tests {
         let destination = directory.path().join("destination.mp3");
         fs::write(&source, b"original").unwrap();
         fs::write(&destination, b"existing").unwrap();
-        let modified = FileTime::from_unix_time(1_700_000_000, 0);
-        set_file_mtime(&source, modified).unwrap();
-        set_file_mtime(&destination, modified).unwrap();
+        let modified = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        fs::set_times(&source, fs::FileTimes::new().set_modified(modified)).unwrap();
+        fs::set_times(&destination, fs::FileTimes::new().set_modified(modified)).unwrap();
         assert_eq!(
             fs::metadata(&source).unwrap().len(),
             fs::metadata(&destination).unwrap().len()
@@ -465,9 +508,9 @@ mod tests {
         fs::write(&staged, b"replaced").unwrap();
         fs::write(&original, b"original").unwrap();
         fs::write(&destination, b"existing").unwrap();
-        let modified = FileTime::from_unix_time(1_700_000_000, 0);
-        set_file_mtime(&original, modified).unwrap();
-        set_file_mtime(&destination, modified).unwrap();
+        let modified = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        fs::set_times(&original, fs::FileTimes::new().set_modified(modified)).unwrap();
+        fs::set_times(&destination, fs::FileTimes::new().set_modified(modified)).unwrap();
         let original_meta = fs::metadata(&original).unwrap();
         let destination_meta = fs::metadata(&destination).unwrap();
         assert_eq!(original_meta.len(), destination_meta.len());

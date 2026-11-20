@@ -20,7 +20,7 @@ vi.mock("$lib/stores/trackStore", () => {
           has_cover: true,
           cover_small_url: "/api/v1/tracks/1/covers/small.webp",
           cover_original_url: "/api/v1/tracks/1/covers/original.webp",
-          hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
+          hls_url: "/api/v1/tracks/1/hls/index.m3u8",
         },
         is_shuffle: false,
       });

@@ -771,7 +771,7 @@ async fn failed_job_broadcasts_safe_correlated_events_and_releases_lock() {
 }
 
 #[tokio::test]
-async fn artwork_failure_waits_for_media_and_its_child() {
+async fn rejected_artwork_waits_for_media_and_its_child() {
     let tmp = TempDir::new().unwrap();
     let state = crate::test_support::test_state(
         tmp.path().join("data"),
@@ -794,44 +794,25 @@ wait "$worker"
 : > media-finished
 "#,
     ]);
-    let artwork_failed = Arc::new(tokio::sync::Notify::new());
-    let notify = artwork_failed.clone();
-    let dir = tmp.path().to_path_buf();
-    let router = axum::Router::new().route(
-        "/",
-        axum::routing::get(move || {
-            let notify = notify.clone();
-            let dir = dir.clone();
-            async move {
-                let _ = tokio::time::timeout(Duration::from_secs(2), async {
-                    while !dir.join("media-started").exists() {
-                        tokio::time::sleep(Duration::from_millis(5)).await;
-                    }
-                })
-                .await;
-                notify.notify_one();
-                axum::http::StatusCode::BAD_GATEWAY
-            }
-        }),
-    );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let artwork_url = format!("http://{}/", listener.local_addr().unwrap());
-    let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
     let dir = tmp.path().to_path_buf();
     let mut inner = tokio::spawn(async move {
         run_download_inner(
             &state,
             command,
             DownloadOptions {
-                artwork_url: Some(artwork_url),
+                artwork_url: Some("https://127.0.0.1/cover.jpg".into()),
                 ..DownloadOptions::default()
             },
             &dir,
         )
         .await
     });
-    let artwork_observed =
-        tokio::time::timeout(Duration::from_secs(3), artwork_failed.notified()).await;
+    let media_started = tokio::time::timeout(Duration::from_secs(3), async {
+        while !tmp.path().join("media-started").exists() {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await;
     let early = tokio::time::timeout(Duration::from_millis(100), &mut inner).await;
     let returned_early = early.is_ok();
     let worker_pending =
@@ -852,12 +833,7 @@ wait "$worker"
         inner.abort();
         let _ = inner.await;
     }
-    server.abort();
-    let _ = server.await;
-    assert!(
-        artwork_observed.is_ok(),
-        "artwork never reached the endpoint"
-    );
+    assert!(media_started.is_ok(), "media did not start");
     assert!(worker_pending, "media worker was not pending");
     assert!(!returned_early, "artwork failure cancelled running media");
     assert!(worker_finished.is_ok(), "media child did not finish");
@@ -866,5 +842,5 @@ wait "$worker"
         "media returned before finishing"
     );
     let error = result.unwrap().unwrap().unwrap_err();
-    assert!(error.to_string().contains("502"), "{error}");
+    assert!(error.to_string().contains("HTTPS image URL"), "{error}");
 }

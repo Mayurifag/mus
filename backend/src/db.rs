@@ -35,7 +35,7 @@ pub(crate) use tags::{add_inferred_track_tags, set_track_tags};
 pub use tags::{set_download_tags, track_tags_finalized};
 pub(crate) use tracks::{
     artist_values, delete_track_row, errored_tracks, list_tracks_by_category, save_track,
-    save_track_file_signature, save_track_fingerprint, set_track_cover_state, upsert_scanned_track,
+    save_track_fingerprint, set_track_cover_state, upsert_scanned_track,
 };
 pub use tracks::{get_track, list_tracks};
 

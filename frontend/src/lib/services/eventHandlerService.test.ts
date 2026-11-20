@@ -36,7 +36,6 @@ vi.mock("$lib/stores/downloadStore", () => ({
     startDownload: vi.fn(),
     setCompleted: vi.fn(),
     setFailed: vi.fn(),
-    setProgress: vi.fn(),
   },
 }));
 
@@ -147,7 +146,7 @@ describe("eventHandlerService", () => {
           has_cover: false,
           cover_small_url: null,
           cover_original_url: null,
-          hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
+          hls_url: "/api/v1/tracks/1/hls/index.m3u8",
           updated_at: 1,
         },
       ];
@@ -178,7 +177,7 @@ describe("eventHandlerService", () => {
         has_cover: true,
         cover_small_url: "/api/v1/tracks/1/covers/small.webp",
         cover_original_url: "/api/v1/tracks/1/covers/original.webp",
-        hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
+        hls_url: "/api/v1/tracks/1/hls/index.m3u8",
         updated_at: 1,
       };
 
@@ -195,11 +194,11 @@ describe("eventHandlerService", () => {
         ...trackData,
         cover_small_url: "/api/v1/tracks/1/covers/small.webp",
         cover_original_url: "/api/v1/tracks/1/covers/original.webp",
-        hls_url: "/api/v1/tracks/1/hls/1/index.m3u8",
+        hls_url: "/api/v1/tracks/1/hls/index.m3u8",
       });
     });
 
-    it("should handle track_updated event", async () => {
+    it("applies track_updated without refetching the library", () => {
       const trackData = {
         id: "1",
         title: "Updated Track",
@@ -209,7 +208,7 @@ describe("eventHandlerService", () => {
         has_cover: false,
         cover_small_url: null,
         cover_original_url: null,
-        hls_url: "/api/v1/tracks/1/hls/2/index.m3u8",
+        hls_url: "/api/v1/tracks/1/hls/index.m3u8",
         updated_at: 2,
       };
 
@@ -226,11 +225,10 @@ describe("eventHandlerService", () => {
         ...trackData,
         cover_small_url: null,
         cover_original_url: null,
-        hls_url: "/api/v1/tracks/1/hls/2/index.m3u8",
+        hls_url: "/api/v1/tracks/1/hls/index.m3u8",
       });
-      await vi.waitFor(() => {
-        expect(trackStore.setTracks).toHaveBeenCalledWith([]);
-      });
+      expect(apiClient.fetchTracks).not.toHaveBeenCalled();
+      expect(trackStore.setTracks).not.toHaveBeenCalled();
     });
 
     it("should handle track_deleted event", () => {
@@ -296,36 +294,6 @@ describe("eventHandlerService", () => {
       };
 
       expect(() => handleMusEvent(payload)).not.toThrow();
-    });
-
-    it("should handle download_progress event", () => {
-      const payload: MusEvent = {
-        message_to_show: null,
-        message_level: null,
-        action_key: "download_progress",
-        action_payload: { percent: 55.0, speed: "3.2MiB/s", eta: "00:45" },
-      };
-
-      handleMusEvent(payload);
-
-      expect(downloadStore.setProgress).toHaveBeenCalledWith({
-        percent: 55.0,
-        speed: "3.2MiB/s",
-        eta: "00:45",
-      });
-    });
-
-    it("should not call setProgress when download_progress has no payload", () => {
-      const payload: MusEvent = {
-        message_to_show: null,
-        message_level: null,
-        action_key: "download_progress",
-        action_payload: null,
-      };
-
-      handleMusEvent(payload);
-
-      expect(downloadStore.setProgress).not.toHaveBeenCalled();
     });
 
     it("should handle yt_dlp_updated event", () => {

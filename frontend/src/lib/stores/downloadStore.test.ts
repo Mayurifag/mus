@@ -18,7 +18,6 @@ describe("downloadStore", () => {
       thumbnailUrl: null,
       duration: null,
       tags: [],
-      progress: null,
       confirmation: null,
     });
   });
@@ -60,7 +59,6 @@ describe("downloadStore", () => {
       thumbnailUrl: null,
       duration: null,
       tags: [],
-      progress: null,
       confirmation: null,
     });
   });
@@ -132,41 +130,5 @@ describe("downloadStore", () => {
     expect(state.duration).toBeNull();
     expect(state.tags).toEqual([]);
     expect(state.state).toBe("idle");
-  });
-
-  it("should set progress data", () => {
-    downloadStore.setProgress({
-      percent: 45.5,
-      speed: "2.5MiB/s",
-      eta: "00:30",
-    });
-    const state = get(downloadStore);
-    expect(state.progress).toEqual({
-      percent: 45.5,
-      speed: "2.5MiB/s",
-      eta: "00:30",
-    });
-  });
-
-  it("should reset progress when starting download", () => {
-    downloadStore.setProgress({
-      percent: 45.5,
-      speed: "2.5MiB/s",
-      eta: "00:30",
-    });
-    downloadStore.startDownload();
-    const state = get(downloadStore);
-    expect(state.progress).toBeNull();
-  });
-
-  it("should include progress null in reset", () => {
-    downloadStore.setProgress({
-      percent: 45.5,
-      speed: "2.5MiB/s",
-      eta: "00:30",
-    });
-    downloadStore.reset();
-    const state = get(downloadStore);
-    expect(state.progress).toBeNull();
   });
 });
