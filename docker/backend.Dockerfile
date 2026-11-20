@@ -39,8 +39,7 @@ RUN apk add --no-cache \
 
 RUN --mount=type=cache,target=/cargo/registry \
     --mount=type=cache,target=/cargo/git \
-    cargo install --root /usr/local/cargo --version 0.23.0 cargo-audit \
-    && cargo install --root /usr/local/cargo --version 2.8.0 watchexec-cli
+    cargo install --root /usr/local/cargo cargo-audit watchexec-cli
 
 RUN group_name="$(awk -F: -v gid="$GROUP_ID" '$3 == gid { print $1; exit }' /etc/group)" \
     && if [ -z "$group_name" ]; then addgroup -g "$GROUP_ID" appgroup && group_name=appgroup; fi \
