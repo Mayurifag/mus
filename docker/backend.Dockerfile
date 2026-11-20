@@ -49,7 +49,7 @@ RUN --mount=type=cache,target=/cargo/registry \
     && cargo install --path /tmp/cargo-audit --locked --root /usr/local/cargo \
     && rm -rf /tmp/cargo-audit /tmp/cargo-audit.crate
 
-# Update the published lockfile to remove RustSec advisories from the watcher.
+# Patch RustSec advisories and pin the new zbus dependency graph before checking the lockfile.
 RUN --mount=type=cache,target=/cargo/registry \
     --mount=type=cache,target=/cargo/git \
     curl -fsSL https://static.crates.io/crates/watchexec-cli/watchexec-cli-2.8.0.crate -o /tmp/watchexec.crate \
@@ -59,7 +59,12 @@ RUN --mount=type=cache,target=/cargo/registry \
     && cargo update --manifest-path /tmp/watchexec/Cargo.toml --package notify-rust@4.18.1 --precise 4.19.0 \
     && cargo update --manifest-path /tmp/watchexec/Cargo.toml --package tokio@1.53.2 --precise 1.54.1 \
     && cargo update --manifest-path /tmp/watchexec/Cargo.toml --package rustix@1.1.5 --precise 1.1.6 \
-    && echo "9dddaa99852ae71faaf4c1ac1f61ee9886567fbb1815c81051e4a367753ed675  /tmp/watchexec/Cargo.lock" | sha256sum -c - \
+    && cargo update --manifest-path /tmp/watchexec/Cargo.toml --package zbus --precise 6.5.0 \
+    && cargo update --manifest-path /tmp/watchexec/Cargo.toml --package zbus_macros --precise 6.5.0 \
+    && cargo update --manifest-path /tmp/watchexec/Cargo.toml --package zbus_utils --precise 6.1.0 \
+    && cargo update --manifest-path /tmp/watchexec/Cargo.toml --package zcheapstr --precise 1.4.0 \
+    && cargo update --manifest-path /tmp/watchexec/Cargo.toml --package zruntime --precise 0.2.4 \
+    && echo "0cc26ef01cff90dfba2a7278951da39f26da46351aa01856d50ce373d0d74ef5  /tmp/watchexec/Cargo.lock" | sha256sum -c - \
     && cargo install --path /tmp/watchexec --locked --root /usr/local/cargo \
     && rm -rf /tmp/watchexec /tmp/watchexec.crate
 
