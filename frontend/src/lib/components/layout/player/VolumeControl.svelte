@@ -2,7 +2,8 @@
   import { Button } from "$lib/components/ui/button";
   import { Slider } from "$lib/components/ui/slider";
   import type { AudioService } from "$lib/services/AudioService";
-  import { Volume2, VolumeX } from "@lucide/svelte";
+  import Volume2 from "@lucide/svelte/icons/volume-2";
+  import VolumeX from "@lucide/svelte/icons/volume-x";
 
   let {
     audioService,

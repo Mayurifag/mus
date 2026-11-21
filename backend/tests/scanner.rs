@@ -460,7 +460,7 @@ async fn list_tracks_keeps_discovery_order_when_updated_at_changes() {
 }
 
 #[tokio::test]
-async fn scan_music_dir_prewarms_existing_unchanged_tracks() {
+async fn scan_music_dir_leaves_unchanged_tracks_uncached() {
     let (_tmp, state) = make_state();
     let path = state.music_dir.join("Artist - song.mp3");
     create_mp3(&path, "song", "Artist");
@@ -479,10 +479,11 @@ async fn scan_music_dir_prewarms_existing_unchanged_tracks() {
     scan_music_dir(state.clone()).await.unwrap();
 
     let hls_dir = state.data_dir.join(".cache/hls").join(&content_hash);
-    assert!(hls_dir.join("index.m3u8").is_file());
-    assert!(fs::read_to_string(hls_dir.join("index.m3u8"))
-        .unwrap()
-        .contains("#EXT-X-ENDLIST"));
+    assert!(!hls_dir.exists());
+    let tracks = db::list_tracks(&state).await.unwrap();
+    assert_eq!(tracks.len(), 1);
+    assert_eq!(tracks[0].id, content_hash);
+    assert_eq!(tracks[0].file_path, path.to_string_lossy());
 }
 
 #[tokio::test]
@@ -536,10 +537,7 @@ async fn scan_music_dir_renames_unstructured_filename_from_metadata() {
     assert_eq!(tracks[0].artist, "Artist");
     assert_eq!(tracks[0].file_path, renamed_path.to_string_lossy());
     let hls_dir = state.data_dir.join(".cache/hls").join(&tracks[0].id);
-    assert!(hls_dir.join("index.m3u8").is_file());
-    assert!(fs::read_to_string(hls_dir.join("index.m3u8"))
-        .unwrap()
-        .contains("#EXT-X-ENDLIST"));
+    assert!(!hls_dir.exists());
     assert!(!path.exists());
     assert!(renamed_path.exists());
 }

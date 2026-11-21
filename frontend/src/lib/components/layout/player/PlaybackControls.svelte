@@ -2,15 +2,13 @@
   import { Button } from "$lib/components/ui/button";
   import { trackStore } from "$lib/stores/trackStore";
   import type { AudioService } from "$lib/services/AudioService";
-  import {
-    Play,
-    Pause,
-    SkipBack,
-    SkipForward,
-    Shuffle,
-    Repeat,
-    Repeat1,
-  } from "@lucide/svelte";
+  import Play from "@lucide/svelte/icons/play";
+  import Pause from "@lucide/svelte/icons/pause";
+  import SkipBack from "@lucide/svelte/icons/skip-back";
+  import SkipForward from "@lucide/svelte/icons/skip-forward";
+  import Shuffle from "@lucide/svelte/icons/shuffle";
+  import Repeat from "@lucide/svelte/icons/repeat";
+  import Repeat1 from "@lucide/svelte/icons/repeat-1";
 
   let {
     audioService,

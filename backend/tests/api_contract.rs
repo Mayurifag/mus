@@ -1273,14 +1273,13 @@ async fn tracks_hls_contract() {
     fs::create_dir_all(&stale_cache_dir).unwrap();
     fs::write(stale_cache_dir.join("segment-00000.m4s"), b"stale").unwrap();
 
-    let playlist = app
-        .request(
-            Method::GET,
-            &format!("/api/v1/tracks/{TRACK_ID}/hls/index.m3u8"),
-            Body::empty(),
-        )
-        .await;
+    let playlist_url = format!("/api/v1/tracks/{TRACK_ID}/hls/index.m3u8");
+    let (playlist, concurrent_playlist) = tokio::join!(
+        app.request(Method::GET, &playlist_url, Body::empty()),
+        app.request(Method::GET, &playlist_url, Body::empty()),
+    );
     assert_eq!(playlist.status(), StatusCode::OK);
+    assert_eq!(concurrent_playlist.status(), StatusCode::OK);
     assert_eq!(
         playlist.headers()[header::CONTENT_TYPE],
         "application/vnd.apple.mpegurl"
@@ -1290,6 +1289,8 @@ async fn tracks_hls_contract() {
     assert!(playlist_body.contains("#EXTM3U"));
     assert!(playlist_body.contains("init.mp4"));
     assert!(playlist_body.contains("segment-00000.m4s"));
+    assert!(playlist_body.contains("#EXT-X-ENDLIST"));
+    assert_eq!(body_text(concurrent_playlist).await, playlist_body);
     assert!(!stale_cache_dir.exists());
 
     let init = app

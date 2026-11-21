@@ -50,16 +50,7 @@ RUN group_name="$(awk -F: -v gid="$GROUP_ID" '$3 == gid { print $1; exit }' /etc
     && echo "appuser ALL=(ALL) NOPASSWD: /bin/chown -R appuser* /app/target* /cargo*" >> /etc/sudoers
 
 RUN rustup component add rustfmt clippy \
-    && python3 -m pip --disable-pip-version-check uninstall --root-user-action=ignore --yes pip
-
-COPY backend/Cargo.toml backend/Cargo.lock ./
-RUN --mount=type=cache,target=/cargo/registry \
-    --mount=type=cache,target=/cargo/git \
-    mkdir src \
-    && printf 'fn main() {}\n' > src/main.rs \
-    && cargo build --locked \
-    && rm -rf src \
-    && chown -R appuser:"$(id -gn appuser)" /cargo
+    && XDG_CACHE_HOME=/root/.cache python3 -m pip --disable-pip-version-check uninstall --root-user-action=ignore --yes pip
 
 USER appuser
 

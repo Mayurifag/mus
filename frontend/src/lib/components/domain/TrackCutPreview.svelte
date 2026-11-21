@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, tick } from "svelte";
-  import { Play } from "@lucide/svelte";
+  import Play from "@lucide/svelte/icons/play";
   import { Button } from "$lib/components/ui/button";
   import { fetchTrackCutPreview } from "$lib/services/trackClient";
   import type { AudioCut } from "$lib/types";

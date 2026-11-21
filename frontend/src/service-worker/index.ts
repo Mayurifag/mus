@@ -9,9 +9,9 @@ declare const self: ServiceWorkerGlobalScope;
 
 const CACHE_PREFIX = "mus-cache-";
 const CACHE_NAME = `${CACHE_PREFIX}${version}`;
-const ASSETS_TO_CACHE = [...immutable, ...assets, ...prerendered].map(
-  (asset) => new URL(asset.path, self.location.href).pathname,
-);
+const ASSETS_TO_CACHE = [...immutable, ...assets, ...prerendered]
+  .map((asset) => new URL(asset.path, self.location.href).pathname)
+  .filter((path) => !path.startsWith("/_app/immutable/chunks/hls-playback."));
 
 self.addEventListener("install", (event) => {
   async function addAllToCache() {

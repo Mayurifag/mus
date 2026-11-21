@@ -5,7 +5,7 @@
   import type { AudioService } from "$lib/services/AudioService";
   import type { TimeRange } from "$lib/types";
   import { updateEffectStats } from "$lib/utils/monitoredEffect";
-  import { Menu } from "@lucide/svelte";
+  import Menu from "@lucide/svelte/icons/menu";
   import { browser } from "$app/env";
   import CurrentTrackInfo from "$lib/components/layout/player/CurrentTrackInfo.svelte";
   import PlaybackControls from "$lib/components/layout/player/PlaybackControls.svelte";

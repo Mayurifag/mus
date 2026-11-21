@@ -1,7 +1,8 @@
 <script lang="ts">
   import * as Dialog from "$lib/components/ui/dialog";
   import { Button } from "$lib/components/ui/button";
-  import { Save, Trash2 } from "@lucide/svelte";
+  import Save from "@lucide/svelte/icons/save";
+  import Trash2 from "@lucide/svelte/icons/trash-2";
 
   let {
     mode,

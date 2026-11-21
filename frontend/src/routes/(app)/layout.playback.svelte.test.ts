@@ -16,9 +16,7 @@ vi.mock("hls.js/light", () => ({
     static Events = { ERROR: "hlsError" };
     static isSupported = () => true;
     loadSource = vi.fn();
-    attachMedia = vi.fn((audio: HTMLAudioElement) => {
-      audio.src = "blob:active-audio";
-    });
+    attachMedia = vi.fn();
     on = vi.fn();
     destroy = vi.fn();
     constructor() {
@@ -69,6 +67,14 @@ beforeEach(() => {
   session.playbackState = "none";
   session.setActionHandler.mockClear();
   hls.instances.length = 0;
+  vi.stubGlobal("MediaSource", class {});
+  vi.stubGlobal(
+    "URL",
+    class extends URL {
+      static createObjectURL = () => "blob:active-audio";
+      static revokeObjectURL = vi.fn();
+    },
+  );
   trackStore.reset();
   const json = (data: unknown) => new Response(JSON.stringify(data));
   vi.stubGlobal(
@@ -146,6 +152,7 @@ describe("selection cleanup through the layout", () => {
       expect(service.currentTime).toBe(0);
       service.play();
       expect(service.isPlaying).toBe(true);
+      await vi.dynamicImportSettled();
       expect(hls.instances).toHaveLength(1);
     } finally {
       unmount();
@@ -160,6 +167,7 @@ describe("selection cleanup through the layout", () => {
       const service = get(audioServiceStore)!;
       const audio = document.querySelector("audio")!;
       service.play();
+      await vi.dynamicImportSettled();
       const source = audio.getAttribute("src");
       trackStore.updateTrack({ ...track, title: "Updated title" });
       await tick();
@@ -182,6 +190,7 @@ describe("selection cleanup through the layout", () => {
       await waitFor(() => expect(get(audioServiceStore)?.currentTime).toBe(32));
       const service = get(audioServiceStore)!;
       service.play();
+      await vi.dynamicImportSettled();
       const updated = {
         ...track,
         id: "updated",
@@ -203,6 +212,7 @@ describe("selection cleanup through the layout", () => {
         expect(get(trackStore).currentTrack?.id).toBe(updated.id),
       );
       await tick();
+      await vi.dynamicImportSettled();
       expect(service.isPlaying).toBe(true);
       expect(get(trackStore).playHistory[0].id).toBe(updated.id);
       expect(hls.instances).toHaveLength(2);
@@ -222,6 +232,7 @@ describe("selection cleanup through the layout", () => {
       const audio = document.querySelector("audio")!;
       service.play();
       expect(service.isPlaying).toBe(true);
+      await vi.dynamicImportSettled();
       expect(hls.instances).toHaveLength(1);
       expect(session.metadata).not.toBeNull();
       vi.stubGlobal("crypto", {});
@@ -247,6 +258,7 @@ describe("selection cleanup through the layout", () => {
       trackStore.addTrack(track);
       trackStore.playTrack(0);
       await tick();
+      await vi.dynamicImportSettled();
       expect(hls.instances).toHaveLength(2);
       expect(service.isPlaying).toBe(true);
     } finally {

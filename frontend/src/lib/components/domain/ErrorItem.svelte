@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { RotateCcw, Trash2 } from "@lucide/svelte";
+  import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
+  import Trash2 from "@lucide/svelte/icons/trash-2";
   import type { Track } from "$lib/types";
   import { requeueTrack, deleteTrack } from "$lib/services/trackClient";
   import { toast } from "svelte-sonner";

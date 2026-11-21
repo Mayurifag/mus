@@ -2,7 +2,7 @@ import type { Track, TimeRange } from "$lib/types";
 import { get, writable } from "svelte/store";
 import { trackStore } from "$lib/stores/trackStore";
 import { formatArtistsForDisplay } from "$lib/utils/formatters";
-import Hls from "hls.js/light";
+import type Hls from "hls.js/light";
 import {
   clearMediaSession,
   setupMediaSessionHandlers,
@@ -20,6 +20,7 @@ export class AudioService {
   private hasRequestedLoad = false;
   private pendingInitialTime: number | null = null;
   private hls: Hls | null = null;
+  private pendingMediaSource: MediaSource | null = null;
   private readonly initialTitle =
     typeof document === "undefined" ? "" : document.title;
 
@@ -129,42 +130,67 @@ export class AudioService {
     }
   }
 
-  private loadSource(): void {
-    if (this.currentTrackId === null || this.hasRequestedLoad) return;
-
-    if (this.pendingHlsUrl !== null) {
-      this.loadHlsSource(this.pendingHlsUrl);
-      this.pendingHlsUrl = null;
-    }
+  private loadSource(): boolean {
+    if (this.hasRequestedLoad) return true;
+    const url = this.pendingHlsUrl;
+    if (url === null) return false;
     this.hasRequestedLoad = true;
+
+    if (this.audio.canPlayType("application/vnd.apple.mpegurl")) {
+      this.audio.src = url;
+      this.audio.load();
+    } else if (typeof MediaSource !== "undefined") {
+      // Set the source before play() so it can use the current user gesture.
+      // hls.js attaches to this MediaSource without resetting pending playback.
+      const mediaSource = new MediaSource();
+      this.pendingMediaSource = mediaSource;
+      this.audio.src = URL.createObjectURL(mediaSource);
+      void this.attachHls(url, mediaSource);
+    } else {
+      this.hasRequestedLoad = false;
+      console.error("HLS playback is not supported by this browser");
+      return false;
+    }
+    return true;
   }
 
-  private loadHlsSource(hlsUrl: string): void {
-    this.destroyHls();
-    if (Hls.isSupported()) {
-      this.hls = new Hls();
-      this.hls.loadSource(hlsUrl);
-      this.hls.attachMedia(this.audio);
+  private async attachHls(
+    url: string,
+    mediaSource: MediaSource,
+  ): Promise<void> {
+    try {
+      const { default: Hls } = await import("hls.js/light");
+      if (this.pendingMediaSource !== mediaSource) return;
+      if (!Hls.isSupported())
+        throw new Error("MediaSource HLS is not supported");
+
+      this.hls = new Hls({ preferManagedMediaSource: false });
       this.hls.on(Hls.Events.ERROR, (_event, data) => {
         if (!data.fatal) return;
         console.error("HLS playback error occurred", data);
         this.pause();
       });
-      return;
+      this.hls.loadSource(url);
+      this.hls.attachMedia({ media: this.audio, mediaSource });
+      this.pendingMediaSource = null;
+    } catch (error) {
+      if (this.pendingMediaSource !== mediaSource) return;
+      console.error("Failed to load HLS playback", error);
+      this.pause();
+      this.resetMedia();
+      this.hasRequestedLoad = false;
     }
-
-    if (this.audio.canPlayType("application/vnd.apple.mpegurl")) {
-      this.audio.src = hlsUrl;
-      this.audio.load();
-      return;
-    }
-
-    console.error("HLS playback is not supported by this browser");
   }
 
-  private destroyHls(): void {
+  private resetMedia(): void {
+    if (this.pendingMediaSource) {
+      URL.revokeObjectURL(this.audio.src);
+      this.pendingMediaSource = null;
+    }
     this.hls?.destroy();
     this.hls = null;
+    this.audio.removeAttribute("src");
+    this.audio.load();
   }
 
   private handlePlayError(error: DOMException): void {
@@ -196,7 +222,7 @@ export class AudioService {
     const shouldUpdateSource = this.currentTrackId !== track.id;
     this.currentTrackId = track.id;
     if (shouldUpdateSource) {
-      this.destroyHls();
+      if (this.hasRequestedLoad) this.resetMedia();
       this.hasRequestedLoad = false;
       this.pendingHlsUrl = track.hls_url;
       this.pendingInitialTime = initialTime;
@@ -204,19 +230,16 @@ export class AudioService {
       this._duration.set(0);
       this._currentBufferedRanges.set([]);
 
-      if (isPlaying) {
-        this.loadSource();
-        this.audio.play().catch((error) => this.handlePlayError(error));
-      }
+      if (isPlaying) this.play();
     } else if (initialTime > 0) {
       this.setTime(initialTime);
     }
   }
 
   play(): void {
-    if (this.currentTrackId === null) return;
-    this.loadSource();
-    this.audio.play().catch((error) => this.handlePlayError(error));
+    if (this.currentTrackId !== null && this.loadSource()) {
+      this.audio.play().catch((error) => this.handlePlayError(error));
+    }
   }
 
   pause(): void {
@@ -349,13 +372,7 @@ export class AudioService {
     this.hasRequestedLoad = false;
     this.isSeeking = false;
     this.pause();
-    this.destroyHls();
-    if (typeof this.audio.removeAttribute === "function") {
-      this.audio.removeAttribute("src");
-    } else {
-      this.audio.src = "";
-    }
-    this.audio.load();
+    this.resetMedia();
     this._isPlaying.set(false);
     this._currentTime.set(0);
     this._duration.set(0);

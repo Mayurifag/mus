@@ -16,6 +16,12 @@ app_data/
 **/coverage/
 **/npm-debug.log
 **/.eslintcache
+frontend/**/*.md
+frontend/**/*.markdown
+frontend/src/**/*.test.ts
+frontend/vitest-setup-client.ts
+frontend/eslint.config.js
+frontend/.prettier*
 
 e2e/
 !docker/production/

@@ -4,13 +4,11 @@
   import { fetchMetadata } from "$lib/services/downloadClient";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
-  import {
-    Download,
-    Loader2,
-    AlertCircle,
-    CheckCircle,
-    Lock,
-  } from "@lucide/svelte";
+  import Download from "@lucide/svelte/icons/download";
+  import Loader2 from "@lucide/svelte/icons/loader-circle";
+  import AlertCircle from "@lucide/svelte/icons/circle-alert";
+  import CheckCircle from "@lucide/svelte/icons/circle-check-big";
+  import Lock from "@lucide/svelte/icons/lock";
   import { toast } from "svelte-sonner";
 
   let url = $state("");

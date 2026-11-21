@@ -4,7 +4,7 @@
   import { trackStore } from "$lib/stores/trackStore";
   import { permissionsStore } from "$lib/stores/permissionsStore";
   import { Slider } from "$lib/components/ui/slider";
-  import { Pencil } from "@lucide/svelte";
+  import Pencil from "@lucide/svelte/icons/pencil";
   import { formatDuration } from "$lib/utils/formatters";
   import {
     categoryLabels,

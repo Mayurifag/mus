@@ -10,7 +10,6 @@ use crate::{
     db,
     derived::delete_track_derived_files,
     files::{can_write, inode},
-    hls::prewarm_track_hls,
     media::{apply_audio_update, extract_cover, read_metadata, AudioUpdate, MediaMetadata},
     models::{Track, TrackDto},
     state::AppState,
@@ -131,7 +130,6 @@ pub(super) async fn upsert_path_with_snapshot(
         .await?
         .map(|track| track.tags)
         .unwrap_or_default();
-    prewarm_track_hls(state, &track).await;
     Ok((track.into(), is_new, Some(path)))
 }
 
@@ -194,7 +192,6 @@ pub(super) async fn normalize_existing_track(
     if old_id != track.id {
         delete_track_derived_files(state, &old_id).await;
     }
-    prewarm_track_hls(state, &track).await;
     Ok(Some((track.into(), path.to_string_lossy().to_string())))
 }
 

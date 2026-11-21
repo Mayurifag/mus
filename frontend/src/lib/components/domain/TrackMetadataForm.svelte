@@ -4,7 +4,9 @@
   import { Input } from "$lib/components/ui/input";
   import { Checkbox } from "$lib/components/ui/checkbox";
   import { Button } from "$lib/components/ui/button";
-  import { HelpCircle, Plus, X } from "@lucide/svelte";
+  import HelpCircle from "@lucide/svelte/icons/circle-question-mark";
+  import Plus from "@lucide/svelte/icons/plus";
+  import X from "@lucide/svelte/icons/x";
 
   import ArtworkPickerButton from "./ArtworkPickerButton.svelte";
   import FilenameDisplay from "./FilenameDisplay.svelte";

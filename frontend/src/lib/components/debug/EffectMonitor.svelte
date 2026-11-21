@@ -3,7 +3,8 @@
     effectStats,
     clearEffectStats,
   } from "$lib/stores/effectMonitorStore";
-  import { CircleDot, Trash2 } from "@lucide/svelte";
+  import CircleDot from "@lucide/svelte/icons/circle-dot";
+  import Trash2 from "@lucide/svelte/icons/trash-2";
 
   function formatTimestamp(timestamp: number): string {
     const date = new Date(timestamp);

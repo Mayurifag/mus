@@ -14,7 +14,6 @@ use crate::{
     error::AppError,
     events::broadcast,
     files::{can_write, file_content_hash, file_signature, inode},
-    hls::prewarm_track_hls,
     media::{
         extract_cover, prepare_audio_update, read_cut_source, read_metadata, validate_cut,
         AudioUpdate,
@@ -182,14 +181,5 @@ async fn apply_track_update(
             .unwrap_or(false);
     }
     track.tags = save_track(state, &old_id, &track, &new_tags, finalize_tags).await?;
-    if update_result.content_changed {
-        spawn_hls_prewarm(state.clone(), track.clone());
-    }
     Ok(track.into())
-}
-
-fn spawn_hls_prewarm(state: AppState, track: crate::models::Track) {
-    tokio::spawn(async move {
-        prewarm_track_hls(&state, &track).await;
-    });
 }

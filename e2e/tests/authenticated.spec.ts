@@ -64,6 +64,12 @@ async function getFileStats(
 
 test.describe("Authenticated User Flows", () => {
   test("playback controls work correctly", async ({ page }) => {
+    const hlsModuleRequests: string[] = [];
+    page.context().on("request", (request) => {
+      if (new URL(request.url()).pathname.includes("/chunks/hls-playback.")) {
+        hlsModuleRequests.push(request.url());
+      }
+    });
     let savedTrackId = "";
     await expect
       .poll(async () => {
@@ -130,6 +136,12 @@ test.describe("Authenticated User Flows", () => {
         .getByTestId("track-progress-slider")
         .getByRole("slider"),
     ).toHaveAttribute("aria-valuenow", "1");
+    await expect
+      .poll(() =>
+        page.evaluate(() => navigator.serviceWorker.controller !== null),
+      )
+      .toBe(true);
+    expect(hlsModuleRequests).toHaveLength(0);
 
     await lunaTrack.click();
 
@@ -137,6 +149,12 @@ test.describe("Authenticated User Flows", () => {
       "Luna Solaris - Cosmic Wanderer",
     );
     await expect(page.locator("audio")).toHaveJSProperty("paused", false);
+    // play() can set paused=false before a lazy HLS stream has delivered audio.
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.querySelector("audio")!.currentTime),
+      )
+      .toBeGreaterThan(0);
     await expect(lunaTrack).toHaveClass(/bg-secondary/);
     await expect(midnightEchoesTrack).not.toHaveClass(/bg-secondary/);
 

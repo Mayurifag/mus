@@ -1,15 +1,13 @@
 <script lang="ts">
   import { recentEventsStore } from "$lib/stores/recentEventsStore";
-  import {
-    FileText,
-    FilePlus,
-    FileX,
-    FileEdit,
-    Info,
-    CheckCircle,
-    AlertCircle,
-    XCircle,
-  } from "@lucide/svelte";
+  import FileText from "@lucide/svelte/icons/file-text";
+  import FilePlus from "@lucide/svelte/icons/file-plus";
+  import FileX from "@lucide/svelte/icons/file-x";
+  import FileEdit from "@lucide/svelte/icons/file-pen";
+  import Info from "@lucide/svelte/icons/info";
+  import CheckCircle from "@lucide/svelte/icons/circle-check-big";
+  import AlertCircle from "@lucide/svelte/icons/circle-alert";
+  import XCircle from "@lucide/svelte/icons/circle-x";
 
   function formatTimestamp(timestamp: number): string {
     const date = new Date(timestamp);

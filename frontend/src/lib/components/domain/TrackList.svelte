@@ -8,7 +8,7 @@
   import { selectedTrackIndexes } from "$lib/stores/filteredTrackNavigation";
   import { browser } from "$app/env";
   import { updateEffectStats } from "$lib/utils/monitoredEffect";
-  import { ArrowLeft } from "@lucide/svelte";
+  import ArrowLeft from "@lucide/svelte/icons/arrow-left";
   import { clearArtistFilter } from "$lib/utils/artistFilterNavigation";
   import { categoryLabels } from "$lib/utils/categoryMarkers";
 

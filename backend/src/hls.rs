@@ -13,7 +13,6 @@ use tower_http::services::ServeFile;
 use crate::{db::get_track, error::AppError, models::Track, state::AppState};
 
 mod cache;
-pub(crate) use cache::prewarm_track_hls;
 use cache::{ensure_hls_cache, hls_cache_dir};
 
 pub fn track_hls_url(track: &Track) -> String {

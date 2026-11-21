@@ -13,12 +13,32 @@ export default defineConfig({
       preprocess: vitePreprocess(),
       adapter: adapter({ fallback: "index.html" }),
     }),
+    {
+      name: "name-hls-playback-chunk",
+      apply: "build",
+      config(config) {
+        const output =
+          config.environments?.client?.build?.rolldownOptions?.output;
+        if (
+          Array.isArray(output) ||
+          typeof output?.chunkFileNames !== "function"
+        )
+          return;
+        const chunkFileNames = output.chunkFileNames;
+        output.chunkFileNames = (chunk) => {
+          const path = chunkFileNames(chunk);
+          return chunk.facadeModuleId?.endsWith("/hls.js/dist/hls.light.mjs")
+            ? path.replace("[hash]", "hls-playback.[hash]")
+            : path;
+        };
+      },
+    },
   ],
   resolve: {
     alias: { $lib: fileURLToPath(new URL("./src/lib", import.meta.url)) },
   },
   optimizeDeps: {
-    include: ["music-metadata", "@lucide/svelte", "bits-ui"],
+    include: ["music-metadata", "bits-ui"],
   },
   test: {
     coverage: {

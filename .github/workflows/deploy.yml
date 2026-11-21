@@ -11,13 +11,14 @@ name: Deploy to Container Registries
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   packages: write
 
 jobs:
   deploy-registries:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success') }}
+    if: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success')) }}
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
@@ -29,6 +30,9 @@ jobs:
           fetch-depth: 0
       - name: Set build metadata
         id: build_meta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
           commit_sha=$(git rev-parse HEAD)
           {
@@ -36,13 +40,56 @@ jobs:
             echo "build_date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
             echo "commit_title=$(git log -1 --pretty=%s)"
           } >> "$GITHUB_OUTPUT"
-          if [ "$GITHUB_EVENT_NAME" = workflow_run ]; then
-            main_sha=$(git ls-remote --exit-code origin refs/heads/main | cut -f1)
-            if [ "$commit_sha" != "$main_sha" ]; then
-              echo "Skipping outdated successful CI run for $commit_sha"
-              echo "publish=false" >> "$GITHUB_OUTPUT"
-              exit 0
+          main_sha=$(git ls-remote --exit-code origin refs/heads/main | cut -f1)
+          if [ "$commit_sha" != "$main_sha" ]; then
+            echo "Skipping outdated revision $commit_sha"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            # Explicit deployments bypass the diff, not CI.
+            tested=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/linters.yml/runs?head_sha=$commit_sha&status=success&per_page=1" --jq '.total_count')
+            if [ "$tested" = 0 ]; then
+              echo "::error::Run the Linters pipeline successfully for $commit_sha before deploying."
+              exit 1
             fi
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # A successful no-op run is not a release. Check the completed release
+          # steps rather than trusting :latest, which a partial push can update.
+          released_sha=
+          for ((page = 1; ; page++)); do
+            runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/deploy.yml/runs?branch=main&status=completed&per_page=100&page=$page" \
+              --jq '.workflow_runs[] | [.id, .run_attempt, .head_sha, .conclusion] | @tsv')
+            [ -n "$runs" ] || break
+            while read -r run_id attempt sha conclusion; do
+              [ "$conclusion" != skipped ] || continue
+              jobs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/attempts/$attempt/jobs")
+              pushed=$(jq -r '[.jobs[].steps[]? | select(.name == "Build and push to both registries") | .conclusion][0] // "skipped"' <<< "$jobs")
+              [ "$pushed" != skipped ] || continue
+              triggered=$(jq -r 'any(.jobs[].steps[]?; .name == "Trigger watchtower" and .conclusion == "success")' <<< "$jobs")
+              # A failed release may have updated one of the registries.
+              if [ "$conclusion/$pushed/$triggered" = success/success/true ]; then
+                released_sha=$sha
+              fi
+              break 2
+            done <<< "$runs"
+          done
+
+          # Match the production Dockerfile and .dockerignore inputs.
+          if [ -n "$released_sha" ] && git cat-file -e "$released_sha^{commit}" 2>/dev/null &&
+            git diff --quiet "$released_sha" "$commit_sha" -- \
+              .dockerignore frontend/ backend/Cargo.toml backend/Cargo.lock backend/src/ \
+              docker/production/production.Dockerfile docker/production/production.Dockerfile.dockerignore \
+              docker/production/entrypoint.sh docker/yt-dlp.conf \
+              ':(exclude,glob)frontend/**/*.md' ':(exclude,glob)frontend/**/*.markdown' \
+              ':(exclude,glob)frontend/src/**/*.test.ts' ':(exclude)frontend/vitest-setup-client.ts' \
+              ':(exclude)frontend/eslint.config.js' ':(exclude,glob)frontend/.prettier*'; then
+            echo "Application image inputs are unchanged since $released_sha"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           echo "publish=true" >> "$GITHUB_OUTPUT"
       - name: Set up QEMU
@@ -72,6 +119,7 @@ jobs:
         if: steps.build_meta.outputs.publish == 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
+          context: .
           file: docker/production/production.Dockerfile
           push: true
           build-args: |

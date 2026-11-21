@@ -15,14 +15,11 @@ FROM rust:1.100.0-alpine3.24 AS backend-builder
 WORKDIR /app/backend
 RUN apk add --no-cache build-base
 COPY backend/Cargo.toml backend/Cargo.lock ./
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,target=/app/backend/target \
-    mkdir src && printf 'fn main() {}\n' > src/main.rs && cargo build --locked --release && rm -rf src
 COPY backend/src ./src
+# Cargo checks source mtimes; a cached target can be newer than either revision's COPY.
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,target=/app/backend/target \
+    --mount=type=cache,target=/app/backend/target,sharing=locked \
     cargo clean --release -p mus-backend \
     && cargo build --locked --release \
     && cp target/release/mus-backend /tmp/mus-backend

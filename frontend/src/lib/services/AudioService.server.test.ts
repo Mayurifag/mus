@@ -9,6 +9,7 @@ it("can update the source without a browser document", () => {
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
     pause: vi.fn(),
+    removeAttribute: vi.fn(),
     load: vi.fn(),
   } as unknown as HTMLAudioElement;
   const service = new AudioService(audio);

@@ -15,22 +15,6 @@ use super::is_safe_hls_media_file;
 
 const HLS_SEGMENT_SECONDS: &str = "6";
 
-pub(crate) async fn prewarm_track_hls(state: &AppState, track: &Track) {
-    if !fs::metadata(&track.file_path)
-        .await
-        .is_ok_and(|meta| meta.is_file())
-    {
-        return;
-    }
-    if let Err(error) = ensure_hls_cache(state, track).await {
-        let filename = Path::new(&track.file_path)
-            .file_name()
-            .and_then(|value| value.to_str())
-            .unwrap_or(&track.file_path);
-        tracing::warn!(filename, error = %error, "failed to prewarm HLS cache");
-    }
-}
-
 pub(super) async fn ensure_hls_cache(state: &AppState, track: &Track) -> Result<PathBuf> {
     let dir = hls_cache_dir(state, &track.id);
     if hls_complete(&dir).await {

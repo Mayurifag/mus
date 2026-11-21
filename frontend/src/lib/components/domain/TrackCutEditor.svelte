@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import { Slider } from "bits-ui";
-  import { Scissors, X } from "@lucide/svelte";
+  import Scissors from "@lucide/svelte/icons/scissors";
+  import X from "@lucide/svelte/icons/x";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Checkbox } from "$lib/components/ui/checkbox";

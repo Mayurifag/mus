@@ -11,11 +11,8 @@ name: Linters pipeline
 permissions:
   contents: read
 
-env:
-  CI_COMPOSE: docker compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml -f docker/docker-compose.ci.yml
-
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'workflow_dispatch' && '-manual' || '' }}
   cancel-in-progress: true
 
 jobs:
@@ -68,51 +65,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - name: Build frontend image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          context: .
-          file: docker/frontend.Dockerfile
-          load: true
-          tags: mus-frontend-ci
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,mode=max,scope=frontend
-      - name: Cache frontend npm cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .ci-cache/frontend/npm
-          key: ${{ runner.os }}-frontend-npm-${{ hashFiles('frontend/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-frontend-npm-
-      - name: Copy Docker Compose override file
-        run: cp docker/docker-compose.override.yml.example docker/docker-compose.override.yml
-      - name: Install frontend dependencies
-        run: |
-          make \
-            COMPOSE="$CI_COMPOSE" \
-            front-ci-install
-      - name: Run frontend linting
-        run: |
-          make \
-            COMPOSE="$CI_COMPOSE" \
-            front-lint
-      - name: Audit frontend dependencies
-        run: |
-          make \
-            COMPOSE="$CI_COMPOSE" \
-            front-audit
-      - name: Run frontend tests
-        run: |
-          make \
-            COMPOSE="$CI_COMPOSE" \
-            front-test
-      - name: Run Svelte type checking
-        run: |
-          make \
-            COMPOSE="$CI_COMPOSE" \
-            front-svelte-check
+          node-version-file: frontend/package.json
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Run frontend CI
+        run: make FRONTEND_RUN="cd frontend &&" front-ci-install front-lint front-audit front-test front-svelte-check
 
   e2e-lint:
     runs-on: ubuntu-latest

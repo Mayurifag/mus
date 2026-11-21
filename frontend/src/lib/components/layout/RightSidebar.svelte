@@ -5,7 +5,8 @@
     trackStore,
   } from "$lib/stores/trackStore";
 
-  import { AlertTriangle, Play } from "@lucide/svelte";
+  import AlertTriangle from "@lucide/svelte/icons/triangle-alert";
+  import Play from "@lucide/svelte/icons/play";
   import EffectMonitor from "$lib/components/debug/EffectMonitor.svelte";
   import ErrorItem from "$lib/components/domain/ErrorItem.svelte";
   import DownloadManager from "$lib/components/domain/DownloadManager.svelte";

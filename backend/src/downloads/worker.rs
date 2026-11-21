@@ -154,7 +154,7 @@ pub(super) async fn run_download_inner(
     tracing::info!(
         track_id = track.id,
         elapsed_ms = started.elapsed().as_millis(),
-        "download library registration and HLS prewarm finished"
+        "download library registration finished"
     );
     Ok(final_path)
 }

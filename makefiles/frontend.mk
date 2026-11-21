@@ -1,3 +1,5 @@
+FRONTEND_RUN ?= $(COMPOSE) run --no-TTY --rm frontend
+
 .PHONY: front-install
 front-install:
 	@$(COMPOSE) run --no-TTY --rm frontend npm install --no-fund
@@ -28,16 +30,16 @@ front-npm-outdated:
 
 .PHONY: front-audit
 front-audit:
-	@$(COMPOSE) run --no-TTY --rm frontend npm audit --omit=dev
-	@$(COMPOSE) run --no-TTY --rm frontend npm audit --audit-level=moderate
+	@$(FRONTEND_RUN) npm audit --omit=dev
+	@$(FRONTEND_RUN) npm audit --audit-level=moderate
 
 .PHONY: front-build
 front-build:
-	@$(COMPOSE) run --no-TTY --rm frontend npm run build
+	@$(FRONTEND_RUN) npm run build
 
 .PHONY: front-lint
 front-lint:
-	@$(COMPOSE) run --no-TTY --rm frontend sh -c "rm -rf coverage/ && npm run lint"
+	@$(FRONTEND_RUN) sh -c "rm -rf coverage/ && npm run lint"
 
 .PHONY: front-lint-only
 front-lint-only: front-lint
@@ -48,12 +50,12 @@ front-format:
 
 .PHONY: front-test
 front-test:
-	@$(COMPOSE) run --no-TTY --rm frontend npm run test
+	@$(FRONTEND_RUN) npm run test
 
 .PHONY: front-svelte-check
 front-svelte-check:
-	@$(COMPOSE) run --no-TTY --rm frontend npm run check
+	@$(FRONTEND_RUN) npm run check
 
 .PHONY: front-ci-install
 front-ci-install:
-	@$(COMPOSE) run --no-TTY --rm frontend npm ci --no-fund
+	@$(FRONTEND_RUN) npm ci --no-fund

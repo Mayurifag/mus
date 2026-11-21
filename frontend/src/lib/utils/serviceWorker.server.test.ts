@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("$app/env", () => ({ version: "test" }));
 vi.mock("$app/manifest", () => ({
-  immutable: [],
+  immutable: [
+    { path: "/_app/immutable/chunks/app.hash.js" },
+    { path: "/_app/immutable/chunks/hls-playback.hash.js" },
+  ],
   assets: [],
   prerendered: [],
 }));
@@ -36,6 +39,7 @@ beforeEach(async () => {
     location: new URL("https://mus.test/service-worker.js"),
     addEventListener: (type: string, listener: (event: WorkerEvent) => void) =>
       listeners.set(type, listener),
+    skipWaiting: vi.fn().mockResolvedValue(undefined),
     clients: { claim: vi.fn().mockResolvedValue(undefined) },
   });
   vi.stubGlobal("caches", cacheStorage);
@@ -58,6 +62,13 @@ function dispatch(type: string, request = new Request("https://mus.test/")) {
 }
 
 describe("service worker cache lifecycle", () => {
+  it("precaches app assets without downloading the HLS playback chunk", async () => {
+    await dispatch("install").done();
+    expect(cache.addAll).toHaveBeenCalledExactlyOnceWith([
+      "/_app/immutable/chunks/app.hash.js",
+    ]);
+  });
+
   it("removes only previous mus caches during activation", async () => {
     cacheStorage.keys.mockResolvedValue([
       "mus-cache-old",

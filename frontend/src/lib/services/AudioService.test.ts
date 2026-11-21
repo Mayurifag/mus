@@ -71,6 +71,14 @@ describe("AudioService", () => {
     mockHls.isSupported.mockReset();
     mockHls.isSupported.mockReturnValue(true);
     mockHls.instances.length = 0;
+    vi.stubGlobal("MediaSource", class {});
+    vi.stubGlobal(
+      "URL",
+      class extends URL {
+        static createObjectURL = vi.fn().mockReturnValue("blob:track");
+        static revokeObjectURL = vi.fn();
+      },
+    );
 
     // Create a mock audio element
     const mockBuffered = {
@@ -90,6 +98,9 @@ describe("AudioService", () => {
       }),
       pause: vi.fn(() => events.dispatchEvent(new Event("pause"))),
       load: vi.fn(),
+      removeAttribute: vi.fn(() => {
+        mockAudio.src = "";
+      }),
       canPlayType: vi.fn().mockReturnValue(""),
       src: "",
       currentTime: 0,
@@ -110,6 +121,7 @@ describe("AudioService", () => {
   afterEach(() => {
     audioService.destroy();
     document.title = originalTitle;
+    vi.unstubAllGlobals();
   });
 
   it("should set up event listeners on construction", () => {
@@ -140,16 +152,20 @@ describe("AudioService", () => {
     );
   });
 
-  it("should update audio source when track changes", () => {
+  it("should update audio source when track changes", async () => {
     audioService.updateAudioSource(mockTrack, true);
+    await vi.dynamicImportSettled();
 
     const hls = mockHls.instances[0];
     expect(hls.loadSource).toHaveBeenCalledWith(HLS_URL);
-    expect(hls.attachMedia).toHaveBeenCalledWith(mockAudio);
+    expect(hls.attachMedia).toHaveBeenCalledWith({
+      media: mockAudio,
+      mediaSource: expect.any(MediaSource),
+    });
     expect(mockAudio.load).not.toHaveBeenCalled();
   });
 
-  it("should not load a new source until playback or seek starts", () => {
+  it("should not load a new source until playback or seek starts", async () => {
     audioService.updateAudioSource(mockTrack, false);
 
     expect(mockAudio.src).toBe("");
@@ -158,18 +174,49 @@ describe("AudioService", () => {
 
     audioService.play();
 
+    expect(mockAudio.src).toBe("blob:track");
+    expect(mockAudio.play).toHaveBeenCalledOnce();
+    expect(mockHls.instances).toHaveLength(0);
+    await vi.dynamicImportSettled();
     expect(mockHls.instances[0].loadSource).toHaveBeenCalledWith(HLS_URL);
     expect(mockAudio.play).toHaveBeenCalledOnce();
   });
 
-  it("uses native HLS when MediaSource HLS is unavailable", () => {
-    mockHls.isSupported.mockReturnValue(false);
+  it("uses native HLS without loading hls.js even when MSE is available", async () => {
     vi.mocked(mockAudio.canPlayType).mockReturnValue("maybe");
 
     audioService.updateAudioSource(mockTrack, true);
 
     expect(mockAudio.src).toBe(HLS_URL);
     expect(mockAudio.load).toHaveBeenCalledOnce();
+    expect(mockAudio.play).toHaveBeenCalledOnce();
+    await vi.dynamicImportSettled();
+    expect(mockHls.isSupported).not.toHaveBeenCalled();
+    expect(mockHls.instances).toHaveLength(0);
+  });
+
+  it("discards a pending HLS attachment when switching tracks", async () => {
+    audioService.updateAudioSource(mockTrack, true);
+    audioService.updateAudioSource(
+      { ...mockTrack, id: "2", hls_url: "/second.m3u8" },
+      true,
+    );
+    await vi.dynamicImportSettled();
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:track");
+    expect(mockHls.instances).toHaveLength(1);
+    expect(mockHls.instances[0].loadSource).toHaveBeenCalledWith(
+      "/second.m3u8",
+    );
+  });
+
+  it("releases the pending source on destroy", async () => {
+    audioService.updateAudioSource(mockTrack, true);
+    audioService.destroy();
+    await vi.dynamicImportSettled();
+
+    expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:track");
+    expect(mockAudio.src).toBe("");
     expect(mockHls.instances).toHaveLength(0);
   });
 
@@ -205,11 +252,14 @@ describe("AudioService", () => {
 
   it.each(["MediaSource", "native"])(
     "clears an active %s source when the selection becomes null",
-    (mode) => {
+    async (mode) => {
       mockHls.isSupported.mockReturnValue(mode === "MediaSource");
-      vi.mocked(mockAudio.canPlayType).mockReturnValue("maybe");
+      vi.mocked(mockAudio.canPlayType).mockReturnValue(
+        mode === "native" ? "maybe" : "",
+      );
       audioService.initializeState(0.7, true, true);
       audioService.updateAudioSource(mockTrack, true, 32);
+      await vi.dynamicImportSettled();
       mockAudio.dispatchEvent(new Event("loadedmetadata"));
       Object.defineProperty(mockAudio, "buffered", {
         configurable: true,
@@ -246,6 +296,7 @@ describe("AudioService", () => {
       mockAudio.dispatchEvent(new Event("timeupdate"));
       expect(audioService.currentTime).toBe(5);
       audioService.play();
+      await vi.dynamicImportSettled();
       if (mode === "MediaSource") expect(mockHls.instances).toHaveLength(2);
       else expect(mockAudio.src).toBe(HLS_URL);
     },
@@ -264,7 +315,7 @@ describe("AudioService", () => {
     expect(audioService.currentBufferedRanges).toEqual([]);
   });
 
-  it("replaces a pending initial seek when the selection changes before metadata loads", () => {
+  it("replaces a pending initial seek when the selection changes before metadata loads", async () => {
     audioService.updateAudioSource(mockTrack, false, 42);
     audioService.updateAudioSource(
       { ...mockTrack, id: "2", hls_url: "/second.m3u8" },
@@ -273,6 +324,7 @@ describe("AudioService", () => {
     );
     mockAudio.dispatchEvent(new Event("loadedmetadata"));
     expect(mockAudio.currentTime).toBe(12);
+    await vi.dynamicImportSettled();
     expect(mockHls.instances).toHaveLength(1);
     expect(mockHls.instances[0].loadSource).toHaveBeenCalledWith(
       "/second.m3u8",
@@ -425,7 +477,7 @@ describe("AudioService", () => {
     expect(document.title).toBe("Test Artist - Test Track");
   });
 
-  it("refreshes metadata for the same track without restarting its source", () => {
+  it("refreshes metadata for the same track without restarting its source", async () => {
     audioService.updateAudioSource(mockTrack, true);
     audioService.setTime(25);
     audioService.updateAudioSource(
@@ -436,6 +488,7 @@ describe("AudioService", () => {
     expect(document.title).toBe("Test Artist - Edited Track");
     expect(audioService.currentTime).toBe(25);
     expect(mockAudio.play).toHaveBeenCalledOnce();
+    await vi.dynamicImportSettled();
     expect(mockHls.instances).toHaveLength(1);
     expect(mockHls.instances[0].destroy).not.toHaveBeenCalled();
   });
@@ -478,12 +531,13 @@ describe("AudioService", () => {
     expect(mockAudio.load).not.toHaveBeenCalled();
   });
 
-  it("should seek to initial time after metadata loads", () => {
+  it("should seek to initial time after metadata loads", async () => {
     audioService.updateAudioSource(mockTrack, false, 42);
 
     mockAudio.dispatchEvent(new Event("loadedmetadata"));
 
     expect(mockAudio.currentTime).toBe(42);
+    await vi.dynamicImportSettled();
     expect(mockHls.instances[0].loadSource).toHaveBeenCalledWith(HLS_URL);
   });
 

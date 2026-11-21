@@ -15,7 +15,6 @@ use crate::{
     derived::delete_track_derived_files,
     events::broadcast,
     files::{file_content_hash, file_signature, inode, is_audio_path},
-    hls::prewarm_track_hls,
     media::{read_metadata, MediaMetadata, RejectedMedia},
     models::TrackDto,
     state::AppState,
@@ -200,8 +199,6 @@ async fn sync_path(
         if let Some((updated, file_path)) = normalize_existing_track(state, track, path).await? {
             current.insert(file_path);
             broadcast_track_update(state, updated, &track.id);
-        } else {
-            prewarm_track_hls(state, track).await;
         }
         return Ok(());
     }
@@ -220,7 +217,6 @@ async fn sync_path(
                     &snapshot.file_signature,
                 )
                 .await?;
-                prewarm_track_hls(state, track).await;
                 return Ok(());
             }
             let (updated, _, _) = upsert_path_with_snapshot(
