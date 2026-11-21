@@ -95,7 +95,6 @@ fi
 
 echo "Running E2E tests..."
 cd "$SCRIPT_DIR"
-export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--disable-warning=DEP0205"
 case "$MODE" in
 headed) npx playwright test --headed ;;
 debug) npx playwright test --debug ;;

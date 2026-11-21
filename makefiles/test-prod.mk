@@ -4,7 +4,7 @@ test-prod: test-prod-stop
 	@echo "Building production image..."
 	@docker build -f docker/production/production.Dockerfile -t mus:test .
 	@echo "Starting production container with music folder from override config..."
-	@MUSIC_PATH=$$(grep -A 15 "backend:" docker/docker-compose.override.yml | grep "/app_data/music" | sed 's/.*- \([^:]*\):.*/\1/' | xargs) && \
+	@MUSIC_PATH=$$($(COMPOSE) config --format json | jq -er '.services.backend.volumes[] | select(.type == "bind" and .target == "/app_data/music") | .source') && \
 	echo "Using music path: $$MUSIC_PATH" && \
 	docker run -d --name mus-prod-test -p 127.0.0.1:4124:8000 \
 		--security-opt no-new-privileges:true \
@@ -35,7 +35,7 @@ prod-smoke: prod-downloader-smoke prod-entrypoint-smoke
 	@docker rm -f mus-smoke-test 2>/dev/null || true
 	@set -eu; MUSIC_TMP=$$(mktemp -d); \
 	trap 'docker rm -f mus-smoke-test >/dev/null 2>&1 || true; rm -rf "$$MUSIC_TMP"' EXIT; \
-	cp -R e2e/music/. "$$MUSIC_TMP"; \
+	cp -R e2e/original/. "$$MUSIC_TMP"; \
 	docker run -d --name mus-smoke-test -p 127.0.0.1:4125:8000 \
 		--security-opt no-new-privileges:true \
 		-v "$$MUSIC_TMP:/app_data/music:rw" \

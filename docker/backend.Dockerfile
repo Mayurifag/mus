@@ -4,6 +4,9 @@ FROM node:26.13.1-alpine3.24 AS node-runtime
 
 FROM rust:1.100.0-alpine3.24 AS rust-runtime
 
+FROM golang:alpine AS reflex-builder
+RUN go telemetry off && CGO_ENABLED=0 go install github.com/cespare/reflex@latest
+
 FROM python:3.15.2-alpine3.24@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
 
 COPY --from=rust-runtime /usr/local/cargo /usr/local/cargo
@@ -39,7 +42,7 @@ RUN apk add --no-cache \
 
 RUN --mount=type=cache,target=/cargo/registry \
     --mount=type=cache,target=/cargo/git \
-    cargo install --root /usr/local/cargo cargo-audit watchexec-cli
+    cargo install --root /usr/local/cargo cargo-audit
 
 RUN group_name="$(awk -F: -v gid="$GROUP_ID" '$3 == gid { print $1; exit }' /etc/group)" \
     && if [ -z "$group_name" ]; then addgroup -g "$GROUP_ID" appgroup && group_name=appgroup; fi \
@@ -52,10 +55,12 @@ RUN group_name="$(awk -F: -v gid="$GROUP_ID" '$3 == gid { print $1; exit }' /etc
 RUN rustup component add rustfmt clippy \
     && XDG_CACHE_HOME=/root/.cache python3 -m pip --disable-pip-version-check uninstall --root-user-action=ignore --yes pip
 
+COPY --from=reflex-builder /go/bin/reflex /usr/local/bin/reflex
+
 USER appuser
 
 ENV PATH="/usr/local/cargo/bin:/cargo/bin:/home/appuser/.local/bin:${PATH}"
 
 EXPOSE 8001
 
-CMD ["sh", "-c", "sudo chown -R appuser:$(id -gn appuser) /app/target /cargo 2>/dev/null || true; exec watchexec --restart --debounce 500ms --shell=none --watch src --watch-non-recursive . --filter 'src/**' --filter Cargo.toml --filter Cargo.lock -- cargo run --locked"]
+CMD ["sh", "-c", "sudo chown -R appuser:$(id -gn appuser) /app/target /cargo 2>/dev/null || true; exec reflex -s -r '^(src/|Cargo\\.(toml|lock)$)' -R '^target/' -- cargo run --locked"]

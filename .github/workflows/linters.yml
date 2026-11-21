@@ -79,15 +79,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 26.13.1
-      - name: Set up npm
-        run: npm install -g npm@12.2.3 --no-fund
-      - name: Cache E2E npm cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-e2e-npm-${{ hashFiles('e2e/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-e2e-npm-
+          node-version-file: e2e/package.json
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
       - name: Run E2E linting
         run: make e2e-lint e2e-audit

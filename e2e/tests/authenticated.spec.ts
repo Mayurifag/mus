@@ -64,6 +64,13 @@ async function getFileStats(
 
 test.describe("Authenticated User Flows", () => {
   test("playback controls work correctly", async ({ page }) => {
+    const musicDir = process.env.E2E_MUSIC_DIR;
+    if (!musicDir) {
+      throw new Error(
+        "Use ./run-tests.sh to provide a disposable music directory",
+      );
+    }
+
     const hlsModuleRequests: string[] = [];
     page.context().on("request", (request) => {
       if (new URL(request.url()).pathname.includes("/chunks/hls-playback.")) {
@@ -158,7 +165,6 @@ test.describe("Authenticated User Flows", () => {
     await expect(lunaTrack).toHaveClass(/bg-secondary/);
     await expect(midnightEchoesTrack).not.toHaveClass(/bg-secondary/);
 
-    const musicDir = process.env.E2E_MUSIC_DIR ?? join(process.cwd(), "music");
     const sourceFile = join(
       musicDir,
       "The Midnight Echoes - Digital Dreams.wav",

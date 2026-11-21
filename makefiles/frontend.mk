@@ -39,7 +39,7 @@ front-build:
 
 .PHONY: front-lint
 front-lint:
-	@$(FRONTEND_RUN) sh -c "rm -rf coverage/ && npm run lint"
+	@$(FRONTEND_RUN) npm run lint
 
 .PHONY: front-lint-only
 front-lint-only: front-lint

@@ -20,7 +20,7 @@ e2e-lint:
 
 .PHONY: e2e-dev-smoke
 e2e-dev-smoke:
-	@cd e2e && npm ci --no-audit --no-fund --prefer-offline && NODE_OPTIONS="--disable-warning=DEP0205" BASE_URL=http://localhost:5173 npx playwright test tests/dev-smoke.spec.ts
+	@cd e2e && npm ci --no-audit --no-fund --prefer-offline && BASE_URL=$${BASE_URL:-http://localhost:5174} npx playwright test tests/dev-smoke.spec.ts
 
 .PHONY: e2e-update-deps
 e2e-update-deps:

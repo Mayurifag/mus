@@ -58,4 +58,4 @@ back-install: back-lock back-sync
 
 .PHONY: back-sh
 back-sh:
-	@$(COMPOSE) run -it backend bash
+	@$(COMPOSE) run --rm -it backend sh
