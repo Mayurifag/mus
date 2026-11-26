@@ -51,9 +51,8 @@ describe("audioFileAnalyzer", () => {
     common: Partial<IAudioMetadata["common"]> = {},
   ): IAudioMetadata => ({
     common: {
-      track: { no: null, of: null },
-      disk: { no: null, of: null },
-      movementIndex: { no: null, of: null },
+      getArtist: () => common.artist,
+      getArtists: () => common.artists,
       ...common,
     },
     format: {
@@ -117,12 +116,12 @@ describe("audioFileAnalyzer", () => {
       ]);
     });
 
-    it("should fallback to albumartist when artist is missing", async () => {
+    it("falls back to album artist when artist is missing", async () => {
       const mockParseBlob = await getMockParseBlob();
 
       const mockMetadata = createMockMetadata({
         title: "Test Title",
-        albumartist: "Album Artist",
+        albumArtist: "Album Artist",
         album: "Test Album",
       });
 

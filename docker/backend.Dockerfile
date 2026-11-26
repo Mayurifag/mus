@@ -4,8 +4,8 @@ FROM node:26.13.1-alpine3.24 AS node-runtime
 
 FROM rust:1.100.0-alpine3.24 AS rust-runtime
 
-FROM golang:alpine AS reflex-builder
-RUN go telemetry off && CGO_ENABLED=0 go install github.com/cespare/reflex@latest
+FROM golang:1.27.4-alpine3.24 AS reflex-builder
+RUN go telemetry off && CGO_ENABLED=0 go install github.com/cespare/reflex@v0.3.2
 
 FROM python:3.15.2-alpine3.24@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
 
@@ -35,14 +35,9 @@ RUN apk add --no-cache \
         curl \
         libatomic \
         libstdc++ \
-        sqlite \
         sudo \
     && curl -fsSL https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp
-
-RUN --mount=type=cache,target=/cargo/registry \
-    --mount=type=cache,target=/cargo/git \
-    cargo install --root /usr/local/cargo cargo-audit
 
 RUN group_name="$(awk -F: -v gid="$GROUP_ID" '$3 == gid { print $1; exit }' /etc/group)" \
     && if [ -z "$group_name" ]; then addgroup -g "$GROUP_ID" appgroup && group_name=appgroup; fi \

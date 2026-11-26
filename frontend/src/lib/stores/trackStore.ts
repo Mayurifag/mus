@@ -6,6 +6,7 @@ import {
   clearShuffleHistory,
   handleShuffleNext,
   handleShufflePrevious,
+  trackIndex,
 } from "$lib/stores/trackNavigation";
 import { parseArtists } from "$lib/utils/formatters";
 import { trackCategoryNames } from "$lib/utils/categoryMarkers";
@@ -15,6 +16,7 @@ import {
 } from "$lib/stores/filteredTrackNavigation";
 
 export interface TrackState {
+  // Replace the array when changing a track so cached navigation stays current.
   tracks: Track[];
   tracksLoading: boolean;
   currentTrackId: string | null;
@@ -66,16 +68,13 @@ function createTrackStore() {
   const store = writable<TrackState>(initialState);
   const { set, update } = store;
   const view = derived(store, (state): TrackStoreState => {
-    const index = state.tracks.findIndex(
-      (track) => track.id === state.currentTrackId,
-    );
-    const byId = new Map(state.tracks.map((track) => [track.id, track]));
+    const index = trackIndex(state.tracks, state.currentTrackId);
     return {
       ...state,
       currentTrackIndex: index === -1 ? null : index,
       currentTrack: state.tracks[index] ?? null,
       playHistory: state.playHistoryIds
-        .map((id) => byId.get(id))
+        .map((id) => state.tracks[trackIndex(state.tracks, id)])
         .filter((track): track is Track => !!track),
     };
   });
@@ -99,12 +98,11 @@ function createTrackStore() {
             historyPosition: 0,
           };
         }
-        const ids = new Set(tracks.map((track) => track.id));
-        if (!ids.has(state.currentTrackId))
+        if (trackIndex(tracks, state.currentTrackId) === -1)
           return { ...next, ...emptySelection };
         let position = state.historyPosition;
         const history = state.playHistoryIds.filter((id, index) => {
-          if (ids.has(id)) return true;
+          if (trackIndex(tracks, id) !== -1) return true;
           if (index < state.historyPosition) position--;
           return false;
         });
@@ -181,9 +179,7 @@ function createTrackStore() {
         }
         if (state.currentTrackId === null) return state;
         if (state.is_shuffle) return nextState(handleShuffleNext(state));
-        const index = state.tracks.findIndex(
-          (track) => track.id === state.currentTrackId,
-        );
+        const index = trackIndex(state.tracks, state.currentTrackId);
         return nextState({
           currentTrackId:
             state.tracks[calculateNextIndex(index, state.tracks.length)].id,
@@ -201,9 +197,7 @@ function createTrackStore() {
         if (state.currentTrackId === null) return state;
         if (state.is_shuffle)
           return { ...state, ...handleShufflePrevious(state) };
-        const index = state.tracks.findIndex(
-          (track) => track.id === state.currentTrackId,
-        );
+        const index = trackIndex(state.tracks, state.currentTrackId);
         return {
           ...state,
           currentTrackId:
@@ -293,9 +287,25 @@ function createTrackStore() {
 
 export const trackStore = createTrackStore();
 
-export const artistCountsStore = derived(trackStore, ($trackStore) => {
+export const selectedArtistStore = derived(
+  trackStore,
+  ({ selectedArtist }) => selectedArtist,
+);
+
+let previousTracks: Track[] | undefined;
+export const tracksStore = derived<typeof trackStore, Track[]>(
+  trackStore,
+  ({ tracks }, set) => {
+    if (tracks !== previousTracks) {
+      previousTracks = tracks;
+      set(tracks);
+    }
+  },
+);
+
+export const artistCountsStore = derived(tracksStore, (tracks) => {
   const counts = new Map<string, number>();
-  for (const track of $trackStore.tracks) {
+  for (const track of tracks) {
     for (const artist of new Set(parseArtists(track.artist))) {
       counts.set(artist, (counts.get(artist) ?? 0) + 1);
     }
@@ -303,9 +313,9 @@ export const artistCountsStore = derived(trackStore, ($trackStore) => {
   return Object.fromEntries(counts);
 });
 
-export const categoryCountsStore = derived(trackStore, ($trackStore) => {
+export const categoryCountsStore = derived(tracksStore, (tracks) => {
   const counts = new Map<string, number>();
-  for (const track of $trackStore.tracks) {
+  for (const track of tracks) {
     for (const category of trackCategoryNames(track)) {
       counts.set(category, (counts.get(category) ?? 0) + 1);
     }

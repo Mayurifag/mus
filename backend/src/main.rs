@@ -12,12 +12,12 @@ use std::{
 use anyhow::Result;
 use mus_backend::{
     app::app,
-    db::init_db,
+    db::{backfill_cover_thumbhashes, init_db},
     process::command_output_text_with_timeout,
     scanner::{scan_music_dir, watch_music_dir},
     state::AppState,
 };
-use rusqlite::Connection;
+use rusqlite::{Connection, OpenFlags};
 use tokio::sync::broadcast;
 
 #[tokio::main]
@@ -36,16 +36,27 @@ async fn main() -> Result<()> {
         }
     });
     tokio::spawn(watch_music_dir(state.clone()));
-    let app = app(state);
-
     let port = env::var("PORT")
         .ok()
         .and_then(|v| v.parse::<u16>().ok())
         .unwrap_or(8001);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
+    // Preview backfill must not delay startup or hold the API's connection lock.
+    tokio::task::spawn_blocking({
+        let database = state.data_dir.join(".cache/mus.db");
+        let covers_dir = state.covers_dir.clone();
+        move || {
+            let result = Connection::open_with_flags(database, OpenFlags::SQLITE_OPEN_READ_WRITE)
+                .map_err(anyhow::Error::from)
+                .and_then(|mut conn| backfill_cover_thumbhashes(&mut conn, &covers_dir));
+            if let Err(error) = result {
+                tracing::warn!(%error, "failed to backfill cover previews");
+            }
+        }
+    });
     tracing::info!("listening on {addr}");
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app(state)).await?;
     Ok(())
 }
 

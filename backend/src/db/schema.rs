@@ -85,6 +85,7 @@ const MIGRATIONS: &[M<'static>] = &[
     ),
     M::up("ALTER TABLE track ADD COLUMN tags_finalized BOOLEAN NOT NULL DEFAULT 0"),
     M::up("ALTER TABLE track DROP COLUMN content_hash"),
+    M::up("ALTER TABLE track ADD COLUMN cover_thumbhash TEXT"),
 ];
 
 /// Enables SQLite settings, applies migrations, seeds tags, and infers pending categories.

@@ -1,12 +1,12 @@
 use std::{env, path::Path, time::Duration};
 
 use notify::{
-    event::{EventKind, RemoveKind},
+    event::{EventKind, ModifyKind, RemoveKind, RenameMode},
     Config, Event, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
 };
 use tokio::{sync::mpsc, time};
 
-use super::sync_changed_paths;
+use super::{paths::missing_path, sync_changed_paths};
 use crate::{files::is_audio_path, state::AppState};
 
 /// Watches the configured music directory and reconciles coalesced changes.
@@ -114,13 +114,21 @@ async fn should_sync_event(event: &Event) -> bool {
     ) {
         return false;
     }
+    let may_have_removed_directory = matches!(
+        event.kind,
+        EventKind::Remove(RemoveKind::Any)
+            | EventKind::Modify(ModifyKind::Name(
+                RenameMode::Any | RenameMode::Both | RenameMode::From
+            ))
+    );
     for path in &event.paths {
-        if is_audio_path(path)
-            || tokio::fs::metadata(path)
-                .await
-                .is_ok_and(|meta| meta.is_dir())
-        {
+        if is_audio_path(path) {
             return true;
+        }
+        match tokio::fs::metadata(path).await {
+            Ok(meta) if meta.is_dir() => return true,
+            Err(error) if may_have_removed_directory && missing_path(error.kind()) => return true,
+            _ => {}
         }
     }
     false
@@ -142,6 +150,13 @@ mod tests {
             ))
             .await
         );
+        for kind in [
+            EventKind::Modify(ModifyKind::Name(RenameMode::From)),
+            EventKind::Modify(ModifyKind::Name(RenameMode::Any)),
+            EventKind::Remove(RemoveKind::Any),
+        ] {
+            assert!(should_sync_event(&event(kind, directory.path().join("moved-album"))).await);
+        }
         assert!(
             should_sync_event(&event(
                 EventKind::Remove(RemoveKind::File),

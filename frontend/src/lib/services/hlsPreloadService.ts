@@ -1,25 +1,30 @@
 import type { Track } from "$lib/types";
 import type { TrackState } from "$lib/stores/trackStore";
 import { selectedTrackIndexes } from "$lib/stores/filteredTrackNavigation";
+import { trackIndex } from "$lib/stores/trackNavigation";
 
 export function getNextTrackForPreload(state: TrackState): Track | null {
   if (state.tracks.length === 0 || state.currentTrackId === null) {
     return null;
   }
 
-  const indexes = selectedTrackIndexes(state);
+  const { tracks, currentTrackId, playHistoryIds, historyPosition } = state;
+  const filtered = state.selectedArtist || state.selectedCategory;
   if (state.is_shuffle) {
-    for (const id of state.playHistoryIds.slice(state.historyPosition + 1)) {
-      const index = indexes.find((index) => state.tracks[index].id === id);
-      if (index !== undefined) return state.tracks[index];
+    if (historyPosition + 1 >= playHistoryIds.length) return null;
+    const indexes = filtered ? new Set(selectedTrackIndexes(state)) : null;
+    for (let i = historyPosition + 1; i < playHistoryIds.length; i++) {
+      const index = trackIndex(tracks, playHistoryIds[i]);
+      if (index !== -1 && (!indexes || indexes.has(index)))
+        return tracks[index];
     }
     return null;
   }
+  const current = trackIndex(tracks, currentTrackId);
+  if (!filtered) return tracks[(current + 1) % tracks.length];
+  const indexes = selectedTrackIndexes(state);
   if (indexes.length === 0) return null;
-  const position = indexes.findIndex(
-    (index) => state.tracks[index].id === state.currentTrackId,
-  );
-  return state.tracks[indexes[(position + 1) % indexes.length]];
+  return tracks[indexes[(indexes.indexOf(current) + 1) % indexes.length]];
 }
 
 export class HlsPreloadService {
@@ -27,7 +32,7 @@ export class HlsPreloadService {
   private nextAbort: AbortController | null = null;
   private nextKey: string | null = null;
 
-  constructor(fetchFn: typeof fetch = fetch) {
+  constructor(fetchFn: typeof fetch = globalThis.fetch.bind(globalThis)) {
     this.fetchFn = fetchFn;
   }
 

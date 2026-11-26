@@ -31,6 +31,12 @@ const mockArtistCountsStore = vi.hoisted(() => ({
 
 vi.mock("$lib/stores/trackStore", () => ({
   artistCountsStore: mockArtistCountsStore,
+  selectedArtistStore: {
+    subscribe: (run: (value: string | null) => void) => {
+      run(mockTrackStoreState.selectedArtist);
+      return () => {};
+    },
+  },
   trackStore: mockTrackStore,
 }));
 

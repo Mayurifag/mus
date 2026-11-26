@@ -108,6 +108,16 @@ describe("trackStore", () => {
       toString: 1,
     });
     expect(Object.getOwnPropertyDescriptor(counts, "__proto__")?.value).toBe(1);
+
+    const reportCounts = vi.fn();
+    const unsubscribe = artistCountsStore.subscribe(reportCounts);
+    try {
+      trackStore.setCurrentTrackIndex(1);
+      trackStore.toggleShuffle();
+      expect(reportCounts).toHaveBeenCalledTimes(1);
+    } finally {
+      unsubscribe();
+    }
   });
 
   it.each([0, 2])(
@@ -358,6 +368,11 @@ describe("trackStore", () => {
     trackStore.previousTrack();
     expect(get(trackStore).currentTrackIndex).toBe(2);
     expect(get(trackStore).currentTrack).toEqual(artistTracks[2]);
+
+    const edited = { ...artistTracks[1], id: "new-id", artist: "Artist A" };
+    trackStore.updateTrack(edited, artistTracks[1].id);
+    trackStore.previousTrack();
+    expect(get(trackStore).currentTrack).toBe(edited);
   });
 
   it("should keep shuffle navigation inside selected artist", () => {

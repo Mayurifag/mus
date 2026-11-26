@@ -70,7 +70,7 @@ export async function analyzeAudioFile(
       artist:
         artists ||
         metadata.common.artist ||
-        metadata.common.albumartist ||
+        metadata.common.albumArtist ||
         filenameArtist,
       album: metadata.common.album,
     };

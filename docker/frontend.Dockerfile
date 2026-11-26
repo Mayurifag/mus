@@ -4,8 +4,6 @@ FROM node:26.13.1-alpine3.24
 
 WORKDIR /app
 
-RUN npm install -g npm@12.2.3
-
 COPY frontend/package*.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-fund
 

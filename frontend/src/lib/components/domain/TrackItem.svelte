@@ -12,6 +12,7 @@
     trackCategoryNames,
   } from "$lib/utils/categoryMarkers";
   import ArtistLinks from "$lib/components/domain/ArtistLinks.svelte";
+  import TrackCover from "./TrackCover.svelte";
 
   let {
     track,
@@ -110,12 +111,13 @@
   data-testid="track-item"
   id="track-item-{track.id}"
 >
-  <img
-    src={coverUrl || "/images/no-cover.svg"}
-    alt={coverUrl ? `Album art for ${trackTitle}` : "No Album Cover"}
-    class="h-14 w-14 shrink-0 rounded-md object-cover"
-    loading="lazy"
-  />
+  {#key coverUrl}
+    <TrackCover
+      url={coverUrl}
+      thumbhash={track.cover_thumbhash}
+      title={trackTitle}
+    />
+  {/key}
 
   <div class="flex min-w-0 flex-1 flex-col">
     <div class="flex min-w-0 items-center gap-2">
@@ -152,6 +154,7 @@
           onValueChange={(v: number[]) => audioService?.seek(v[0])}
           max={duration || 100}
           step={1}
+          thumbPositioning="exact"
           class="relative z-10 mt-1 w-full cursor-pointer"
           data-testid="track-progress-slider"
           bufferedRanges={bufferedRanges || []}

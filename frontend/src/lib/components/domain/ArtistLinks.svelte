@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { artistCountsStore, trackStore } from "$lib/stores/trackStore";
+  import {
+    artistCountsStore,
+    selectedArtistStore,
+  } from "$lib/stores/trackStore";
   import { selectArtistFilter } from "$lib/utils/artistFilterNavigation";
   import { parseArtists } from "$lib/utils/formatters";
 
@@ -12,12 +15,6 @@
   } = $props();
 
   const artists = $derived([...new Set(parseArtists(artist))]);
-  const selectedArtist = $derived($trackStore.selectedArtist);
-  const artistCounts = $derived($artistCountsStore);
-
-  function canSelectArtist(artistName: string): boolean {
-    return selectedArtist !== artistName && (artistCounts[artistName] ?? 0) > 1;
-  }
 
   function selectArtist(event: MouseEvent, artistName: string) {
     event.stopPropagation();
@@ -27,7 +24,7 @@
 
 {#if artists.length > 0}
   {#each artists as artistName, index (artistName)}
-    {#if canSelectArtist(artistName)}
+    {#if $selectedArtistStore !== artistName && ($artistCountsStore[artistName] ?? 0) > 1}
       <button
         type="button"
         class="hover:text-accent focus-visible:ring-accent cursor-pointer rounded-sm underline-offset-2 transition-colors hover:underline focus-visible:ring-1 focus-visible:outline-none {className}"

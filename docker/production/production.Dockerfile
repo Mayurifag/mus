@@ -5,9 +5,7 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 ENV VITE_INTERNAL_API_HOST=""
 ENV VITE_PUBLIC_API_HOST=""
-RUN --mount=type=cache,target=/root/.npm \
-    npm install -g npm@12.2.3 \
-    && npm ci --no-fund --prefer-offline
+RUN --mount=type=cache,target=/root/.npm npm ci --no-fund --prefer-offline
 COPY frontend/ ./
 RUN npm run build
 
@@ -53,7 +51,6 @@ RUN apk add --no-cache \
         ffmpeg \
         libatomic \
         libstdc++ \
-        sqlite \
         su-exec \
     && curl -fsSL https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp

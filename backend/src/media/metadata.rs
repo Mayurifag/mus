@@ -23,6 +23,8 @@ pub struct MediaMetadata {
     pub duration: i64,
     /// Whether an artist tag was present before fallback, including an empty tag.
     pub has_artist: bool,
+    /// Whether the file contains a video stream, including attached artwork.
+    pub has_video: bool,
 }
 
 /// ffprobe's ordinary failure exit, distinct from invocation/output failures.
@@ -51,7 +53,17 @@ pub async fn read_metadata(path: &Path) -> Result<MediaMetadata> {
     #[cfg(test)]
     let mut command = tests::probe_command();
     command
-        .args(["-v", "error", "-print_format", "json", "-show_format"])
+        .args([
+            "-v",
+            "error",
+            "-print_format",
+            "json",
+            "-show_format",
+            "-select_streams",
+            "v",
+            "-show_entries",
+            "stream=index",
+        ])
         .arg(path);
     let output = run_command_output(command, Duration::from_secs(30)).await?;
     if !output.status.success() {
@@ -82,6 +94,9 @@ pub async fn read_metadata(path: &Path) -> Result<MediaMetadata> {
             .and_then(parse_duration_seconds)
             .unwrap_or(0),
         has_artist: artist.is_some(),
+        has_video: data["streams"]
+            .as_array()
+            .is_some_and(|streams| !streams.is_empty()),
     })
 }
 

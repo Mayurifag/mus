@@ -2,7 +2,6 @@ import { test, expect } from "@playwright/test";
 import { promises as fs } from "fs";
 import { join } from "path";
 import { parseFile } from "music-metadata";
-import { execFileSync } from "child_process";
 
 interface MetadataInfo {
   id3Version: string;
@@ -25,30 +24,6 @@ async function getMetadataInfo(filePath: string): Promise<MetadataInfo> {
   } catch {
     return { id3Version: "error", duration: 0 };
   }
-}
-
-async function checkCoverFiles(
-  trackId: string,
-): Promise<{ hasSmall: boolean; hasOriginal: boolean }> {
-  const containerName = process.env.E2E_CONTAINER_NAME ?? "mus-e2e-test";
-  const smallPath = `/app_data/.cache/covers/${trackId}_small.webp`;
-  const originalPath = `/app_data/.cache/covers/${trackId}_original.webp`;
-
-  const checkFileExists = (filePath: string): boolean => {
-    try {
-      execFileSync("docker", ["exec", containerName, "test", "-f", filePath], {
-        stdio: "ignore",
-      });
-      return true;
-    } catch (error) {
-      return false;
-    }
-  };
-
-  const hasSmall = checkFileExists(smallPath);
-  const hasOriginal = checkFileExists(originalPath);
-
-  return { hasSmall, hasOriginal };
 }
 
 async function getFileStats(
@@ -200,12 +175,13 @@ test.describe("Authenticated User Flows", () => {
       "",
     );
     expect(trackId).toMatch(/^[0-9a-f]{64}$/);
-    await expect
-      .poll(() => checkCoverFiles(trackId!))
-      .toEqual({
-        hasSmall: true,
-        hasOriginal: true,
-      });
+    for (const size of ["small", "original"]) {
+      const cover = await page.request.get(
+        `/api/v1/tracks/${trackId}/covers/${size}.webp`,
+      );
+      await expect(cover).toBeOK();
+      expect(cover.headers()["content-type"]).toBe("image/webp");
+    }
 
     await lunaTrack.click();
     await expect(page.locator(".fixed.bottom-0")).toContainText(

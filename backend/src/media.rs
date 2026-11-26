@@ -37,7 +37,8 @@ pub use audio_update::{
     apply_audio_update, standardize_audio_tags, write_audio_cover, write_audio_tags, AudioUpdate,
     AudioUpdateResult,
 };
-pub use covers::extract_cover;
+pub(crate) use covers::read_cover_thumbhash;
+pub use covers::{extract_cover, GeneratedCover};
 pub use cut::{preview_cut, read_cut_source, validate_cut, CutPreview, CutSource};
 #[cfg(test)]
 pub(crate) use metadata::tests::ProbeProgram;

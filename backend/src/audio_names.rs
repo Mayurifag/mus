@@ -32,7 +32,11 @@ pub fn normalize_artists(artist: &str) -> String {
 
 /// Converts text to Unicode NFC without changing casing or punctuation.
 pub fn normalize_text(value: &str) -> String {
-    value.nfc().collect()
+    if value.is_ascii() {
+        value.to_owned()
+    } else {
+        value.nfc().collect()
+    }
 }
 
 /// Builds `Artist, Guest - Title.ext`, removing forbidden filename characters.
@@ -56,13 +60,12 @@ pub fn generate_filename(artist: &str, title: &str, ext: &str) -> Result<String,
 }
 
 fn sanitize(value: &str) -> String {
-    normalize_text(value)
-        .chars()
-        .filter(|character| {
-            !matches!(
-                character,
-                '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*'
-            )
-        })
-        .collect()
+    let mut value = normalize_text(value);
+    value.retain(|character| {
+        !matches!(
+            character,
+            '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*'
+        )
+    });
+    value
 }

@@ -539,9 +539,28 @@ async fn extract_cover_supports_flac_embedded_cover() {
     fs::create_dir(&covers_dir).unwrap();
     create_flac_with_cover(&path);
 
-    assert!(extract_cover(&path, &covers_dir, "1").await.unwrap());
-    assert!(covers_dir.join("1_original.webp").is_file());
-    assert!(covers_dir.join("1_small.webp").is_file());
+    assert!(
+        mus_backend::media::read_metadata(&path)
+            .await
+            .unwrap()
+            .has_video
+    );
+    let cover = extract_cover(&path, &covers_dir, "1")
+        .await
+        .unwrap()
+        .unwrap();
+    let hash = base64::Engine::decode(
+        &base64::engine::general_purpose::STANDARD,
+        cover.thumbhash.unwrap(),
+    )
+    .unwrap();
+    let (width, height, _) = thumbhash::thumb_hash_to_rgba(&hash).unwrap();
+    assert_eq!((width, height), (32, 32));
+    for (kind, dimensions) in [("original", (32, 32)), ("small", (80, 80))] {
+        let bytes = fs::read(covers_dir.join(format!("1_{kind}.webp"))).unwrap();
+        let image = image_webp::WebPDecoder::new(std::io::Cursor::new(bytes)).unwrap();
+        assert_eq!(image.dimensions(), dimensions);
+    }
 }
 
 #[tokio::test]
@@ -555,7 +574,16 @@ async fn extract_cover_supports_wav_id3_cover() {
     create_jpeg(&cover_path);
     add_id3_cover(&path, &cover_path);
 
-    assert!(extract_cover(&path, &covers_dir, "1").await.unwrap());
+    assert!(
+        mus_backend::media::read_metadata(&path)
+            .await
+            .unwrap()
+            .has_video
+    );
+    assert!(extract_cover(&path, &covers_dir, "1")
+        .await
+        .unwrap()
+        .is_some());
     assert!(covers_dir.join("1_original.webp").is_file());
     assert!(covers_dir.join("1_small.webp").is_file());
 }

@@ -32,20 +32,26 @@ describe("hlsPreloadService", () => {
           )
         : new Response(new Uint8Array(3), { status: 200 }),
     );
-    const service = new HlsPreloadService(fetchFn as unknown as typeof fetch);
+    vi.stubGlobal("fetch", fetchFn);
+    const service = new HlsPreloadService();
     const current = track("1");
     const next = track("2");
 
-    service.update(current, next);
-
-    await vi.waitFor(() => expect(fetchFn).toHaveBeenCalledTimes(3));
-    expect(fetchFn.mock.calls.map(([url]) => String(url))).toEqual([
-      "https://music.example/api/v1/tracks/2/hls/index.m3u8",
-      "https://music.example/api/v1/tracks/2/hls/init.mp4",
-      "https://music.example/api/v1/tracks/2/hls/segment-00000.m4s",
-    ]);
-
-    service.destroy();
+    try {
+      service.update(current, next);
+      await vi.waitFor(() => expect(fetchFn).toHaveBeenCalledTimes(3));
+      expect(
+        fetchFn.mock.contexts.every((context) => context === globalThis),
+      ).toBe(true);
+      expect(fetchFn.mock.calls.map(([url]) => String(url))).toEqual([
+        "https://music.example/api/v1/tracks/2/hls/index.m3u8",
+        "https://music.example/api/v1/tracks/2/hls/init.mp4",
+        "https://music.example/api/v1/tracks/2/hls/segment-00000.m4s",
+      ]);
+    } finally {
+      service.destroy();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("does not preload the current track as its own next track", async () => {
@@ -99,6 +105,9 @@ describe("hlsPreloadService", () => {
 
     expect(getNextTrackForPreload(baseState)).toBe(tracks[1]);
     expect(
+      getNextTrackForPreload({ ...baseState, currentTrackId: tracks[2].id }),
+    ).toBe(tracks[0]);
+    expect(
       getNextTrackForPreload({ ...baseState, selectedArtist: "Artist" }),
     ).toBe(tracks[2]);
     expect(
@@ -108,6 +117,9 @@ describe("hlsPreloadService", () => {
         playHistoryIds: [tracks[0].id, tracks[2].id],
       }),
     ).toBe(tracks[2]);
+    expect(
+      getNextTrackForPreload({ ...baseState, is_shuffle: true }),
+    ).toBeNull();
     tracks[0].tags = tracks[2].tags = [
       { name: "cover", display_name: "Cover" },
     ];

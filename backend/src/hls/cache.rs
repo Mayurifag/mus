@@ -6,31 +6,31 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use tokio::{fs, process::Command};
 
-use crate::{models::Track, process::run_command_output, state::AppState};
+use crate::{process::run_command_output, state::AppState};
 
-use super::is_safe_hls_media_file;
+use super::is_hls_segment;
 
 const HLS_SEGMENT_SECONDS: &str = "6";
 
-pub(super) async fn ensure_hls_cache(state: &AppState, track: &Track) -> Result<PathBuf> {
-    let dir = hls_cache_dir(state, &track.id);
-    if hls_complete(&dir).await {
+pub(super) async fn ensure_hls_cache(state: &AppState, id: &str, source: &Path) -> Result<PathBuf> {
+    let dir = hls_cache_dir(state, id);
+    if hls_complete(&dir).await? {
         return Ok(dir);
     }
 
-    let _guard = state.mutation_lock(format!("hls:{}", track.id)).await;
-    if hls_complete(&dir).await {
+    let _guard = state.mutation_lock(format!("hls:{id}")).await;
+    if hls_complete(&dir).await? {
         return Ok(dir);
     }
 
-    generate_hls(track, &dir).await?;
+    generate_hls(id, source, &dir).await?;
     Ok(dir)
 }
 
-async fn generate_hls(track: &Track, dir: &Path) -> Result<()> {
+async fn generate_hls(id: &str, source: &Path, dir: &Path) -> Result<()> {
     let parent = dir
         .parent()
         .ok_or_else(|| anyhow!("invalid HLS cache path"))?;
@@ -39,12 +39,12 @@ async fn generate_hls(track: &Track, dir: &Path) -> Result<()> {
         fs::remove_dir_all(dir).await?;
     }
     let parent = parent.to_path_buf();
-    let prefix = format!(".hls-{}-", track.id);
+    let prefix = format!(".hls-{id}-");
     let tmp = tokio::task::spawn_blocking(move || {
         tempfile::Builder::new().prefix(&prefix).tempdir_in(parent)
     })
     .await??;
-    let source = fs::canonicalize(&track.file_path).await?;
+    let source = fs::canonicalize(source).await?;
 
     let mut command = Command::new("ffmpeg");
     command
@@ -82,7 +82,7 @@ async fn generate_hls(track: &Track, dir: &Path) -> Result<()> {
         if !output.status.success() {
             return Err(anyhow!(ffmpeg_error_message(&output)));
         }
-        if !hls_complete(tmp.path()).await {
+        if !hls_complete(tmp.path()).await? {
             return Err(anyhow!("ffmpeg created incomplete HLS audio output"));
         }
         fs::rename(tmp.path(), dir).await?;
@@ -105,36 +105,44 @@ fn ffmpeg_error_message(output: &std::process::Output) -> String {
     }
 }
 
-async fn hls_complete(dir: &Path) -> bool {
-    let Ok(playlist) = fs::read_to_string(dir.join("index.m3u8")).await else {
+async fn hls_complete(dir: &Path) -> Result<bool> {
+    let dir = dir.to_path_buf();
+    tokio::task::spawn_blocking(move || validate_hls_cache(&dir))
+        .await
+        .context("HLS cache validation worker failed")
+}
+
+fn validate_hls_cache(dir: &Path) -> bool {
+    let Ok(playlist) = std::fs::read_to_string(dir.join("index.m3u8")) else {
         return false;
     };
-    if !playlist.lines().any(|line| line.trim() == "#EXT-X-ENDLIST")
-        || !nonempty_file(&dir.join("init.mp4")).await
+    let mut lines = playlist.trim_end().lines().map(str::trim);
+    if lines.next() != Some("#EXTM3U")
+        || lines.next_back() != Some("#EXT-X-ENDLIST")
+        || !nonempty_file(&dir.join("init.mp4"))
     {
         return false;
     }
+    let mut has_init = false;
     let mut has_segment = false;
-    for segment in playlist
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty() && !line.starts_with('#'))
-    {
-        if !is_safe_hls_media_file(segment)
-            || !segment.ends_with(".m4s")
-            || !nonempty_file(&dir.join(segment)).await
-        {
-            return false;
+    for line in lines {
+        if line.starts_with("#EXT-X-MAP:") {
+            if line != "#EXT-X-MAP:URI=\"init.mp4\"" {
+                return false;
+            }
+            has_init = true;
+        } else if !line.is_empty() && !line.starts_with('#') {
+            if !has_init || !is_hls_segment(line) || !nonempty_file(&dir.join(line)) {
+                return false;
+            }
+            has_segment = true;
         }
-        has_segment = true;
     }
     has_segment
 }
 
-async fn nonempty_file(path: &Path) -> bool {
-    fs::metadata(path)
-        .await
-        .is_ok_and(|meta| meta.is_file() && meta.len() > 0)
+fn nonempty_file(path: &Path) -> bool {
+    std::fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.len() > 0)
 }
 
 pub(super) fn hls_cache_dir(state: &AppState, id: &str) -> PathBuf {

@@ -23,9 +23,17 @@ const mockTrackStore = vi.hoisted(() => ({
   clearArtistFilter: vi.fn(),
 }));
 
-vi.mock("$lib/stores/trackStore", () => ({
-  trackStore: mockTrackStore,
-}));
+vi.mock("$lib/stores/trackStore", async () => {
+  const { derived } = await import("svelte/store");
+  return {
+    trackStore: mockTrackStore,
+    tracksStore: derived(mockTrackStore, (state) => state.tracks),
+    selectedArtistStore: derived(
+      mockTrackStore,
+      (state) => state.selectedArtist,
+    ),
+  };
+});
 
 // Mock the TrackItem component
 vi.mock("./TrackItem.svelte", () => ({

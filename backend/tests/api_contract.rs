@@ -625,6 +625,7 @@ async fn tracks_list_contract() {
     assert_eq!(body[0]["artist"], "Artist");
     assert_eq!(body[0]["filename"], "song.mp3");
     assert_eq!(body[0]["has_cover"], true);
+    assert!(body[0].get("cover_thumbhash").is_none());
     assert!(body[0].get("added_at").is_none());
     assert!(body[0].get("file_path").is_none());
     assert_eq!(
@@ -640,6 +641,31 @@ async fn tracks_list_contract() {
         format!("/api/v1/tracks/{TRACK_ID}/hls/index.m3u8")
     );
     assert_eq!(body[0]["tags"], json!([]));
+
+    let thumbnail = app.state.covers_dir.join(format!("{TRACK_ID}_small.webp"));
+    let mut webp = Vec::new();
+    let pixels = [72, 140, 210].repeat(80 * 80);
+    image_webp::WebPEncoder::new(&mut webp)
+        .encode(&pixels, 80, 80, image_webp::ColorType::Rgb8)
+        .unwrap();
+    fs::write(&thumbnail, &webp).unwrap();
+    mus_backend::db::backfill_cover_thumbhashes(
+        &mut app.state.db.lock().unwrap(),
+        &app.state.covers_dir,
+    )
+    .unwrap();
+
+    let response = app
+        .request(Method::GET, "/api/v1/tracks", Body::empty())
+        .await;
+    let body = body_json(response).await;
+    let expected = thumbhash::rgba_to_thumb_hash(80, 80, &[72, 140, 210, 255].repeat(80 * 80));
+    assert_eq!(
+        body[0]["cover_thumbhash"],
+        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, expected)
+    );
+    assert_eq!(fs::read(thumbnail).unwrap(), webp);
+    assert_eq!(fs::read(file_path).unwrap(), b"audio");
 }
 
 #[tokio::test]
@@ -1172,7 +1198,7 @@ async fn cut_updates_duration_hash_and_events_without_reordering_the_track() {
 }
 
 #[tokio::test]
-async fn hls_playlist_rebuilds_missing_or_empty_media() {
+async fn hls_playlist_rebuilds_incomplete_caches() {
     let app = TestApp::new();
     let source = app.state.music_dir.join("song.wav");
     write_silent_wav(&source);
@@ -1188,21 +1214,36 @@ async fn hls_playlist_rebuilds_missing_or_empty_media() {
     fs::create_dir_all(&cache).unwrap();
     let url = format!("/api/v1/tracks/{TRACK_ID}/hls/index.m3u8");
 
-    for incomplete_file in ["segment-00001.m4s", "segment-00000.m4s", "init.mp4"] {
+    let playlist = "#EXTM3U\n#EXT-X-MAP:URI=\"init.mp4\"\n#EXTINF:6,\nsegment-00000.m4s\n#EXTINF:6,\nsegment-00001.m4s\n#EXT-X-ENDLIST\n";
+    for incomplete_file in [
+        "segment-00001.m4s",
+        "segment-00000.m4s",
+        "init.mp4",
+        "index.m3u8",
+    ] {
         // A cache can lose a segment while another remains, or retain a truncated file.
-        fs::write(cache.join("index.m3u8"), b"#EXTM3U\n#EXT-X-MAP:URI=\"init.mp4\"\n#EXTINF:6,\nsegment-00000.m4s\n#EXTINF:6,\nsegment-00001.m4s\n#EXT-X-ENDLIST\n").unwrap();
+        fs::write(cache.join("index.m3u8"), playlist).unwrap();
         fs::write(cache.join("init.mp4"), b"cached init").unwrap();
         fs::write(cache.join("segment-00000.m4s"), b"cached segment").unwrap();
         fs::write(cache.join("segment-00001.m4s"), b"cached segment").unwrap();
-        if incomplete_file == "segment-00001.m4s" {
-            fs::remove_file(cache.join(incomplete_file)).unwrap();
-        } else {
-            fs::write(cache.join(incomplete_file), []).unwrap();
+        match incomplete_file {
+            "index.m3u8" => {
+                fs::write(
+                    cache.join(incomplete_file),
+                    playlist.replace("#EXT-X-MAP:URI=\"init.mp4\"\n", ""),
+                )
+                .unwrap();
+            }
+            "segment-00001.m4s" => fs::remove_file(cache.join(incomplete_file)).unwrap(),
+            _ => fs::write(cache.join(incomplete_file), []).unwrap(),
         }
 
         let response = app.request(Method::GET, &url, Body::empty()).await;
         assert_eq!(response.status(), StatusCode::OK);
         let playlist = body_text(response).await;
+        assert!(playlist
+            .lines()
+            .any(|line| line == "#EXT-X-MAP:URI=\"init.mp4\""));
         for name in playlist
             .lines()
             .filter(|line| !line.is_empty() && !line.starts_with('#'))
@@ -1316,6 +1357,24 @@ async fn tracks_hls_contract() {
         segment.headers()[header::CACHE_CONTROL],
         "public, max-age=31536000, immutable"
     );
+
+    let parked = app.state.data_dir.join("parked.wav");
+    fs::rename(&file_path, &parked).unwrap();
+    for name in ["index.m3u8", "segment-00000.m4s"] {
+        let stale = app
+            .request(
+                Method::GET,
+                &format!("/api/v1/tracks/{TRACK_ID}/hls/{name}"),
+                Body::empty(),
+            )
+            .await;
+        assert_eq!(stale.status(), StatusCode::NOT_FOUND);
+        assert_eq!(
+            body_json(stale).await,
+            json!({"detail": "Audio file not found"})
+        );
+    }
+    fs::rename(parked, &file_path).unwrap();
 
     let invalid_segment = app
         .request(

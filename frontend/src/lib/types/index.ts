@@ -8,6 +8,7 @@ export interface Track {
   has_cover: boolean;
   cover_small_url: string | null;
   cover_original_url: string | null;
+  cover_thumbhash?: string;
   hls_url: string;
   tags?: TrackTag[];
 }

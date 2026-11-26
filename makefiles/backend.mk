@@ -31,7 +31,7 @@ back-test:
 .PHONY: back-audit
 back-audit:
 	@echo "Auditing backend dependencies..."
-	@$(BACKEND_RUN) cargo audit --deny warnings
+	@cd backend && cargo audit --deny warnings
 
 .PHONY: back-clean
 back-clean:

@@ -1,10 +1,15 @@
 <script lang="ts">
   import { tick } from "svelte";
+  import { derived, fromStore } from "svelte/store";
   import type { AudioService } from "$lib/services/AudioService";
   import type { TimeRange, Track } from "$lib/types";
   import TrackItem from "./TrackItem.svelte";
   import LazyTrackMetadataModal from "./LazyTrackMetadataModal.svelte";
-  import { trackStore } from "$lib/stores/trackStore";
+  import {
+    selectedArtistStore,
+    tracksStore,
+    trackStore,
+  } from "$lib/stores/trackStore";
   import { selectedTrackIndexes } from "$lib/stores/filteredTrackNavigation";
   import { browser } from "$app/env";
   import { updateEffectStats } from "$lib/utils/monitoredEffect";
@@ -14,20 +19,25 @@
 
   let { audioService }: { audioService?: AudioService } = $props();
 
-  const selectedArtist = $derived($trackStore.selectedArtist);
-  const selectedCategory = $derived($trackStore.selectedCategory);
+  const loading = derived(trackStore, (state) => state.tracksLoading);
+  const currentTrackId = derived(trackStore, (state) => state.currentTrack?.id);
+  const category = derived(trackStore, (state) => state.selectedCategory);
   const selectedCategoryLabel = $derived(
-    selectedCategory
-      ? (categoryLabels[selectedCategory] ?? selectedCategory)
-      : "",
+    $category ? (categoryLabels[$category] ?? $category) : "",
   );
-  const trackRows = $derived(
-    selectedTrackIndexes($trackStore).map((index) => ({
-      track: $trackStore.tracks[index],
-      index,
-    })),
+  const trackIndexes = $derived(
+    selectedTrackIndexes({
+      tracks: $tracksStore,
+      selectedArtist: $selectedArtistStore,
+      selectedCategory: $category,
+    }),
   );
-  const visibleTrackCount = $derived(trackRows.length);
+  const visibleTrackCount = $derived(trackIndexes.length);
+
+  function rowSelection(id: string) {
+    // Only notify a row when its selected state changes.
+    return fromStore(derived(currentTrackId, (selected) => selected === id));
+  }
 
   // Audio playback state variables
   let isPlaying = $state(false);
@@ -42,36 +52,23 @@
   // Subscribe to audio service stores
   $effect(() => {
     updateEffectStats("TrackList_AudioServiceSubscriptions");
+    if (!audioService) return;
 
-    if (audioService) {
-      const unsubscribers: (() => void)[] = [];
-
-      unsubscribers.push(
-        audioService.isPlayingStore.subscribe((playing) => {
-          isPlaying = playing;
-        }),
-      );
-
-      unsubscribers.push(
-        audioService.currentTimeStore.subscribe((time) => {
-          currentTime = time;
-        }),
-      );
-
-      unsubscribers.push(
-        audioService.durationStore.subscribe((value) => {
-          duration = value;
-        }),
-      );
-
-      unsubscribers.push(
-        audioService.currentBufferedRangesStore.subscribe((ranges) => {
-          bufferedRanges = ranges;
-        }),
-      );
-
-      return () => unsubscribers.forEach((unsub) => unsub());
-    }
+    const unsubscribers = [
+      audioService.isPlayingStore.subscribe((playing) => {
+        isPlaying = playing;
+      }),
+      audioService.currentTimeStore.subscribe((time) => {
+        currentTime = time;
+      }),
+      audioService.durationStore.subscribe((value) => {
+        duration = value;
+      }),
+      audioService.currentBufferedRangesStore.subscribe((ranges) => {
+        bufferedRanges = ranges;
+      }),
+    ];
+    return () => unsubscribers.forEach((unsub) => unsub());
   });
 
   function openEditModal(track: Track) {
@@ -92,11 +89,11 @@
 
   $effect(() => {
     updateEffectStats("TrackList_InitialScroll");
-    if (!browser || initialScrollDone || $trackStore.tracksLoading) return;
+    if (!browser || initialScrollDone || $loading) return;
 
     initialScrollDone = true;
-    const trackId = $trackStore.currentTrack?.id;
-    if (trackId && trackRows.some((row) => row.track.id === trackId)) {
+    const trackId = $currentTrackId;
+    if (trackId) {
       void tick().then(() => {
         document.getElementById(`track-item-${trackId}`)?.scrollIntoView({
           block: "center",
@@ -106,7 +103,7 @@
   });
 
   function clearActiveFilter() {
-    if (selectedArtist) {
+    if ($selectedArtistStore) {
       clearArtistFilter();
     } else {
       trackStore.clearCategoryFilter();
@@ -114,8 +111,8 @@
   }
 </script>
 
-<div data-testid="track-list" aria-busy={$trackStore.tracksLoading}>
-  {#if selectedArtist || selectedCategory}
+<div data-testid="track-list" aria-busy={$loading}>
+  {#if $selectedArtistStore || $category}
     <button
       type="button"
       class="border-border/40 bg-card/60 hover:bg-muted/30 mx-3 mb-3 flex w-[calc(100%-1.5rem)] cursor-pointer items-center gap-3 rounded-xl border px-3 py-3 text-left shadow-sm transition-colors"
@@ -132,7 +129,7 @@
           Back to all songs
         </span>
         <span class="block truncate text-base font-semibold">
-          {selectedArtist ?? selectedCategoryLabel}
+          {$selectedArtistStore ?? selectedCategoryLabel}
         </span>
       </span>
       <span
@@ -144,7 +141,7 @@
     </button>
   {/if}
 
-  {#if $trackStore.tracksLoading}
+  {#if $loading}
     <div role="status" aria-label="Loading tracks">
       <span class="sr-only">Loading tracks...</span>
       <div class="motion-safe:animate-pulse" aria-hidden="true">
@@ -163,7 +160,7 @@
         {/each}
       </div>
     </div>
-  {:else if $trackStore.tracks.length === 0}
+  {:else if $tracksStore.length === 0}
     <div class="flex h-32 w-full flex-col items-center justify-center">
       <p class="text-muted-foreground mb-2 text-center">
         No tracks available. Wait a second, we are scanning your music library.
@@ -176,27 +173,20 @@
       </p>
     </div>
   {:else}
-    {#each trackRows as row (row.track.id)}
-      {#if $trackStore.currentTrack?.id === row.track.id}
-        <TrackItem
-          track={row.track}
-          index={row.index}
-          isSelected={true}
-          {audioService}
-          {currentTime}
-          {duration}
-          {isPlaying}
-          {bufferedRanges}
-          onEdit={openEditModal}
-        />
-      {:else}
-        <TrackItem
-          track={row.track}
-          index={row.index}
-          {audioService}
-          onEdit={openEditModal}
-        />
-      {/if}
+    {#each trackIndexes as index ($tracksStore[index].id)}
+      {@const track = $tracksStore[index]}
+      {@const selection = rowSelection(track.id)}
+      <TrackItem
+        {track}
+        {index}
+        isSelected={selection.current}
+        {audioService}
+        {currentTime}
+        {duration}
+        {isPlaying}
+        {bufferedRanges}
+        onEdit={openEditModal}
+      />
     {/each}
   {/if}
 </div>

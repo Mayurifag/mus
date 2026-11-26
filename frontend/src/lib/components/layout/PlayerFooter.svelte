@@ -62,6 +62,7 @@
 </script>
 
 <div
+  data-player-footer
   class="bg-overlay sm700:h-[var(--footer-height-desktop)] fixed right-0 bottom-0 left-0 z-50 h-[var(--footer-height-mobile)] border-t"
   style="padding-bottom: var(--safe-area-inset-bottom); padding-left: var(--safe-area-inset-left); padding-right: var(--safe-area-inset-right);"
 >

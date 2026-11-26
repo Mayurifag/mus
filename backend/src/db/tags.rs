@@ -65,25 +65,20 @@ pub async fn set_track_tags(
     .await
 }
 
-pub async fn add_inferred_track_tags(
-    state: &AppState,
+pub(super) fn add_inferred_track_tags(
+    conn: &Connection,
     track_id: &str,
     tag_names: &[String],
 ) -> Result<()> {
-    let track_id = track_id.to_owned();
-    let tag_names = tag_names.to_vec();
-    run(state, move |conn| {
-        for name in valid_tag_names(&tag_names) {
-            conn.execute(
-                "INSERT OR IGNORE INTO track_tag (track_id, tag_id)
-                 SELECT track.id, tag.id FROM track JOIN tag ON tag.name = ?2
-                 WHERE track.id = ?1 AND track.tags_finalized = 0",
-                params![track_id, name],
-            )?;
-        }
-        Ok(())
-    })
-    .await
+    for name in valid_tag_names(tag_names) {
+        conn.execute(
+            "INSERT OR IGNORE INTO track_tag (track_id, tag_id)
+             SELECT track.id, tag.id FROM track JOIN tag ON tag.name = ?2
+             WHERE track.id = ?1 AND track.tags_finalized = 0",
+            params![track_id, name],
+        )?;
+    }
+    Ok(())
 }
 
 /// Atomically finalizes categories if the track still has the stored publication path.
@@ -184,17 +179,39 @@ fn valid_tag_names(tag_names: &[String]) -> impl Iterator<Item = &str> {
         .filter(move |name| category_display_name(name).is_some() && seen.insert(*name))
 }
 
-pub(super) fn load_track_tags(conn: &Connection, tracks: &mut [Track]) -> Result<()> {
+pub(super) enum TrackTagScope {
+    Library,
+    Selected,
+}
+
+pub(super) fn load_track_tags(
+    conn: &Connection,
+    tracks: &mut [Track],
+    scope: TrackTagScope,
+) -> Result<()> {
     if tracks.is_empty() {
         return Ok(());
     }
-    // One JSON parameter avoids SQLite's variable limit for large libraries.
-    let track_ids =
-        serde_json::to_string(&tracks.iter().map(|track| &track.id).collect::<Vec<_>>())?;
-    let mut stmt = conn.prepare(
-        "SELECT track_tag.track_id, tag.name, tag.display_name FROM tag JOIN track_tag ON track_tag.tag_id = tag.id WHERE track_tag.track_id IN (SELECT value FROM json_each(?1)) ORDER BY track_tag.track_id, tag.id"
-    )?;
-    let rows = stmt.query_map([track_ids], |row| {
+    let (sql, track_ids) = match scope {
+        TrackTagScope::Library => (
+            "SELECT track_tag.track_id, tag.name, tag.display_name
+             FROM track_tag JOIN tag ON tag.id = track_tag.tag_id
+             ORDER BY track_tag.track_id, tag.id",
+            None,
+        ),
+        TrackTagScope::Selected => (
+            "SELECT track_tag.track_id, tag.name, tag.display_name
+             FROM track_tag JOIN tag ON tag.id = track_tag.tag_id
+             WHERE track_tag.track_id IN (SELECT value FROM json_each(?1))
+             ORDER BY track_tag.track_id, tag.id",
+            // One JSON parameter avoids SQLite's variable limit.
+            Some(serde_json::to_string(
+                &tracks.iter().map(|track| &track.id).collect::<Vec<_>>(),
+            )?),
+        ),
+    };
+    let mut stmt = conn.prepare(sql)?;
+    let rows = stmt.query_map(rusqlite::params_from_iter(track_ids), |row| {
         Ok((
             row.get::<_, String>(0)?,
             Tag {

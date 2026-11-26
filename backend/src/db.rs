@@ -31,13 +31,14 @@ mod tracks;
 
 pub(crate) use player::{load_player_state, save_player_state};
 pub use schema::init_db;
-pub(crate) use tags::{add_inferred_track_tags, set_track_tags};
+pub(crate) use tags::set_track_tags;
 pub use tags::{set_download_tags, track_tags_finalized};
 pub(crate) use tracks::{
-    artist_values, delete_track_row, errored_tracks, list_tracks_by_category, save_track,
-    save_track_fingerprint, set_track_cover_state, upsert_scanned_track,
+    artist_values, delete_track_row, errored_tracks, get_track_path, list_tracks_by_category,
+    relocate_tracks, save_track, save_track_fingerprint, scan_tracks, upsert_scanned_track,
+    ScanTrack, TrackMove,
 };
-pub use tracks::{get_track, list_tracks};
+pub use tracks::{backfill_cover_thumbhashes, get_track, list_tracks};
 
 async fn run<T: Send + 'static>(
     state: &AppState,

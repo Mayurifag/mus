@@ -1,16 +1,18 @@
-use std::path::PathBuf;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use axum::{
     extract::{Path as AxumPath, Request, State},
     http::{header, HeaderValue},
     response::{IntoResponse, Response},
 };
-use tokio::fs;
 use tower::ServiceExt;
 use tower_http::services::ServeFile;
 
-use crate::{db::get_track, error::AppError, models::Track, state::AppState};
+use crate::{db::get_track_path, error::AppError, models::Track, state::AppState};
 
 mod cache;
 use cache::{ensure_hls_cache, hls_cache_dir};
@@ -24,24 +26,31 @@ pub async fn get_hls_playlist(
     AxumPath(id): AxumPath<String>,
     request: Request,
 ) -> Result<Response, AppError> {
-    let track = get_track(&state, &id)
+    let source = get_track_path(&state, &id)
         .await?
         .ok_or_else(|| AppError::not_found("Track not found"))?;
-    if !fs::metadata(&track.file_path)
+    if !tokio::fs::metadata(&source)
         .await
         .is_ok_and(|meta| meta.is_file())
     {
         return Err(AppError::not_found("Audio file not found"));
     }
-    let dir = ensure_hls_cache(&state, &track).await?;
-    serve_hls_file(
-        dir.join("index.m3u8"),
+    let playlist = ensure_hls_cache(&state, &id, &source)
+        .await?
+        .join("index.m3u8");
+    if !tokio::fs::metadata(&playlist)
+        .await
+        .is_ok_and(|meta| meta.is_file())
+    {
+        return Err(AppError::not_found("HLS playlist not found"));
+    }
+    Ok(serve_hls_file(
+        playlist,
         request,
         "application/vnd.apple.mpegurl",
         "no-cache",
-        "HLS playlist not found",
     )
-    .await
+    .await)
 }
 
 pub async fn get_hls_segment(
@@ -49,26 +58,35 @@ pub async fn get_hls_segment(
     AxumPath((id, segment)): AxumPath<(String, String)>,
     request: Request,
 ) -> Result<Response, AppError> {
-    if !is_safe_hls_media_file(&segment) {
+    if segment != "init.mp4" && !is_hls_segment(&segment) {
         return Err(AppError::not_found("HLS segment not found"));
     }
-    let track = get_track(&state, &id)
+    let source = get_track_path(&state, &id)
         .await?
         .ok_or_else(|| AppError::not_found("Track not found"))?;
-    if !fs::metadata(&track.file_path)
-        .await
-        .is_ok_and(|meta| meta.is_file())
-    {
-        return Err(AppError::not_found("Audio file not found"));
-    }
-    serve_hls_file(
-        hls_cache_dir(&state, &id).join(segment),
+    let file_path = hls_cache_dir(&state, &id).join(segment);
+    let file_path = tokio::task::spawn_blocking(move || {
+        require_file(&source, "Audio file not found")?;
+        require_file(&file_path, "HLS segment not found")?;
+        Ok::<_, AppError>(file_path)
+    })
+    .await
+    .context("HLS file lookup failed")??;
+    Ok(serve_hls_file(
+        file_path,
         request,
         "audio/mp4",
         "public, max-age=31536000, immutable",
-        "HLS segment not found",
     )
-    .await
+    .await)
+}
+
+fn require_file(path: &Path, detail: &str) -> Result<(), AppError> {
+    if fs::metadata(path).is_ok_and(|meta| meta.is_file()) {
+        Ok(())
+    } else {
+        Err(AppError::not_found(detail))
+    }
 }
 
 async fn serve_hls_file(
@@ -76,15 +94,7 @@ async fn serve_hls_file(
     request: Request,
     content_type: &'static str,
     cache_control: &'static str,
-    not_found: &'static str,
-) -> Result<Response, AppError> {
-    if !fs::metadata(&file_path)
-        .await
-        .is_ok_and(|meta| meta.is_file())
-    {
-        return Err(AppError::not_found(not_found));
-    }
-
+) -> Response {
     let Ok(response) = ServeFile::new(file_path).oneshot(request).await;
     let mut response = response.into_response();
     response
@@ -94,13 +104,10 @@ async fn serve_hls_file(
         header::CACHE_CONTROL,
         HeaderValue::from_static(cache_control),
     );
-    Ok(response)
+    response
 }
 
-fn is_safe_hls_media_file(value: &str) -> bool {
-    if value == "init.mp4" {
-        return true;
-    }
+fn is_hls_segment(value: &str) -> bool {
     let Some(number) = value
         .strip_prefix("segment-")
         .and_then(|value| value.strip_suffix(".m4s"))

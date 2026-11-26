@@ -37,6 +37,8 @@ pub struct Track {
     pub updated_at: i64,
     /// Whether generated cover files are available.
     pub has_cover: bool,
+    /// Base64-encoded ThumbHash for the generated thumbnail, when available.
+    pub cover_thumbhash: Option<String>,
     /// Unix inode when available and representable in the database.
     pub inode: Option<i64>,
     /// Optional metadata-based change hint, distinct from the content hash.
@@ -69,6 +71,8 @@ pub(crate) struct TrackDto {
     pub has_cover: bool,
     pub cover_small_url: Option<String>,
     pub cover_original_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cover_thumbhash: Option<String>,
     pub hls_url: String,
     pub tags: Vec<Tag>,
 }
@@ -96,6 +100,7 @@ impl From<Track> for TrackDto {
             has_cover: track.has_cover,
             cover_small_url,
             cover_original_url,
+            cover_thumbhash: track.cover_thumbhash,
             tags: track.tags,
         }
     }

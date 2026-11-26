@@ -1,59 +1,73 @@
 import type { TrackState } from "$lib/stores/trackStore";
+import { trackIndex } from "$lib/stores/trackNavigation";
 import { parseArtists } from "$lib/utils/formatters";
 import { trackCategoryNames } from "$lib/utils/categoryMarkers";
 
-export function selectedTrackIndexes(state: TrackState): number[] {
-  return state.tracks.reduce<number[]>((indexes, track, index) => {
+type LibraryFilter = Pick<TrackState, "selectedArtist" | "selectedCategory">;
+const selectedByLibrary = new WeakMap<
+  TrackState["tracks"],
+  LibraryFilter & { indexes: readonly number[] }
+>();
+
+export function selectedTrackIndexes({
+  tracks,
+  selectedArtist,
+  selectedCategory,
+}: LibraryFilter & Pick<TrackState, "tracks">): readonly number[] {
+  const selected = selectedByLibrary.get(tracks);
+  if (
+    selected &&
+    selected.selectedArtist === selectedArtist &&
+    selected.selectedCategory === selectedCategory
+  ) {
+    return selected.indexes;
+  }
+
+  const indexes = tracks.reduce<number[]>((result, track, index) => {
     if (
-      (!state.selectedArtist ||
-        parseArtists(track.artist).includes(state.selectedArtist)) &&
-      (!state.selectedCategory ||
-        trackCategoryNames(track).includes(state.selectedCategory))
+      (!selectedArtist ||
+        parseArtists(track.artist).includes(selectedArtist)) &&
+      (!selectedCategory ||
+        trackCategoryNames(track).includes(selectedCategory))
     ) {
-      indexes.push(index);
+      result.push(index);
     }
-    return indexes;
+    return result;
   }, []);
+  selectedByLibrary.set(tracks, { selectedArtist, selectedCategory, indexes });
+  return indexes;
 }
 
 export function navigateFilteredTracks(
   state: TrackState,
-  indexes: number[],
+  indexes: readonly number[],
   direction: 1 | -1,
 ): Partial<TrackState> {
-  const scopedIndexById = new Map(
-    indexes.map((index) => [state.tracks[index].id, index]),
-  );
-  if (state.is_shuffle) {
+  const currentTrackIndex = trackIndex(state.tracks, state.currentTrackId);
+  const position = indexes.indexOf(currentTrackIndex);
+  const inScope = state.is_shuffle ? new Set(indexes) : null;
+  if (inScope) {
     for (
-      let position = state.historyPosition + direction;
-      position >= 0 && position < state.playHistoryIds.length;
-      position += direction
+      let cursor = state.historyPosition + direction;
+      cursor >= 0 && cursor < state.playHistoryIds.length;
+      cursor += direction
     ) {
-      const index = scopedIndexById.get(state.playHistoryIds[position]);
-      if (index !== undefined) {
-        return {
-          currentTrackId: state.tracks[index].id,
-          historyPosition: position,
-        };
+      const id = state.playHistoryIds[cursor];
+      if (inScope.has(trackIndex(state.tracks, id))) {
+        return { currentTrackId: id, historyPosition: cursor };
       }
     }
   }
 
-  const currentTrackIndex = state.tracks.findIndex(
-    (track) => track.id === state.currentTrackId,
-  );
-  const currentInScope = indexes.includes(currentTrackIndex);
+  const currentInScope = position !== -1;
   let index: number;
-  if (state.is_shuffle && direction === 1) {
-    const available =
-      currentInScope && indexes.length > 1
-        ? indexes.filter((index) => index !== currentTrackIndex)
-        : indexes;
-    index = available[Math.floor(Math.random() * available.length)];
+  if (inScope && direction === 1) {
+    if (currentInScope && indexes.length === 1) return {};
+    const offset = Math.floor(
+      Math.random() * (indexes.length - Number(currentInScope)),
+    );
+    index = indexes[offset + Number(currentInScope && offset >= position)];
   } else {
-    const position =
-      state.currentTrackId === null ? -1 : indexes.indexOf(currentTrackIndex);
     const nextPosition =
       position === -1
         ? direction === 1
@@ -63,17 +77,14 @@ export function navigateFilteredTracks(
     index = indexes[nextPosition];
   }
   const track = state.tracks[index];
-  if (!state.is_shuffle) {
-    return { currentTrackId: track.id };
-  }
-  if (direction === 1 && currentInScope && indexes.length === 1) return {};
+  if (!inScope) return { currentTrackId: track.id };
 
   const history = state.playHistoryIds
     .slice(
       0,
       direction === 1 ? Math.max(state.historyPosition + 1, 0) : undefined,
     )
-    .filter((id) => scopedIndexById.has(id));
+    .filter((id) => inScope.has(trackIndex(state.tracks, id)));
   if (history.length === 0 && currentInScope && state.currentTrackId) {
     history.push(state.currentTrackId);
   }

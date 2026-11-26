@@ -176,10 +176,12 @@ async fn apply_track_update(
         delete_track_derived_files(state, &old_id).await;
     }
     if update_result.content_changed {
-        track.has_cover = extract_cover(&new_path, &state.covers_dir, &track.id)
+        let cover = extract_cover(&new_path, &state.covers_dir, &track.id)
             .await
-            .unwrap_or(false);
+            .unwrap_or_default();
+        track.has_cover = cover.is_some();
+        track.cover_thumbhash = cover.and_then(|cover| cover.thumbhash);
     }
-    track.tags = save_track(state, &old_id, &track, &new_tags, finalize_tags).await?;
+    track.tags = save_track(state, &old_id, &track, Some((&new_tags, finalize_tags))).await?;
     Ok(track.into())
 }

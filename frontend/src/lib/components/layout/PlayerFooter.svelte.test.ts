@@ -38,6 +38,12 @@ vi.mock("$lib/stores/trackStore", () => {
         return () => {};
       }),
     },
+    selectedArtistStore: {
+      subscribe: (run: (value: null) => void) => {
+        run(null);
+        return () => {};
+      },
+    },
     trackStore: mockStore,
   };
 });

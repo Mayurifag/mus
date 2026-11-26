@@ -55,7 +55,7 @@ beforeEach(() => {
   scrollIntoView.mockClear();
 });
 
-describe("TrackList initial scroll", () => {
+describe("TrackList", () => {
   it("scrolls to the restored track after the library loads", async () => {
     render(TrackList);
     trackStore.setTracks([track, { ...track, id: "2" }]);
@@ -80,5 +80,24 @@ describe("TrackList initial scroll", () => {
     );
     await tick();
     expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("moves playback controls without replacing the track rows", async () => {
+    trackStore.setTracks([track, { ...track, id: "2" }]);
+    render(TrackList);
+    const [first, second] = screen.getAllByTestId("track-item");
+    expect(first).toContainElement(screen.getByTestId("track-progress-slider"));
+    second.focus();
+
+    trackStore.playTrack(1);
+    await tick();
+
+    const rows = screen.getAllByTestId("track-item");
+    expect(rows[0]).toBe(first);
+    expect(rows[1]).toBe(second);
+    expect(second).toContainElement(
+      screen.getByTestId("track-progress-slider"),
+    );
+    expect(second).toHaveFocus();
   });
 });
