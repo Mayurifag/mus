@@ -159,7 +159,7 @@ pub(super) enum Relocation {
 enum MoveEnd {
     Cycle,
     Missing(String),
-    Replaced(PathBuf, FileSnapshot),
+    Replaced(Box<(PathBuf, FileSnapshot)>),
 }
 
 pub(super) async fn relocate_registered_paths(
@@ -233,7 +233,7 @@ pub(super) async fn relocate_registered_paths(
         source = match db::get_track(state, &next_snapshot.content_hash).await? {
             Some(track) if track.processing_status == "COMPLETE" => track,
             Some(_) => return Ok(ambiguous_moves(moves)),
-            None => break MoveEnd::Replaced(PathBuf::from(from), next_snapshot),
+            None => break MoveEnd::Replaced(Box::new((PathBuf::from(from), next_snapshot))),
         };
         to = from;
         at_destination = &next_snapshot;
@@ -259,9 +259,9 @@ pub(super) async fn relocate_registered_paths(
                 );
                 None
             }
-            MoveEnd::Replaced(path, snapshot) => {
-                verify_signature(&path, &snapshot.file_signature)?;
-                Some(Box::new((path, snapshot)))
+            MoveEnd::Replaced(replacement) => {
+                verify_signature(&replacement.0, &replacement.1.file_signature)?;
+                Some(replacement)
             }
             MoveEnd::Cycle => None,
         };
