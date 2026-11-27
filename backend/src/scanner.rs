@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 use futures_util::{pin_mut, TryStreamExt};
 use serde_json::json;
 use tokio::fs as async_fs;
@@ -46,6 +46,32 @@ struct PendingTrack<'a> {
     snapshot: FileSnapshot,
 }
 
+#[derive(Default)]
+struct ScanIndex<'a> {
+    by_path: HashMap<&'a str, &'a ScanTrack>,
+    complete_ids: HashSet<&'a str>,
+    by_inode: HashMap<i64, Vec<&'a ScanTrack>>,
+}
+
+impl<'a> ScanIndex<'a> {
+    fn new(tracks: &'a [ScanTrack]) -> Self {
+        let mut index = Self {
+            by_path: HashMap::with_capacity(tracks.len()),
+            ..Self::default()
+        };
+        for track in tracks {
+            index.by_path.insert(&track.file_path, track);
+            if track.complete {
+                index.complete_ids.insert(&track.id);
+            }
+            if let Some(inode) = track.inode {
+                index.by_inode.entry(inode).or_default().push(track);
+            }
+        }
+        index
+    }
+}
+
 /// Reconciles the music directory with the database and broadcasts changes.
 ///
 /// Scanning can normalize filenames and embedded tags. Cache files remain under
@@ -55,6 +81,7 @@ struct PendingTrack<'a> {
 ///
 /// # Errors
 /// Returns directory, media, database, or worker failures with operation context.
+/// An unavailable music directory is not treated as an empty library.
 /// Files for which ffprobe exits with code 1 are skipped and removed from the
 /// library, not deleted. Launch, timeout, malformed-output, and abnormal-exit
 /// failures abort scanning without removing the affected track's record.
@@ -72,7 +99,8 @@ pub async fn scan_music_dir(state: AppState) -> Result<()> {
     let _guard = state.mutation_lock("scanner".into()).await;
     let mut current = HashSet::new();
     let mut pending = Vec::new();
-    let existing = index_tracks_by_path(db::scan_tracks(&state, None).await?);
+    let tracks = db::scan_tracks(&state, None).await?;
+    let existing = ScanIndex::new(&tracks);
 
     let paths = audio_paths_in_dir(&state.music_dir);
     pin_mut!(paths);
@@ -92,12 +120,7 @@ pub async fn scan_music_dir(state: AppState) -> Result<()> {
     tracing::info!("found {found} audio files");
     reconcile_changed_tracks(&state, &mut current, pending).await?;
 
-    for track in existing.values() {
-        if !current.contains(&track.file_path) && !regular_audio_source(&track.file_path).await? {
-            unregister_track(&state, track).await?;
-        }
-    }
-    Ok(())
+    prune_missing_tracks(&state, &tracks, |track| !current.contains(&track.file_path)).await
 }
 
 async fn sync_changed_paths(state: AppState, mut paths: Vec<PathBuf>) -> Result<()> {
@@ -116,18 +139,18 @@ async fn sync_changed_paths(state: AppState, mut paths: Vec<PathBuf>) -> Result<
     .await?;
     // New files may have moved from anywhere. Directory changes also need
     // their descendants reconciled, so neither case can use a path-only lookup.
-    let mut existing = Vec::new();
+    let mut tracks = Vec::new();
     if paths
         .iter()
         .zip(&metadata)
         .all(|(path, meta)| is_audio_path(path) && meta.as_ref().is_ok_and(fs::Metadata::is_file))
     {
-        existing = db::scan_tracks(&state, Some(&paths)).await?;
+        tracks = db::scan_tracks(&state, Some(&paths)).await?;
     }
-    if existing.len() != paths.len() {
-        existing = db::scan_tracks(&state, None).await?;
+    if tracks.len() != paths.len() {
+        tracks = db::scan_tracks(&state, None).await?;
     }
-    let existing = index_tracks_by_path(existing);
+    let existing = ScanIndex::new(&tracks);
     for (path, result) in paths.iter().zip(metadata) {
         let Some(metadata) = if_present(result)
             .with_context(|| format!("failed to inspect changed path {}", path.display()))?
@@ -161,24 +184,35 @@ async fn sync_changed_paths(state: AppState, mut paths: Vec<PathBuf>) -> Result<
         }
     }
     reconcile_changed_tracks(&state, &mut current, pending).await?;
-    for track in existing.values() {
-        if !current.contains(&track.file_path)
+    prune_missing_tracks(&state, &tracks, |track| {
+        !current.contains(&track.file_path)
             && paths
                 .iter()
                 .any(|path| Path::new(&track.file_path).starts_with(path))
-            && !regular_audio_source(&track.file_path).await?
-        {
-            unregister_track(&state, track).await?;
+    })
+    .await
+}
+
+async fn prune_missing_tracks(
+    state: &AppState,
+    tracks: &[ScanTrack],
+    should_check: impl Fn(&ScanTrack) -> bool,
+) -> Result<()> {
+    let root = &state.music_dir;
+    let metadata = async_fs::metadata(root)
+        .await
+        .with_context(|| format!("music directory unavailable: {}", root.display()))?;
+    ensure!(
+        metadata.is_dir(),
+        "music path is not a directory: {}",
+        root.display()
+    );
+    for track in tracks {
+        if should_check(track) && !regular_audio_source(&track.file_path).await? {
+            unregister_track(state, track).await?;
         }
     }
     Ok(())
-}
-
-fn index_tracks_by_path(tracks: Vec<ScanTrack>) -> HashMap<String, ScanTrack> {
-    tracks
-        .into_iter()
-        .map(|track| (track.file_path.clone(), track))
-        .collect()
 }
 
 async fn regular_audio_source(path: impl AsRef<Path>) -> std::io::Result<bool> {
@@ -187,7 +221,7 @@ async fn regular_audio_source(path: impl AsRef<Path>) -> std::io::Result<bool> {
 
 async fn sync_discovered_path<'a>(
     state: &AppState,
-    existing: &'a HashMap<String, ScanTrack>,
+    existing: &ScanIndex<'a>,
     current: &mut HashSet<String>,
     pending: &mut Vec<PendingTrack<'a>>,
     path: PathBuf,
@@ -199,7 +233,7 @@ async fn sync_discovered_path<'a>(
             return Ok(());
         }
         let signature = file_signature(&metadata);
-        if let Some(track) = existing.get(name.as_ref()) {
+        if let Some(&track) = existing.by_path.get(name.as_ref()) {
             if track.file_signature.as_deref() == Some(&signature) {
                 if let Some((updated, file_path)) =
                     normalize_existing_track(state, track, &path).await?
@@ -217,25 +251,26 @@ async fn sync_discovered_path<'a>(
                 });
             }
         } else {
+            let snapshot = file_snapshot_from_metadata(&path, metadata, signature).await?;
+            if existing
+                .complete_ids
+                .contains(snapshot.content_hash.as_str())
+                && apply_relocation(state, current, &path, None, &snapshot).await?
+            {
+                return Ok(());
+            }
             let Some(parsed) = read_scan_metadata(state, None, &path).await? else {
                 return Ok(());
             };
-            let snapshot = file_snapshot_from_metadata(&path, metadata, signature).await?;
             let mut moved = None;
-            let file_inode = inode(&snapshot.meta);
-            for track in existing.values() {
-                if track.complete
-                    && track.id == snapshot.content_hash
-                    && apply_relocation(state, current, &path, None, &snapshot).await?
-                {
-                    return Ok(());
-                }
-                if moved.is_none()
-                    && file_inode.is_some()
-                    && track.inode == file_inode
-                    && !regular_audio_source(&track.file_path).await?
-                {
-                    moved = Some(track);
+            if let Some(candidates) =
+                inode(&snapshot.meta).and_then(|id| existing.by_inode.get(&id))
+            {
+                for &track in candidates {
+                    if !regular_audio_source(&track.file_path).await? {
+                        moved = Some(track);
+                        break;
+                    }
                 }
             }
             register_discovered_path(state, current, &path, snapshot, parsed, moved).await?;
@@ -365,6 +400,12 @@ async fn apply_relocation(
 ) -> Result<bool> {
     match relocate_registered_paths(state, path, previous, snapshot).await? {
         Relocation::NotMoved => return Ok(false),
+        Relocation::Copy => {
+            if previous.is_some() {
+                return Ok(false);
+            }
+            current.insert(path.to_string_lossy().into_owned());
+        }
         Relocation::Ambiguous(paths) => {
             tracing::warn!(path = %path.display(), "skipped ambiguous audio moves");
             current.extend(paths);

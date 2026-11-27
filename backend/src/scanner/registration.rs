@@ -148,6 +148,7 @@ async fn is_existing_copy(track: &Track, path: &str, previous_id: Option<&str>) 
 
 pub(super) enum Relocation {
     NotMoved,
+    Copy,
     Ambiguous(Vec<String>),
     Moved {
         tracks: Vec<Track>,
@@ -214,7 +215,13 @@ pub(super) async fn relocate_registered_paths(
         let path = Path::new(&from);
         let Some(meta) = if_present(fs::metadata(path).await)?.filter(std::fs::Metadata::is_file)
         else {
-            if replaced.is_none() && moves.len() == 1 {
+            // Keep filename normalization for a simple rename of the same file.
+            // An exact copy with a new inode only needs its registered path updated.
+            if replaced.is_none()
+                && moves.len() == 1
+                && source.inode.is_some()
+                && source.inode == inode(&snapshot.meta)
+            {
                 return Ok(Relocation::NotMoved);
             }
             break MoveEnd::Missing(from);
@@ -283,7 +290,7 @@ pub(super) async fn relocate_registered_paths(
 fn copy_or_ambiguous(moves: Vec<TrackMove>) -> Relocation {
     // A surviving copy at its own registered path needs no relocation.
     if moves.len() == 1 {
-        Relocation::NotMoved
+        Relocation::Copy
     } else {
         ambiguous_moves(moves)
     }

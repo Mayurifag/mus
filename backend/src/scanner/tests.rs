@@ -40,8 +40,10 @@ async fn unchanged_tracks_do_not_start_ffprobe_on_each_scan() {
         )
         .unwrap();
     let signature = file_signature(&fs::metadata(&path).unwrap());
+    let copy = state.music_dir.join("copy.mp3");
+    fs::copy(&path, &copy).unwrap();
     let _probe = ProbeProgram::use_program(directory.path().join("must-not-start-ffprobe"));
-    for paths in [None, Some(vec![path.clone()])] {
+    for paths in [None, Some(vec![path.clone(), copy])] {
         db::save_track_fingerprint(&state, &id, None, "stale")
             .await
             .unwrap();
@@ -360,6 +362,35 @@ async fn removed_directory_removes_only_its_registered_tracks() {
     assert_eq!(event.action_key.as_deref(), Some("track_deleted"));
     assert_eq!(event.action_payload.unwrap()["id"], id);
     assert!(events.try_recv().is_err());
+}
+
+#[tokio::test]
+async fn unavailable_music_root_does_not_erase_the_library() {
+    let (_directory, state, id) = state_with_track(Path::new("song.wav"));
+    let song = state.music_dir.join("song.wav");
+    fs::write(&song, b"registered audio").unwrap();
+    assert!(db::set_download_tags(&state, &id, &song, &["ost".into()])
+        .await
+        .unwrap());
+    let cover = state.covers_dir.join(format!("{id}_small.webp"));
+    fs::write(&cover, b"cached cover").unwrap();
+    let mut events = state.events.subscribe();
+
+    fs::rename(&state.music_dir, state.data_dir.join("offline")).unwrap();
+    for replaced in [false, true] {
+        if replaced {
+            fs::write(&state.music_dir, b"not a directory").unwrap();
+        }
+        let full = scan_music_dir(state.clone()).await;
+        let watcher = sync_changed_paths(state.clone(), vec![state.music_dir.clone()]).await;
+        let track = db::get_track(&state, &id).await.unwrap().unwrap();
+        assert_eq!(track.tags[0].name, "ost");
+        assert!(db::track_tags_finalized(&state, &id).await.unwrap());
+        assert!(cover.is_file());
+        assert!(events.try_recv().is_err());
+        assert!(full.is_err());
+        assert!(watcher.is_err());
+    }
 }
 
 #[tokio::test]

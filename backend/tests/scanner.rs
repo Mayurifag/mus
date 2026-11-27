@@ -653,13 +653,24 @@ async fn remaining_copy_keeps_the_library_entry_when_registered_copy_disappears(
     let duplicate = state.music_dir.join("another copy.wav");
     fs::copy(&original, &duplicate).unwrap();
     fs::remove_file(&original).unwrap();
-    scan_music_dir(state.clone()).await.unwrap();
+    let mut events = state.events.subscribe();
+    for _ in 0..2 {
+        scan_music_dir(state.clone()).await.unwrap();
+    }
     let tracks = db::list_tracks(&state).await.unwrap();
     assert_eq!(tracks.len(), 1);
     assert_eq!(tracks[0].id, registered.id);
     assert_eq!(tracks[0].added_at, registered.added_at);
+    assert_eq!(tracks[0].title, registered.title);
     assert_eq!(tracks[0].file_path, duplicate.to_string_lossy());
     assert!(duplicate.is_file());
+    let event = events.try_recv().unwrap();
+    assert_eq!(event.action_key.as_deref(), Some("track_updated"));
+    let payload = event.action_payload.unwrap();
+    assert_eq!(payload["previous_id"], registered.id);
+    assert_eq!(payload["id"], registered.id);
+    assert_eq!(payload["filename"], "another copy.wav");
+    assert!(events.try_recv().is_err());
 }
 
 #[tokio::test]
