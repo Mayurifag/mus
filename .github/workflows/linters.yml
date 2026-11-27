@@ -61,9 +61,11 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             backend/target
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-native-${{ hashFiles('backend/rust-toolchain.toml', 'backend/Cargo.lock') }}-${{ hashFiles('backend/**/*.rs') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-native-${{ hashFiles('backend/rust-toolchain.toml') }}-${{ hashFiles('backend/Cargo.toml', 'backend/Cargo.lock') }}-${{ hashFiles('backend/**/*.rs') }}
           restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-native-${{ hashFiles('backend/rust-toolchain.toml') }}-${{ hashFiles('backend/Cargo.toml', 'backend/Cargo.lock') }}-
             ${{ runner.os }}-${{ runner.arch }}-cargo-native-${{ hashFiles('backend/rust-toolchain.toml', 'backend/Cargo.lock') }}-
+            ${{ runner.os }}-${{ runner.arch }}-cargo-native-${{ hashFiles('backend/rust-toolchain.toml') }}-
       - name: Run backend CI
         run: make BACKEND_RUN="cd backend &&" back-ci
 

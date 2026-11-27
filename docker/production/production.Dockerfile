@@ -50,7 +50,7 @@ ENV LOG_LEVEL=info \
 
 COPY --chmod=644 docker/yt-dlp.conf /etc/yt-dlp.conf
 # Alpine's Node package can lag behind upstream security releases.
-COPY --from=frontend-builder /usr/local/bin/node /usr/bin/node
+COPY --link --from=frontend-builder /usr/local/bin/node /usr/bin/node
 
 WORKDIR /app
 COPY --link --chmod=755 --from=downloader /usr/local/bin/yt-dlp /usr/local/bin/yt-dlp
