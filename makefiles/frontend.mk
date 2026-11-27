@@ -58,4 +58,4 @@ front-svelte-check:
 
 .PHONY: front-ci-install
 front-ci-install:
-	@$(FRONTEND_RUN) npm ci --no-fund
+	@$(FRONTEND_RUN) npm ci --no-audit --no-fund

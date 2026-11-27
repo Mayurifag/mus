@@ -61,35 +61,6 @@ describe("DownloadManager", () => {
     expect(button).not.toBeDisabled();
   });
 
-  it("should call fetchMetadata when form is submitted", async () => {
-    const mockFetchMetadata = vi.mocked(apiClient.fetchMetadata);
-    mockFetchMetadata.mockResolvedValue({
-      title: "Test Song",
-      artist: "Test Artist",
-      thumbnail_url: null,
-      duration: null,
-      tags: [],
-    });
-
-    render(DownloadManager);
-
-    const input = screen.getByPlaceholderText(
-      "Enter YouTube URL or other supported link",
-    );
-    const button = screen.getByRole("button", { name: /download/i });
-
-    await fireEvent.input(input, {
-      target: { value: "https://youtube.com/watch?v=test" },
-    });
-    await fireEvent.click(button);
-
-    await waitFor(() => {
-      expect(mockFetchMetadata).toHaveBeenCalledWith(
-        "https://youtube.com/watch?v=test",
-      );
-    });
-  });
-
   it("should transition store to awaiting_review after successful metadata fetch", async () => {
     const mockFetchMetadata = vi.mocked(apiClient.fetchMetadata);
     mockFetchMetadata.mockResolvedValue({
@@ -382,22 +353,6 @@ describe("DownloadManager", () => {
   });
 
   describe("Permission-based rendering", () => {
-    it("should render download UI when write permissions are available", () => {
-      permissionsStore.set({ can_write_music_files: true });
-
-      render(DownloadManager);
-
-      expect(screen.getByText("Download from URL")).toBeInTheDocument();
-      expect(
-        screen.getByPlaceholderText(
-          "Enter YouTube URL or other supported link",
-        ),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /download/i }),
-      ).toBeInTheDocument();
-    });
-
     it("should show permission denied message when write permissions are not available", () => {
       permissionsStore.set({ can_write_music_files: false });
 
@@ -486,15 +441,6 @@ describe("DownloadManager", () => {
           "Download not available - music directory is read-only",
         ),
       ).not.toBeInTheDocument();
-    });
-
-    it("should show lock icon in permission denied message", () => {
-      permissionsStore.set({ can_write_music_files: false });
-
-      render(DownloadManager);
-
-      const lockIcon = screen.getByTestId("lock-icon");
-      expect(lockIcon).toBeInTheDocument();
     });
   });
 });

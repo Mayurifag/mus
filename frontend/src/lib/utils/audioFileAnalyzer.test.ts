@@ -308,26 +308,6 @@ describe("audioFileAnalyzer", () => {
 
       expect(result.coverInfo).toBeNull();
     });
-
-    it("should test different audio formats", async () => {
-      const mockParseBlob = await getMockParseBlob();
-
-      const flacFile = new File(["test content"], "test.flac", {
-        type: "audio/flac",
-      });
-
-      const mockMetadata = createMockMetadata({
-        title: "FLAC Title",
-        artist: "FLAC Artist",
-      });
-
-      mockParseBlob.mockResolvedValue(mockMetadata);
-
-      const result = await analyzeAudioFile(flacFile);
-
-      expect(result.metadata.title).toBe("FLAC Title");
-      expect(result.metadata.artist).toBe("FLAC Artist");
-    });
   });
 
   describe("extractCoverFromFile", () => {

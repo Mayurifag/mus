@@ -16,9 +16,13 @@ app_data/
 **/coverage/
 **/npm-debug.log
 **/.eslintcache
+backend/src/**/tests.rs
+backend/src/**/*_tests.rs
 frontend/**/*.md
 frontend/**/*.markdown
-frontend/src/**/*.test.ts
+frontend/src/**/*.test.[jt]s
+frontend/src/**/*.spec.[jt]s
+frontend/vitest.config.ts
 frontend/vitest-setup-client.ts
 frontend/eslint.config.js
 frontend/.prettier*

@@ -1,10 +1,9 @@
 import tailwindcss from "@tailwindcss/vite";
-import { svelteTesting } from "@testing-library/svelte/vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import adapter from "@sveltejs/adapter-static";
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [
@@ -39,41 +38,5 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ["music-metadata", "bits-ui"],
-  },
-  test: {
-    coverage: {
-      provider: "v8",
-      reporter: ["text", "json", "html"],
-      include: ["src/lib/**/*.{ts,svelte}", "src/routes/**/*.{ts,svelte}"],
-      exclude: [
-        "src/**/*.test.{ts,svelte}",
-        "src/**/*.spec.{ts,svelte}",
-        "src/**/__tests__",
-        "src/app.d.ts",
-        "src/vite-env.d.ts",
-      ],
-    },
-    projects: [
-      {
-        extends: "./vite.config.ts",
-        plugins: [svelteTesting()],
-        test: {
-          name: "client",
-          environment: "jsdom",
-          clearMocks: true,
-          include: ["src/**/*.{test,spec}.{js,ts}"],
-          exclude: ["src/**/*.server.{test,spec}.{js,ts}"],
-          setupFiles: ["./vitest-setup-client.ts"],
-        },
-      },
-      {
-        extends: "./vite.config.ts",
-        test: {
-          name: "server",
-          environment: "node",
-          include: ["src/**/*.server.{test,spec}.{js,ts}"],
-        },
-      },
-    ],
   },
 });

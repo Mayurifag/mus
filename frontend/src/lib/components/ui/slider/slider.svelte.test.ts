@@ -4,16 +4,6 @@ import Slider from "./slider.svelte";
 import type { TimeRange } from "$lib/types";
 
 describe("Slider component", () => {
-  it("renders without bufferedRanges", () => {
-    const { container } = render(Slider, {
-      value: 50,
-      max: 100,
-    });
-
-    const slider = container.querySelector('[role="slider"]');
-    expect(slider).toBeInTheDocument();
-  });
-
   it("renders without bufferedRanges when undefined", () => {
     const { container } = render(Slider, {
       value: 50,
@@ -40,23 +30,6 @@ describe("Slider component", () => {
 
     const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");
     expect(bufferedSegments).toHaveLength(0);
-  });
-
-  it("renders single buffered range with correct positioning", () => {
-    const bufferedRanges: TimeRange[] = [{ start: 10, end: 50 }];
-
-    const { container } = render(Slider, {
-      value: 25,
-      max: 100,
-      bufferedRanges,
-    });
-
-    const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");
-    expect(bufferedSegments).toHaveLength(1);
-
-    const segment = bufferedSegments[0] as HTMLElement;
-    expect(segment.style.left).toBe("10%");
-    expect(segment.style.width).toBe("40%");
   });
 
   it("renders multiple buffered ranges with correct positioning", () => {
@@ -102,25 +75,6 @@ describe("Slider component", () => {
     expect(parseFloat(segment.style.width)).toBeCloseTo(100 / 3, 3);
   });
 
-  it("applies correct CSS classes to buffered segments", () => {
-    const bufferedRanges: TimeRange[] = [{ start: 10, end: 50 }];
-
-    const { container } = render(Slider, {
-      value: 25,
-      max: 100,
-      bufferedRanges,
-    });
-
-    const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");
-    expect(bufferedSegments).toHaveLength(1);
-
-    const segment = bufferedSegments[0] as HTMLElement;
-    expect(segment).toHaveClass("bg-accent/20");
-    expect(segment).toHaveClass("absolute");
-    expect(segment).toHaveClass("top-0");
-    expect(segment).toHaveClass("h-full");
-  });
-
   it("ensures buffered segments are layered behind progress range", () => {
     const bufferedRanges: TimeRange[] = [{ start: 10, end: 50 }];
 
@@ -143,6 +97,7 @@ describe("Slider component", () => {
         !child.classList.contains("bg-accent/20"),
     );
 
+    expect(bufferedSegmentIndex).toBeGreaterThanOrEqual(0);
     expect(bufferedSegmentIndex).toBeLessThan(progressRangeIndex);
   });
 

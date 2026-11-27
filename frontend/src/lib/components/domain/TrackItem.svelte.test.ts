@@ -137,7 +137,12 @@ describe("TrackItem component", () => {
   });
 
   it("does not render progress slider when track is not selected", () => {
-    render(TrackItem, { track: mockTrack, index: 0, isSelected: false });
+    render(TrackItem, {
+      track: mockTrack,
+      index: 0,
+      isSelected: false,
+      bufferedRanges: [{ start: 10, end: 50 }],
+    });
 
     const progressSlider = screen.queryByTestId("track-progress-slider");
     expect(progressSlider).not.toBeInTheDocument();
@@ -296,23 +301,6 @@ describe("TrackItem component", () => {
   });
 
   describe("buffered ranges integration", () => {
-    it("should render buffered ranges when provided as props", () => {
-      const bufferedRanges: TimeRange[] = [{ start: 10, end: 50 }];
-
-      const { container } = render(TrackItem, {
-        track: mockTrack,
-        index: 0,
-        isSelected: true,
-        bufferedRanges,
-        duration: 180,
-        currentTime: 30,
-        isPlaying: false,
-      });
-
-      const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");
-      expect(bufferedSegments).toHaveLength(1);
-    });
-
     it("should pass buffered ranges to slider when isSelected and bufferedRanges prop is provided", () => {
       const bufferedRanges: TimeRange[] = [
         { start: 10, end: 50 },
@@ -333,73 +321,12 @@ describe("TrackItem component", () => {
       expect(bufferedSegments).toHaveLength(2);
     });
 
-    it("should not pass buffered ranges when isSelected is false", () => {
-      const bufferedRanges: TimeRange[] = [{ start: 10, end: 50 }];
-
-      const { container } = render(TrackItem, {
-        track: mockTrack,
-        index: 0,
-        isSelected: false,
-        bufferedRanges,
-        duration: 180,
-        currentTime: 30,
-        isPlaying: false,
-      });
-
-      const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");
-      expect(bufferedSegments).toHaveLength(0);
-    });
-
     it("should not show buffered ranges when bufferedRanges prop is undefined", () => {
       const { container } = render(TrackItem, {
         track: mockTrack,
         index: 0,
         isSelected: true,
         audioService: undefined,
-        duration: 180,
-        currentTime: 30,
-        isPlaying: false,
-      });
-
-      const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");
-      expect(bufferedSegments).toHaveLength(0);
-    });
-
-    it("should handle empty buffered ranges when isSelected", () => {
-      const { container } = render(TrackItem, {
-        track: mockTrack,
-        index: 0,
-        isSelected: true,
-        bufferedRanges: [],
-        duration: 180,
-        currentTime: 30,
-        isPlaying: false,
-      });
-
-      const bufferedSegments = container.querySelectorAll(".bg-accent\\/20");
-      expect(bufferedSegments).toHaveLength(0);
-    });
-
-    it("should render buffered ranges correctly", () => {
-      // Test with buffered ranges provided
-      const { container } = render(TrackItem, {
-        track: mockTrack,
-        index: 0,
-        isSelected: true,
-        bufferedRanges: [{ start: 0, end: 60 }],
-        duration: 180,
-        currentTime: 30,
-        isPlaying: false,
-      });
-
-      expect(container.querySelectorAll(".bg-accent\\/20")).toHaveLength(1);
-    });
-
-    it("should work when bufferedRanges prop is undefined", () => {
-      const { container } = render(TrackItem, {
-        track: mockTrack,
-        index: 0,
-        isSelected: true,
         duration: 180,
         currentTime: 30,
         isPlaying: false,

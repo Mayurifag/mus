@@ -179,7 +179,7 @@
     <div
       class="bg-muted/20 text-muted-foreground flex items-center gap-2 rounded-md p-3 text-sm"
     >
-      <Lock size={16} class="flex-shrink-0" data-testid="lock-icon" />
+      <Lock size={16} class="flex-shrink-0" />
       <span class="flex-1">
         Download not available - music directory is read-only
       </span>

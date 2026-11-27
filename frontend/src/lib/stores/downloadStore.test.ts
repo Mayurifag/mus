@@ -7,28 +7,6 @@ describe("downloadStore", () => {
     downloadStore.reset();
   });
 
-  it("should have initial state", () => {
-    const state = get(downloadStore);
-    expect(state).toEqual({
-      state: "idle",
-      error: null,
-      url: null,
-      title: null,
-      artist: null,
-      thumbnailUrl: null,
-      duration: null,
-      tags: [],
-      confirmation: null,
-    });
-  });
-
-  it("should start download", () => {
-    downloadStore.startDownload();
-    const state = get(downloadStore);
-    expect(state.state).toBe("downloading");
-    expect(state.error).toBeNull();
-  });
-
   it("should set completed state", () => {
     downloadStore.startDownload();
     downloadStore.setCompleted();
@@ -45,8 +23,17 @@ describe("downloadStore", () => {
     expect(state.error).toBe(errorMessage);
   });
 
-  it("should reset to initial state", () => {
-    downloadStore.startDownload();
+  it("clears metadata, confirmation, and errors on reset", () => {
+    const url = "https://example.com/video";
+    downloadStore.setFetchingMetadata(url);
+    downloadStore.setAwaitingReview({
+      title: "Song",
+      artist: "Artist",
+      thumbnailUrl: "https://example.com/t.jpg",
+      duration: 180,
+      tags: ["ai-cover"],
+    });
+    downloadStore.confirm(url);
     downloadStore.setFailed("Some error");
     downloadStore.reset();
     const state = get(downloadStore);
@@ -110,25 +97,5 @@ describe("downloadStore", () => {
     expect(state.thumbnailUrl).toBeNull();
     expect(state.duration).toBeNull();
     expect(state.tags).toEqual([]);
-  });
-
-  it("should reset clears all metadata fields", () => {
-    downloadStore.setFetchingMetadata("https://example.com/video");
-    downloadStore.setAwaitingReview({
-      title: "Song",
-      artist: "Artist",
-      thumbnailUrl: "https://example.com/t.jpg",
-      duration: 180,
-      tags: ["ai-cover"],
-    });
-    downloadStore.reset();
-    const state = get(downloadStore);
-    expect(state.url).toBeNull();
-    expect(state.title).toBeNull();
-    expect(state.artist).toBeNull();
-    expect(state.thumbnailUrl).toBeNull();
-    expect(state.duration).toBeNull();
-    expect(state.tags).toEqual([]);
-    expect(state.state).toBe("idle");
   });
 });

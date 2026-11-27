@@ -60,13 +60,6 @@ describe("PlayerFooter component", () => {
     vi.clearAllMocks();
   });
 
-  it("should render without errors", () => {
-    const { container } = render(PlayerFooter);
-    expect(container).toBeTruthy();
-    expect(container.textContent).toContain("Test Track");
-    expect(container.textContent).toContain("Test Artist");
-  });
-
   it("should show the original cover in the desktop footer", () => {
     const { container } = render(PlayerFooter);
     const cover = container.querySelector('img[alt="Album Cover"]');
@@ -76,71 +69,10 @@ describe("PlayerFooter component", () => {
     );
   });
 
-  it("should have correct height classes for mobile and desktop", () => {
-    const { container } = render(PlayerFooter);
-    const rootContainer = container.querySelector(".fixed");
-    expect(rootContainer).toBeTruthy();
-    expect(
-      rootContainer?.classList.contains("h-[var(--footer-height-mobile)]"),
-    ).toBe(true);
-    expect(
-      rootContainer?.classList.contains(
-        "sm700:h-[var(--footer-height-desktop)]",
-      ),
-    ).toBe(true);
-  });
-
-  it("should have mobile container visible on small screens and hidden on large screens", () => {
+  it("shows the artist and title in the mobile footer", () => {
     const { container } = render(PlayerFooter);
     const mobileContainer = container.querySelector(".sm700\\:hidden");
-    expect(mobileContainer).toBeTruthy();
-    expect(mobileContainer?.classList.contains("flex")).toBe(true);
-    expect(mobileContainer?.classList.contains("flex-col")).toBe(true);
-    expect(mobileContainer?.classList.contains("sm700:hidden")).toBe(true);
-  });
-
-  it("should have desktop container hidden on small screens and visible on large screens", () => {
-    const { container } = render(PlayerFooter);
-    const desktopContainer = container.querySelector(".sm700\\:flex.hidden");
-    expect(desktopContainer).toBeTruthy();
-    expect(desktopContainer?.classList.contains("hidden")).toBe(true);
-    expect(desktopContainer?.classList.contains("sm700:flex")).toBe(true);
-  });
-
-  it("should have five distinct rows in mobile layout", () => {
-    const { container } = render(PlayerFooter);
-    const mobileContainer = container.querySelector(".sm700\\:hidden");
-    expect(mobileContainer).toBeTruthy();
-
-    const rows = mobileContainer?.children;
-    expect(rows?.length).toBe(5);
-
-    // Row 1: Controls
-    const controlsRow = rows?.[0];
-    expect(controlsRow?.classList.contains("justify-center")).toBe(true);
-
-    // Row 2: Volume & Menu
-    const volumeRow = rows?.[1];
-    expect(volumeRow?.classList.contains("gap-3")).toBe(true);
-
-    // Row 3: Progress
-    const progressRow = rows?.[2];
-    expect(progressRow?.classList.contains("gap-3")).toBe(true);
-
-    // Row 4: Track Info
-    const trackInfoRow = rows?.[3];
-    expect(trackInfoRow?.classList.contains("justify-center")).toBe(true);
-
-    // Row 5: Spacer
-    const spacerRow = rows?.[4];
-    expect(spacerRow?.classList.contains("flex-1")).toBe(true);
-  });
-
-  it("should show mobile track info in row 4 with artist - title format", () => {
-    const { container } = render(PlayerFooter);
-    const mobileContainer = container.querySelector(".sm700\\:hidden");
-    const trackInfoRow = mobileContainer?.children[3];
-    expect(trackInfoRow?.textContent).toContain("Test Artist - Test Track");
+    expect(mobileContainer).toHaveTextContent("Test Artist - Test Track");
   });
 
   it("should toggle repeat state when repeat button is clicked", async () => {

@@ -445,15 +445,16 @@ async fn metadata_uses_local_artist_spellings_without_changing_the_library() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn stalled_metadata_extractor_has_an_eight_second_total_deadline() {
     let mut command = Command::new("sleep");
     command.arg("20");
-    let started = Instant::now();
-    let result = info::metadata_from_sources(None, command).await;
-    let elapsed = started.elapsed();
-    assert!(result.is_err());
-    assert!(elapsed >= Duration::from_millis(7900) && elapsed < Duration::from_secs(11));
+    let started = tokio::time::Instant::now();
+    let Err(error) = info::metadata_from_sources(None, command).await else {
+        panic!("stalled extractor returned metadata");
+    };
+    assert!(error.is::<tokio::time::error::Elapsed>());
+    assert_eq!(started.elapsed(), Duration::from_secs(8));
 }
 
 #[test]

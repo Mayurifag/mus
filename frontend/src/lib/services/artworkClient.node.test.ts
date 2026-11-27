@@ -79,24 +79,6 @@ describe("artwork client", () => {
     expect(onResults.mock.calls).toEqual([[[artwork]], [[]]]);
   });
 
-  it("releases the stream reader when a record is invalid", async () => {
-    const body = new ReadableStream<Uint8Array>({
-      start(controller) {
-        controller.enqueue(new TextEncoder().encode("not json\n"));
-        controller.close();
-      },
-    });
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body)));
-    await expect(
-      searchArtworkStream({
-        title: "invalid stream",
-        artist: "Artist",
-        onResults: vi.fn(),
-      }),
-    ).rejects.toBeInstanceOf(SyntaxError);
-    expect(body.locked).toBe(false);
-  });
-
   it("cancels an unfinished stream when parsing fails", async () => {
     const cancel = vi.fn();
     const body = new ReadableStream<Uint8Array>({

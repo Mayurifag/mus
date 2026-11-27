@@ -87,8 +87,10 @@ jobs:
               .dockerignore frontend/ backend/Cargo.toml backend/Cargo.lock backend/src/ \
               docker/production/production.Dockerfile docker/production/production.Dockerfile.dockerignore \
               docker/production/entrypoint.sh docker/yt-dlp.conf \
+              ':(exclude,glob)backend/src/**/tests.rs' ':(exclude,glob)backend/src/**/*_tests.rs' \
               ':(exclude,glob)frontend/**/*.md' ':(exclude,glob)frontend/**/*.markdown' \
-              ':(exclude,glob)frontend/src/**/*.test.ts' ':(exclude)frontend/vitest-setup-client.ts' \
+              ':(exclude,glob)frontend/src/**/*.test.[jt]s' ':(exclude,glob)frontend/src/**/*.spec.[jt]s' \
+              ':(exclude)frontend/vitest.config.ts' ':(exclude)frontend/vitest-setup-client.ts' \
               ':(exclude)frontend/eslint.config.js' ':(exclude,glob)frontend/.prettier*'; then
             echo "Application image inputs are unchanged since $released_sha"
             echo "publish=false" >> "$GITHUB_OUTPUT"

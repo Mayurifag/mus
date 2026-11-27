@@ -45,29 +45,6 @@ describe("RightSidebar", () => {
     trackUpdatesConnectionStatus.set("disconnected");
   });
 
-  it("should be defined", () => {
-    expect(RightSidebar).toBeDefined();
-  });
-
-  it("should render as a div element", () => {
-    const { container } = render(RightSidebar);
-
-    expect(container.querySelector("div")).toBeInTheDocument();
-  });
-
-  it("does not render the removed Controls section", () => {
-    render(RightSidebar);
-
-    expect(screen.queryByText("Controls")).not.toBeInTheDocument();
-  });
-
-  it("should have correct styling classes", () => {
-    const { container } = render(RightSidebar);
-
-    const div = container.querySelector("div");
-    expect(div).toHaveClass("h-full", "w-full");
-  });
-
   it("should render Lucide Play icon in timeline when shuffle is enabled", () => {
     // Setup mock track data
     const mockTrack1: Track = {

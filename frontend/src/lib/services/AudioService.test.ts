@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { get } from "svelte/store";
 import { AudioService } from "./AudioService";
 import type { Track } from "$lib/types";
 import { trackStore } from "$lib/stores/trackStore";
@@ -566,7 +567,7 @@ describe("AudioService", () => {
       });
     }
 
-    it("should convert TimeRanges to TimeRange array", () => {
+    it("publishes all buffered ranges on progress", () => {
       setMockBuffered({
         length: 2,
         start: (index: number) => (index === 0 ? 0 : 60),
@@ -581,30 +582,13 @@ describe("AudioService", () => {
 
       progressHandler();
 
-      const bufferedRanges = audioService.currentBufferedRanges;
-      expect(bufferedRanges).toHaveLength(2);
-      expect(bufferedRanges[0]).toEqual({ start: 0, end: 30 });
-      expect(bufferedRanges[1]).toEqual({ start: 60, end: 120 });
-    });
-
-    it("should update buffered ranges on progress event", () => {
-      setMockBuffered({
-        length: 1,
-        start: () => 10,
-        end: () => 50,
-      });
-
-      const addEventListenerMock =
-        mockAudio.addEventListener as unknown as ReturnType<typeof vi.fn>;
-      const progressHandler = addEventListenerMock.mock.calls.find(
-        (call: unknown[]) => call[0] === "progress",
-      )?.[1] as () => void;
-
-      progressHandler();
-
       expect(audioService.currentBufferedRanges).toEqual([
-        { start: 10, end: 50 },
+        { start: 0, end: 30 },
+        { start: 60, end: 120 },
       ]);
+      expect(get(audioService.currentBufferedRangesStore)).toEqual(
+        audioService.currentBufferedRanges,
+      );
     });
 
     it("should update buffered ranges on suspend event", () => {
@@ -645,12 +629,6 @@ describe("AudioService", () => {
 
       audioService.updateAudioSource({ ...mockTrack, id: "2" }, false);
       expect(audioService.currentBufferedRanges).toEqual([]);
-    });
-
-    it("should provide access to buffered ranges store", () => {
-      const store = audioService.currentBufferedRangesStore;
-      expect(store).toBeDefined();
-      expect(typeof store.subscribe).toBe("function");
     });
 
     it("should handle empty buffered ranges", () => {
