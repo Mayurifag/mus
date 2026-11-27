@@ -78,6 +78,7 @@ impl<'a> ScanIndex<'a> {
 /// `.cache`, and identical copies share one library entry.
 /// Exact moves keep the track ID. Ambiguous move chains are left alone while
 /// unrelated files continue to sync.
+/// Shutdown stops the scan between files without pruning unvisited paths.
 ///
 /// # Errors
 /// Returns directory, media, database, or worker failures with operation context.
@@ -97,6 +98,9 @@ impl<'a> ScanIndex<'a> {
 /// ```
 pub async fn scan_music_dir(state: AppState) -> Result<()> {
     let _guard = state.mutation_lock("scanner".into()).await;
+    if state.shutdown.is_cancelled() {
+        return Ok(());
+    }
     let mut current = HashSet::new();
     let mut pending = Vec::new();
     let tracks = db::scan_tracks(&state, None).await?;
@@ -106,6 +110,9 @@ pub async fn scan_music_dir(state: AppState) -> Result<()> {
     pin_mut!(paths);
     let mut found = 0usize;
     while let Some((path, metadata)) = paths.try_next().await? {
+        if state.shutdown.is_cancelled() {
+            return Ok(());
+        }
         found += 1;
         sync_discovered_path(
             &state,
@@ -128,6 +135,9 @@ async fn sync_changed_paths(state: AppState, mut paths: Vec<PathBuf>) -> Result<
         return Ok(());
     }
     let _guard = state.mutation_lock("scanner".into()).await;
+    if state.shutdown.is_cancelled() {
+        return Ok(());
+    }
     paths.sort();
     paths.dedup();
     let mut current = HashSet::new();
@@ -152,6 +162,9 @@ async fn sync_changed_paths(state: AppState, mut paths: Vec<PathBuf>) -> Result<
     }
     let existing = ScanIndex::new(&tracks);
     for (path, result) in paths.iter().zip(metadata) {
+        if state.shutdown.is_cancelled() {
+            return Ok(());
+        }
         let Some(metadata) = if_present(result)
             .with_context(|| format!("failed to inspect changed path {}", path.display()))?
         else {
@@ -161,6 +174,9 @@ async fn sync_changed_paths(state: AppState, mut paths: Vec<PathBuf>) -> Result<
             let paths = audio_paths_in_dir(path);
             pin_mut!(paths);
             while let Some((path, metadata)) = paths.try_next().await? {
+                if state.shutdown.is_cancelled() {
+                    return Ok(());
+                }
                 sync_discovered_path(
                     &state,
                     &existing,
@@ -198,6 +214,9 @@ async fn prune_missing_tracks(
     tracks: &[ScanTrack],
     should_check: impl Fn(&ScanTrack) -> bool,
 ) -> Result<()> {
+    if state.shutdown.is_cancelled() {
+        return Ok(());
+    }
     let root = &state.music_dir;
     let metadata = async_fs::metadata(root)
         .await
@@ -208,6 +227,9 @@ async fn prune_missing_tracks(
         root.display()
     );
     for track in tracks {
+        if state.shutdown.is_cancelled() {
+            break;
+        }
         if should_check(track) && !regular_audio_source(&track.file_path).await? {
             unregister_track(state, track).await?;
         }
@@ -349,6 +371,9 @@ async fn reconcile_changed_tracks(
         snapshot,
     } in ordered
     {
+        if state.shutdown.is_cancelled() {
+            return Ok(());
+        }
         if current.contains(&track.file_path) || snapshot.content_hash == track.id {
             continue;
         }
@@ -361,6 +386,9 @@ async fn reconcile_changed_tracks(
         snapshot,
     } in pending
     {
+        if state.shutdown.is_cancelled() {
+            return Ok(());
+        }
         if current.contains(&track.file_path) {
             continue;
         }

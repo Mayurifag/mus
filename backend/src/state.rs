@@ -6,6 +6,7 @@ use std::{
 
 use rusqlite::Connection;
 use tokio::sync::{broadcast, Mutex as AsyncMutex, OwnedMutexGuard, Semaphore};
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
 use crate::models::MusEvent;
 
@@ -37,6 +38,10 @@ pub struct AppState {
     pub commit_sha: Option<String>,
     /// Last successfully queried yt-dlp version, shared with the updater.
     pub yt_dlp_version: Arc<AsyncMutex<Option<String>>>,
+    /// Signal to stop watching, streaming events, and starting more media work.
+    pub shutdown: CancellationToken,
+    /// Background work to drain after the HTTP listener shuts down.
+    pub jobs: TaskTracker,
 }
 
 impl AppState {

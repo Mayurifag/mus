@@ -429,6 +429,60 @@ async fn lagged_event_streams_close_so_reconnection_can_refresh_the_library() {
 }
 
 #[tokio::test]
+async fn shutdown_closes_event_streams_and_drains_queued_edits() {
+    use std::time::Duration;
+
+    let app = TestApp::new();
+    let original = app.state.music_dir.join("original.mp3");
+    let destination = app.state.music_dir.join("Artist - Song.mp3");
+    fs::write(&original, b"original audio").unwrap();
+    app.insert_track(
+        TRACK_ID,
+        "Song",
+        "Artist",
+        original.to_str().unwrap(),
+        false,
+        "COMPLETE",
+    );
+    let guard = app.state.mutation_lock(format!("track:{TRACK_ID}")).await;
+    let response = app
+        .json(
+            Method::PATCH,
+            &format!("/api/v1/tracks/{TRACK_ID}"),
+            json!({"rename_file": true}),
+        )
+        .await;
+    assert_eq!(body_json(response).await, json!({"status": "queued"}));
+
+    let events = app
+        .request(Method::GET, "/api/v1/events/track-updates", Body::empty())
+        .await;
+    app.state.shutdown.cancel();
+    app.state.jobs.close();
+    let body = tokio::time::timeout(
+        Duration::from_secs(2),
+        to_bytes(events.into_body(), usize::MAX),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(body.is_empty());
+    assert_eq!(app.state.jobs.len(), 1);
+    drop(guard);
+
+    tokio::time::timeout(Duration::from_secs(5), app.state.jobs.wait())
+        .await
+        .unwrap();
+    assert!(!original.exists());
+    assert_eq!(fs::read(&destination).unwrap(), b"original audio");
+    let track = mus_backend::db::get_track(&app.state, TRACK_ID)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(std::path::Path::new(&track.file_path), destination);
+}
+
+#[tokio::test]
 async fn gzip_skips_event_streams_and_hls_audio() {
     let app = TestApp::new();
     let events = app.get_with_gzip("/api/v1/events/track-updates").await;

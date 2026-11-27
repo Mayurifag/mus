@@ -26,11 +26,11 @@ pub(super) async fn ensure_hls_cache(state: &AppState, id: &str, source: &Path) 
         return Ok(dir);
     }
 
-    generate_hls(id, source, &dir).await?;
+    generate_hls(state, id, source, &dir).await?;
     Ok(dir)
 }
 
-async fn generate_hls(id: &str, source: &Path, dir: &Path) -> Result<()> {
+async fn generate_hls(state: &AppState, id: &str, source: &Path, dir: &Path) -> Result<()> {
     let parent = dir
         .parent()
         .ok_or_else(|| anyhow!("invalid HLS cache path"))?;
@@ -78,7 +78,14 @@ async fn generate_hls(id: &str, source: &Path, dir: &Path) -> Result<()> {
         .stdout(Stdio::null());
 
     let result = async {
-        let output = run_command_output(command, Duration::from_secs(60 * 60 * 6)).await?;
+        let output = state
+            .shutdown
+            .run_until_cancelled(run_command_output(
+                command,
+                Duration::from_secs(60 * 60 * 6),
+            ))
+            .await
+            .context("HLS generation interrupted by shutdown")??;
         if !output.status.success() {
             return Err(anyhow!(ffmpeg_error_message(&output)));
         }

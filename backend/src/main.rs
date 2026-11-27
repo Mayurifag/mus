@@ -2,14 +2,16 @@
 
 use std::{
     collections::HashMap,
-    env, fs, io,
+    env, fs,
+    future::{Future, IntoFuture},
+    io,
     net::SocketAddr,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::Duration,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use mus_backend::{
     app::app,
     db::{backfill_cover_thumbhashes, init_db},
@@ -26,8 +28,22 @@ async fn main() -> Result<()> {
         .with_env_filter(env::var("LOG_LEVEL").unwrap_or_else(|_| "info".into()))
         .init();
 
-    let state = build_state().await?;
-    tokio::spawn({
+    let stop = shutdown_signal()?;
+    tokio::pin!(stop);
+    let state = tokio::select! {
+        biased;
+        () = &mut stop => return Ok(()),
+        result = build_state() => result?,
+    };
+    let port = env::var("PORT")
+        .ok()
+        .and_then(|v| v.parse::<u16>().ok())
+        .unwrap_or(8001);
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    let jobs = state.jobs.clone();
+    let shutdown = state.shutdown.clone();
+    jobs.spawn({
         let state = state.clone();
         async move {
             if let Err(error) = scan_music_dir(state.clone()).await {
@@ -35,15 +51,9 @@ async fn main() -> Result<()> {
             }
         }
     });
-    tokio::spawn(watch_music_dir(state.clone()));
-    let port = env::var("PORT")
-        .ok()
-        .and_then(|v| v.parse::<u16>().ok())
-        .unwrap_or(8001);
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    let listener = tokio::net::TcpListener::bind(addr).await?;
+    jobs.spawn(watch_music_dir(state.clone()));
     // Preview backfill must not delay startup or hold the API's connection lock.
-    tokio::task::spawn_blocking({
+    jobs.spawn_blocking({
         let database = state.data_dir.join(".cache/mus.db");
         let covers_dir = state.covers_dir.clone();
         move || {
@@ -56,8 +66,52 @@ async fn main() -> Result<()> {
         }
     });
     tracing::info!("listening on {addr}");
-    axum::serve(listener, app(state)).await?;
+    let server = axum::serve(listener, app(state))
+        .with_graceful_shutdown(shutdown.clone().cancelled_owned())
+        .into_future();
+    tokio::pin!(server);
+    tokio::select! {
+        result = &mut server => result?,
+        () = &mut stop => {
+            tracing::info!("shutting down");
+            shutdown.cancel();
+            // Leave time for the runtime to finish any blocking writes before
+            // Watchtower's 30-second stop timeout.
+            tokio::time::timeout(Duration::from_secs(25), async {
+                server.await?;
+                jobs.close();
+                jobs.wait().await;
+                Ok::<_, io::Error>(())
+            })
+            .await
+            .context("application shutdown timed out")??;
+        }
+    }
     Ok(())
+}
+
+#[cfg(unix)]
+fn shutdown_signal() -> io::Result<impl Future<Output = ()>> {
+    use tokio::signal::unix::{signal, SignalKind};
+
+    let mut terminate = signal(SignalKind::terminate())?;
+    let mut interrupt = signal(SignalKind::interrupt())?;
+    Ok(async move {
+        tokio::select! {
+            _ = terminate.recv() => {}
+            _ = interrupt.recv() => {}
+        }
+    })
+}
+
+#[cfg(not(unix))]
+fn shutdown_signal() -> io::Result<impl Future<Output = ()>> {
+    Ok(async {
+        if let Err(error) = tokio::signal::ctrl_c().await {
+            tracing::warn!(%error, "failed to listen for Ctrl+C");
+            std::future::pending::<()>().await;
+        }
+    })
 }
 
 async fn build_state() -> Result<AppState> {
@@ -109,6 +163,8 @@ async fn build_state() -> Result<AppState> {
                 .await
                 .ok(),
         )),
+        shutdown: Default::default(),
+        jobs: Default::default(),
     })
 }
 

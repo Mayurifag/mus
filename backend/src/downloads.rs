@@ -124,7 +124,7 @@ async fn spawn_download(
         .map_err(|_| AppError::too_many("Download already in progress"))?;
     let job = DownloadJob::new(&url);
     let span = job.span("download");
-    tokio::spawn(
+    state.jobs.clone().spawn(
         async move {
             let _permit = permit;
             broadcast(

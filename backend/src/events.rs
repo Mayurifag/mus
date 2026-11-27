@@ -14,9 +14,10 @@ pub async fn track_updates(
         receivers = state.events.receiver_count(),
         "sse track updates connected"
     );
+    let shutdown = state.shutdown;
     Sse::new(stream! {
-        loop {
-            match rx.recv().await {
+        while let Some(event) = shutdown.run_until_cancelled(rx.recv()).await {
+            match event {
                 Ok(event) => {
                     tracing::info!(action = event.action_key.as_deref().unwrap_or(""), "sse track update event sent");
                     yield Event::default().json_data(event);

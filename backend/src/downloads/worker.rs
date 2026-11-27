@@ -6,7 +6,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use tokio::{fs, process::Command};
 
 use super::{diagnostics::yt_dlp_output, publish};
@@ -96,7 +96,11 @@ pub(super) async fn run_download_inner(
         );
         result
     };
-    let (media_result, artwork_result) = tokio::join!(media, artwork);
+    let (media_result, artwork_result) = state
+        .shutdown
+        .run_until_cancelled(async { tokio::join!(media, artwork) })
+        .await
+        .context("download interrupted before publication")?;
     media_result?;
     let jpeg_path = artwork_result?;
     let directory = tmp.to_path_buf();

@@ -26,7 +26,7 @@ use crate::{files::is_audio_path, state::AppState};
 /// # }
 /// ```
 pub async fn watch_music_dir(state: AppState) {
-    let (tx, mut rx) = mpsc::channel(100);
+    let (tx, rx) = mpsc::channel(100);
     let music_dir = state.music_dir.clone();
     let watcher = tokio::task::spawn_blocking(move || {
         let mut watcher = music_watcher(tx)?;
@@ -46,7 +46,9 @@ pub async fn watch_music_dir(state: AppState) {
         }
     };
 
-    while let Some(event) = rx.recv().await {
+    // Drop the receiver before the watcher to unblock a callback waiting to send.
+    let mut rx = rx;
+    while let Some(Some(event)) = state.shutdown.run_until_cancelled(rx.recv()).await {
         let event = match event {
             Ok(event) => event,
             Err(error) => {
@@ -58,13 +60,25 @@ pub async fn watch_music_dir(state: AppState) {
             continue;
         }
         let mut paths = event.paths;
-        time::sleep(Duration::from_millis(500)).await;
-        while let Ok(event) = rx.try_recv() {
+        if state
+            .shutdown
+            .run_until_cancelled(time::sleep(Duration::from_millis(500)))
+            .await
+            .is_none()
+        {
+            break;
+        }
+        while !state.shutdown.is_cancelled()
+            && let Ok(event) = rx.try_recv()
+        {
             match event {
                 Ok(event) if should_sync_event(&event).await => paths.extend(event.paths),
                 Ok(_) => {}
                 Err(error) => tracing::warn!("failed to receive music directory event: {error}"),
             }
+        }
+        if state.shutdown.is_cancelled() {
+            break;
         }
         if let Err(error) = sync_changed_paths(state.clone(), paths).await {
             tracing::warn!("failed to sync music directory: {error}");

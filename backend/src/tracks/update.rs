@@ -47,7 +47,7 @@ pub async fn update_track(
     }
     let rename_file = plan.rename_file;
 
-    tokio::spawn(async move {
+    state.jobs.clone().spawn(async move {
         match apply_track_update(&state, &id, update).await {
             Ok(dto) => {
                 tracing::info!(track_id = dto.id, rename_file, "track updated");

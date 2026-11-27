@@ -61,7 +61,36 @@ class EntrypointTests(unittest.TestCase):
                             self.assertEqual((data / "mus.db").exists(), existing_cache)
                     finally:
                         process.terminate()
-                        process.wait(timeout=10)
+                        exit_code = process.wait(timeout=10)
+                    self.assertEqual(exit_code, 0)
+
+    def test_sigterm_interrupts_downloader_probe_during_startup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            probe = root / "yt-dlp"
+            started = root / "probe-started"
+            probe.write_text('#!/bin/sh\n: > "$PROBE_STARTED"\nexec sleep 60\n')
+            probe.chmod(0o755)
+            with subprocess.Popen(
+                ["/app/mus-backend"],
+                env={
+                    **os.environ,
+                    "DATA_DIR_PATH": str(root),
+                    "PATH": f"{root}:{os.environ['PATH']}",
+                    "PROBE_STARTED": str(started),
+                },
+            ) as process:
+                try:
+                    deadline = time.monotonic() + 5
+                    while not started.exists():
+                        if process.poll() is not None or time.monotonic() >= deadline:
+                            self.fail("Downloader version probe did not start")
+                        time.sleep(0.05)
+                    process.terminate()
+                    self.assertEqual(process.wait(timeout=3), 0)
+                finally:
+                    if process.poll() is None:
+                        process.kill()
 
     @staticmethod
     def create_database(path, value):
